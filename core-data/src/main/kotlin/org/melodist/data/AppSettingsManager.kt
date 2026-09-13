@@ -335,6 +335,9 @@ object AppSettingsManager {
                         deleteRecursively(file)
                     }
                 }
+                File(cacheDir, "covers").mkdirs()
+                File(cacheDir, "webdav").mkdirs()
+                File(cacheDir, "lyrics").mkdirs()
                 refreshCacheUsage()
                 true
             } catch (e: Exception) {
@@ -359,6 +362,10 @@ object AppSettingsManager {
                         deleteRecursively(file)
                     }
                 }
+                File(cacheDir, "covers").mkdirs()
+                File(cacheDir, "webdav").mkdirs()
+                File(cacheDir, "lyrics").mkdirs()
+                File(cacheDir, "matched_lyrics").mkdirs()
                 cleanStaleInstallers()
                 refreshCacheUsage()
                 true

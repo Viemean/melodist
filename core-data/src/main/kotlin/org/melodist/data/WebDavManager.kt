@@ -3,6 +3,7 @@ package org.melodist.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -24,6 +25,7 @@ object WebDavManager {
     private const val KEY_CONFIG = "config_json"
 
     private var prefs: SharedPreferences? = null
+    private var appContext: Context? = null
     private var cacheDir: File? = null
     private var coversDir: File? = null
     private var lyricsDir: File? = null
@@ -37,14 +39,38 @@ object WebDavManager {
     private var inMemoryConfig = WebDavConfig()
 
     fun init(context: Context) {
+        val appCtx = context.applicationContext
+        appContext = appCtx
         if (prefs == null) {
-            val appCtx = context.applicationContext
             prefs = appCtx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             cacheDir = File(appCtx.cacheDir, "webdav").apply { mkdirs() }
             coversDir = File(appCtx.cacheDir, "covers").apply { mkdirs() }
             lyricsDir = File(appCtx.cacheDir, "lyrics").apply { mkdirs() }
             loadConfig()
         }
+    }
+
+    fun getSafeCoversDir(): File {
+        val folder = coversDir ?: File(appContext?.cacheDir ?: File("/tmp"), "covers")
+        if (!folder.exists()) folder.mkdirs()
+        return folder
+    }
+
+    fun getSafeCacheDir(): File {
+        val folder = cacheDir ?: File(appContext?.cacheDir ?: File("/tmp"), "webdav")
+        if (!folder.exists()) folder.mkdirs()
+        return folder
+    }
+
+    fun getSafeLyricsDir(): File {
+        val folder = lyricsDir ?: File(appContext?.cacheDir ?: File("/tmp"), "lyrics")
+        if (!folder.exists()) folder.mkdirs()
+        return folder
+    }
+
+    private fun safeWriteBytes(file: File, bytes: ByteArray) {
+        file.parentFile?.mkdirs()
+        file.outputStream().use { it.write(bytes) }
     }
 
     private fun loadConfig() {
@@ -151,7 +177,7 @@ object WebDavManager {
         serverId: String,
         relativeHref: String,
     ): File {
-        val dir = cacheDir ?: File("/tmp/webdav").apply { mkdirs() }
+        val dir = getSafeCacheDir()
         val ext = relativeHref.substringAfterLast('.', "flac")
         val cleanName = (serverId + relativeHref).hashCode().toString().replace("-", "n")
         return File(dir, "$cleanName.$ext")
@@ -187,7 +213,7 @@ object WebDavManager {
             var updated = rawCache
             val ext = rawCache.href.substringAfterLast('.', "flac")
             val hash = (server.id + rawCache.href).hashCode().toString().replace("-", "n")
-            val tmpHdrFile = File(cacheDir ?: File("/tmp"), "hdr_$hash.$ext")
+            val tmpHdrFile = File(getSafeCacheDir(), "hdr_$hash.$ext")
 
             try {
                 // 1. 请求头部 256KB
@@ -203,7 +229,7 @@ object WebDavManager {
                     var coverPath = rawCache.coverPath
 
                     // 封面处理：若解析出内嵌封面数据则直接写入
-                    val coversFolder = coversDir ?: File("/tmp/covers").apply { mkdirs() }
+                    val coversFolder = getSafeCoversDir()
                     val targetPng = File(coversFolder, "webdav_$hash.png")
 
                     val parsedPicBytes = parsed.pictureBytes
@@ -211,7 +237,7 @@ object WebDavManager {
                     val parsedPicLen = parsed.pictureLength
 
                     if (parsedPicBytes != null && parsedPicBytes.size > 512) {
-                        targetPng.outputStream().use { it.write(parsedPicBytes) }
+                        safeWriteBytes(targetPng, parsedPicBytes)
                         coverPath = targetPng.absolutePath
                     } else if (parsedPicOffset != null &&
                         parsedPicLen != null &&
@@ -223,14 +249,14 @@ object WebDavManager {
                         val picEnd = picStart + parsedPicLen - 1
                         val picBytes = webDavService.fetchRangeBytes(server, rawCache.href, picStart, picEnd)
                         if (picBytes != null && picBytes.size > 512) {
-                            targetPng.outputStream().use { it.write(picBytes) }
+                            safeWriteBytes(targetPng, picBytes)
                             coverPath = targetPng.absolutePath
                         }
                     }
 
                     // 1.2 若纯字节未提取全（如非 FLAC/MP3 或无标签），降级使用 MediaMetadataRetriever 兜底提取
                     if (finalArtist.isBlank() || finalArtist == "WebDAV 音频" || coverPath.isNullOrBlank() || finalDur == 0) {
-                        tmpHdrFile.outputStream().use { it.write(headerBytes) }
+                        safeWriteBytes(tmpHdrFile, headerBytes)
                         val retriever = android.media.MediaMetadataRetriever()
                         try {
                             retriever.setDataSource(tmpHdrFile.absolutePath)
@@ -253,7 +279,7 @@ object WebDavManager {
                             if (coverPath.isNullOrBlank()) {
                                 val picBytes = retriever.embeddedPicture
                                 if (picBytes != null && picBytes.size > 512) {
-                                    targetPng.outputStream().use { it.write(picBytes) }
+                                    safeWriteBytes(targetPng, picBytes)
                                     coverPath = targetPng.absolutePath
                                 }
                             }
@@ -507,8 +533,8 @@ object WebDavManager {
                 getActiveServer()
             } ?: return
 
-        val serverFolder = coversDir
-        if (serverFolder != null && serverFolder.exists()) {
+        val serverFolder = getSafeCoversDir()
+        if (serverFolder.exists()) {
             val prefix = "webdav_${targetServer.id}_"
             serverFolder.listFiles()?.filter { it.name.startsWith(prefix) }?.forEach { it.delete() }
         }
@@ -521,7 +547,7 @@ object WebDavManager {
      * 获取指定歌曲的本地封面文件路径（若存在则返回 file:// 协议 URI，否则返回 null）
      */
     fun getSongCoverPath(serverId: String, href: String): String? {
-        val folder = coversDir ?: return null
+        val folder = getSafeCoversDir()
         val hash = (serverId + href).hashCode().toString().replace("-", "n")
         val png = File(folder, "webdav_$hash.png")
         if (png.exists() && png.length() > 0L) return "file://${png.absolutePath}"
@@ -547,7 +573,7 @@ object WebDavManager {
             if (relativeHref.isBlank()) return@withContext WebDavPlaybackMetadata()
 
             val existingCover = getSongCoverPath(server.id, relativeHref)
-            val folder = coversDir ?: File("/tmp/covers").apply { mkdirs() }
+            val folder = getSafeCoversDir()
             val hash = (server.id + relativeHref).hashCode().toString().replace("-", "n")
             val targetPng = File(folder, "webdav_$hash.png")
             var finalCoverUrl = existingCover
@@ -562,7 +588,7 @@ object WebDavManager {
                     if (finalCoverUrl.isNullOrBlank()) {
                         val picBytes = retriever.embeddedPicture
                         if (picBytes != null && picBytes.size > 512) {
-                            targetPng.outputStream().use { it.write(picBytes) }
+                            safeWriteBytes(targetPng, picBytes)
                             finalCoverUrl = "file://${targetPng.absolutePath}"
                         }
                     }
@@ -583,7 +609,7 @@ object WebDavManager {
 
             // 2. 线上流式播放场景：拉取头部 512KB
             val ext = relativeHref.substringAfterLast('.', "flac")
-            val tmpHdrFile = File(cacheDir ?: File("/tmp"), "hdr_play_$hash.$ext")
+            val tmpHdrFile = File(getSafeCacheDir(), "hdr_play_$hash.$ext")
             try {
                 val headerBytes = webDavService.fetchRangeBytes(server, relativeHref, 0L, 524287L)
                 if (headerBytes != null && headerBytes.isNotEmpty()) {
@@ -596,7 +622,7 @@ object WebDavManager {
                         val parsedPicLen = parsed.pictureLength
 
                         if (parsedPicBytes != null && parsedPicBytes.size > 512) {
-                            targetPng.outputStream().use { it.write(parsedPicBytes) }
+                            safeWriteBytes(targetPng, parsedPicBytes)
                             finalCoverUrl = "file://${targetPng.absolutePath}"
                         } else if (parsedPicOffset != null &&
                             parsedPicLen != null &&
@@ -605,7 +631,7 @@ object WebDavManager {
                         ) {
                             val picBytes = webDavService.fetchRangeBytes(server, relativeHref, parsedPicOffset, parsedPicOffset + parsedPicLen - 1)
                             if (picBytes != null && picBytes.size > 512) {
-                                targetPng.outputStream().use { it.write(picBytes) }
+                                safeWriteBytes(targetPng, picBytes)
                                 finalCoverUrl = "file://${targetPng.absolutePath}"
                             }
                         }
@@ -613,14 +639,14 @@ object WebDavManager {
 
                     // 兜底使用 MediaMetadataRetriever
                     if (finalCoverUrl.isNullOrBlank() || finalTier == null) {
-                        tmpHdrFile.outputStream().use { it.write(headerBytes) }
+                        safeWriteBytes(tmpHdrFile, headerBytes)
                         val retriever = android.media.MediaMetadataRetriever()
                         try {
                             retriever.setDataSource(tmpHdrFile.absolutePath)
                             if (finalCoverUrl.isNullOrBlank()) {
                                 val picBytes = retriever.embeddedPicture
                                 if (picBytes != null && picBytes.size > 512) {
-                                    targetPng.outputStream().use { it.write(picBytes) }
+                                    safeWriteBytes(targetPng, picBytes)
                                     finalCoverUrl = "file://${targetPng.absolutePath}"
                                 }
                             }
@@ -640,7 +666,8 @@ object WebDavManager {
                         }
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("WebDavManager", "Failed to extract metadata for WebDAV song: ${song.name}", e)
             } finally {
                 if (tmpHdrFile.exists()) tmpHdrFile.delete()
             }
@@ -651,10 +678,11 @@ object WebDavManager {
                     val parentFolder = relativeHref.substringBeforeLast('/', "")
                     val folderCoverBytes = webDavService.fetchRemoteCover(server, parentFolder)
                     if (folderCoverBytes != null && folderCoverBytes.size > 512) {
-                        targetPng.outputStream().use { it.write(folderCoverBytes) }
+                        safeWriteBytes(targetPng, folderCoverBytes)
                         finalCoverUrl = "file://${targetPng.absolutePath}"
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w("WebDavManager", "Failed to fetch remote cover for folder: $relativeHref", e)
                 }
             }
 

@@ -47,12 +47,21 @@ object LocalLyricAutoMatcher {
     private val acrClient = AcousticRecognizeClient()
     private val apiService = MusicApiService()
 
+    private var appContext: Context? = null
     private var cacheDir: File? = null
 
     fun init(context: Context) {
+        val appCtx = context.applicationContext
+        appContext = appCtx
         if (cacheDir == null) {
-            cacheDir = File(context.applicationContext.cacheDir, "matched_lyrics").apply { mkdirs() }
+            cacheDir = File(appCtx.cacheDir, "matched_lyrics").apply { mkdirs() }
         }
+    }
+
+    private fun getSafeCacheDir(): File? {
+        val dir = cacheDir ?: appContext?.cacheDir?.let { File(it, "matched_lyrics") } ?: return null
+        if (!dir.exists()) dir.mkdirs()
+        return dir
     }
 
     /**
@@ -189,7 +198,7 @@ object LocalLyricAutoMatcher {
     }
 
     private fun readFromPrivateCache(cacheKey: String): List<LyricLine>? {
-        val dir = cacheDir ?: return null
+        val dir = getSafeCacheDir() ?: return null
         val file = File(dir, "$cacheKey.json")
         if (!file.exists() || !file.canRead()) return null
 
@@ -210,9 +219,10 @@ object LocalLyricAutoMatcher {
         artist: String,
         lyrics: List<LyricLine>,
     ) {
-        val dir = cacheDir ?: return
+        val dir = getSafeCacheDir() ?: return
         try {
             val file = File(dir, "$cacheKey.json")
+            file.parentFile?.mkdirs()
             val cached =
                 CachedMatchedLyric(
                     songMid = songMid,

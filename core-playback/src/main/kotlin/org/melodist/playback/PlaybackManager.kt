@@ -555,14 +555,25 @@ object PlaybackManager {
     ) {
         playJob?.cancel()
         var effectiveSong = song
-        if (effectiveSong.coverUrl.isBlank() && effectiveSong.songMid.startsWith("webdav_")) {
-            val server = org.melodist.data.WebDavManager.getActiveServer()
-            val relativeHref = effectiveSong.mediaMid.ifBlank { effectiveSong.localFilePath ?: "" }
-            if (server != null && relativeHref.isNotBlank()) {
-                val cachedCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
-                if (!cachedCover.isNullOrBlank()) {
-                    effectiveSong = effectiveSong.copy(coverUrl = cachedCover)
+        val coverFile =
+            if (effectiveSong.coverUrl.startsWith("file://")) {
+                java.io.File(effectiveSong.coverUrl.removePrefix("file://").substringBefore('?'))
+            } else {
+                null
+            }
+        val isCoverInvalid = coverFile != null && (!coverFile.exists() || coverFile.length() == 0L)
+        if (effectiveSong.coverUrl.isBlank() || isCoverInvalid) {
+            if (effectiveSong.songMid.startsWith("webdav_")) {
+                val server = org.melodist.data.WebDavManager.getActiveServer()
+                val relativeHref = effectiveSong.mediaMid.ifBlank { effectiveSong.localFilePath ?: "" }
+                if (server != null && relativeHref.isNotBlank()) {
+                    val cachedCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
+                    effectiveSong = effectiveSong.copy(coverUrl = cachedCover.orEmpty())
+                } else {
+                    effectiveSong = effectiveSong.copy(coverUrl = "")
                 }
+            } else if (isCoverInvalid) {
+                effectiveSong = effectiveSong.copy(coverUrl = "")
             }
         }
         _currentSong.value = effectiveSong
@@ -786,19 +797,42 @@ object PlaybackManager {
                         try {
                             if (server != null) {
                                 val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, song)
-                                if (_currentSong.value?.songId == song.songId) {
-                                    val newCover = if (_currentSong.value?.coverUrl.isNullOrBlank()) meta.coverUrl else null
+                                if (_currentSong.value?.songMid == song.songMid) {
+                                    val currentCover = _currentSong.value?.coverUrl.orEmpty()
+                                    val currentCoverFile =
+                                        if (currentCover.startsWith("file://")) {
+                                            java.io.File(currentCover.removePrefix("file://").substringBefore('?'))
+                                        } else {
+                                            null
+                                        }
+                                    val isCurrentCoverMissing =
+                                        currentCover.isBlank() || (currentCoverFile != null && (!currentCoverFile.exists() || currentCoverFile.length() == 0L))
+                                    val effectiveNewCover =
+                                        if (isCurrentCoverMissing && !meta.coverUrl.isNullOrBlank()) {
+                                            meta.coverUrl
+                                        } else if (!meta.coverUrl.isNullOrBlank() && currentCover.startsWith("file://")) {
+                                            meta.coverUrl
+                                        } else {
+                                            null
+                                        }
                                     val newTier = meta.inferredTier
-                                    if (!newCover.isNullOrBlank() || newTier != null) {
+                                    if (!effectiveNewCover.isNullOrBlank() || newTier != null) {
+                                        val versionedCover =
+                                            if (!effectiveNewCover.isNullOrBlank()) {
+                                                val clean = effectiveNewCover.substringBefore('?')
+                                                "$clean?t=${System.currentTimeMillis()}"
+                                            } else {
+                                                _currentSong.value?.coverUrl.orEmpty()
+                                            }
                                         Log.i(
                                             "MelodistPlayback",
-                                            "Loaded WebDAV metadata: cover=$newCover, tier=$newTier for ${song.name}",
+                                            "Loaded WebDAV metadata: cover=$versionedCover, tier=$newTier for ${song.name}",
                                         )
                                         withContext(Dispatchers.Main) {
-                                            if (_currentSong.value?.songId == song.songId) {
+                                            if (_currentSong.value?.songMid == song.songMid) {
                                                 val updated =
                                                     _currentSong.value?.copy(
-                                                        coverUrl = newCover ?: _currentSong.value?.coverUrl.orEmpty(),
+                                                        coverUrl = versionedCover,
                                                         currentTier = newTier ?: _currentSong.value?.currentTier ?: AudioQualityTier.SQ,
                                                     )
                                                 _currentSong.value = updated
@@ -807,7 +841,7 @@ object PlaybackManager {
                                                 }
                                                 if (updated != null) {
                                                     val currentList = _playlist.value
-                                                    val idx = currentList.indexOfFirst { it.songId == song.songId }
+                                                    val idx = currentList.indexOfFirst { it.songMid == song.songMid }
                                                     if (idx >= 0) {
                                                         val mutable = currentList.toMutableList()
                                                         mutable[idx] = updated

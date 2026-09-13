@@ -19,20 +19,26 @@ data class WebDavSongCache(
 ) {
     fun toSong(): Song {
         val hash = (serverId + href).hashCode().toString().replace("-", "n")
+        val validCoverUrl =
+            if (!coverPath.isNullOrBlank()) {
+                val f = java.io.File(coverPath)
+                if (f.exists() && f.length() > 0L) {
+                    if (coverPath.startsWith("/")) "file://$coverPath" else coverPath
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            }
         return Song(
-            songId = hash.take(8).toLongOrNull(16) ?: 900000L,
+            songId = (serverId + href).hashCode().toLong() and 0x7FFFFFFFL,
             songMid = "webdav_${serverId}_$hash",
             name = title.ifBlank { "未知歌曲" },
             singer = artist.ifBlank { "未知歌手" },
             album = album.ifBlank { "WebDAV 专辑" },
             durationSeconds = duration,
             currentTier = AudioQualityTier.SQ,
-            coverUrl =
-                if (!coverPath.isNullOrBlank()) {
-                    if (coverPath.startsWith("/")) "file://$coverPath" else coverPath
-                } else {
-                    ""
-                },
+            coverUrl = validCoverUrl,
             localFilePath = localCachedPath,
             mediaMid = href,
         )
@@ -55,14 +61,26 @@ data class WebDavItem(
         coverUrl: String? = null,
     ): Song {
         val hash = (serverId + href).hashCode().toString().replace("-", "n")
+        val validCoverUrl =
+            if (!coverUrl.isNullOrBlank()) {
+                val cleanPath = coverUrl.removePrefix("file://")
+                if (coverUrl.startsWith("file://") || coverUrl.startsWith("/")) {
+                    val f = java.io.File(cleanPath)
+                    if (f.exists() && f.length() > 0L) coverUrl else ""
+                } else {
+                    coverUrl
+                }
+            } else {
+                ""
+            }
         return Song(
-            songId = hash.take(8).toLongOrNull(16) ?: 900000L,
+            songId = (serverId + href).hashCode().toLong() and 0x7FFFFFFFL,
             songMid = "webdav_${serverId}_$hash",
             name = title.ifBlank { name },
             singer = artist.ifBlank { "未知歌手" },
             album = "WebDAV 云盘",
             currentTier = AudioQualityTier.SQ,
-            coverUrl = coverUrl.orEmpty(),
+            coverUrl = validCoverUrl,
             localFilePath = localPath,
             mediaMid = href,
         )
