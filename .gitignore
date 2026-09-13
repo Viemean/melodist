@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+*/build
+.cxx
+*.apk
+*.aab
+*.jks*
+*.keystore*
+*.bak
+.tmp/
+scripts/
+/push.sh
