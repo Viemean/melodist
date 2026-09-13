@@ -83,9 +83,9 @@ fun TopNavBar(
                     ),
                 colors =
                     ButtonDefaults.colors(
-                        containerColor = if (isSelected) Color.White.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.05f),
+                        containerColor = if (isSelected) Color.White.copy(alpha = 0.24f) else Color.White.copy(alpha = 0.14f),
                         focusedContainerColor = Color.White,
-                        contentColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.65f),
+                        contentColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.88f),
                         focusedContentColor = Color.Black,
                     ),
                 border =
@@ -94,9 +94,9 @@ fun TopNavBar(
                             Border(
                                 border =
                                     if (isSelected) {
-                                        BorderStroke(1.dp, Color.White.copy(alpha = 0.32f))
+                                        BorderStroke(1.dp, Color.White.copy(alpha = 0.38f))
                                     } else {
-                                        BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                        BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                                     },
                                 shape = MelodistShapes.PillCorner,
                             ),
