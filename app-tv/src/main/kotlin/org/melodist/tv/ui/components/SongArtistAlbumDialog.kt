@@ -33,6 +33,8 @@ import org.melodist.model.Artist
 import org.melodist.model.Song
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
+import org.melodist.tv.ui.theme.rememberMonetSurfaceColor
+import org.melodist.tv.ui.theme.toMonetContainer
 
 /**
  * 通用曲目关联歌手与专辑操作面板（长按或播放页呼出）
@@ -74,15 +76,26 @@ fun SongArtistAlbumDialog(
         return elapsed >= 500L
     }
 
+    val monetSurfaceColor = rememberMonetSurfaceColor(song.coverUrl)
+    val dialogBackgroundColor =
+        remember(monetSurfaceColor) {
+            monetSurfaceColor.toMonetContainer(elevation = 0.08f).copy(alpha = 0.95f)
+        }
+
     Dialog(onDismissRequest = onDismissRequest) {
+        val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.setDimAmount(0.28f)
+        }
+
         Box(
             modifier =
                 Modifier
-                    .width(620.dp)
+                    .width(680.dp)
                     .wrapContentHeight()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF161A24).copy(alpha = 0.96f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                    .clip(MelodistShapes.DialogCorner)
+                    .background(dialogBackgroundColor)
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), MelodistShapes.DialogCorner)
                     .onPreviewKeyEvent { event ->
                         val elapsed = System.currentTimeMillis() - dialogOpenTime
                         if (elapsed < 500L) {
@@ -96,29 +109,21 @@ fun SongArtistAlbumDialog(
                             }
                         }
                         false
-                    }.padding(28.dp),
+                    }.padding(horizontal = 28.dp, vertical = 24.dp),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 // 头部曲目标题
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "查看歌手与专辑",
-                        fontSize = 14.sp,
-                        color = MelodistColors.FocusTeal,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = song.name.ifBlank { "曲目详情" },
-                        fontSize = 20.sp,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Text(
+                    text = song.name.ifBlank { "曲目详情" },
+                    fontSize = 22.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
 
                 // 卡片横向滚动流（歌手卡片组 + 专辑卡片）
                 LazyRow(
@@ -214,28 +219,22 @@ private fun ArtistActionCard(
             }
         }
 
-    val animatedBorderColor by animateColorAsState(
-        targetValue = if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.12f),
-        animationSpec = tween(200),
-        label = "ArtistCardBorder",
-    )
-
     Card(
         onClick = onClick,
         modifier =
             modifier
-                .width(140.dp)
-                .height(170.dp)
+                .width(160.dp)
+                .height(196.dp)
                 .onFocusChanged { isFocused = it.isFocused },
         shape = CardDefaults.shape(MelodistShapes.CardCorner),
         colors =
             CardDefaults.colors(
-                containerColor = Color.White.copy(alpha = 0.05f),
-                focusedContainerColor = Color.White.copy(alpha = 0.15f),
+                containerColor = Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = Color.White,
             ),
         border =
             CardDefaults.border(
-                border = Border(border = BorderStroke(1.dp, animatedBorderColor), shape = MelodistShapes.CardCorner),
+                border = Border(border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)), shape = MelodistShapes.CardCorner),
                 focusedBorder = Border(border = BorderStroke(2.5.dp, MelodistColors.FocusTeal), shape = MelodistShapes.CardCorner),
             ),
         scale = CardDefaults.scale(focusedScale = 1.06f),
@@ -244,18 +243,22 @@ private fun ArtistActionCard(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // 圆形头像（带文字徽章兜底）
+            // 圆形头像（带文字徽章兜底，内层移除绿色高亮边框）
             Box(
                 modifier =
                     Modifier
-                        .size(80.dp)
+                        .size(100.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.5.dp, if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.25f), CircleShape),
+                        .border(
+                            1.dp,
+                            if (isFocused) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.22f),
+                            CircleShape,
+                        ),
                 contentAlignment = Alignment.Center,
             ) {
                 if (avatarUrl.isNotBlank() || resolvedMid.isNotBlank()) {
@@ -269,9 +272,9 @@ private fun ArtistActionCard(
                 } else {
                     Text(
                         text = artist.name.take(1).uppercase(),
-                        fontSize = 28.sp,
+                        fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = if (isFocused) Color.Black else Color.White,
                     )
                 }
             }
@@ -280,9 +283,9 @@ private fun ArtistActionCard(
 
             Text(
                 text = artist.name,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                color = if (isFocused) Color.Black else Color.White,
+                fontSize = 15.sp,
+                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -290,8 +293,8 @@ private fun ArtistActionCard(
 
             Text(
                 text = "歌手",
-                color = Color.White.copy(alpha = 0.70f),
-                fontSize = 11.sp,
+                color = if (isFocused) Color.DarkGray else Color.White.copy(alpha = 0.70f),
+                fontSize = 12.sp,
                 textAlign = TextAlign.Center,
             )
         }
@@ -314,28 +317,22 @@ private fun AlbumActionCard(
             if (albumMid.isNotBlank()) MusicApiService.getAlbumCoverUrl(albumMid) else coverUrl
         }
 
-    val animatedBorderColor by animateColorAsState(
-        targetValue = if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.12f),
-        animationSpec = tween(200),
-        label = "AlbumCardBorder",
-    )
-
     Card(
         onClick = onClick,
         modifier =
             modifier
-                .width(140.dp)
-                .height(170.dp)
+                .width(160.dp)
+                .height(196.dp)
                 .onFocusChanged { isFocused = it.isFocused },
         shape = CardDefaults.shape(MelodistShapes.CardCorner),
         colors =
             CardDefaults.colors(
-                containerColor = Color.White.copy(alpha = 0.05f),
-                focusedContainerColor = Color.White.copy(alpha = 0.15f),
+                containerColor = Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = Color.White,
             ),
         border =
             CardDefaults.border(
-                border = Border(border = BorderStroke(1.dp, animatedBorderColor), shape = MelodistShapes.CardCorner),
+                border = Border(border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)), shape = MelodistShapes.CardCorner),
                 focusedBorder = Border(border = BorderStroke(2.5.dp, MelodistColors.FocusTeal), shape = MelodistShapes.CardCorner),
             ),
         scale = CardDefaults.scale(focusedScale = 1.06f),
@@ -344,20 +341,20 @@ private fun AlbumActionCard(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // 方形圆角封面
+            // 方形圆角封面（内层移除绿色高亮边框）
             Box(
                 modifier =
                     Modifier
-                        .size(80.dp)
+                        .size(100.dp)
                         .clip(MelodistShapes.CardCorner)
                         .background(Color.White.copy(alpha = 0.08f))
                         .border(
-                            1.5.dp,
-                            if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.25f),
+                            1.dp,
+                            if (isFocused) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.22f),
                             MelodistShapes.CardCorner,
                         ),
                 contentAlignment = Alignment.Center,
@@ -373,9 +370,9 @@ private fun AlbumActionCard(
                 } else {
                     Text(
                         text = albumTitle.take(1).uppercase(),
-                        fontSize = 28.sp,
+                        fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = if (isFocused) Color.Black else Color.White,
                     )
                 }
             }
@@ -384,9 +381,9 @@ private fun AlbumActionCard(
 
             Text(
                 text = albumTitle,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                color = if (isFocused) Color.Black else Color.White,
+                fontSize = 15.sp,
+                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -394,8 +391,8 @@ private fun AlbumActionCard(
 
             Text(
                 text = "专辑",
-                color = Color.White.copy(alpha = 0.70f),
-                fontSize = 11.sp,
+                color = if (isFocused) Color.DarkGray else Color.White.copy(alpha = 0.70f),
+                fontSize = 12.sp,
                 textAlign = TextAlign.Center,
             )
         }
