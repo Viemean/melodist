@@ -93,19 +93,27 @@ object LyricParser {
             val isMeta = isMetaInfoLine(orig.first, orig.second)
 
             if (!isMeta && transItems.isNotEmpty()) {
-                // 1. 精确匹配 (< 80ms)
-                val exact = transItems.find { abs(it.first - orig.first) < 80 }
-                if (exact != null &&
-                    exact !in usedSet &&
-                    exact.second != "//" &&
-                    !exact.second.contains("享有") &&
-                    !exact.second.contains("大模型")
-                ) {
-                    transText = exact.second
-                    usedSet.add(exact)
+                // 1. 精确匹配 (< 120ms)
+                val exact = transItems.find { abs(it.first - orig.first) < 120 }
+                if (exact != null) {
+                    if (exact.second != "//" &&
+                        !exact.second.contains("享有") &&
+                        !exact.second.contains("大模型") &&
+                        !exact.second.contains("翻译贡献")
+                    ) {
+                        transText = exact.second
+                        usedSet.add(exact)
+                    }
+                    // 精确匹配到占位符 "//" 时明确该行无翻译，不应被后续容差候选覆盖
                 } else if (cleanTrans.isNotEmpty()) {
-                    // 2. 800ms 容差候选，兼容轴偏差
-                    val candidates = cleanTrans.filter { it !in usedSet && abs(it.first - orig.first) <= 800 }
+                    // 2. 容差候选匹配 (<= 600ms)：
+                    // 必须满足候选翻译行最匹配的是当前 orig，而不是后续更接近的 orig
+                    val candidates = cleanTrans.filter { cand ->
+                        cand !in usedSet && abs(cand.first - orig.first) <= 600 &&
+                            !origItems.drop(i + 1).any { nextOrig ->
+                                abs(cand.first - nextOrig.first) < abs(cand.first - orig.first)
+                            }
+                    }
                     if (candidates.isNotEmpty()) {
                         val best = candidates.minByOrNull { abs(it.first - orig.first) }!!
                         transText = best.second
@@ -170,33 +178,37 @@ object LyricParser {
     ): Boolean {
         if (text.isBlank()) return true
         val t = text.trim()
-        if (timestampMs <= 50 && t.contains(" - ")) return true
 
         val metaPrefixes =
             listOf(
-                "词：",
-                "词:",
-                "作词：",
-                "作词:",
-                "曲：",
-                "曲:",
-                "作曲：",
-                "作曲:",
-                "编曲：",
-                "编曲:",
-                "制作：",
-                "制作:",
-                "制作人：",
-                "制作人:",
-                "监制：",
-                "混音：",
-                "录音：",
-                "母带：",
-                "出品：",
-                "企划：",
-                "OP：",
-                "SP：",
+                "词：", "词:", "作词：", "作词:",
+                "曲：", "曲:", "作曲：", "作曲:",
+                "编曲：", "编曲:",
+                "制作：", "制作:", "制作人：", "制作人:",
+                "监制：", "监制:",
+                "混音：", "混音:",
+                "录音：", "录音:",
+                "母带：", "母带:",
+                "出品：", "出品:",
+                "企划：", "企划:",
+                "歌手：", "歌手:",
+                "演唱：", "演唱:",
+                "原唱：", "原唱:",
+                "专辑：", "专辑:",
+                "歌名：", "歌名:",
+                "歌曲：", "歌曲:",
+                "OP：", "OP:",
+                "SP：", "SP:",
+                "ti:", "ar:", "al:", "by:", "offset:",
             )
-        return metaPrefixes.any { t.startsWith(it) }
+        if (metaPrefixes.any { t.startsWith(it, ignoreCase = true) }) return true
+
+        // 前奏前 6 秒内的曲目-歌手标题行识别 (支持半角 -, 全角 －, 破折号 —, –, /)
+        if (timestampMs <= 6000) {
+            val titleSeparators = listOf(" - ", " － ", " — ", " – ", " / ")
+            if (titleSeparators.any { t.contains(it) }) return true
+        }
+
+        return false
     }
 }
