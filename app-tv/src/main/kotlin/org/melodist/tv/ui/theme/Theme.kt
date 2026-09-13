@@ -37,7 +37,7 @@ private val DarkColorPalette =
  */
 object MonetColorExtractor {
     private val colorCache = mutableMapOf<String, Color>()
-    val DefaultSurfaceColor = Color(0xFF182538) // 默认深海明澈暗色 (明度 ~22%)
+    val DefaultSurfaceColor = Color(0xFF101926) // 默认暗色 (明度 ~15%)
 
     fun getCachedColor(url: String?): Color? {
         if (url.isNullOrBlank()) return null
@@ -107,10 +107,10 @@ object MonetColorExtractor {
         avgHue: Float,
         rawSat: Float,
     ): Color {
-        // 饱和度温和收敛：系数 0.95，收敛在 0.30f..0.46f，防止强烈颜色专辑产生刺眼大纯色
+        // 饱和度收敛在 0.30f..0.46f，避免强烈色彩刺眼
         val targetSat = (rawSat * 0.95f).coerceIn(0.30f, 0.46f)
-        // 限制明度为 0.32f
-        val targetVal = 0.32f
+        // 限制明度为 0.18f，保持深色背景氛围
+        val targetVal = 0.18f
         val targetHsv = floatArrayOf(avgHue, targetSat, targetVal)
         val argb = android.graphics.Color.HSVToColor(targetHsv)
         return Color(argb)
