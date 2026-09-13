@@ -52,6 +52,7 @@ data class WebDavItem(
         title: String,
         artist: String,
         localPath: String? = null,
+        coverUrl: String? = null,
     ): Song {
         val hash = (serverId + href).hashCode().toString().replace("-", "n")
         return Song(
@@ -61,6 +62,7 @@ data class WebDavItem(
             singer = artist.ifBlank { "未知歌手" },
             album = "WebDAV 云盘",
             currentTier = AudioQualityTier.SQ,
+            coverUrl = coverUrl.orEmpty(),
             localFilePath = localPath,
             mediaMid = href,
         )

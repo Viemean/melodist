@@ -488,7 +488,15 @@ object WebDavManager {
                 getActiveServer()
             } ?: return emptyList()
 
-        return targetServer.cachedSongs.map { it.toSong() }
+        return targetServer.cachedSongs.map { cache ->
+            val s = cache.toSong()
+            if (s.coverUrl.isBlank()) {
+                val existing = getSongCoverPath(targetServer.id, cache.href)
+                if (!existing.isNullOrBlank()) s.copy(coverUrl = existing) else s
+            } else {
+                s
+            }
+        }
     }
 
     fun clearCachedSongs(serverId: String? = null) {
@@ -508,4 +516,156 @@ object WebDavManager {
         val updated = targetServer.copy(cachedSongs = emptyList())
         saveServer(updated)
     }
+
+    /**
+     * 获取指定歌曲的本地封面文件路径（若存在则返回 file:// 协议 URI，否则返回 null）
+     */
+    fun getSongCoverPath(serverId: String, href: String): String? {
+        val folder = coversDir ?: return null
+        val hash = (serverId + href).hashCode().toString().replace("-", "n")
+        val png = File(folder, "webdav_$hash.png")
+        if (png.exists() && png.length() > 0L) return "file://${png.absolutePath}"
+        val jpg = File(folder, "webdav_$hash.jpg")
+        if (jpg.exists() && jpg.length() > 0L) return "file://${jpg.absolutePath}"
+        return null
+    }
+
+    data class WebDavPlaybackMetadata(
+        val coverUrl: String? = null,
+        val inferredTier: org.melodist.model.AudioQualityTier? = null,
+    )
+
+    /**
+     * 为当前正在播放的 WebDAV 歌曲提取内嵌专辑封面与音质参数
+     */
+    suspend fun extractPlaybackMetadata(
+        server: WebDavServer,
+        song: Song,
+    ): WebDavPlaybackMetadata =
+        withContext(Dispatchers.IO) {
+            val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
+            if (relativeHref.isBlank()) return@withContext WebDavPlaybackMetadata()
+
+            val existingCover = getSongCoverPath(server.id, relativeHref)
+            val folder = coversDir ?: File("/tmp/covers").apply { mkdirs() }
+            val hash = (server.id + relativeHref).hashCode().toString().replace("-", "n")
+            val targetPng = File(folder, "webdav_$hash.png")
+            var finalCoverUrl = existingCover
+            var finalTier: org.melodist.model.AudioQualityTier? = null
+
+            // 1. 检查是否有完整的本地已缓存音频文件
+            val localFile = getLocalCacheFile(server.id, relativeHref)
+            if (localFile.exists() && localFile.length() > 0L) {
+                val retriever = android.media.MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(localFile.absolutePath)
+                    if (finalCoverUrl.isNullOrBlank()) {
+                        val picBytes = retriever.embeddedPicture
+                        if (picBytes != null && picBytes.size > 512) {
+                            targetPng.outputStream().use { it.write(picBytes) }
+                            finalCoverUrl = "file://${targetPng.absolutePath}"
+                        }
+                    }
+                    val sRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull()
+                    val bRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()
+                    val ext = relativeHref.substringAfterLast('.', "flac")
+                    if (sRate != null && sRate > 0) {
+                        finalTier = org.melodist.model.AudioQualityTier.inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
+                    }
+                } catch (_: Exception) {
+                } finally {
+                    try {
+                        retriever.release()
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+
+            // 2. 线上流式播放场景：拉取头部 512KB
+            val ext = relativeHref.substringAfterLast('.', "flac")
+            val tmpHdrFile = File(cacheDir ?: File("/tmp"), "hdr_play_$hash.$ext")
+            try {
+                val headerBytes = webDavService.fetchRangeBytes(server, relativeHref, 0L, 524287L)
+                if (headerBytes != null && headerBytes.isNotEmpty()) {
+                    val parsed = AudioMetadataParser.parse(headerBytes)
+                    finalTier = parsed.inferTier("audio/$ext")
+
+                    if (finalCoverUrl.isNullOrBlank()) {
+                        val parsedPicBytes = parsed.pictureBytes
+                        val parsedPicOffset = parsed.pictureOffsetInFile
+                        val parsedPicLen = parsed.pictureLength
+
+                        if (parsedPicBytes != null && parsedPicBytes.size > 512) {
+                            targetPng.outputStream().use { it.write(parsedPicBytes) }
+                            finalCoverUrl = "file://${targetPng.absolutePath}"
+                        } else if (parsedPicOffset != null &&
+                            parsedPicLen != null &&
+                            parsedPicLen > 512 &&
+                            parsedPicLen <= 8 * 1024 * 1024
+                        ) {
+                            val picBytes = webDavService.fetchRangeBytes(server, relativeHref, parsedPicOffset, parsedPicOffset + parsedPicLen - 1)
+                            if (picBytes != null && picBytes.size > 512) {
+                                targetPng.outputStream().use { it.write(picBytes) }
+                                finalCoverUrl = "file://${targetPng.absolutePath}"
+                            }
+                        }
+                    }
+
+                    // 兜底使用 MediaMetadataRetriever
+                    if (finalCoverUrl.isNullOrBlank() || finalTier == null) {
+                        tmpHdrFile.outputStream().use { it.write(headerBytes) }
+                        val retriever = android.media.MediaMetadataRetriever()
+                        try {
+                            retriever.setDataSource(tmpHdrFile.absolutePath)
+                            if (finalCoverUrl.isNullOrBlank()) {
+                                val picBytes = retriever.embeddedPicture
+                                if (picBytes != null && picBytes.size > 512) {
+                                    targetPng.outputStream().use { it.write(picBytes) }
+                                    finalCoverUrl = "file://${targetPng.absolutePath}"
+                                }
+                            }
+                            if (finalTier == null) {
+                                val sRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull()
+                                val bRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()
+                                if (sRate != null && sRate > 0) {
+                                    finalTier = org.melodist.model.AudioQualityTier.inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
+                                }
+                            }
+                        } catch (_: Exception) {
+                        } finally {
+                            try {
+                                retriever.release()
+                            } catch (_: Exception) {
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                if (tmpHdrFile.exists()) tmpHdrFile.delete()
+            }
+
+            // 3. 嗅探同目录封面图片
+            if (finalCoverUrl.isNullOrBlank()) {
+                try {
+                    val parentFolder = relativeHref.substringBeforeLast('/', "")
+                    val folderCoverBytes = webDavService.fetchRemoteCover(server, parentFolder)
+                    if (folderCoverBytes != null && folderCoverBytes.size > 512) {
+                        targetPng.outputStream().use { it.write(folderCoverBytes) }
+                        finalCoverUrl = "file://${targetPng.absolutePath}"
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            WebDavPlaybackMetadata(finalCoverUrl, finalTier)
+        }
+
+    /**
+     * 兼容接口：提取内嵌封面
+     */
+    suspend fun extractAndCacheSongCover(
+        server: WebDavServer,
+        song: Song,
+    ): String? = extractPlaybackMetadata(server, song).coverUrl
 }

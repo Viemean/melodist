@@ -140,6 +140,51 @@ object PlaybackManager {
                     playNext()
                 }
             }
+
+            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                for (group in tracks.groups) {
+                    if (group.type == C.TRACK_TYPE_AUDIO) {
+                        for (i in 0 until group.length) {
+                            if (group.isTrackSelected(i)) {
+                                val format = group.getTrackFormat(i)
+                                val sRate = format.sampleRate
+                                val channels = format.channelCount
+                                val mime = format.sampleMimeType
+                                val bitrate = format.bitrate
+                                val bitDepth =
+                                    when (format.pcmEncoding) {
+                                        C.ENCODING_PCM_24BIT -> 24
+                                        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 32
+                                        else -> if (sRate >= 96000) 24 else 16
+                                    }
+                                if (sRate > 0) {
+                                    val detectedTier =
+                                        AudioQualityTier.inferFromAudioFormat(
+                                            sampleRate = sRate,
+                                            bitsPerSample = bitDepth,
+                                            channelCount = if (channels > 0) channels else 2,
+                                            mimeType = mime,
+                                            bitrate = if (bitrate > 0) bitrate else 0,
+                                        )
+                                    val currentMid = _currentSong.value?.songMid.orEmpty()
+                                    if (currentMid.startsWith("webdav_") ||
+                                        currentMid.startsWith("local_") ||
+                                        _currentTier.value == AudioQualityTier.Standard ||
+                                        _currentTier.value == AudioQualityTier.SQ
+                                    ) {
+                                        Log.i(
+                                            "MelodistPlayback",
+                                            "onTracksChanged auto-detected tier: $detectedTier ($sRate Hz, $bitDepth-bit, $channels ch, $mime, $bitrate bps)",
+                                        )
+                                        _currentTier.value = detectedTier
+                                        _currentSong.value = _currentSong.value?.copy(currentTier = detectedTier)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
     private fun createRenderersFactory(context: Context): DefaultRenderersFactory {
@@ -509,7 +554,18 @@ object PlaybackManager {
         seekToMs: Long = 0L,
     ) {
         playJob?.cancel()
-        _currentSong.value = song
+        var effectiveSong = song
+        if (effectiveSong.coverUrl.isBlank() && effectiveSong.songMid.startsWith("webdav_")) {
+            val server = org.melodist.data.WebDavManager.getActiveServer()
+            val relativeHref = effectiveSong.mediaMid.ifBlank { effectiveSong.localFilePath ?: "" }
+            if (server != null && relativeHref.isNotBlank()) {
+                val cachedCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
+                if (!cachedCover.isNullOrBlank()) {
+                    effectiveSong = effectiveSong.copy(coverUrl = cachedCover)
+                }
+            }
+        }
+        _currentSong.value = effectiveSong
         val list = _playlist.value
         val foundIndex = list.indexOfFirst { it.songMid == song.songMid }
         if (foundIndex != -1) {
@@ -650,6 +706,12 @@ object PlaybackManager {
 
                     _currentTier.value = AudioQualityTier.SQ
                     val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
+                    if (server != null && relativeHref.isNotBlank() && _currentSong.value?.coverUrl.isNullOrBlank()) {
+                        val existingCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
+                        if (!existingCover.isNullOrBlank()) {
+                            _currentSong.value = _currentSong.value?.copy(coverUrl = existingCover)
+                        }
+                    }
                     val localFile =
                         if (server != null && relativeHref.isNotBlank()) {
                             org.melodist.data.WebDavManager
@@ -716,6 +778,49 @@ object PlaybackManager {
                             }
                         } catch (e: Exception) {
                             Log.w("MelodistPlayback", "Error auto-matching lyrics for WebDAV song", e)
+                        }
+                    }
+
+                    // 后台异步提取并缓存 WebDAV 内嵌专辑封面与音质信息
+                    launch(Dispatchers.IO) {
+                        try {
+                            if (server != null) {
+                                val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, song)
+                                if (_currentSong.value?.songId == song.songId) {
+                                    val newCover = if (_currentSong.value?.coverUrl.isNullOrBlank()) meta.coverUrl else null
+                                    val newTier = meta.inferredTier
+                                    if (!newCover.isNullOrBlank() || newTier != null) {
+                                        Log.i(
+                                            "MelodistPlayback",
+                                            "Loaded WebDAV metadata: cover=$newCover, tier=$newTier for ${song.name}",
+                                        )
+                                        withContext(Dispatchers.Main) {
+                                            if (_currentSong.value?.songId == song.songId) {
+                                                val updated =
+                                                    _currentSong.value?.copy(
+                                                        coverUrl = newCover ?: _currentSong.value?.coverUrl.orEmpty(),
+                                                        currentTier = newTier ?: _currentSong.value?.currentTier ?: AudioQualityTier.SQ,
+                                                    )
+                                                _currentSong.value = updated
+                                                if (newTier != null) {
+                                                    _currentTier.value = newTier
+                                                }
+                                                if (updated != null) {
+                                                    val currentList = _playlist.value
+                                                    val idx = currentList.indexOfFirst { it.songId == song.songId }
+                                                    if (idx >= 0) {
+                                                        val mutable = currentList.toMutableList()
+                                                        mutable[idx] = updated
+                                                        _playlist.value = mutable
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.w("MelodistPlayback", "Error extracting WebDAV song metadata", e)
                         }
                     }
 

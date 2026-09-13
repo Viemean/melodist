@@ -70,7 +70,16 @@ fun WebDavTvScreen(
 
     val cachedSongs =
         remember(currentServer) {
-            currentServer?.cachedSongs?.map { it.toSong() } ?: emptyList()
+            val server = currentServer ?: return@remember emptyList()
+            server.cachedSongs.map { cache ->
+                val s = cache.toSong()
+                if (s.coverUrl.isBlank()) {
+                    val existing = WebDavManager.getSongCoverPath(server.id, cache.href)
+                    if (!existing.isNullOrBlank()) s.copy(coverUrl = existing) else s
+                } else {
+                    s
+                }
+            }
         }
     var viewMode by remember(currentServer?.id) {
         mutableStateOf(if (cachedSongs.isNotEmpty()) WebDavViewMode.Library else WebDavViewMode.Directory)
@@ -264,10 +273,15 @@ fun WebDavTvScreen(
                                 text = "播放本目录 (${audioItems.size} 首)",
                                 onClick = {
                                     val server = currentServer ?: return@WebDavNavButton
+                                    val cachedMap = currentServer?.cachedSongs?.associateBy { it.href }
                                     val songList =
                                         audioItems.map { item ->
                                             val (title, artist) = WebDavService.inferTitleArtist(item.name)
-                                            item.toSong(server.id, title, artist)
+                                            val cached = cachedMap?.get(item.href)
+                                            val coverUrl =
+                                                cached?.coverPath?.let { if (it.startsWith("/")) "file://$it" else it }
+                                                    ?: WebDavManager.getSongCoverPath(server.id, item.href)
+                                            item.toSong(server.id, title, artist, coverUrl = coverUrl)
                                         }
                                     PlaybackManager.setPlaylist(songList, startIndex = 0)
                                     onNavigateToPlayer()
@@ -429,10 +443,15 @@ fun WebDavTvScreen(
                                         } else {
                                             val server = currentServer ?: return@WebDavItemRow
                                             val audioItems = items.filter { !it.isDirectory }
+                                            val cachedMap = currentServer?.cachedSongs?.associateBy { it.href }
                                             val songList =
                                                 audioItems.map { itm ->
                                                     val (t, a) = WebDavService.inferTitleArtist(itm.name)
-                                                    itm.toSong(server.id, t, a)
+                                                    val cached = cachedMap?.get(itm.href)
+                                                    val coverUrl =
+                                                        cached?.coverPath?.let { if (it.startsWith("/")) "file://$it" else it }
+                                                            ?: WebDavManager.getSongCoverPath(server.id, itm.href)
+                                                    itm.toSong(server.id, t, a, coverUrl = coverUrl)
                                                 }
                                             val targetIdx = audioItems.indexOf(item).coerceAtLeast(0)
                                             PlaybackManager.setPlaylist(songList, startIndex = targetIdx)
@@ -645,38 +664,7 @@ private fun WebDavLibrarySongRow(
             modifier = Modifier.width(36.dp),
         )
 
-        // 封面小图（若已解析内嵌封面则展示，否则展示音符图标）
-        if (song.coverUrl.isNotBlank()) {
-            MelodistAsyncImage(
-                coverUrl = song.coverUrl,
-                contentDescription = song.name,
-                shape = RoundedCornerShape(6.dp),
-                modifier =
-                    Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(6.dp)),
-            )
-        } else {
-            Box(
-                modifier =
-                    Modifier
-                        .size(40.dp)
-                        .background(
-                            color = if (isFocused) Color.LightGray.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.10f),
-                            shape = RoundedCornerShape(6.dp),
-                        ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = if (isFocused) Color.Black else MelodistColors.AccentGreen,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
         // 歌名
         Text(
