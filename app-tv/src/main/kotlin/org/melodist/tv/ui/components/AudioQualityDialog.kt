@@ -89,13 +89,13 @@ fun AudioQualityDialog(
                     )
 
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         items(SpatialTiers) { tier ->
                             val (isDevSupport, reason) = DeviceAudioCapability.checkDeviceSupport(tier)
                             val isStreamAvail =
                                 if (availableTiers.isNotEmpty()) {
-                                    tier in availableTiers
+                                    tier in availableTiers || tier == selectedTier
                                 } else {
                                     tier == selectedTier || tier == AudioQualityTier.Standard
                                 }
@@ -124,13 +124,13 @@ fun AudioQualityDialog(
                     )
 
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         items(StereoTiers) { tier ->
                             val (isDevSupport, reason) = DeviceAudioCapability.checkDeviceSupport(tier)
                             val isStreamAvail =
                                 if (availableTiers.isNotEmpty()) {
-                                    tier in availableTiers
+                                    tier in availableTiers || tier == selectedTier
                                 } else {
                                     tier == selectedTier || tier == AudioQualityTier.Standard
                                 }
@@ -175,6 +175,7 @@ private fun TierOptionItem(
     unsupportedReason: String?,
     onSelect: () -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val isUsable = (isDeviceSupported && isStreamAvailable) || isSelected
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
@@ -182,54 +183,89 @@ private fun TierOptionItem(
     val badge = AudioQualityTier.getBadge(tier)
     val officialColor = remember(tier) { getOfficialTierColor(tier) }
 
-    val bg =
+    val statusText =
         when {
-            !isUsable -> Color.White.copy(alpha = 0.05f)
-            isFocused -> Color.White
-            isSelected -> officialColor.copy(alpha = 0.22f)
-            else -> Color.White.copy(alpha = 0.12f)
+            isSelected -> "当前播放"
+            !isDeviceSupported -> "不支持"
+            !isStreamAvailable -> "无音源"
+            else -> "可用"
         }
 
-    val textColor =
+    val bg =
         when {
-            !isUsable -> officialColor.copy(alpha = 0.65f)
-            isFocused -> Color.Black
-            else -> officialColor
+            isFocused && isUsable -> Color.White
+            isFocused && !isUsable -> Color.White.copy(alpha = 0.12f)
+            isSelected -> officialColor.copy(alpha = 0.22f)
+            isUsable -> Color.White.copy(alpha = 0.10f)
+            else -> Color.White.copy(alpha = 0.03f)
+        }
+
+    val titleColor =
+        when {
+            isFocused && isUsable -> Color.Black
+            isFocused && !isUsable -> Color.White.copy(alpha = 0.50f)
+            isUsable -> officialColor
+            else -> Color.White.copy(alpha = 0.22f)
+        }
+
+    val subtitleColor =
+        when {
+            isFocused && isUsable -> if (isSelected) MelodistColors.FocusTeal else Color(0xFF475569)
+            isFocused && !isUsable -> Color.White.copy(alpha = 0.40f)
+            isSelected -> officialColor.copy(alpha = 0.90f)
+            isUsable -> Color.White.copy(alpha = 0.70f)
+            else -> Color.White.copy(alpha = 0.20f)
         }
 
     val border =
         when {
-            !isUsable -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), MelodistShapes.ButtonCorner)
-            isFocused -> Modifier.border(BorderStroke(2.5.dp, MelodistColors.FocusTeal), MelodistShapes.ButtonCorner)
-            isSelected -> Modifier.border(BorderStroke(1.dp, officialColor.copy(alpha = 0.80f)), MelodistShapes.ButtonCorner)
-            else -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)), MelodistShapes.ButtonCorner)
-        }
-
-    val clickableModifier =
-        if (isUsable) {
-            Modifier
-                .clickable(interactionSource = interactionSource, indication = null, onClick = onSelect)
-                .focusable(interactionSource = interactionSource)
-        } else {
-            Modifier
+            isFocused && isUsable -> Modifier.border(BorderStroke(2.5.dp, MelodistColors.FocusTeal), MelodistShapes.ButtonCorner)
+            isFocused && !isUsable -> Modifier.border(BorderStroke(1.5.dp, Color.White.copy(alpha = 0.35f)), MelodistShapes.ButtonCorner)
+            isSelected -> Modifier.border(BorderStroke(1.5.dp, officialColor.copy(alpha = 0.85f)), MelodistShapes.ButtonCorner)
+            isUsable -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)), MelodistShapes.ButtonCorner)
+            else -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)), MelodistShapes.ButtonCorner)
         }
 
     Box(
         modifier =
             Modifier
-                .width(110.dp)
-                .height(52.dp)
+                .width(116.dp)
+                .height(58.dp)
                 .then(border)
                 .clip(MelodistShapes.ButtonCorner)
                 .background(bg)
-                .then(clickableModifier),
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = {
+                        if (isUsable) {
+                            onSelect()
+                        } else {
+                            val tip = if (!isDeviceSupported) (unsupportedReason ?: "当前设备不支持该音质") else "当前歌曲暂无该音质音源"
+                            android.widget.Toast.makeText(context, tip, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                )
+                .focusable(interactionSource = interactionSource),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = badge,
-            color = textColor,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = badge,
+                color = titleColor,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = statusText,
+                color = subtitleColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
     }
 }
