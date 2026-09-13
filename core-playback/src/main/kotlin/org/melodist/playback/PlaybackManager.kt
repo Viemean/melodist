@@ -853,6 +853,7 @@ object PlaybackManager {
                                                 _currentSong.value = updated
                                                 if (newTier != null) {
                                                     _currentTier.value = newTier
+                                                    _availableTiers.value = setOf(newTier)
                                                 }
                                                 if (updated != null) {
                                                     val currentList = _playlist.value
