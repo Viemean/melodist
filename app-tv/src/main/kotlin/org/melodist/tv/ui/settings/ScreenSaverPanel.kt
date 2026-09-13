@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
@@ -373,6 +374,9 @@ fun ScreenSaverOverlay(
             ) {
                 val song = currentSong
                 val clockFontSize = if (song != null) 144.sp else 170.sp
+                val dotSize = if (song != null) 12.dp else 14.dp
+                val dotSpacing = if (song != null) 28.dp else 32.dp
+                val dotHorizontalPadding = if (song != null) 12.dp else 14.dp
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -390,14 +394,26 @@ fun ScreenSaverOverlay(
                             color = animatedTimeColor,
                             letterSpacing = 4.sp,
                         )
-                        Text(
-                            text = ":",
-                            fontSize = clockFontSize,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.ExtraLight,
-                            color = animatedTimeColor.copy(alpha = 0.50f),
-                            modifier = Modifier.padding(horizontal = 4.dp),
-                        )
+                        Column(
+                            modifier = Modifier.padding(horizontal = dotHorizontalPadding),
+                            verticalArrangement = Arrangement.spacedBy(dotSpacing),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(dotSize)
+                                        .clip(CircleShape)
+                                        .background(animatedTimeColor),
+                            )
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(dotSize)
+                                        .clip(CircleShape)
+                                        .background(animatedTimeColor),
+                            )
+                        }
                         Text(
                             text = minuteStr,
                             fontSize = clockFontSize,
