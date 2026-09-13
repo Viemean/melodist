@@ -73,6 +73,58 @@ object WebDavManager {
         file.outputStream().use { it.write(bytes) }
     }
 
+    private fun safeWriteOptimizedCover(file: File, bytes: ByteArray, maxDimension: Int = 1200) {
+        file.parentFile?.mkdirs()
+        try {
+            val boundsOpts = android.graphics.BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
+            val origW = boundsOpts.outWidth
+            val origH = boundsOpts.outHeight
+
+            if (origW <= 0 || origH <= 0 || (origW <= maxDimension && origH <= maxDimension)) {
+                file.outputStream().use { it.write(bytes) }
+                return
+            }
+
+            var inSample = 1
+            while ((origW / inSample) > maxDimension * 2 || (origH / inSample) > maxDimension * 2) {
+                inSample *= 2
+            }
+
+            val decodeOpts = android.graphics.BitmapFactory.Options().apply {
+                inSampleSize = inSample
+            }
+            val sampledBmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts)
+            if (sampledBmp == null) {
+                file.outputStream().use { it.write(bytes) }
+                return
+            }
+
+            val curW = sampledBmp.width
+            val curH = sampledBmp.height
+            val finalBmp: android.graphics.Bitmap =
+                if (curW > maxDimension || curH > maxDimension) {
+                    val scale = maxDimension.toFloat() / maxOf(curW, curH)
+                    val targetW = (curW * scale).toInt().coerceAtLeast(1)
+                    val targetH = (curH * scale).toInt().coerceAtLeast(1)
+                    android.graphics.Bitmap.createScaledBitmap(sampledBmp, targetW, targetH, true).also {
+                        if (it != sampledBmp) sampledBmp.recycle()
+                    }
+                } else {
+                    sampledBmp
+                }
+
+            file.outputStream().use { os ->
+                finalBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, os)
+            }
+            finalBmp.recycle()
+        } catch (_: Exception) {
+            file.outputStream().use { it.write(bytes) }
+        }
+    }
+
     private fun loadConfig() {
         val raw = prefs?.getString(KEY_CONFIG, null)
         if (!raw.isNullOrBlank()) {
@@ -237,7 +289,7 @@ object WebDavManager {
                     val parsedPicLen = parsed.pictureLength
 
                     if (parsedPicBytes != null && parsedPicBytes.size > 512) {
-                        safeWriteBytes(targetPng, parsedPicBytes)
+                        safeWriteOptimizedCover(targetPng, parsedPicBytes, maxDimension = 1200)
                         coverPath = targetPng.absolutePath
                     } else if (parsedPicOffset != null &&
                         parsedPicLen != null &&
@@ -249,7 +301,7 @@ object WebDavManager {
                         val picEnd = picStart + parsedPicLen - 1
                         val picBytes = webDavService.fetchRangeBytes(server, rawCache.href, picStart, picEnd)
                         if (picBytes != null && picBytes.size > 512) {
-                            safeWriteBytes(targetPng, picBytes)
+                            safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
                             coverPath = targetPng.absolutePath
                         }
                     }
@@ -279,7 +331,7 @@ object WebDavManager {
                             if (coverPath.isNullOrBlank()) {
                                 val picBytes = retriever.embeddedPicture
                                 if (picBytes != null && picBytes.size > 512) {
-                                    safeWriteBytes(targetPng, picBytes)
+                                    safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
                                     coverPath = targetPng.absolutePath
                                 }
                             }
@@ -588,7 +640,7 @@ object WebDavManager {
                     if (finalCoverUrl.isNullOrBlank()) {
                         val picBytes = retriever.embeddedPicture
                         if (picBytes != null && picBytes.size > 512) {
-                            safeWriteBytes(targetPng, picBytes)
+                            safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
                             finalCoverUrl = "file://${targetPng.absolutePath}"
                         }
                     }
@@ -622,7 +674,7 @@ object WebDavManager {
                         val parsedPicLen = parsed.pictureLength
 
                         if (parsedPicBytes != null && parsedPicBytes.size > 512) {
-                            safeWriteBytes(targetPng, parsedPicBytes)
+                            safeWriteOptimizedCover(targetPng, parsedPicBytes, maxDimension = 1200)
                             finalCoverUrl = "file://${targetPng.absolutePath}"
                         } else if (parsedPicOffset != null &&
                             parsedPicLen != null &&
@@ -631,7 +683,7 @@ object WebDavManager {
                         ) {
                             val picBytes = webDavService.fetchRangeBytes(server, relativeHref, parsedPicOffset, parsedPicOffset + parsedPicLen - 1)
                             if (picBytes != null && picBytes.size > 512) {
-                                safeWriteBytes(targetPng, picBytes)
+                                safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
                                 finalCoverUrl = "file://${targetPng.absolutePath}"
                             }
                         }
@@ -646,7 +698,7 @@ object WebDavManager {
                             if (finalCoverUrl.isNullOrBlank()) {
                                 val picBytes = retriever.embeddedPicture
                                 if (picBytes != null && picBytes.size > 512) {
-                                    safeWriteBytes(targetPng, picBytes)
+                                    safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
                                     finalCoverUrl = "file://${targetPng.absolutePath}"
                                 }
                             }
@@ -678,7 +730,7 @@ object WebDavManager {
                     val parentFolder = relativeHref.substringBeforeLast('/', "")
                     val folderCoverBytes = webDavService.fetchRemoteCover(server, parentFolder)
                     if (folderCoverBytes != null && folderCoverBytes.size > 512) {
-                        safeWriteBytes(targetPng, folderCoverBytes)
+                        safeWriteOptimizedCover(targetPng, folderCoverBytes, maxDimension = 1200)
                         finalCoverUrl = "file://${targetPng.absolutePath}"
                     }
                 } catch (e: Exception) {

@@ -47,7 +47,13 @@ data class LocalSongCache(
             album = album,
             durationSeconds = durationSeconds,
             currentTier = tier,
-            coverUrl = if (coverPath.isNotBlank()) "file://$coverPath" else "",
+            coverUrl =
+                if (coverPath.isNotBlank()) {
+                    val f = File(coverPath)
+                    if (f.exists() && f.length() > 0L) "file://$coverPath" else ""
+                } else {
+                    ""
+                },
             localFilePath = path,
         )
     }
@@ -99,6 +105,7 @@ object LocalMusicManager {
         )
 
     private var prefs: SharedPreferences? = null
+    private var appContext: Context? = null
     private var coversDir: File? = null
     private val json =
         Json {
@@ -108,11 +115,70 @@ object LocalMusicManager {
     private var inMemoryConfig = LocalMusicConfig()
 
     fun init(context: Context) {
+        val appCtx = context.applicationContext
+        appContext = appCtx
         if (prefs == null) {
-            val appCtx = context.applicationContext
             prefs = appCtx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             coversDir = File(appCtx.cacheDir, "local_covers").apply { mkdirs() }
             loadConfig()
+        }
+    }
+
+    fun getSafeCoversDir(): File {
+        val folder = coversDir ?: File(appContext?.cacheDir ?: File("/tmp"), "local_covers")
+        if (!folder.exists()) folder.mkdirs()
+        return folder
+    }
+
+    private fun safeWriteOptimizedCover(file: File, bytes: ByteArray, maxDimension: Int = 1200) {
+        file.parentFile?.mkdirs()
+        try {
+            val boundsOpts = android.graphics.BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
+            val origW = boundsOpts.outWidth
+            val origH = boundsOpts.outHeight
+
+            if (origW <= 0 || origH <= 0 || (origW <= maxDimension && origH <= maxDimension)) {
+                file.outputStream().use { it.write(bytes) }
+                return
+            }
+
+            var inSample = 1
+            while ((origW / inSample) > maxDimension * 2 || (origH / inSample) > maxDimension * 2) {
+                inSample *= 2
+            }
+
+            val decodeOpts = android.graphics.BitmapFactory.Options().apply {
+                inSampleSize = inSample
+            }
+            val sampledBmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts)
+            if (sampledBmp == null) {
+                file.outputStream().use { it.write(bytes) }
+                return
+            }
+
+            val curW = sampledBmp.width
+            val curH = sampledBmp.height
+            val finalBmp: android.graphics.Bitmap =
+                if (curW > maxDimension || curH > maxDimension) {
+                    val scale = maxDimension.toFloat() / maxOf(curW, curH)
+                    val targetW = (curW * scale).toInt().coerceAtLeast(1)
+                    val targetH = (curH * scale).toInt().coerceAtLeast(1)
+                    android.graphics.Bitmap.createScaledBitmap(sampledBmp, targetW, targetH, true).also {
+                        if (it != sampledBmp) sampledBmp.recycle()
+                    }
+                } else {
+                    sampledBmp
+                }
+
+            file.outputStream().use { os ->
+                finalBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, os)
+            }
+            finalBmp.recycle()
+        } catch (_: Exception) {
+            file.outputStream().use { it.write(bytes) }
         }
     }
 
@@ -433,13 +499,14 @@ object LocalMusicManager {
                 durationSec = (metaDur.toLongOrNull() ?: 0L).toInt() / 1000
             }
 
-            // 提取内置封面并持久化至 cache/local_covers
+            // 提取内置封面并持久化至 cache/local_covers（限制最大边 1200px）
             val picBytes = retriever.embeddedPicture
-            if (picBytes != null && picBytes.isNotEmpty() && coversDir != null) {
+            if (picBytes != null && picBytes.isNotEmpty()) {
                 val hash = md5(file.absolutePath)
-                val coverFile = File(coversDir, "cover_$hash.jpg")
+                val folder = getSafeCoversDir()
+                val coverFile = File(folder, "cover_$hash.jpg")
                 if (!coverFile.exists() || coverFile.length() == 0L) {
-                    coverFile.writeBytes(picBytes)
+                    safeWriteOptimizedCover(coverFile, picBytes, maxDimension = 1200)
                 }
                 coverPath = coverFile.absolutePath
             }
