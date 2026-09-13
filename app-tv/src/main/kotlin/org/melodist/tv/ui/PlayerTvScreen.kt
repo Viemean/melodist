@@ -35,9 +35,7 @@ import kotlinx.coroutines.delay
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.model.AudioQualityTier
-import org.melodist.model.LyricLine
 import org.melodist.model.Song
-import org.melodist.model.WordSpan
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.components.AudioQualityDialog
 import org.melodist.tv.ui.components.BottomPlayerBar
@@ -47,71 +45,6 @@ import org.melodist.tv.ui.components.PlayerQueueSidebar
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MonetColorExtractor
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
-
-// 演示/测试默认歌词数据
-private val SampleLyrics =
-    listOf(
-        LyricLine(0L, "七里香 - 周杰伦", "Orange Jasmine - Jay Chou"),
-        LyricLine(5000L, "作词：方文山 / 作曲：周杰伦"),
-        LyricLine(
-            15000L,
-            "窗外的麻雀 在电线杆上多嘴",
-            "The sparrows outside the window are chirping on the utility pole",
-            listOf(
-                WordSpan("窗", 0, 300),
-                WordSpan("外", 300, 300),
-                WordSpan("的", 600, 200),
-                WordSpan("麻", 800, 350),
-                WordSpan("雀", 1150, 400),
-                WordSpan("在", 1600, 300),
-                WordSpan("电", 1900, 300),
-                WordSpan("线", 2200, 300),
-                WordSpan("杆", 2500, 300),
-                WordSpan("上", 2800, 300),
-                WordSpan("多", 3100, 400),
-                WordSpan("嘴", 3500, 600),
-            ),
-        ),
-        LyricLine(
-            22000L,
-            "你说这一句 很有夏天的感觉",
-            "You say this sentence feels very like summer",
-            listOf(
-                WordSpan("你", 0, 300),
-                WordSpan("说", 300, 400),
-                WordSpan("这", 700, 300),
-                WordSpan("一", 1000, 200),
-                WordSpan("句", 1200, 300),
-                WordSpan("很", 1500, 300),
-                WordSpan("有", 1800, 300),
-                WordSpan("夏", 2100, 350),
-                WordSpan("天", 2450, 400),
-                WordSpan("的", 2850, 200),
-                WordSpan("感", 3050, 350),
-                WordSpan("觉", 3400, 600),
-            ),
-        ),
-        LyricLine(
-            30000L,
-            "手中的铅笔 在纸上来来回回",
-            "The pencil in hand goes back and forth on the paper",
-        ),
-        LyricLine(
-            38000L,
-            "我用几行字形容你是我的谁",
-            "I use a few lines of words to describe who you are to me",
-        ),
-        LyricLine(
-            45000L,
-            "秋刀鱼的滋味 猫跟你都想了解",
-            "The taste of Pacific saury, both the cat and you want to understand",
-        ),
-        LyricLine(
-            53000L,
-            "初恋的香味就这样被我们寻回",
-            "The aroma of first love is thus recovered by us",
-        ),
-    )
 
 @Composable
 fun PlayerTvScreen(
@@ -310,17 +243,11 @@ fun PlayerTvScreen(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                     )
-                } else if (activeSong != null) {
+                } else {
                     Text(
                         text = "暂无同步歌词",
                         color = MelodistColors.TextMuted,
                         fontSize = 18.sp,
-                    )
-                } else {
-                    CenterAlignedKaraokeLyricsView(
-                        lyrics = SampleLyrics,
-                        currentPositionMs = currentPositionMs,
-                        highlightColor = themeHighlightColor,
                     )
                 }
             }
