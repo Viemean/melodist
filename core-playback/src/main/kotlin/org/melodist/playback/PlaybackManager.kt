@@ -166,18 +166,19 @@ object PlaybackManager {
                                             mimeType = mime,
                                             bitrate = if (bitrate > 0) bitrate else 0,
                                         )
-                                    val currentMid = _currentSong.value?.songMid.orEmpty()
-                                    if (currentMid.startsWith("webdav_") ||
-                                        currentMid.startsWith("local_") ||
-                                        _currentTier.value == AudioQualityTier.Standard ||
-                                        _currentTier.value == AudioQualityTier.SQ
-                                    ) {
+                                    val currentSong = _currentSong.value
+                                    val currentMid = currentSong?.songMid.orEmpty()
+                                    val isLocalOrWebDav =
+                                        currentMid.startsWith("webdav_") ||
+                                            currentMid.startsWith("local_") ||
+                                            !currentSong?.localFilePath.isNullOrBlank()
+                                    if (isLocalOrWebDav) {
                                         Log.i(
                                             "MelodistPlayback",
                                             "onTracksChanged auto-detected tier: $detectedTier ($sRate Hz, $bitDepth-bit, $channels ch, $mime, $bitrate bps)",
                                         )
                                         _currentTier.value = detectedTier
-                                        _currentSong.value = _currentSong.value?.copy(currentTier = detectedTier)
+                                        _currentSong.value = currentSong?.copy(currentTier = detectedTier)
                                     }
                                 }
                             }
@@ -606,7 +607,8 @@ object PlaybackManager {
         probeJob?.cancel()
         val isLocalOrWebDav = song.songMid.startsWith("webdav_") || !song.localFilePath.isNullOrBlank()
         if (isLocalOrWebDav) {
-            _availableTiers.value = setOf(AudioQualityTier.SQ)
+            val actualTier = song.currentTier ?: AudioQualityTier.SQ
+            _availableTiers.value = setOf(actualTier)
         } else {
             _availableTiers.value = emptySet()
             probeJob =
@@ -983,6 +985,7 @@ object PlaybackManager {
                 val rawUrl = playUrlInfo?.url
                 if (playUrlInfo != null && !rawUrl.isNullOrBlank()) {
                     _currentTier.value = playUrlInfo.tier
+                    _currentSong.value = _currentSong.value?.copy(currentTier = playUrlInfo.tier)
                     val player = exoPlayer ?: return@launch
                     player.volume = 1.0f
                     val mediaItem = MediaItem.fromUri(rawUrl)
