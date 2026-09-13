@@ -376,7 +376,7 @@ private fun HeroProgressBar(
     durationMs: Long,
     modifier: Modifier = Modifier,
 ) {
-    val progressMs = progressMsProvider()
+    val progressMs by org.melodist.playback.PlaybackManager.currentPositionMs.collectAsState()
     val progressFraction =
         if (durationMs > 0) {
             (progressMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
@@ -407,7 +407,7 @@ private fun HeroProgressText(
     durationMs: Long,
     modifier: Modifier = Modifier,
 ) {
-    val progressMs = progressMsProvider()
+    val progressMs by org.melodist.playback.PlaybackManager.currentPositionMs.collectAsState()
     val currentFormatted =
         remember(progressMs / 1000) {
             val totalSec = (progressMs / 1000).coerceAtLeast(0)

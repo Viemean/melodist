@@ -44,6 +44,7 @@ import android.view.KeyEvent as AndroidKeyEvent
 @Composable
 fun BottomPlayerBar(
     progressMs: Long = 155000L,
+    progressMsProvider: (() -> Long)? = null,
     durationMs: Long = 236000L,
     surfaceColor: Color = MelodistColors.SurfaceDark,
     isPlaying: Boolean = true,
@@ -66,15 +67,7 @@ fun BottomPlayerBar(
     accentColor: Color = MelodistColors.AccentGreen,
     modifier: Modifier = Modifier,
 ) {
-    val progressFraction =
-        if (durationMs > 0) {
-            (progressMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-
-    val currentFormatted = formatMs(progressMs)
-    val totalFormatted = formatMs(durationMs)
+    val actualProgressProvider = progressMsProvider ?: { progressMs }
 
     val loopIcon =
         when {
@@ -84,8 +77,6 @@ fun BottomPlayerBar(
         }
 
     val progressRequester = remember { FocusRequester() }
-    val progressInteractionSource = remember { MutableInteractionSource() }
-    val isProgressFocused by progressInteractionSource.collectIsFocusedAsState()
 
     val favRequester = remember { FocusRequester() }
     val loopRequester = remember { FocusRequester() }
@@ -108,79 +99,14 @@ fun BottomPlayerBar(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // 通栏进度条（支持遥控器上键选中，选中后左右键每次快进/快退 15 秒）
-        val progressHeight = if (isProgressFocused) 8.dp else 4.dp
-        val progressBorder =
-            if (isProgressFocused) {
-                Modifier.border(BorderStroke(2.dp, MelodistColors.FocusTeal), MelodistShapes.PillCorner)
-            } else {
-                Modifier
-            }
-
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .focusRequester(progressRequester)
-                    .focusProperties {
-                        down = playPauseRequester
-                    }.focusable(interactionSource = progressInteractionSource)
-                    .onKeyEvent { keyEvent ->
-                        if (keyEvent.nativeKeyEvent.action == AndroidKeyEvent.ACTION_DOWN) {
-                            when (keyEvent.nativeKeyEvent.keyCode) {
-                                AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
-                                    onSeekBy(-15000L)
-                                    true
-                                }
-                                AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                    onSeekBy(15000L)
-                                    true
-                                }
-                                else -> false
-                            }
-                        } else {
-                            false
-                        }
-                    }.padding(vertical = 4.dp),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(progressHeight)
-                        .then(progressBorder)
-                        .clip(MelodistShapes.PillCorner)
-                        .background(MelodistColors.ProgressTrack),
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth(progressFraction)
-                            .fillMaxHeight()
-                            .background(if (isProgressFocused) MelodistColors.FocusTeal else accentColor),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // 左右时间标签
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = currentFormatted,
-                    color = if (isProgressFocused) MelodistColors.FocusTeal else MelodistColors.TextSecondary,
-                    fontWeight = if (isProgressFocused) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 13.sp,
-                )
-                Text(
-                    text = totalFormatted,
-                    color = MelodistColors.TextSecondary,
-                    fontSize = 13.sp,
-                )
-            }
-        }
+        PlayerProgressBar(
+            progressMsProvider = actualProgressProvider,
+            durationMs = durationMs,
+            accentColor = accentColor,
+            progressRequester = progressRequester,
+            playPauseRequester = playPauseRequester,
+            onSeekBy = onSeekBy,
+        )
 
         // 控制按键组
         Box(
@@ -533,4 +459,102 @@ private fun formatMs(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+}
+
+@Composable
+private fun PlayerProgressBar(
+    progressMsProvider: () -> Long,
+    durationMs: Long,
+    accentColor: Color,
+    progressRequester: FocusRequester,
+    playPauseRequester: FocusRequester,
+    onSeekBy: (Long) -> Unit,
+) {
+    val progressInteractionSource = remember { MutableInteractionSource() }
+    val isProgressFocused by progressInteractionSource.collectIsFocusedAsState()
+
+    val progressMs by org.melodist.playback.PlaybackManager.currentPositionMs.collectAsState()
+    val progressFraction =
+        if (durationMs > 0) {
+            (progressMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+    val currentFormatted = formatMs(progressMs)
+    val totalFormatted = formatMs(durationMs)
+
+    val progressHeight = if (isProgressFocused) 8.dp else 4.dp
+    val progressBorder =
+        if (isProgressFocused) {
+            Modifier.border(BorderStroke(2.dp, MelodistColors.FocusTeal), MelodistShapes.PillCorner)
+        } else {
+            Modifier
+        }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .focusRequester(progressRequester)
+                .focusProperties {
+                    down = playPauseRequester
+                }.focusable(interactionSource = progressInteractionSource)
+                .onKeyEvent { keyEvent ->
+                    if (keyEvent.nativeKeyEvent.action == AndroidKeyEvent.ACTION_DOWN) {
+                        when (keyEvent.nativeKeyEvent.keyCode) {
+                            AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
+                                onSeekBy(-15000L)
+                                true
+                            }
+                            AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                onSeekBy(15000L)
+                                true
+                            }
+                            else -> false
+                        }
+                    } else {
+                        false
+                    }
+                }.padding(vertical = 4.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(progressHeight)
+                    .then(progressBorder)
+                    .clip(MelodistShapes.PillCorner)
+                    .background(MelodistColors.ProgressTrack),
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth(progressFraction)
+                        .fillMaxHeight()
+                        .background(if (isProgressFocused) MelodistColors.FocusTeal else accentColor),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 左右时间标签
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = currentFormatted,
+                color = if (isProgressFocused) MelodistColors.FocusTeal else MelodistColors.TextSecondary,
+                fontWeight = if (isProgressFocused) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 13.sp,
+            )
+            Text(
+                text = totalFormatted,
+                color = MelodistColors.TextSecondary,
+                fontSize = 13.sp,
+            )
+        }
+    }
 }
