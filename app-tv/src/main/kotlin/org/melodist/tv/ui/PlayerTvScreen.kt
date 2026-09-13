@@ -68,7 +68,7 @@ fun PlayerTvScreen(
         }
     }
 
-    BackHandler(enabled = !showQueueSidebar && !showArtistAlbumDialog) {
+    BackHandler(enabled = !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
         if (isControlsHidden) {
             isControlsHidden = false
             lastInteractionTimeMs = System.currentTimeMillis()

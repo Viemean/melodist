@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
 import org.melodist.model.AudioQualityTier
 import org.melodist.playback.DeviceAudioCapability
@@ -59,7 +60,10 @@ fun AudioQualityDialog(
             monetSurfaceColor.toMonetContainer(elevation = 0.08f).copy(alpha = 0.95f)
         }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
         val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
         SideEffect {
             dialogWindow?.setDimAmount(0.28f)
@@ -68,12 +72,12 @@ fun AudioQualityDialog(
         Box(
             modifier =
                 Modifier
-                    .width(680.dp)
+                    .width(660.dp)
                     .wrapContentHeight()
                     .clip(MelodistShapes.DialogCorner)
                     .background(dialogBackgroundColor)
                     .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)), MelodistShapes.DialogCorner)
-                    .padding(horizontal = 28.dp, vertical = 24.dp),
+                    .padding(horizontal = 24.dp, vertical = 22.dp),
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -229,8 +233,8 @@ private fun TierOptionItem(
     Box(
         modifier =
             Modifier
-                .width(116.dp)
-                .height(58.dp)
+                .requiredWidth(110.dp)
+                .height(54.dp)
                 .then(border)
                 .clip(MelodistShapes.ButtonCorner)
                 .background(bg)
