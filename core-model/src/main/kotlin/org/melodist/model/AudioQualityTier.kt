@@ -74,5 +74,45 @@ enum class AudioQualityTier {
                 HQ -> "HQ"
                 Standard -> "标准"
             }
+
+        /**
+         * 根据实际音频编码参数自动推导最匹配的音质级别
+         */
+        fun inferFromAudioFormat(
+            sampleRate: Int,
+            bitsPerSample: Int = 16,
+            channelCount: Int = 2,
+            mimeType: String? = null,
+            bitrate: Int = 0,
+        ): AudioQualityTier {
+            val mime = mimeType?.lowercase().orEmpty()
+            val isDolbyAtmos = mime.contains("eac3-joc") || mime.contains("atmos")
+
+            if (channelCount >= 8 || (isDolbyAtmos && channelCount >= 8)) {
+                return Atmos71
+            }
+            if (channelCount in 5..7 || (isDolbyAtmos && channelCount in 5..7) ||
+                mime.contains("ac3") || mime.contains("eac3") || mime.contains("dts")
+            ) {
+                return Atmos51
+            }
+
+            if (sampleRate >= 192000 || (sampleRate >= 96000 && bitsPerSample >= 24)) {
+                return Master
+            }
+            if (sampleRate > 48000 || bitsPerSample > 16) {
+                return HiRes
+            }
+
+            val isExplicitLossy =
+                mime.contains("mp3") || mime.contains("mpeg") || mime.contains("aac") ||
+                    mime.contains("mp4a") || mime.contains("vorbis") || mime.contains("opus") || mime.contains("wma")
+
+            if (isExplicitLossy) {
+                return if (bitrate >= 240000) HQ else Standard
+            }
+
+            return SQ
+        }
     }
 }

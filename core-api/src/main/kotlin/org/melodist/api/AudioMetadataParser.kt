@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import org.melodist.model.AudioQualityTier
 import java.nio.charset.Charset
 
 data class ParsedAudioMetadata(
@@ -8,14 +9,29 @@ data class ParsedAudioMetadata(
     val album: String? = null,
     val lyrics: String? = null,
     val durationSeconds: Int? = null,
+    val sampleRate: Int? = null,
+    val bitsPerSample: Int? = null,
+    val channels: Int? = null,
+    val bitrate: Int? = null,
     val pictureBytes: ByteArray? = null,
     val pictureOffsetInFile: Long? = null,
     val pictureLength: Long? = null,
-)
+) {
+    fun inferTier(mimeType: String? = null): AudioQualityTier? {
+        if (sampleRate == null) return null
+        return AudioQualityTier.inferFromAudioFormat(
+            sampleRate = sampleRate,
+            bitsPerSample = bitsPerSample ?: 16,
+            channelCount = channels ?: 2,
+            mimeType = mimeType ?: "audio/flac",
+            bitrate = bitrate ?: 0,
+        )
+    }
+}
 
 /**
  * 轻量纯字节音频头部元数据解析器
- * 针对流式/Range 探测场景，无需完整文件即可解析 FLAC (Vorbis Comment / Picture) 与 MP3 (ID3v2)，
+ * 针对流式/Range 探测场景，无需完整文件即可解析 FLAC (Vorbis Comment / Picture / StreamInfo) 与 MP3 (ID3v2)，
  * 规避 Android MediaMetadataRetriever 因尾部/大封面截断直接崩溃或报错抛出的问题。
  */
 object AudioMetadataParser {
@@ -45,6 +61,10 @@ object AudioMetadataParser {
         var artist: String? = null
         var album: String? = null
         var lyrics: String? = null
+        var sampleRate: Int? = null
+        var bitsPerSample: Int? = null
+        var channels: Int? = null
+        var durationSec: Int? = null
         var picBytes: ByteArray? = null
         var picOffset: Long? = null
         var picLen: Long? = null
@@ -61,7 +81,32 @@ object AudioMetadataParser {
             val blockStart = offset + 4
             val blockEnd = blockStart + length
 
-            if (blockType == 4) { // VORBIS_COMMENT
+            if (blockType == 0 && blockStart + 18 <= bytes.size) { // STREAMINFO
+                val b10 = bytes[blockStart + 10].toLong() and 0xFF
+                val b11 = bytes[blockStart + 11].toLong() and 0xFF
+                val b12 = bytes[blockStart + 12].toLong() and 0xFF
+                val b13 = bytes[blockStart + 13].toLong() and 0xFF
+                val b14 = bytes[blockStart + 14].toLong() and 0xFF
+                val b15 = bytes[blockStart + 15].toLong() and 0xFF
+                val b16 = bytes[blockStart + 16].toLong() and 0xFF
+                val b17 = bytes[blockStart + 17].toLong() and 0xFF
+
+                val num64 =
+                    (b10 shl 56) or (b11 shl 48) or (b12 shl 40) or (b13 shl 32) or
+                        (b14 shl 24) or (b15 shl 16) or (b16 shl 8) or b17
+
+                val sRate = (num64 ushr 44).toInt()
+                val chs = (((num64 ushr 41) and 0x07).toInt()) + 1
+                val bps = (((num64 ushr 36) and 0x1F).toInt()) + 1
+                val totalSamples = num64 and 0x0FFFFFFFFFL
+
+                sampleRate = sRate
+                channels = chs
+                bitsPerSample = bps
+                if (sRate > 0 && totalSamples > 0) {
+                    durationSec = (totalSamples / sRate).toInt()
+                }
+            } else if (blockType == 4) { // VORBIS_COMMENT
                 val limit = blockEnd.coerceAtMost(bytes.size)
                 if (blockStart + 4 <= limit) {
                     val vendorLen = readInt32LE(bytes, blockStart)
@@ -126,6 +171,10 @@ object AudioMetadataParser {
             artist = artist,
             album = album,
             lyrics = lyrics,
+            durationSeconds = durationSec,
+            sampleRate = sampleRate,
+            bitsPerSample = bitsPerSample,
+            channels = channels,
             pictureBytes = picBytes,
             pictureOffsetInFile = picOffset,
             pictureLength = picLen,
