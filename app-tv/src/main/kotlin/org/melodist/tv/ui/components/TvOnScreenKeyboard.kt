@@ -169,6 +169,25 @@ private fun KeyButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
 
+    val baseBgColor =
+        if (isAccent) {
+            MelodistColors.AccentGreen.copy(alpha = 0.22f)
+        } else {
+            Color.White.copy(alpha = 0.12f)
+        }
+    val baseBorderColor =
+        if (isAccent) {
+            MelodistColors.AccentGreen.copy(alpha = 0.50f)
+        } else {
+            Color.White.copy(alpha = 0.18f)
+        }
+    val baseContentColor =
+        if (isAccent) {
+            MelodistColors.AccentGreen
+        } else {
+            MelodistColors.TextPrimary
+        }
+
     Box(
         modifier =
             modifier
@@ -181,18 +200,11 @@ private fun KeyButton(
                     border =
                         BorderStroke(
                             width = if (isFocused) 2.dp else 1.dp,
-                            color = if (isFocused) MelodistColors.FocusTeal else MelodistColors.ContainerDarkSecondary,
+                            color = if (isFocused) MelodistColors.FocusTeal else baseBorderColor,
                         ),
                     shape = RoundedCornerShape(8.dp),
                 ).background(
-                    color =
-                        if (isFocused) {
-                            Color.White
-                        } else if (isAccent) {
-                            MelodistColors.AccentGreen
-                        } else {
-                            MelodistColors.ContainerDark.copy(alpha = 0.6f)
-                        },
+                    color = if (isFocused) Color.White else baseBgColor,
                     shape = RoundedCornerShape(8.dp),
                 ),
         contentAlignment = Alignment.Center,
@@ -201,14 +213,7 @@ private fun KeyButton(
             text = text,
             fontSize = if (text.length > 2) 13.sp else 16.sp,
             fontWeight = if (isFocused || isAccent) FontWeight.Bold else FontWeight.Medium,
-            color =
-                if (isFocused) {
-                    Color.Black
-                } else if (isAccent) {
-                    Color.Black
-                } else {
-                    MelodistColors.TextPrimary
-                },
+            color = if (isFocused) Color.Black else baseContentColor,
         )
     }
 }

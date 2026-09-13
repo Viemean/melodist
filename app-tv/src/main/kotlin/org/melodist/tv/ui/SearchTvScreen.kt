@@ -247,8 +247,8 @@ fun SearchTvScreen(
                         Modifier
                             .fillMaxWidth()
                             .height(48.dp)
-                            .background(MelodistColors.ContainerDark.copy(alpha = 0.7f), MelodistShapes.PillCorner)
-                            .border(1.dp, MelodistColors.ContainerDarkSecondary, MelodistShapes.PillCorner)
+                            .background(Color.White.copy(alpha = 0.10f), MelodistShapes.PillCorner)
+                            .border(1.dp, Color.White.copy(alpha = 0.18f), MelodistShapes.PillCorner)
                             .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
@@ -267,7 +267,7 @@ fun SearchTvScreen(
                         Text(
                             text = if (searchQuery.isEmpty()) "输入歌曲/歌手/拼音首字母..." else searchQuery,
                             fontSize = 15.sp,
-                            color = if (searchQuery.isEmpty()) MelodistColors.TextMuted else MelodistColors.TextPrimary,
+                            color = if (searchQuery.isEmpty()) Color.White.copy(alpha = 0.75f) else MelodistColors.TextPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -360,7 +360,7 @@ fun SearchTvScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(36.dp),
+                            .height(40.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -627,11 +627,11 @@ private fun KeywordChip(
                     border =
                         BorderStroke(
                             width = if (isFocused) 2.dp else 1.dp,
-                            color = if (isFocused) MelodistColors.FocusTeal else MelodistColors.ContainerDarkSecondary,
+                            color = if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.18f),
                         ),
                     shape = MelodistShapes.PillCorner,
                 ).background(
-                    color = if (isFocused) Color.White else MelodistColors.ContainerDark.copy(alpha = 0.6f),
+                    color = if (isFocused) Color.White else Color.White.copy(alpha = 0.12f),
                     shape = MelodistShapes.PillCorner,
                 ).padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -665,6 +665,7 @@ private fun ClearHistoryButton(
     Row(
         modifier =
             Modifier
+                .height(36.dp)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -681,26 +682,27 @@ private fun ClearHistoryButton(
                     border =
                         BorderStroke(
                             width = if (isFocused) 2.dp else 1.dp,
-                            color = if (isFocused) MelodistColors.FocusTeal else Color.Transparent,
+                            color = if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.18f),
                         ),
                     shape = MelodistShapes.PillCorner,
                 ).background(
-                    color = if (isFocused) Color.White else MelodistColors.ContainerDark.copy(alpha = 0.5f),
+                    color = if (isFocused) Color.White else Color.White.copy(alpha = 0.12f),
                     shape = MelodistShapes.PillCorner,
-                ).padding(horizontal = 10.dp, vertical = 4.dp),
+                ).padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Icon(
             imageVector = Icons.Default.DeleteOutline,
             contentDescription = "清空历史",
-            tint = if (isFocused) Color.Black else MelodistColors.TextSecondary,
-            modifier = Modifier.size(14.dp),
+            tint = if (isFocused) Color.Black else MelodistColors.TextPrimary,
+            modifier = Modifier.size(16.dp),
         )
         Text(
             text = "清空记录",
-            fontSize = 12.sp,
-            color = if (isFocused) Color.Black else MelodistColors.TextSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isFocused) Color.Black else MelodistColors.TextPrimary,
         )
     }
 }
@@ -722,11 +724,11 @@ private fun SearchBackButton(onClick: () -> Unit) {
                     border =
                         BorderStroke(
                             width = if (isFocused) 2.dp else 1.dp,
-                            color = if (isFocused) MelodistColors.FocusTeal else MelodistColors.ContainerDarkSecondary,
+                            color = if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.18f),
                         ),
                     shape = MelodistShapes.PillCorner,
                 ).background(
-                    color = if (isFocused) Color.White else MelodistColors.ContainerDark.copy(alpha = 0.6f),
+                    color = if (isFocused) Color.White else Color.White.copy(alpha = 0.12f),
                     shape = MelodistShapes.PillCorner,
                 ).padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
