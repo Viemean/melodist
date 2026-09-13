@@ -66,4 +66,23 @@ class LyricParserTest {
         assertEquals("Music is life", merged[1].text)
         assertEquals("音乐就是生命", merged[1].transText)
     }
+
+    @Test
+    fun `parseMergedLyrics matches translations within 800ms tolerance`() {
+        val orig =
+            """
+            [00:45.62]触れられる距離
+            [00:47.43]じゃ気付けないから
+            """.trimIndent()
+        val trans =
+            """
+            [00:45.98]在触手可及的距离
+            [00:47.86]竟也难以察觉
+            """.trimIndent()
+
+        val merged = LyricParser.parseMergedLyrics(orig, trans)
+        assertEquals(2, merged.size)
+        assertEquals("在触手可及的距离", merged[0].transText)
+        assertEquals("竟也难以察觉", merged[1].transText)
+    }
 }

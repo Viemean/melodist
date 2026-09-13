@@ -85,10 +85,10 @@ fun CenterAlignedKaraokeLyricsView(
             val alpha =
                 when (distance) {
                     0 -> 1.0f
-                    1 -> 0.70f
-                    2 -> 0.52f
-                    3 -> 0.38f
-                    else -> 0.22f
+                    1 -> 0.86f
+                    2 -> 0.72f
+                    3 -> 0.58f
+                    else -> 0.44f
                 }
 
             LyricLineItem(
@@ -105,7 +105,7 @@ fun CenterAlignedKaraokeLyricsView(
     }
 }
 
-private val UnplayedLyricColor = Color.White.copy(alpha = 0.62f)
+private val UnplayedLyricColor = Color.White.copy(alpha = 0.70f)
 
 @Composable
 private fun LyricLineItem(
@@ -136,10 +136,10 @@ private fun LyricLineItem(
         targetValue =
             if (isCurrent) {
                 highlightColor.copy(
-                    alpha = 0.85f,
+                    alpha = 0.88f,
                 )
             } else {
-                Color.White.copy(alpha = (alphaVal * 0.85f).coerceIn(0.25f, 0.85f))
+                Color.White.copy(alpha = (alphaVal * 0.88f).coerceIn(0.40f, 0.88f))
             },
         animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
         label = "LyricTransColor",

@@ -104,8 +104,8 @@ object LyricParser {
                     transText = exact.second
                     usedSet.add(exact)
                 } else if (cleanTrans.isNotEmpty()) {
-                    // 2. 300ms 容差候选
-                    val candidates = cleanTrans.filter { it !in usedSet && abs(it.first - orig.first) <= 300 }
+                    // 2. 800ms 容差候选，兼容轴偏差
+                    val candidates = cleanTrans.filter { it !in usedSet && abs(it.first - orig.first) <= 800 }
                     if (candidates.isNotEmpty()) {
                         val best = candidates.minByOrNull { abs(it.first - orig.first) }!!
                         transText = best.second
