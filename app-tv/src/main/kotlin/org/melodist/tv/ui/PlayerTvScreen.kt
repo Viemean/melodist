@@ -2,6 +2,7 @@ package org.melodist.tv.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import kotlinx.coroutines.delay
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.model.AudioQualityTier
@@ -122,10 +124,21 @@ fun PlayerTvScreen(
     var showQueueSidebar by remember { mutableStateOf(false) }
     var isControlsHidden by remember { mutableStateOf(false) }
     var showArtistAlbumDialog by remember { mutableStateOf(false) }
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var lastInteractionTimeMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    // 播放界面 10 秒无操作自动进入全屏模式
+    LaunchedEffect(isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
+        if (!isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
+            delay(10_000L)
+            isControlsHidden = true
+        }
+    }
 
     BackHandler(enabled = !showQueueSidebar && !showArtistAlbumDialog) {
         if (isControlsHidden) {
             isControlsHidden = false
+            lastInteractionTimeMs = System.currentTimeMillis()
         } else {
             onBack()
         }
@@ -147,7 +160,6 @@ fun PlayerTvScreen(
     val scope = rememberCoroutineScope()
     val apiService = remember { MusicApiService() }
     val favoriteSongMids by PlaybackManager.favoriteSongMids.collectAsState()
-    var showQualityDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(song) {
         if (song != null && currentSong?.songMid != song.songMid) {
@@ -177,8 +189,22 @@ fun PlayerTvScreen(
             Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value)))
         }
 
+    val contentBottomPadding by animateDpAsState(
+        targetValue = if (isControlsHidden) metrics.verticalSafePadding else 100.dp,
+        animationSpec = tween(durationMillis = 300),
+        label = "PlayerContentBottomPadding",
+    )
+
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown) {
+                        lastInteractionTimeMs = System.currentTimeMillis()
+                    }
+                    false
+                },
     ) {
         // 主视窗：左右分栏
         Row(
@@ -189,7 +215,7 @@ fun PlayerTvScreen(
                         start = metrics.horizontalSafePadding,
                         end = metrics.horizontalSafePadding,
                         top = metrics.verticalSafePadding,
-                        bottom = 100.dp,
+                        bottom = contentBottomPadding,
                     ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -353,11 +379,8 @@ fun PlayerTvScreen(
             )
         }
 
-        // 全屏模式下监听返回键或确定键恢复控制栏
+        // 全屏模式下全屏挡板：监听任意按键仅用于退出全屏模式，阻止任何原本操作触发
         if (isControlsHidden) {
-            BackHandler {
-                isControlsHidden = false
-            }
             val restoreRequester = remember { FocusRequester() }
             LaunchedEffect(Unit) {
                 restoreRequester.requestFocus()
@@ -368,32 +391,20 @@ fun PlayerTvScreen(
                         .fillMaxSize()
                         .focusRequester(restoreRequester)
                         .focusable()
-                        .onKeyEvent { event ->
+                        .onPreviewKeyEvent { event ->
                             if (event.type == KeyEventType.KeyDown) {
-                                val isConfirmKey =
-                                    event.key == Key.DirectionCenter ||
-                                        event.key == Key.Enter ||
-                                        event.key == Key.NumPadEnter
-                                val isBackKey = event.key == Key.Back || event.key == Key.Escape
-                                if (event.key == Key.DirectionDown) {
-                                    if (activeSong?.canShowArtistAlbumDialog == true) {
-                                        showArtistAlbumDialog = true
-                                    }
-                                    true
-                                } else if (isConfirmKey || isBackKey) {
-                                    isControlsHidden = false
-                                    true
-                                } else {
-                                    false
-                                }
+                                isControlsHidden = false
+                                lastInteractionTimeMs = System.currentTimeMillis()
+                                true
                             } else {
-                                false
+                                true
                             }
                         }.clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) {
                             isControlsHidden = false
+                            lastInteractionTimeMs = System.currentTimeMillis()
                         },
             )
         }
