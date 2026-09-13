@@ -36,17 +36,17 @@ private val DarkColorPalette =
  * 从专辑封面采样色相并计算暗色背景
  */
 object MonetColorExtractor {
-    private val colorCache = mutableMapOf<String, Color>()
+    private val colorCache = android.util.LruCache<String, Color>(128)
     val DefaultSurfaceColor = Color(0xFF142032) // 默认暗色 (明度 ~20%)
 
     fun getCachedColor(url: String?): Color? {
         if (url.isNullOrBlank()) return null
-        return colorCache[url]
+        return colorCache.get(url)
     }
 
     suspend fun extractFromUrl(url: String): Color {
         if (url.isBlank()) return DefaultSurfaceColor
-        colorCache[url]?.let { return it }
+        colorCache.get(url)?.let { return it }
 
         return withContext(Dispatchers.IO) {
             try {
@@ -65,7 +65,7 @@ object MonetColorExtractor {
                     if (bitmap != null) {
                         val color = extractMonetDarkSurface(bitmap)
                         bitmap.recycle()
-                        colorCache[url] = color
+                        colorCache.put(url, color)
                         return@withContext color
                     }
                 }
@@ -89,7 +89,7 @@ object MonetColorExtractor {
                 if (bitmap != null) {
                     val color = extractMonetDarkSurface(bitmap)
                     bitmap.recycle()
-                    colorCache[url] = color
+                    colorCache.put(url, color)
                     color
                 } else {
                     DefaultSurfaceColor
@@ -122,6 +122,9 @@ object MonetColorExtractor {
         val stepX = (width / 24).coerceAtLeast(1)
         val stepY = (height / 24).coerceAtLeast(1)
 
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
         val hsl = FloatArray(3)
         var sumHueSin = 0.0
         var sumHueCos = 0.0
@@ -129,11 +132,12 @@ object MonetColorExtractor {
         var totalWeight = 0.0
 
         for (y in 0 until height step stepY) {
+            val rowOffset = y * width
             for (x in 0 until width step stepX) {
-                val pixel = bitmap.getPixel(x, y)
-                val r = android.graphics.Color.red(pixel)
-                val g = android.graphics.Color.green(pixel)
-                val b = android.graphics.Color.blue(pixel)
+                val pixel = pixels[rowOffset + x]
+                val r = (pixel shr 16) and 0xFF
+                val g = (pixel shr 8) and 0xFF
+                val b = pixel and 0xFF
 
                 android.graphics.Color.RGBToHSV(r, g, b, hsl)
                 val h = hsl[0]

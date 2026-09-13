@@ -82,7 +82,6 @@ fun PlayerTvScreen(
     val currentSong by PlaybackManager.currentSong.collectAsState()
     val playlist by PlaybackManager.playlist.collectAsState()
     val isPlaying by PlaybackManager.isPlaying.collectAsState()
-    val currentPositionMs by PlaybackManager.currentPositionMs.collectAsState()
     val durationMs by PlaybackManager.durationMs.collectAsState()
     val selectedTier by PlaybackManager.currentTier.collectAsState()
     val lyrics by PlaybackManager.lyrics.collectAsState()
@@ -231,9 +230,10 @@ fun PlayerTvScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 if (lyrics.isNotEmpty()) {
+                    val lyricsCurrentPositionMs by PlaybackManager.currentPositionMs.collectAsState()
                     CenterAlignedKaraokeLyricsView(
                         lyrics = lyrics,
-                        currentPositionMs = currentPositionMs,
+                        currentPositionMs = lyricsCurrentPositionMs,
                         highlightColor = themeHighlightColor,
                     )
                 } else if (isLoading) {
@@ -276,7 +276,7 @@ fun PlayerTvScreen(
                 surfaceColor = surfaceColor,
                 accentColor = themeHighlightColor,
                 horizontalPadding = metrics.horizontalSafePadding,
-                progressMs = currentPositionMs,
+                progressMsProvider = { PlaybackManager.currentPositionMs.value },
                 durationMs = totalDurationMs,
                 isPlaying = isPlaying,
                 isFavorite = isFavorite,
@@ -293,7 +293,8 @@ fun PlayerTvScreen(
                 onQualityClick = { showQualityDialog = true },
                 onFullscreenClick = { isControlsHidden = true },
                 onSeekBy = { deltaMs ->
-                    val targetMs = (currentPositionMs + deltaMs).coerceIn(0L, totalDurationMs)
+                    val currentPos = PlaybackManager.currentPositionMs.value
+                    val targetMs = (currentPos + deltaMs).coerceIn(0L, totalDurationMs)
                     PlaybackManager.seekTo(targetMs)
                 },
                 queueCount = playlist.size,

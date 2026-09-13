@@ -9,6 +9,9 @@ import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import org.melodist.api.MusicApiService
 
+private val T002_CDN_REGEX = Regex("T002R\\d+x\\d+M000")
+private val T062_CDN_REGEX = Regex("T062R\\d+x\\d+M000")
+
 /**
  * 支持多分辨率降级与边缘安全裁切的封面组件
  */
@@ -56,12 +59,12 @@ fun MelodistAsyncImage(
                 if (coverUrl.isNotBlank()) {
                     val upgraded1200 =
                         coverUrl
-                            .replace(Regex("T002R\\d+x\\d+M000"), "T002R1200x1200M000")
-                            .replace(Regex("T062R\\d+x\\d+M000"), "T062R1200x1200M000")
+                            .replace(T002_CDN_REGEX, "T002R1200x1200M000")
+                            .replace(T062_CDN_REGEX, "T062R1200x1200M000")
                     val upgraded800 =
                         coverUrl
-                            .replace(Regex("T002R\\d+x\\d+M000"), "T002R800x800M000")
-                            .replace(Regex("T062R\\d+x\\d+M000"), "T062R800x800M000")
+                            .replace(T002_CDN_REGEX, "T002R800x800M000")
+                            .replace(T062_CDN_REGEX, "T062R800x800M000")
                     if (upgraded1200 != coverUrl) {
                         list.add(upgraded1200)
                     }

@@ -530,6 +530,7 @@ internal object ScreenSaverColorExtractor {
                     ImageRequest
                         .Builder(context)
                         .data(coverUrl)
+                        .size(48, 48)
                         .build()
                 val result = imageLoader.execute(request)
                 if (result is SuccessResult) {
@@ -555,6 +556,9 @@ internal object ScreenSaverColorExtractor {
         val stepX = (width / 24).coerceAtLeast(1)
         val stepY = (height / 24).coerceAtLeast(1)
 
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
         val hsl = FloatArray(3)
         var sumHueSin = 0.0
         var sumHueCos = 0.0
@@ -562,11 +566,12 @@ internal object ScreenSaverColorExtractor {
         var totalWeight = 0.0
 
         for (y in 0 until height step stepY) {
+            val rowOffset = y * width
             for (x in 0 until width step stepX) {
-                val pixel = bitmap.getPixel(x, y)
-                val r = android.graphics.Color.red(pixel)
-                val g = android.graphics.Color.green(pixel)
-                val b = android.graphics.Color.blue(pixel)
+                val pixel = pixels[rowOffset + x]
+                val r = (pixel shr 16) and 0xFF
+                val g = (pixel shr 8) and 0xFF
+                val b = pixel and 0xFF
 
                 android.graphics.Color.RGBToHSV(r, g, b, hsl)
                 val h = hsl[0]

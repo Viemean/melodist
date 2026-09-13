@@ -78,7 +78,10 @@ fun CenterAlignedKaraokeLyricsView(
         contentPadding = PaddingValues(vertical = 120.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        itemsIndexed(lyrics) { index, line ->
+        itemsIndexed(
+            items = lyrics,
+            key = { index, line -> "${line.timestampMs}_$index" },
+        ) { index, line ->
             val isCurrent = index == activeIndex
             val distance = abs(index - activeIndex)
 
@@ -95,7 +98,7 @@ fun CenterAlignedKaraokeLyricsView(
                 line = line,
                 isCurrent = isCurrent,
                 alphaVal = alpha,
-                currentPositionMs = currentPositionMs,
+                currentPositionMs = if (isCurrent) currentPositionMs else 0L,
                 baseFontSize = baseFontSize,
                 enableWordAnim = enableWordAnim,
                 showBilingual = showBilingual,
@@ -119,19 +122,21 @@ private fun LyricLineItem(
     highlightColor: Color = MelodistColors.AccentGreen,
 ) {
     // 渲染逐字或整行
-    val currentLineElapsedMs = (currentPositionMs - line.timestampMs).coerceAtLeast(0)
+    val currentLineElapsedMs = if (isCurrent) (currentPositionMs - line.timestampMs).coerceAtLeast(0) else 0L
 
-    // 歌词行切换动画
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isCurrent) 1.08f else 1.0f,
-        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-        label = "LyricScale",
-    )
-    val animatedAlpha by animateFloatAsState(
-        targetValue = alphaVal,
-        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
-        label = "LyricAlpha",
-    )
+    // 歌词行切换动画 (保持在 graphicsLayer 块内读取避免 Composable 重组)
+    val animatedScale =
+        animateFloatAsState(
+            targetValue = if (isCurrent) 1.08f else 1.0f,
+            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+            label = "LyricScale",
+        )
+    val animatedAlpha =
+        animateFloatAsState(
+            targetValue = alphaVal,
+            animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+            label = "LyricAlpha",
+        )
     val animatedTransColor by animateColorAsState(
         targetValue =
             if (isCurrent) {
@@ -197,9 +202,9 @@ private fun LyricLineItem(
             Modifier
                 .padding(horizontal = 24.dp)
                 .graphicsLayer {
-                    scaleX = animatedScale
-                    scaleY = animatedScale
-                    this.alpha = animatedAlpha
+                    scaleX = animatedScale.value
+                    scaleY = animatedScale.value
+                    this.alpha = animatedAlpha.value
                 },
     ) {
         // 歌词原文渲染
