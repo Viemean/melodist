@@ -1,6 +1,8 @@
 package org.melodist.api
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -490,6 +492,16 @@ class WebDavService {
             discoveredSongs
         }
 
+    private suspend inline fun <T> Call.executeWithCancellation(block: (Response) -> T): T {
+        val job = currentCoroutineContext()[Job]
+        val handle = job?.invokeOnCompletion { cancel() }
+        return try {
+            execute().use(block)
+        } finally {
+            handle?.dispose()
+        }
+    }
+
     /**
      * 读取远程音频文件头部 Range 字节（默认前 256KB）用于提取内嵌元数据
      */
@@ -515,7 +527,7 @@ class WebDavService {
                     requestBuilder.header("Authorization", authHeader)
                 }
 
-                client.newCall(requestBuilder.build()).execute().use { resp ->
+                client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
                     if (resp.isSuccessful || resp.code == 206) {
                         resp.body?.bytes()
                     } else {
@@ -550,7 +562,7 @@ class WebDavService {
                     requestBuilder.header("Authorization", Credentials.basic(server.username, server.password))
                 }
 
-                client.newCall(requestBuilder.build()).execute().use { resp ->
+                client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
                     if (resp.isSuccessful && resp.code == 200) {
                         resp.body?.string()?.takeIf { it.isNotBlank() }
                     } else {
@@ -588,13 +600,21 @@ class WebDavService {
                         requestBuilder.header("Authorization", Credentials.basic(server.username, server.password))
                     }
 
-                    client.newCall(requestBuilder.build()).execute().use { resp ->
-                        if (resp.isSuccessful && resp.code == 200) {
-                            val bytes = resp.body?.bytes()
-                            if (bytes != null && bytes.size > 1024) {
-                                return@withContext bytes
+                    val candidateBytes =
+                        client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
+                            if (resp.isSuccessful && resp.code == 200) {
+                                val bytes = resp.body?.bytes()
+                                if (bytes != null && bytes.size > 1024) {
+                                    bytes
+                                } else {
+                                    null
+                                }
+                            } else {
+                                null
                             }
                         }
+                    if (candidateBytes != null) {
+                        return@withContext candidateBytes
                     }
                 } catch (_: Exception) {
                 }
@@ -627,9 +647,9 @@ class WebDavService {
                 }
 
                 val tempFile = File(targetFile.parentFile, targetFile.name + ".tmp")
-                client.newCall(requestBuilder.build()).execute().use { resp ->
-                    if (!resp.isSuccessful) return@withContext false
-                    val body = resp.body ?: return@withContext false
+                val downloadSuccess = client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
+                    if (!resp.isSuccessful) return@executeWithCancellation false
+                    val body = resp.body ?: return@executeWithCancellation false
                     val totalLength = body.contentLength()
 
                     body.byteStream().use { input ->
@@ -648,7 +668,9 @@ class WebDavService {
                             output.flush()
                         }
                     }
+                    true
                 }
+                if (!downloadSuccess) return@withContext false
 
                 if (tempFile.exists() && tempFile.length() > 0) {
                     if (targetFile.exists()) targetFile.delete()
