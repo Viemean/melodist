@@ -2,6 +2,7 @@ package org.melodist.api
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
+import kotlinx.serialization.json.*
 
 class LyricParserTest {
     @Test
@@ -85,4 +86,43 @@ class LyricParserTest {
         assertEquals("在触手可及的距离", merged[0].transText)
         assertEquals("竟也难以察觉", merged[1].transText)
     }
+
+    @Test
+    fun `parseMergedLyrics does not misalign translation to title meta line`() {
+        val orig =
+            """
+            [00:00.44]Proof － mell
+            [00:00.99]词: MELL
+            [00:01.05]曲: 高瀬一矢
+            [00:01.21]もし僕の夢が君の心
+            [00:08.27]傷つけてたら
+            """.trimIndent()
+        val trans =
+            """
+            [00:00.44]//
+            [00:00.99]//
+            [00:01.05]//
+            [00:01.21]若是我的梦想让你的心
+            [00:08.27]受伤了的话
+            """.trimIndent()
+
+        val merged = LyricParser.parseMergedLyrics(orig, trans)
+        assertEquals(5, merged.size)
+        assertEquals("Proof － mell", merged[0].text)
+        assertEquals("", merged[0].transText)
+
+        assertEquals("もし僕の夢が君の心", merged[3].text)
+        assertEquals("若是我的梦想让你的心", merged[3].transText)
+
+        assertEquals("傷つけてたら", merged[4].text)
+        assertEquals("受伤了的话", merged[4].transText)
+    }
+
+    @Test
+    fun `getLyrics fetches and parses lyrics for 002of4nN1BV5Et`() {
+        val lyrics = kotlinx.coroutines.runBlocking { MusicApiService().getLyrics("002of4nN1BV5Et", 246589314L) }
+        assertTrue(lyrics.isNotEmpty(), "Lyrics should not be empty")
+        assertTrue(lyrics.any { it.text.contains("蝉の声が聞こえ") })
+    }
 }
+

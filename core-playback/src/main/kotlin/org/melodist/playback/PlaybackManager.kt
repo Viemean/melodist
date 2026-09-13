@@ -290,7 +290,7 @@ object PlaybackManager {
                                 _durationMs.value = player.duration
                             }
                             saveCounter++
-                            if (saveCounter >= 30) {
+                            if (saveCounter >= 250) {
                                 saveCounter = 0
                                 savePlaybackProgress(_currentPositionMs.value)
                             }
@@ -880,8 +880,9 @@ object PlaybackManager {
                 val lyricDeferred =
                     async(Dispatchers.IO) {
                         try {
-                            apiService.getLyrics(song.songMid)
-                        } catch (_: Exception) {
+                            apiService.getLyrics(song.songMid, song.songId)
+                        } catch (e: Exception) {
+                            Log.w("MelodistPlayback", "Error loading lyrics for ${song.name}", e)
                             emptyList()
                         }
                     }

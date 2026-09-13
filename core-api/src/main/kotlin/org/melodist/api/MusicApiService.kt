@@ -691,23 +691,38 @@ class MusicApiService(
     /**
      * 获取歌曲双语同步歌词
      */
-    suspend fun getLyrics(songMid: String): List<LyricLine> =
+    suspend fun getLyrics(
+        songMid: String,
+        songId: Long = 0L,
+    ): List<LyricLine> =
         withContext(Dispatchers.IO) {
+            if (songMid.isBlank() && songId <= 0L) return@withContext emptyList()
             val payload =
                 """
-                {"comm":{"ct":24,"cv":0},"playLyricInfo":{"module":"music.musichallSong.PlayLyricInfo","method":"GetPlayLyricInfo","param":{"songMID":"$songMid","songID":0,"qrc":0,"trans":1,"roma":1,"isHQ":1}}}
+                {"comm":{"ct":24,"cv":0},"playLyricInfo":{"module":"music.musichallSong.PlayLyricInfo","method":"GetPlayLyricInfo","param":{"songMID":"$songMid","songID":$songId,"qrc":0,"trans":1,"roma":1,"isHQ":1}}}
                 """.trimIndent()
 
             try {
                 val respJson = postGateway(payload)
                 val root = Json.parseToJsonElement(respJson).jsonObject
-                val data = root["playLyricInfo"]?.jsonObject?.get("data")?.jsonObject ?: return@withContext emptyList()
+                val data = root["playLyricInfo"]?.jsonObject?.get("data")?.jsonObject
 
-                val b64Lyric = data["lyric"]?.jsonPrimitive?.contentOrNull
-                val b64Trans = data["trans"]?.jsonPrimitive?.contentOrNull
+                val b64Lyric = data?.get("lyric")?.jsonPrimitive?.contentOrNull
+                val b64Trans = data?.get("trans")?.jsonPrimitive?.contentOrNull
 
-                val rawLyric = decodeBase64(b64Lyric)
-                val rawTrans = decodeBase64(b64Trans)
+                var rawLyric = decodeBase64(b64Lyric)
+                var rawTrans = decodeBase64(b64Trans)
+
+                // 若主网关返回空，尝试传统歌词接口降级拉取
+                if (rawLyric.isBlank() && songMid.isNotBlank()) {
+                    val fallback = fetchLegacyLyric(songMid)
+                    if (fallback.first.isNotBlank()) {
+                        rawLyric = fallback.first
+                        if (rawTrans.isBlank()) {
+                            rawTrans = fallback.second
+                        }
+                    }
+                }
 
                 if (rawLyric.isNotBlank()) {
                     LyricParser.parseMergedLyrics(rawLyric, rawTrans)
@@ -715,14 +730,46 @@ class MusicApiService(
                     emptyList()
                 }
             } catch (e: Exception) {
+                // 网关异常时走传统接口降级
+                try {
+                    if (songMid.isNotBlank()) {
+                        val fallback = fetchLegacyLyric(songMid)
+                        if (fallback.first.isNotBlank()) {
+                            return@withContext LyricParser.parseMergedLyrics(fallback.first, fallback.second)
+                        }
+                    }
+                } catch (_: Exception) {
+                }
                 emptyList()
+            }
+        }
+
+    private suspend fun fetchLegacyLyric(songMid: String): Pair<String, String> =
+        withContext(Dispatchers.IO) {
+            val url =
+                "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=$songMid&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=utf8&outCharset=utf8&notice=0&platform=yqq.json&needNewCode=0"
+            try {
+                val resp = getUrl(url)
+                val root = Json.parseToJsonElement(resp).jsonObject
+                val rawLyric = decodeBase64(root["lyric"]?.jsonPrimitive?.contentOrNull)
+                val rawTrans = decodeBase64(root["trans"]?.jsonPrimitive?.contentOrNull)
+                Pair(rawLyric, rawTrans)
+            } catch (_: Exception) {
+                Pair("", "")
             }
         }
 
     private fun decodeBase64(source: String?): String {
         if (source.isNullOrBlank()) return ""
+        val clean = source.replace("\r", "").replace("\n", "").trim()
+        if (clean.isEmpty()) return ""
         return try {
-            val bytes = Base64.getDecoder().decode(source.trim())
+            val bytes =
+                try {
+                    Base64.getDecoder().decode(clean)
+                } catch (_: Exception) {
+                    Base64.getMimeDecoder().decode(clean)
+                }
             String(bytes, Charsets.UTF_8)
         } catch (e: Exception) {
             ""
