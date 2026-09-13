@@ -8,19 +8,34 @@ import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 class MelodistApp :
     Application(),
     SingletonImageLoader.Factory {
+    override fun onCreate() {
+        super.onCreate()
+        org.melodist.data.AppSettingsManager.imageCacheClearAction = {
+            try {
+                SingletonImageLoader.get(this@MelodistApp).diskCache?.clear()
+                SingletonImageLoader.get(this@MelodistApp).memoryCache?.clear()
+                true
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val okHttpClient =
             OkHttpClient
                 .Builder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(20, TimeUnit.SECONDS)
-                .addInterceptor { chain ->
+                .retryOnConnectionFailure(true)
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .addInterceptor { chain: Interceptor.Chain ->
                     val original = chain.request()
                     val request =
                         original

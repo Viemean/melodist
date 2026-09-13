@@ -52,14 +52,21 @@ fun MelodistAsyncImage(
                 val normalized = if (coverUrl.startsWith("/")) "file://$coverUrl" else coverUrl
                 list.add(normalized)
             } else {
-                // QQ 音乐 CDN 超高清 1200x1200 优先强升
+                // QQ 音乐 CDN 超高清 1200x1200 与 800x800 优先强升
                 if (coverUrl.isNotBlank()) {
                     val upgraded1200 =
                         coverUrl
                             .replace(Regex("T002R\\d+x\\d+M000"), "T002R1200x1200M000")
                             .replace(Regex("T062R\\d+x\\d+M000"), "T062R1200x1200M000")
+                    val upgraded800 =
+                        coverUrl
+                            .replace(Regex("T002R\\d+x\\d+M000"), "T002R800x800M000")
+                            .replace(Regex("T062R\\d+x\\d+M000"), "T062R800x800M000")
                     if (upgraded1200 != coverUrl) {
                         list.add(upgraded1200)
+                    }
+                    if (upgraded800 != coverUrl && !list.contains(upgraded800)) {
+                        list.add(upgraded800)
                     }
                 }
                 if (albumMid.isNotBlank()) {

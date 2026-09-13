@@ -10,5 +10,6 @@
         <domain includeSubdomains="true">qq.com</domain>
         <domain includeSubdomains="true">myqcloud.com</domain>
         <domain includeSubdomains="true">music.tc.qq.com</domain>
+        <domain includeSubdomains="true">gtimg.cn</domain>
     </domain-config>
 </network-security-config>

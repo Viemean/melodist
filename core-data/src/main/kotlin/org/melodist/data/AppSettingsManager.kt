@@ -257,6 +257,7 @@ object AppSettingsManager {
 
     var mediaCacheSizeProvider: (() -> Long)? = null
     var mediaCacheClearAction: (suspend () -> Boolean)? = null
+    var imageCacheClearAction: (suspend () -> Boolean)? = null
 
     fun calculateCacheUsage() = refreshCacheUsage()
 
@@ -326,10 +327,11 @@ object AppSettingsManager {
             val ctx = appContext ?: return@withContext false
             try {
                 mediaCacheClearAction?.invoke()
+                imageCacheClearAction?.invoke()
 
                 val cacheDir = ctx.cacheDir
                 cacheDir.listFiles()?.forEach { file ->
-                    if (file.name != "matched_lyrics" && file.name != "media_cache") {
+                    if (file.name != "matched_lyrics" && file.name != "media_cache" && file.name != "image_cache") {
                         deleteRecursively(file)
                     }
                 }
@@ -349,10 +351,11 @@ object AppSettingsManager {
             val ctx = appContext ?: return@withContext false
             try {
                 mediaCacheClearAction?.invoke()
+                imageCacheClearAction?.invoke()
 
                 val cacheDir = ctx.cacheDir
                 cacheDir.listFiles()?.forEach { file ->
-                    if (file.name != "media_cache") {
+                    if (file.name != "media_cache" && file.name != "image_cache") {
                         deleteRecursively(file)
                     }
                 }
