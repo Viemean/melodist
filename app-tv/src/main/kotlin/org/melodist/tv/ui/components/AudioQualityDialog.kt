@@ -25,6 +25,8 @@ import org.melodist.playback.DeviceAudioCapability
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
+import org.melodist.tv.ui.theme.rememberMonetSurfaceColor
+import org.melodist.tv.ui.theme.toMonetContainer
 
 private val StereoTiers =
     listOf(
@@ -50,6 +52,12 @@ fun AudioQualityDialog(
     onDismiss: () -> Unit = {},
 ) {
     val availableTiers by PlaybackManager.availableTiers.collectAsState()
+    val currentSong by PlaybackManager.currentSong.collectAsState()
+    val monetSurfaceColor = rememberMonetSurfaceColor(currentSong?.coverUrl)
+    val dialogBackgroundColor =
+        remember(monetSurfaceColor) {
+            monetSurfaceColor.toMonetContainer(elevation = 0.08f).copy(alpha = 0.95f)
+        }
 
     Dialog(onDismissRequest = onDismiss) {
         val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
@@ -61,40 +69,23 @@ fun AudioQualityDialog(
             modifier =
                 Modifier
                     .width(680.dp)
+                    .wrapContentHeight()
                     .clip(MelodistShapes.DialogCorner)
-                    .background(Color(0xFF141822).copy(alpha = 0.96f))
+                    .background(dialogBackgroundColor)
                     .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)), MelodistShapes.DialogCorner)
-                    .padding(32.dp),
+                    .padding(horizontal = 28.dp, vertical = 24.dp),
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "音质与声道规格切换",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MelodistColors.TextPrimary,
-                    )
 
-                    Text(
-                        text = "当前: ${AudioQualityTier.getBadge(selectedTier)}",
-                        fontSize = 14.sp,
-                        color = MelodistColors.AccentGreen,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-
-                // 全景声双轨
+                // 全景声
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "全景声轨道",
-                        fontSize = 14.sp,
-                        color = MelodistColors.TextSecondary,
+                        text = "全景声",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.90f),
                     )
 
                     LazyRow(
@@ -123,12 +114,13 @@ fun AudioQualityDialog(
                     }
                 }
 
-                // 立体声音轨
+                // 立体声
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = "立体声",
-                        fontSize = 14.sp,
-                        color = MelodistColors.TextSecondary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White.copy(alpha = 0.90f),
                     )
 
                     LazyRow(
@@ -161,6 +153,19 @@ fun AudioQualityDialog(
     }
 }
 
+private fun getOfficialTierColor(tier: AudioQualityTier): Color =
+    when (tier) {
+        AudioQualityTier.Master -> Color(0xFFFFD580)
+        AudioQualityTier.Premium -> Color(0xFFFFB84D)
+        AudioQualityTier.HiRes -> Color(0xFFFFCF40)
+        AudioQualityTier.SQ -> Color(0xFF22E59E)
+        AudioQualityTier.HQ -> Color(0xFF68B5FF)
+        AudioQualityTier.Standard -> Color(0xFFF1F5F9)
+        AudioQualityTier.Dolby -> Color(0xFFFFCF40)
+        AudioQualityTier.Atmos71 -> Color(0xFF5CE1E6)
+        AudioQualityTier.Atmos51 -> Color(0xFF6BE5FF)
+    }
+
 @Composable
 private fun TierOptionItem(
     tier: AudioQualityTier,
@@ -175,68 +180,29 @@ private fun TierOptionItem(
     val isFocused by interactionSource.collectIsFocusedAsState()
 
     val badge = AudioQualityTier.getBadge(tier)
-    val statusText =
-        when {
-            !isDeviceSupported -> unsupportedReason ?: "设备不支持"
-            !isStreamAvailable ->
-                if (tier in
-                    listOf(
-                        AudioQualityTier.Master,
-                        AudioQualityTier.Atmos71,
-                        AudioQualityTier.Atmos51,
-                        AudioQualityTier.Dolby,
-                        AudioQualityTier.Premium,
-                    )
-                ) {
-                    "暂无或需VIP"
-                } else {
-                    "暂无音源"
-                }
-            unsupportedReason != null -> unsupportedReason
-            else ->
-                when (tier) {
-                    AudioQualityTier.Master -> "母带级"
-                    AudioQualityTier.HiRes -> "超清无损"
-                    AudioQualityTier.SQ -> "标准无损"
-                    AudioQualityTier.HQ -> "高品质"
-                    AudioQualityTier.Standard -> "标准音质"
-                    AudioQualityTier.Atmos71 -> "7.1 全景"
-                    AudioQualityTier.Atmos51 -> "5.1 环绕"
-                    AudioQualityTier.Dolby -> "杜比全景声"
-                    AudioQualityTier.Premium -> "臻品母带"
-                }
-        }
+    val officialColor = remember(tier) { getOfficialTierColor(tier) }
 
     val bg =
         when {
-            !isUsable -> Color.White.copy(alpha = 0.03f)
+            !isUsable -> Color.White.copy(alpha = 0.05f)
             isFocused -> Color.White
-            isSelected -> MelodistColors.AccentGreen.copy(alpha = 0.20f)
-            else -> Color.White.copy(alpha = 0.10f)
+            isSelected -> officialColor.copy(alpha = 0.22f)
+            else -> Color.White.copy(alpha = 0.12f)
         }
 
     val textColor =
         when {
-            !isUsable -> MelodistColors.TextMuted.copy(alpha = 0.35f)
+            !isUsable -> officialColor.copy(alpha = 0.65f)
             isFocused -> Color.Black
-            isSelected -> MelodistColors.AccentGreen
-            else -> MelodistColors.TextPrimary
-        }
-
-    val subTextColor =
-        when {
-            !isUsable -> MelodistColors.TextMuted.copy(alpha = 0.30f)
-            isFocused -> Color.DarkGray
-            isSelected -> MelodistColors.AccentGreen.copy(alpha = 0.85f)
-            else -> MelodistColors.TextSecondary
+            else -> officialColor
         }
 
     val border =
         when {
-            !isUsable -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.04f)), MelodistShapes.ButtonCorner)
+            !isUsable -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), MelodistShapes.ButtonCorner)
             isFocused -> Modifier.border(BorderStroke(2.5.dp, MelodistColors.FocusTeal), MelodistShapes.ButtonCorner)
-            isSelected -> Modifier.border(BorderStroke(1.dp, MelodistColors.AccentGreen.copy(alpha = 0.60f)), MelodistShapes.ButtonCorner)
-            else -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)), MelodistShapes.ButtonCorner)
+            isSelected -> Modifier.border(BorderStroke(1.dp, officialColor.copy(alpha = 0.80f)), MelodistShapes.ButtonCorner)
+            else -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)), MelodistShapes.ButtonCorner)
         }
 
     val clickableModifier =
@@ -251,25 +217,19 @@ private fun TierOptionItem(
     Box(
         modifier =
             Modifier
+                .width(110.dp)
+                .height(52.dp)
                 .then(border)
                 .clip(MelodistShapes.ButtonCorner)
                 .background(bg)
-                .then(clickableModifier)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .then(clickableModifier),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = badge,
-                color = textColor,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = statusText,
-                color = subTextColor,
-                fontSize = 10.sp,
-            )
-        }
+        Text(
+            text = badge,
+            color = textColor,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
