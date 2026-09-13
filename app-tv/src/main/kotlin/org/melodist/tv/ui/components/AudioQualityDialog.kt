@@ -52,13 +52,18 @@ fun AudioQualityDialog(
     val availableTiers by PlaybackManager.availableTiers.collectAsState()
 
     Dialog(onDismissRequest = onDismiss) {
+        val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        SideEffect {
+            dialogWindow?.setDimAmount(0.28f)
+        }
+
         Box(
             modifier =
                 Modifier
                     .width(680.dp)
-                    .clip(MelodistShapes.CardCorner)
-                    .background(MelodistColors.ContainerDark)
-                    .border(BorderStroke(2.dp, MelodistColors.FocusTeal.copy(alpha = 0.6f)), MelodistShapes.CardCorner)
+                    .clip(MelodistShapes.DialogCorner)
+                    .background(Color(0xFF141822).copy(alpha = 0.96f))
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)), MelodistShapes.DialogCorner)
                     .padding(32.dp),
         ) {
             Column(
@@ -206,8 +211,8 @@ private fun TierOptionItem(
         when {
             !isUsable -> Color.White.copy(alpha = 0.03f)
             isFocused -> Color.White
-            isSelected -> MelodistColors.AccentGreen.copy(alpha = 0.2f)
-            else -> MelodistColors.ContainerDarkSecondary
+            isSelected -> MelodistColors.AccentGreen.copy(alpha = 0.20f)
+            else -> Color.White.copy(alpha = 0.10f)
         }
 
     val textColor =
@@ -220,17 +225,18 @@ private fun TierOptionItem(
 
     val subTextColor =
         when {
-            !isUsable -> MelodistColors.TextMuted.copy(alpha = 0.3f)
+            !isUsable -> MelodistColors.TextMuted.copy(alpha = 0.30f)
             isFocused -> Color.DarkGray
-            else -> MelodistColors.TextMuted
+            isSelected -> MelodistColors.AccentGreen.copy(alpha = 0.85f)
+            else -> MelodistColors.TextSecondary
         }
 
     val border =
         when {
             !isUsable -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.04f)), MelodistShapes.ButtonCorner)
             isFocused -> Modifier.border(BorderStroke(2.5.dp, MelodistColors.FocusTeal), MelodistShapes.ButtonCorner)
-            isSelected -> Modifier.border(BorderStroke(1.dp, MelodistColors.AccentGreen), MelodistShapes.ButtonCorner)
-            else -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), MelodistShapes.ButtonCorner)
+            isSelected -> Modifier.border(BorderStroke(1.dp, MelodistColors.AccentGreen.copy(alpha = 0.60f)), MelodistShapes.ButtonCorner)
+            else -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)), MelodistShapes.ButtonCorner)
         }
 
     val clickableModifier =
