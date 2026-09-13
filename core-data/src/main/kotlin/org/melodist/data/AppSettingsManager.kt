@@ -336,6 +336,7 @@ object AppSettingsManager {
                     }
                 }
                 File(cacheDir, "covers").mkdirs()
+                File(cacheDir, "local_covers").mkdirs()
                 File(cacheDir, "webdav").mkdirs()
                 File(cacheDir, "lyrics").mkdirs()
                 refreshCacheUsage()
@@ -363,6 +364,7 @@ object AppSettingsManager {
                     }
                 }
                 File(cacheDir, "covers").mkdirs()
+                File(cacheDir, "local_covers").mkdirs()
                 File(cacheDir, "webdav").mkdirs()
                 File(cacheDir, "lyrics").mkdirs()
                 File(cacheDir, "matched_lyrics").mkdirs()

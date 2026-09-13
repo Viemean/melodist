@@ -338,6 +338,18 @@ object PlaybackManager {
         }
     }
 
+    private fun sanitizeSongCover(song: Song): Song {
+        val url = song.coverUrl
+        if (url.startsWith("file://")) {
+            val path = url.removePrefix("file://")
+            val file = java.io.File(path)
+            if (!file.exists() || file.length() == 0L) {
+                return song.copy(coverUrl = "")
+            }
+        }
+        return song
+    }
+
     private fun restorePlaybackState() {
         val prefs = getPrefs() ?: return
         try {
@@ -364,7 +376,7 @@ object PlaybackManager {
             val queueJson = prefs.getString("playback_queue", null)
             if (!queueJson.isNullOrBlank()) {
                 try {
-                    val queue = jsonHelper.decodeFromString<List<Song>>(queueJson)
+                    val queue = jsonHelper.decodeFromString<List<Song>>(queueJson).map { sanitizeSongCover(it) }
                     _playlist.value = queue
                     val shufStr = prefs.getString("shuffled_indices", null)
                     val shufPointer = prefs.getInt("shuffled_pointer", 0)
@@ -378,7 +390,8 @@ object PlaybackManager {
             val songJson = prefs.getString("current_song", null)
             if (!songJson.isNullOrBlank()) {
                 try {
-                    val song = jsonHelper.decodeFromString<Song>(songJson)
+                    val rawSong = jsonHelper.decodeFromString<Song>(songJson)
+                    val song = sanitizeSongCover(rawSong)
                     _currentSong.value = song
                     _currentTier.value = song.currentTier
                 } catch (_: Exception) {
