@@ -168,6 +168,22 @@ object PlaylistScreenCache {
         this.lockedCoverUrl = cover
         this.lockedAlbumMid = albumMid
     }
+
+    fun onSongFavoriteChanged(song: Song, isFav: Boolean) {
+        if (lastCacheKey != "favorites_0_0_") return
+        val current = songs.toMutableList()
+        current.removeAll { it.songMid == song.songMid || (song.songId > 0 && it.songId == song.songId) }
+        if (isFav) {
+            current.add(0, song)
+            totalCount++
+            if (song.coverUrl.isNotBlank()) {
+                lockedCoverUrl = song.coverUrl
+            }
+        } else {
+            totalCount = (totalCount - 1).coerceAtLeast(0)
+        }
+        songs = current
+    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -261,6 +277,25 @@ fun PlaylistTvScreen(
                 albumMid
             },
         )
+    }
+
+    LaunchedEffect(isFavoritePlaylist) {
+        if (!isFavoritePlaylist) return@LaunchedEffect
+        PlaybackManager.songFavoriteToggledEvent.collect { (song, isFav) ->
+            PlaylistScreenCache.onSongFavoriteChanged(song, isFav)
+            val current = playlistSongs.toMutableList()
+            current.removeAll { it.songMid == song.songMid || (song.songId > 0 && it.songId == song.songId) }
+            if (isFav) {
+                current.add(0, song)
+                totalCount++
+                if (song.coverUrl.isNotBlank()) {
+                    lockedCoverUrl = song.coverUrl
+                }
+            } else {
+                totalCount = (totalCount - 1).coerceAtLeast(0)
+            }
+            playlistSongs = current
+        }
     }
 
     fun saveToCache(
@@ -382,6 +417,9 @@ fun PlaylistTvScreen(
         }
 
         if (hasValidCache && isReturningFromPlayer) {
+            playlistSongs = PlaylistScreenCache.songs
+            totalCount = PlaylistScreenCache.totalCount
+            hasMore = PlaylistScreenCache.hasMore
             isLoading = false
             return@LaunchedEffect
         }
@@ -399,6 +437,7 @@ fun PlaylistTvScreen(
                     totalCount = favResult.total
                     UserSession.updateFavoriteSongCount(favResult.total)
                     hasMore = favResult.hasMore
+                    saveToCache(currentList, favResult.total, favResult.hasMore)
                     if (favResult.songs.isNotEmpty()) {
                         PlaybackManager.addFavoriteSongMids(favResult.songs.map { it.songMid })
                     }

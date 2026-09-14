@@ -17,8 +17,11 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -85,6 +88,9 @@ object PlaybackManager {
 
     private val _favoriteSongMids = MutableStateFlow<Set<String>>(emptySet())
     val favoriteSongMids: StateFlow<Set<String>> = _favoriteSongMids.asStateFlow()
+
+    private val _songFavoriteToggledEvent = MutableSharedFlow<Pair<Song, Boolean>>(extraBufferCapacity = 16)
+    val songFavoriteToggledEvent: SharedFlow<Pair<Song, Boolean>> = _songFavoriteToggledEvent.asSharedFlow()
 
     private val _availableTiers = MutableStateFlow<Set<AudioQualityTier>>(emptySet())
     val availableTiers: StateFlow<Set<AudioQualityTier>> = _availableTiers.asStateFlow()
@@ -484,6 +490,7 @@ object PlaybackManager {
         val mid = song.songMid
         val id = song.songId
         val isFav = _favoriteSongMids.value.contains(mid)
+        val willBeFav = !isFav
         val updated =
             if (isFav) {
                 _favoriteSongMids.value - mid
@@ -492,6 +499,7 @@ object PlaybackManager {
             }
         _favoriteSongMids.value = updated
         savePlaybackState()
+        _songFavoriteToggledEvent.tryEmit(song to willBeFav)
 
         scope.launch(Dispatchers.IO) {
             try {

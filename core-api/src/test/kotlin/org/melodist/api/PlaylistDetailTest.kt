@@ -1,8 +1,10 @@
 package org.melodist.api
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.melodist.model.FavoriteSongsResult
@@ -155,4 +157,42 @@ class PlaylistDetailTest {
 
         assertTrue(shouldProtectQueue)
     }
+
+    @Test
+    fun `addSonglist and delSonglist response formats parse accurately`() {
+        val addSuccessResp =
+            """
+            {
+              "addSongsToPlayList": {
+                "code": 0,
+                "subcode": 0,
+                "data": {
+                  "succ_song_num": 1,
+                  "fail_song_num": 0
+                }
+              }
+            }
+            """.trimIndent()
+        val addRoot = Json.parseToJsonElement(addSuccessResp).jsonObject
+        val addObj = addRoot["addSongsToPlayList"]?.jsonObject
+        assertNotNull(addObj)
+        assertEquals(0, addObj?.get("code")?.jsonPrimitive?.intOrNull)
+        val addData = addObj?.get("data")?.jsonObject
+        assertEquals(1, addData?.get("succ_song_num")?.jsonPrimitive?.intOrNull)
+
+        val delSuccessResp =
+            """
+            {
+              "delSongsFromPlayList": {
+                "code": 0,
+                "subcode": 0
+              }
+            }
+            """.trimIndent()
+        val delRoot = Json.parseToJsonElement(delSuccessResp).jsonObject
+        val delObj = delRoot["delSongsFromPlayList"]?.jsonObject
+        assertNotNull(delObj)
+        assertEquals(0, delObj?.get("code")?.jsonPrimitive?.intOrNull)
+    }
 }
+

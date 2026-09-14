@@ -27,6 +27,7 @@ import org.melodist.tv.ui.HomeTvScreen
 import org.melodist.tv.ui.LocalMusicTvScreen
 import org.melodist.tv.ui.MediaCollectionTvScreen
 import org.melodist.tv.ui.PlayerTvScreen
+import org.melodist.tv.ui.PlaylistScreenCache
 import org.melodist.tv.ui.PlaylistTvScreen
 import org.melodist.tv.ui.SearchTvScreen
 import org.melodist.tv.ui.SettingsTvScreen
@@ -122,6 +123,15 @@ class MainActivity : ComponentActivity() {
                         var selectedArtistName by remember { mutableStateOf("") }
                         var selectedCoverUrl by remember { mutableStateOf("") }
                         var lastBackTime by remember { mutableLongStateOf(0L) }
+
+                        LaunchedEffect(Unit) {
+                            PlaybackManager.songFavoriteToggledEvent.collect { (song, isFav) ->
+                                PlaylistScreenCache.onSongFavoriteChanged(song, isFav)
+                                if (isFav && song.coverUrl.isNotBlank()) {
+                                    org.melodist.tv.ui.components.HomeCardsCache.favCover = song.coverUrl
+                                }
+                            }
+                        }
 
                         // 主页返回键双击退出应用
                         BackHandler(enabled = currentRoute == ScreenRoute.Home) {
