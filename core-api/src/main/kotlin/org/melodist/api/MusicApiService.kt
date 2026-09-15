@@ -7,8 +7,10 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.melodist.model.Album
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
+import org.melodist.model.Playlist
 import org.melodist.model.Song
 import java.io.IOException
 import java.util.Base64
@@ -294,6 +296,140 @@ class MusicApiService(
         }
 
     /**
+     * 搜索专辑 (search_type: 2)
+     */
+    suspend fun searchAlbums(
+        query: String,
+        page: Int = 1,
+        pageSize: Int = 30,
+    ): List<Album> =
+        withContext(Dispatchers.IO) {
+            if (query.isBlank()) return@withContext emptyList()
+            val escapedQuery = Json.encodeToString(query)
+            val payload =
+                """
+                {
+                  "music.search.SearchCgiService": {
+                    "module": "music.search.SearchCgiService",
+                    "method": "DoSearchForQQMusicDesktop",
+                    "param": {
+                      "query": $escapedQuery,
+                      "page_num": $page,
+                      "num_per_page": $pageSize,
+                      "search_type": 2
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            try {
+                val respJson = postAg1Gateway(payload)
+                val root = Json.parseToJsonElement(respJson).jsonObject
+                val svc = root["music.search.SearchCgiService"]?.jsonObject
+                val data = svc?.get("data")?.jsonObject
+                val body = data?.get("body")?.jsonObject
+                val albumObj = body?.get("album")?.jsonObject
+                val albumList = albumObj?.get("list")?.jsonArray ?: return@withContext emptyList()
+
+                albumList.mapNotNull { element ->
+                    try {
+                        val obj = element.jsonObject
+                        val id = obj["albumID"]?.jsonPrimitive?.longOrNull ?: 0L
+                        val mid = obj["albumMID"]?.jsonPrimitive?.contentOrNull ?: ""
+                        if (mid.isBlank()) return@mapNotNull null
+                        val title = obj["albumName"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val artist =
+                            obj["singerName"]?.jsonPrimitive?.contentOrNull
+                                ?: obj["singer_list"]
+                                    ?.jsonArray
+                                    ?.firstOrNull()
+                                    ?.jsonObject
+                                    ?.get("name")
+                                    ?.jsonPrimitive
+                                    ?.contentOrNull
+                                ?: ""
+                        val pic = obj["albumPic"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val songCount = obj["song_count"]?.jsonPrimitive?.intOrNull ?: 0
+                        Album(
+                            id = id,
+                            mid = mid,
+                            title = title,
+                            artist = artist,
+                            songCount = songCount,
+                            coverUrl = pic,
+                        )
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+
+    /**
+     * 搜索歌单 (search_type: 3)
+     */
+    suspend fun searchPlaylists(
+        query: String,
+        page: Int = 1,
+        pageSize: Int = 30,
+    ): List<Playlist> =
+        withContext(Dispatchers.IO) {
+            if (query.isBlank()) return@withContext emptyList()
+            val escapedQuery = Json.encodeToString(query)
+            val payload =
+                """
+                {
+                  "music.search.SearchCgiService": {
+                    "module": "music.search.SearchCgiService",
+                    "method": "DoSearchForQQMusicDesktop",
+                    "param": {
+                      "query": $escapedQuery,
+                      "page_num": $page,
+                      "num_per_page": $pageSize,
+                      "search_type": 3
+                    }
+                  }
+                }
+                """.trimIndent()
+
+            try {
+                val respJson = postAg1Gateway(payload)
+                val root = Json.parseToJsonElement(respJson).jsonObject
+                val svc = root["music.search.SearchCgiService"]?.jsonObject
+                val data = svc?.get("data")?.jsonObject
+                val body = data?.get("body")?.jsonObject
+                val songlistObj = body?.get("songlist")?.jsonObject
+                val songlistArray = songlistObj?.get("list")?.jsonArray ?: return@withContext emptyList()
+
+                songlistArray.mapNotNull { element ->
+                    try {
+                        val obj = element.jsonObject
+                        val dissid = obj["dissid"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val dissIdLong = dissid.toLongOrNull() ?: 0L
+                        if (dissIdLong <= 0L && dissid.isBlank()) return@mapNotNull null
+                        val name = obj["dissname"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val pic = obj["imgurl"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val songCount = obj["song_count"]?.jsonPrimitive?.intOrNull ?: 0
+                        Playlist(
+                            dirId = dissIdLong,
+                            name = name,
+                            songCount = songCount,
+                            tid = dissIdLong,
+                            isFav = true,
+                            picUrl = pic,
+                        )
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+
+    /**
      * 发起带 AG-1 流量加密的安全网关 POST 请求并自动解密返回
      */
     suspend fun postAg1Gateway(jsonPayload: String): String =
@@ -330,7 +466,10 @@ class MusicApiService(
     /**
      * 发起带通用头与 Cookie 的音乐网关 POST 请求
      */
-    suspend fun postGateway(jsonPayload: String): String =
+    suspend fun postGateway(
+        jsonPayload: String,
+        customCookieHeader: String? = null,
+    ): String =
         withContext(Dispatchers.IO) {
             val sign = CryptoUtils.computeZzcSign(jsonPayload)
             val url = "$API_ENDPOINT?_=$sign"
@@ -344,7 +483,7 @@ class MusicApiService(
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; MelodistTV) AppleWebKit/537.36")
                     .header("Referer", "https://y.qq.com/")
 
-            val cookieHeader = UserSession.getCookieHeader()
+            val cookieHeader = customCookieHeader ?: UserSession.getCookieHeader()
             if (cookieHeader.isNotBlank()) {
                 requestBuilder.header("Cookie", cookieHeader)
             }
@@ -491,14 +630,17 @@ class MusicApiService(
         preferredTier: AudioQualityTier = AudioQualityTier.SQ,
     ): QualityResult =
         withContext(Dispatchers.IO) {
-            try {
-                LoginApiService().ensureMusicKey()
-            } catch (_: Exception) {
+            if (!PlaybackCredentialsManager.hasCustomCredentials) {
+                try {
+                    LoginApiService().ensureMusicKey()
+                } catch (_: Exception) {
+                }
             }
 
             val targetMediaMid = mediaMid.ifBlank { songMid }
-            val uin = UserSession.profile.uin.ifBlank { "0" }
-            val authst = UserSession.profile.musicKey
+            val uin = PlaybackCredentialsManager.getActiveUin()
+            val authst = PlaybackCredentialsManager.getActiveAuthst()
+            val cookieHeader = PlaybackCredentialsManager.getActiveCookieHeader()
 
             val requests =
                 listOf(
@@ -529,7 +671,7 @@ class MusicApiService(
             sb.append("}")
 
             try {
-                val respJson = postGateway(sb.toString())
+                val respJson = postGateway(sb.toString(), customCookieHeader = cookieHeader)
                 val root = Json.parseToJsonElement(respJson).jsonObject
 
                 val fileObj =
@@ -545,7 +687,8 @@ class MusicApiService(
                 val sizeMap = mutableMapOf<AudioQualityTier, Long>()
                 if (fileObj != null) {
                     val sizeNew = fileObj["size_new"]?.jsonArray
-                    sizeMap[AudioQualityTier.Master] = sizeNew?.getOrNull(0)?.jsonPrimitive?.longOrNull ?: 0L
+                    val masterSize = sizeNew?.getOrNull(0)?.jsonPrimitive?.longOrNull ?: 0L
+                    sizeMap[AudioQualityTier.Master] = masterSize
                     sizeMap[AudioQualityTier.Atmos51] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
                     sizeMap[AudioQualityTier.Atmos71] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
                     val dolbySize =
@@ -553,12 +696,29 @@ class MusicApiService(
                             if (it > 0L) it else sizeNew?.getOrNull(3)?.jsonPrimitive?.longOrNull ?: 0L
                         }
                     sizeMap[AudioQualityTier.Dolby] = dolbySize
-                    sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(5)?.jsonPrimitive?.longOrNull
-                        ?: sizeNew?.getOrNull(0)?.jsonPrimitive?.longOrNull ?: 0L
-                    sizeMap[AudioQualityTier.HiRes] = fileObj["size_hires"]?.jsonPrimitive?.longOrNull
-                        ?: fileObj["size_96flac"]?.jsonPrimitive?.longOrNull
-                        ?: fileObj["size_24bit"]?.jsonPrimitive?.longOrNull ?: 0L
-                    sizeMap[AudioQualityTier.SQ] = fileObj["size_flac"]?.jsonPrimitive?.longOrNull ?: 0L
+                    val hiresRaw =
+                        fileObj["size_hires"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
+                            ?: fileObj["size_96flac"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
+                            ?: fileObj["size_24bit"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
+                            ?: sizeNew
+                                ?.getOrNull(11)
+                                ?.jsonPrimitive
+                                ?.longOrNull
+                                ?.takeIf { it > 0L }
+                            ?: 0L
+                    val flacSize = fileObj["size_flac"]?.jsonPrimitive?.longOrNull ?: 0L
+                    val hiresSample = fileObj["hires_sample"]?.jsonPrimitive?.intOrNull ?: 0
+                    val hiresBitdepth = fileObj["hires_bitdepth"]?.jsonPrimitive?.intOrNull ?: 0
+
+                    val isTrueHiRes = hiresRaw > 0L || hiresSample > 48000 || hiresBitdepth > 16
+                    sizeMap[AudioQualityTier.HiRes] =
+                        if (isTrueHiRes) {
+                            if (hiresRaw > 0L) hiresRaw else flacSize
+                        } else {
+                            0L
+                        }
+                    sizeMap[AudioQualityTier.SQ] = flacSize
+                    sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(4)?.jsonPrimitive?.longOrNull ?: 0L
                     sizeMap[AudioQualityTier.HQ] = fileObj["size_320mp3"]?.jsonPrimitive?.longOrNull ?: 0L
                     sizeMap[AudioQualityTier.Standard] = fileObj["size_128mp3"]?.jsonPrimitive?.longOrNull ?: 0L
                 }
@@ -575,13 +735,14 @@ class MusicApiService(
                     val purl = midInfo?.get("purl")?.jsonPrimitive?.contentOrNull
                     val result = midInfo?.get("result")?.jsonPrimitive?.intOrNull ?: 0
                     val fileSize = sizeMap[tier] ?: 0L
-                    val hasFileSize = if (fileObj != null) fileSize > 0L else true
-                    if (hasFileSize &&
-                        !purl.isNullOrBlank() &&
-                        purl.length > 5 &&
-                        result == 0 &&
-                        purl.contains(prefix, ignoreCase = true)
-                    ) {
+                    val hasValidUrl = !purl.isNullOrBlank() && purl.length > 5 && result == 0 && purl.contains(prefix, ignoreCase = true)
+                    val isAvailable =
+                        if (fileObj != null) {
+                            fileSize > 0L && hasValidUrl
+                        } else {
+                            hasValidUrl
+                        }
+                    if (isAvailable && purl != null) {
                         // 过滤 Android 系统解码器 (c2.android.vorbis.decoder) 无法解码的 12 声道 Q003 Vorbis 流
                         if (purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) {
                             continue
@@ -595,7 +756,7 @@ class MusicApiService(
                     return@withContext QualityResult(url, preferredTier, AudioQualityTier.getBadge(preferredTier))
                 }
 
-                // 向下级音质降级
+                // 向下音质降级
                 val fallbackCandidates =
                     when (preferredTier) {
                         AudioQualityTier.Master ->
@@ -694,52 +855,98 @@ class MusicApiService(
     suspend fun getLyrics(
         songMid: String,
         songId: Long = 0L,
+        songName: String = "",
+        singer: String = "",
     ): List<LyricLine> =
         withContext(Dispatchers.IO) {
-            if (songMid.isBlank() && songId <= 0L) return@withContext emptyList()
-            val payload =
-                """
-                {"comm":{"ct":24,"cv":0},"playLyricInfo":{"module":"music.musichallSong.PlayLyricInfo","method":"GetPlayLyricInfo","param":{"songMID":"$songMid","songID":$songId,"qrc":0,"trans":1,"roma":1,"isHQ":1}}}
-                """.trimIndent()
+            if (songMid.isBlank() && songId <= 0L && songName.isBlank()) return@withContext emptyList()
+            var rawLyric = ""
+            var rawTrans = ""
 
-            try {
-                val respJson = postGateway(payload)
-                val root = Json.parseToJsonElement(respJson).jsonObject
-                val data = root["playLyricInfo"]?.jsonObject?.get("data")?.jsonObject
+            if (songMid.isNotBlank() || songId > 0L) {
+                val payload =
+                    """
+                    {"comm":{"ct":24,"cv":0},"playLyricInfo":{"module":"music.musichallSong.PlayLyricInfo","method":"GetPlayLyricInfo","param":{"songMID":"$songMid","songID":$songId,"qrc":0,"trans":1,"roma":1,"isHQ":1}}}
+                    """.trimIndent()
 
-                val b64Lyric = data?.get("lyric")?.jsonPrimitive?.contentOrNull
-                val b64Trans = data?.get("trans")?.jsonPrimitive?.contentOrNull
-
-                var rawLyric = decodeBase64(b64Lyric)
-                var rawTrans = decodeBase64(b64Trans)
-
-                // 若主网关返回空，尝试传统歌词接口降级拉取
-                if (rawLyric.isBlank() && songMid.isNotBlank()) {
-                    val fallback = fetchLegacyLyric(songMid)
-                    if (fallback.first.isNotBlank()) {
-                        rawLyric = fallback.first
-                        if (rawTrans.isBlank()) {
-                            rawTrans = fallback.second
-                        }
-                    }
-                }
-
-                if (rawLyric.isNotBlank()) {
-                    LyricParser.parseMergedLyrics(rawLyric, rawTrans)
-                } else {
-                    emptyList()
-                }
-            } catch (e: Exception) {
-                // 网关异常时走传统接口降级
                 try {
-                    if (songMid.isNotBlank()) {
+                    val respJson = postGateway(payload)
+                    val root = Json.parseToJsonElement(respJson).jsonObject
+                    val playLyricInfo = root["playLyricInfo"]?.jsonObject
+                    val code = playLyricInfo?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+                    if (code == 0) {
+                        val data = playLyricInfo?.get("data")?.jsonObject
+                        val b64Lyric = data?.get("lyric")?.jsonPrimitive?.contentOrNull
+                        val b64Trans = data?.get("trans")?.jsonPrimitive?.contentOrNull
+
+                        rawLyric = decodeBase64(b64Lyric)
+                        rawTrans = decodeBase64(b64Trans)
+                    }
+
+                    // 若主网关返回空，尝试传统歌词接口降级拉取
+                    if (rawLyric.isBlank() && songMid.isNotBlank()) {
                         val fallback = fetchLegacyLyric(songMid)
                         if (fallback.first.isNotBlank()) {
-                            return@withContext LyricParser.parseMergedLyrics(fallback.first, fallback.second)
+                            rawLyric = fallback.first
+                            if (rawTrans.isBlank()) {
+                                rawTrans = fallback.second
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                    try {
+                        if (songMid.isNotBlank()) {
+                            val fallback = fetchLegacyLyric(songMid)
+                            if (fallback.first.isNotBlank()) {
+                                rawLyric = fallback.first
+                                rawTrans = fallback.second
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+
+            // 若本曲未提供有效歌词（如翻唱单曲、未挂载专辑的原声单曲返回 code 24001），通过歌名与歌手进行同名曲目歌词智能匹配
+            if (rawLyric.isBlank() && songName.isNotBlank()) {
+                try {
+                    val cleanTitle = songName.replace(Regex("""\s*[\(\[（【].*?[\)\]）】]"""), "").trim().ifBlank { songName.trim() }
+                    val cleanSinger =
+                        singer
+                            .substringBefore('/')
+                            .substringBefore('&')
+                            .substringBefore(',')
+                            .trim()
+                    val queries = mutableListOf<String>()
+                    if (cleanSinger.isNotBlank() && cleanSinger != "未知歌手" && cleanSinger != "Unknown") {
+                        queries.add("$cleanTitle $cleanSinger")
+                    }
+                    queries.add(cleanTitle)
+
+                    for (q in queries) {
+                        val candidates = search(q, page = 1, pageSize = 5)
+                        for (cand in candidates) {
+                            if (cand.songMid == songMid && songMid.isNotBlank()) continue
+                            val candClean = cand.name.replace(Regex("""\s*[\(\[（【].*?[\)\]）】]"""), "").trim()
+                            val isTitleMatch =
+                                candClean.equals(cleanTitle, ignoreCase = true) ||
+                                    cand.name.contains(cleanTitle, ignoreCase = true) ||
+                                    cleanTitle.contains(candClean, ignoreCase = true)
+                            if (!isTitleMatch) continue
+
+                            val candLyrics = getLyrics(cand.songMid, cand.songId)
+                            if (candLyrics.isNotEmpty()) {
+                                return@withContext candLyrics
+                            }
                         }
                     }
                 } catch (_: Exception) {
                 }
+            }
+
+            if (rawLyric.isNotBlank()) {
+                LyricParser.parseMergedLyrics(rawLyric, rawTrans)
+            } else {
                 emptyList()
             }
         }

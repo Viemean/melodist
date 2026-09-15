@@ -647,29 +647,30 @@ class WebDavService {
                 }
 
                 val tempFile = File(targetFile.parentFile, targetFile.name + ".tmp")
-                val downloadSuccess = client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
-                    if (!resp.isSuccessful) return@executeWithCancellation false
-                    val body = resp.body ?: return@executeWithCancellation false
-                    val totalLength = body.contentLength()
+                val downloadSuccess =
+                    client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
+                        if (!resp.isSuccessful) return@executeWithCancellation false
+                        val body = resp.body ?: return@executeWithCancellation false
+                        val totalLength = body.contentLength()
 
-                    body.byteStream().use { input ->
-                        FileOutputStream(tempFile).use { output ->
-                            val buffer = ByteArray(32 * 1024)
-                            var bytesRead: Int
-                            var downloadedBytes = 0L
+                        body.byteStream().use { input ->
+                            FileOutputStream(tempFile).use { output ->
+                                val buffer = ByteArray(32 * 1024)
+                                var bytesRead: Int
+                                var downloadedBytes = 0L
 
-                            while (input.read(buffer).also { bytesRead = it } != -1) {
-                                output.write(buffer, 0, bytesRead)
-                                downloadedBytes += bytesRead
-                                if (totalLength > 0 && onProgress != null) {
-                                    onProgress(downloadedBytes.toFloat() / totalLength)
+                                while (input.read(buffer).also { bytesRead = it } != -1) {
+                                    output.write(buffer, 0, bytesRead)
+                                    downloadedBytes += bytesRead
+                                    if (totalLength > 0 && onProgress != null) {
+                                        onProgress(downloadedBytes.toFloat() / totalLength)
+                                    }
                                 }
+                                output.flush()
                             }
-                            output.flush()
                         }
+                        true
                     }
-                    true
-                }
                 if (!downloadSuccess) return@withContext false
 
                 if (tempFile.exists() && tempFile.length() > 0) {

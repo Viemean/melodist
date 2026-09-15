@@ -91,13 +91,16 @@ enum class AudioQualityTier {
             if (channelCount >= 8 || (isDolbyAtmos && channelCount >= 8)) {
                 return Atmos71
             }
-            if (channelCount in 5..7 || (isDolbyAtmos && channelCount in 5..7) ||
-                mime.contains("ac3") || mime.contains("eac3") || mime.contains("dts")
+            if (channelCount in 5..7 ||
+                (isDolbyAtmos && channelCount in 5..7) ||
+                mime.contains("ac3") ||
+                mime.contains("eac3") ||
+                mime.contains("dts")
             ) {
                 return Atmos51
             }
 
-            if (sampleRate >= 192000 || (sampleRate >= 96000 && bitsPerSample >= 24)) {
+            if (sampleRate >= 192000) {
                 return Master
             }
             if (sampleRate > 48000 || bitsPerSample > 16) {
@@ -105,8 +108,13 @@ enum class AudioQualityTier {
             }
 
             val isExplicitLossy =
-                mime.contains("mp3") || mime.contains("mpeg") || mime.contains("aac") ||
-                    mime.contains("mp4a") || mime.contains("vorbis") || mime.contains("opus") || mime.contains("wma")
+                mime.contains("mp3") ||
+                    mime.contains("mpeg") ||
+                    mime.contains("aac") ||
+                    mime.contains("mp4a") ||
+                    mime.contains("vorbis") ||
+                    mime.contains("opus") ||
+                    mime.contains("wma")
 
             if (isExplicitLossy) {
                 return if (bitrate >= 240000) HQ else Standard

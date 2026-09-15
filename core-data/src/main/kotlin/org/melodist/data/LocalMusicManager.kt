@@ -8,11 +8,15 @@ import android.os.Environment
 import android.os.storage.StorageManager
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.melodist.model.AudioQualityTier
+import org.melodist.model.AudioFileFilter
 import org.melodist.model.Song
 import java.io.File
 import java.nio.charset.Charset
@@ -32,13 +36,7 @@ data class LocalSongCache(
     val lastModified: Long = 0L,
 ) {
     fun toSong(): Song {
-        val lower = path.lowercase()
-        val tier =
-            when {
-                lower.endsWith(".flac") || lower.endsWith(".wav") || lower.endsWith(".ape") -> AudioQualityTier.SQ
-                lower.endsWith(".dsf") || lower.endsWith(".dff") -> AudioQualityTier.HiRes
-                else -> AudioQualityTier.HQ
-            }
+        val tier = AudioFileFilter.inferQualityTierByExtension(path)
         return Song(
             songId = id.hashCode().toLong(),
             songMid = "local_$id",
@@ -47,13 +45,7 @@ data class LocalSongCache(
             album = album,
             durationSeconds = durationSeconds,
             currentTier = tier,
-            coverUrl =
-                if (coverPath.isNotBlank()) {
-                    val f = File(coverPath)
-                    if (f.exists() && f.length() > 0L) "file://$coverPath" else ""
-                } else {
-                    ""
-                },
+            coverUrl = LocalMusicManager.resolveCoverUrl(path, coverPath),
             localFilePath = path,
         )
     }
@@ -89,20 +81,7 @@ object LocalMusicManager {
     private const val PREF_NAME = "melodist_local_music"
     private const val KEY_CONFIG = "local_config_json"
 
-    private val SUPPORTED_AUDIO_EXT =
-        setOf(
-            "mp3",
-            "flac",
-            "wav",
-            "m4a",
-            "aac",
-            "ogg",
-            "ape",
-            "dsf",
-            "dff",
-            "opus",
-            "wma",
-        )
+    private val SUPPORTED_AUDIO_EXT = org.melodist.model.AudioFileFilter.SUPPORTED_AUDIO_EXTENSIONS
 
     private var prefs: SharedPreferences? = null
     private var appContext: Context? = null
@@ -113,6 +92,10 @@ object LocalMusicManager {
             prettyPrint = false
         }
     private var inMemoryConfig = LocalMusicConfig()
+    private val _scannedSongsFlow = MutableStateFlow<List<Song>>(emptyList())
+    val scannedSongsFlow: StateFlow<List<Song>> = _scannedSongsFlow.asStateFlow()
+
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
 
     fun init(context: Context) {
         val appCtx = context.applicationContext
@@ -121,6 +104,7 @@ object LocalMusicManager {
             prefs = appCtx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             coversDir = File(appCtx.cacheDir, "local_covers").apply { mkdirs() }
             loadConfig()
+            healMissingCovers()
         }
     }
 
@@ -130,55 +114,79 @@ object LocalMusicManager {
         return folder
     }
 
-    private fun safeWriteOptimizedCover(file: File, bytes: ByteArray, maxDimension: Int = 1200) {
-        file.parentFile?.mkdirs()
-        try {
-            val boundsOpts = android.graphics.BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
-            }
-            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
-            val origW = boundsOpts.outWidth
-            val origH = boundsOpts.outHeight
+    fun resolveCoverUrl(
+        path: String,
+        coverPath: String,
+    ): String {
+        if (coverPath.isNotBlank()) {
+            val f = File(coverPath)
+            if (f.exists() && f.length() > 0L) return "file://$coverPath"
+        }
+        val folder = getSafeCoversDir()
+        val hash = md5(path)
+        val webp = File(folder, "cover_$hash.webp")
+        if (webp.exists() && webp.length() > 0L) return "file://${webp.absolutePath}"
+        val jpg = File(folder, "cover_$hash.jpg")
+        if (jpg.exists() && jpg.length() > 0L) return "file://${jpg.absolutePath}"
+        return ""
+    }
 
-            if (origW <= 0 || origH <= 0 || (origW <= maxDimension && origH <= maxDimension)) {
-                file.outputStream().use { it.write(bytes) }
-                return
-            }
-
-            var inSample = 1
-            while ((origW / inSample) > maxDimension * 2 || (origH / inSample) > maxDimension * 2) {
-                inSample *= 2
-            }
-
-            val decodeOpts = android.graphics.BitmapFactory.Options().apply {
-                inSampleSize = inSample
-            }
-            val sampledBmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts)
-            if (sampledBmp == null) {
-                file.outputStream().use { it.write(bytes) }
-                return
-            }
-
-            val curW = sampledBmp.width
-            val curH = sampledBmp.height
-            val finalBmp: android.graphics.Bitmap =
-                if (curW > maxDimension || curH > maxDimension) {
-                    val scale = maxDimension.toFloat() / maxOf(curW, curH)
-                    val targetW = (curW * scale).toInt().coerceAtLeast(1)
-                    val targetH = (curH * scale).toInt().coerceAtLeast(1)
-                    android.graphics.Bitmap.createScaledBitmap(sampledBmp, targetW, targetH, true).also {
-                        if (it != sampledBmp) sampledBmp.recycle()
-                    }
+    fun onCacheCleared() {
+        val updatedSongs =
+            inMemoryConfig.scannedSongs.map { song ->
+                if (song.coverPath.isNotBlank() && !File(song.coverPath).exists()) {
+                    song.copy(coverPath = "")
                 } else {
-                    sampledBmp
+                    song
                 }
-
-            file.outputStream().use { os ->
-                finalBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, os)
             }
-            finalBmp.recycle()
-        } catch (_: Exception) {
-            file.outputStream().use { it.write(bytes) }
+        inMemoryConfig = inMemoryConfig.copy(scannedSongs = updatedSongs)
+        saveConfig()
+        _scannedSongsFlow.value = getScannedSongs()
+    }
+
+    fun healMissingCovers() {
+        scope.launch {
+            val songsToHeal =
+                inMemoryConfig.scannedSongs.filter { s ->
+                    val f = if (s.coverPath.isNotBlank()) File(s.coverPath) else null
+                    (f == null || !f.exists() || f.length() == 0L) && File(s.path).exists()
+                }
+            if (songsToHeal.isEmpty()) return@launch
+
+            val retriever = MediaMetadataRetriever()
+            val folder = getSafeCoversDir()
+            val healedMap = mutableMapOf<String, String>()
+
+            for (s in songsToHeal) {
+                try {
+                    retriever.setDataSource(s.path)
+                    val picBytes = retriever.embeddedPicture
+                    if (picBytes != null && picBytes.isNotEmpty()) {
+                        val hash = md5(s.path)
+                        val webpFile = File(folder, "cover_$hash.webp")
+                        if (CoverCompressor.compressToWebp(picBytes, webpFile)) {
+                            healedMap[s.path] = webpFile.absolutePath
+                        }
+                    }
+                } catch (_: Exception) {
+                }
+            }
+            try {
+                retriever.release()
+            } catch (_: Exception) {
+            }
+
+            if (healedMap.isNotEmpty()) {
+                val updated =
+                    inMemoryConfig.scannedSongs.map { s ->
+                        val newCover = healedMap[s.path]
+                        if (newCover != null) s.copy(coverPath = newCover) else s
+                    }
+                inMemoryConfig = inMemoryConfig.copy(scannedSongs = updated)
+                saveConfig()
+                _scannedSongsFlow.value = getScannedSongs()
+            }
         }
     }
 
@@ -192,18 +200,80 @@ object LocalMusicManager {
                 inMemoryConfig = LocalMusicConfig()
             }
         }
+        _scannedSongsFlow.value = getScannedSongs()
     }
 
     private fun saveConfig() {
         try {
             val raw = json.encodeToString(inMemoryConfig)
             prefs?.edit()?.putString(KEY_CONFIG, raw)?.apply()
+            _scannedSongsFlow.value = getScannedSongs()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to save local music config", e)
         }
     }
 
     fun getScannedSongs(): List<Song> = inMemoryConfig.scannedSongs.map { it.toSong() }
+
+    fun removeSongByPath(path: String): Boolean {
+        val before = inMemoryConfig.scannedSongs.size
+        inMemoryConfig =
+            inMemoryConfig.copy(
+                scannedSongs = inMemoryConfig.scannedSongs.filterNot { it.path == path },
+            )
+        val removed = inMemoryConfig.scannedSongs.size < before
+        if (removed) {
+            saveConfig()
+        }
+        return removed
+    }
+
+    fun deleteSongs(songs: List<Song>, context: Context) {
+        if (songs.isEmpty()) return
+        val paths = mutableListOf<String>()
+        val removedPaths = mutableSetOf<String>()
+        for (song in songs) {
+            val path =
+                song.localFilePath?.takeIf { it.isNotBlank() }
+                    ?: inMemoryConfig.scannedSongs.find { "local_${it.id}" == song.songMid }?.path.orEmpty()
+            if (path.isNotBlank()) {
+                val file = File(path)
+                if (file.exists()) {
+                    file.delete()
+                    val lrcFile = File(path.substringBeforeLast(".") + ".lrc")
+                    if (lrcFile.exists()) {
+                        lrcFile.delete()
+                    }
+                }
+                paths.add(path)
+                removedPaths.add(path)
+                org.melodist.data.download.DownloadManager.deleteDownloadedByPath(path)
+                org.melodist.data.download.DownloadManager.deleteDownloadedBySongMid(song.songMid, deleteFile = false)
+            }
+        }
+        if (removedPaths.isNotEmpty()) {
+            inMemoryConfig =
+                inMemoryConfig.copy(
+                    scannedSongs = inMemoryConfig.scannedSongs.filterNot { removedPaths.contains(it.path) },
+                )
+            saveConfig()
+        }
+        if (paths.isNotEmpty()) {
+            try {
+                android.media.MediaScannerConnection.scanFile(
+                    context,
+                    paths.toTypedArray(),
+                    null,
+                    null,
+                )
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun notifyScannedSongsChanged() {
+        _scannedSongsFlow.value = getScannedSongs()
+    }
 
     fun getLastDirectory(): String {
         if (inMemoryConfig.lastDirectory.isNotBlank() && File(inMemoryConfig.lastDirectory).exists()) {
@@ -447,8 +517,12 @@ object LocalMusicManager {
                 val path = file.absolutePath
                 val mod = file.lastModified()
                 val existing = existingMap[path]
+                val isCoverValid =
+                    existing?.coverPath?.let { cp ->
+                        cp.isNotBlank() && File(cp).exists() && File(cp).length() > 0L
+                    } ?: false
 
-                if (existing != null && existing.lastModified == mod) {
+                if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
                     newCaches.add(existing)
                     onProgress(existing.title, index + 1, total)
                 } else {
@@ -499,16 +573,23 @@ object LocalMusicManager {
                 durationSec = (metaDur.toLongOrNull() ?: 0L).toInt() / 1000
             }
 
-            // 提取内置封面并持久化至 cache/local_covers（限制最大边 1200px）
+            // 提取内置封面并持久化至 cache/local_covers（统一 500x500 WebP）
             val picBytes = retriever.embeddedPicture
             if (picBytes != null && picBytes.isNotEmpty()) {
                 val hash = md5(file.absolutePath)
                 val folder = getSafeCoversDir()
-                val coverFile = File(folder, "cover_$hash.jpg")
-                if (!coverFile.exists() || coverFile.length() == 0L) {
-                    safeWriteOptimizedCover(coverFile, picBytes, maxDimension = 1200)
+                val coverWebp = File(folder, "cover_$hash.webp")
+                if (!coverWebp.exists() || coverWebp.length() == 0L) {
+                    CoverCompressor.compressToWebp(picBytes, coverWebp)
                 }
-                coverPath = coverFile.absolutePath
+                if (coverWebp.exists() && coverWebp.length() > 0L) {
+                    coverPath = coverWebp.absolutePath
+                } else {
+                    val oldJpg = File(folder, "cover_$hash.jpg")
+                    if (oldJpg.exists() && oldJpg.length() > 0L) {
+                        coverPath = oldJpg.absolutePath
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error extracting metadata for ${file.name}", e)
@@ -572,6 +653,105 @@ object LocalMusicManager {
             }
 
             null
+        }
+
+    /**
+     * 从系统媒体库 (MediaStore) 扫描导入歌曲列表
+     */
+    suspend fun scanSystemMediaStore(
+        context: Context,
+        onProgress: ((title: String, current: Int, total: Int) -> Unit)? = null,
+    ): List<Song> =
+        withContext(Dispatchers.IO) {
+            val audioFiles = mutableListOf<File>()
+            try {
+                val projection =
+                    arrayOf(
+                        android.provider.MediaStore.Audio.Media._ID,
+                        android.provider.MediaStore.Audio.Media.DATA,
+                        android.provider.MediaStore.Audio.Media.TITLE,
+                        android.provider.MediaStore.Audio.Media.ARTIST,
+                        android.provider.MediaStore.Audio.Media.ALBUM,
+                        android.provider.MediaStore.Audio.Media.DURATION,
+                    )
+                // 筛选音频时长大于 30 秒的正常音乐
+                val selection = "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${android.provider.MediaStore.Audio.Media.DURATION} >= 30000"
+                val cursor =
+                    context.contentResolver.query(
+                        android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        projection,
+                        selection,
+                        null,
+                        "${android.provider.MediaStore.Audio.Media.TITLE} ASC",
+                    )
+
+                cursor?.use { c ->
+                    val dataIdx = c.getColumnIndex(android.provider.MediaStore.Audio.Media.DATA)
+                    while (c.moveToNext()) {
+                        if (dataIdx >= 0) {
+                            val path = c.getString(dataIdx)
+                            if (!path.isNullOrBlank()) {
+                                val file = File(path)
+                                if (file.exists() && file.isFile && SUPPORTED_AUDIO_EXT.contains(file.extension.lowercase())) {
+                                    audioFiles.add(file)
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error querying system MediaStore", e)
+            }
+
+            val total = audioFiles.size
+            val existingMap = inMemoryConfig.scannedSongs.associateBy { it.path }
+            val newCaches = mutableListOf<LocalSongCache>()
+            val retriever = MediaMetadataRetriever()
+
+            audioFiles.forEachIndexed { index, file ->
+                val path = file.absolutePath
+                val mod = file.lastModified()
+                val existing = existingMap[path]
+                val isCoverValid =
+                    existing?.coverPath?.let { cp ->
+                        cp.isNotBlank() && File(cp).exists() && File(cp).length() > 0L
+                    } ?: false
+
+                if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
+                    newCaches.add(existing)
+                    onProgress?.invoke(existing.title, index + 1, total)
+                } else {
+                    val cache = parseAudioFile(retriever, file)
+                    newCaches.add(cache)
+                    onProgress?.invoke(cache.title, index + 1, total)
+                }
+            }
+
+            try {
+                retriever.release()
+            } catch (_: Exception) {
+            }
+
+            // 与现有库合并去重
+            val mergedMap = LinkedHashMap<String, LocalSongCache>()
+            for (item in inMemoryConfig.scannedSongs) {
+                if (File(item.path).exists()) {
+                    mergedMap[item.path] = item
+                }
+            }
+            for (item in newCaches) {
+                mergedMap[item.path] = item
+            }
+
+            val finalList = mergedMap.values.toList()
+            inMemoryConfig =
+                inMemoryConfig.copy(
+                    scannedSongs = finalList,
+                    lastScanTimeMs = System.currentTimeMillis(),
+                )
+            saveConfig()
+
+            finalList.map { it.toSong() }
         }
 
     private fun md5(input: String): String {

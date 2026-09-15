@@ -58,6 +58,16 @@ data class Playlist(
     val isCreated: Boolean get() = !isFav
     val title: String get() = name
     val songNum: Int get() = songCount
+
+    val thumbnailPicUrl: String
+        get() {
+            if (picUrl.isBlank()) return ""
+            return if (picUrl.contains("R1200x1200") || picUrl.contains("R800x800") || picUrl.contains("R300x300")) {
+                picUrl.replace(Regex("R[0-9]+x[0-9]+"), "R500x500")
+            } else {
+                picUrl
+            }
+        }
 }
 
 @Serializable
@@ -68,6 +78,8 @@ data class QualityOption(
     val sizeBytes: Long,
     val isAvailable: Boolean,
     val playUrl: String? = null,
+    val sampleRateHz: Int = 0,
+    val bitDepth: Int = 0,
 )
 
 @Serializable
@@ -82,4 +94,16 @@ data class FavoriteSongsResult(
     val songs: List<Song>,
     val total: Int,
     val hasMore: Boolean,
+)
+
+@Serializable
+data class RecommendShelf(
+    val title: String,
+    val rawTemplate: String = "",
+    val titleContent: String = "",
+    val group: Int = 0,
+    val style: Int = 0,
+    val moreTitle: String = "",
+    val moreId: String = "",
+    val songs: List<Song> = emptyList(),
 )

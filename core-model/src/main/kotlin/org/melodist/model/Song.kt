@@ -38,4 +38,28 @@ data class Song(
 
     val canShowArtistAlbumDialog: Boolean
         get() = !songMid.startsWith("webdav_") && !songMid.startsWith("local_")
+
+    val thumbnailCoverUrl: String
+        get() {
+            if (coverUrl.isBlank()) return ""
+            return if (coverUrl.contains("R1200x1200") || coverUrl.contains("R800x800") || coverUrl.contains("R300x300")) {
+                coverUrl.replace(Regex("R[0-9]+x[0-9]+"), "R500x500")
+            } else {
+                coverUrl
+            }
+        }
+
+    val playerCoverCandidates: List<String>
+        get() {
+            if (coverUrl.isBlank()) return emptyList()
+            if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) return listOf(coverUrl)
+            val regex = Regex("R[0-9]+x[0-9]+")
+            if (coverUrl.contains(regex)) {
+                val url1200 = coverUrl.replace(regex, "R1200x1200")
+                val url800 = coverUrl.replace(regex, "R800x800")
+                val url500 = coverUrl.replace(regex, "R500x500")
+                return listOf(url1200, url800, url500).distinct()
+            }
+            return listOf(coverUrl)
+        }
 }

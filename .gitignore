@@ -14,3 +14,8 @@
 .tmp/
 scripts/
 /push.sh
+app-mobile/PROJECT_PLAN.md
+docs/qqmusic_singer_concern_api.md
+bin/
+*/bin/
+**/bin/

@@ -257,15 +257,25 @@ suspend fun MusicApiService.getPlaylistSongs(
 suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, String> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || name.isBlank()) return@withContext Triple(false, 0L, "未登录或歌单名为空")
-        val escaped = Json.encodeToString(name)
+        try {
+            LoginApiService().ensureMusicKey()
+        } catch (_: Exception) {
+        }
+        val escaped = Json.encodeToString(name.trim())
         val payload =
             """
             {
               "comm": { "ct": 24, "cv": 0 },
-              "createPlayList": {
+              "createNewPlayList": {
                 "module": "music.musicasset.PlaylistBaseWrite",
-                "method": "CreatePlaylist",
-                "param": { "name": $escaped, "show": 1 }
+                "method": "AddPlaylist",
+                "param": {
+                  "dirName": $escaped,
+                  "dirShow": 1,
+                  "dirDesc": "",
+                  "dirPicUrl": "",
+                  "taglist": ""
+                }
               }
             }
             """.trimIndent()
@@ -273,18 +283,20 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
         try {
             val respJson = postGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            val obj = root["createPlayList"]?.jsonObject ?: return@withContext Triple(false, 0L, "响应为空")
+            val obj = root["createNewPlayList"]?.jsonObject ?: return@withContext Triple(false, 0L, "响应为空")
             val code = obj["code"]?.jsonPrimitive?.intOrNull ?: -1
             if (code == 0) {
+                val dataObj = obj["data"]?.jsonObject
+                val resObj = dataObj?.get("result")?.jsonObject
                 val dirId =
-                    obj["data"]
-                        ?.jsonObject
-                        ?.get("dirId")
-                        ?.jsonPrimitive
-                        ?.longOrNull ?: 0L
+                    resObj?.get("dirId")?.jsonPrimitive?.longOrNull
+                        ?: resObj?.get("tid")?.jsonPrimitive?.longOrNull
+                        ?: dataObj?.get("dirId")?.jsonPrimitive?.longOrNull
+                        ?: 0L
                 Triple(true, dirId, "创建成功")
             } else {
-                Triple(false, 0L, "创建失败(code=$code)")
+                val msg = obj["data"]?.jsonObject?.get("msg")?.jsonPrimitive?.contentOrNull.orEmpty()
+                Triple(false, 0L, if (msg.isNotBlank()) msg else "创建失败(code=$code)")
             }
         } catch (e: Exception) {
             Triple(false, 0L, e.message ?: "创建异常")
@@ -294,6 +306,10 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
 suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || playlist.isMyFavorite) return@withContext false
+        try {
+            LoginApiService().ensureMusicKey()
+        } catch (_: Exception) {
+        }
         val payload =
             if (playlist.isCreated) {
                 """
@@ -371,15 +387,21 @@ suspend fun MusicApiService.resolveSongId(songMid: String): Long =
         }
     }
 
+enum class AddSongResult {
+    Success,
+    AlreadyExists,
+    Failed,
+}
+
 suspend fun MusicApiService.addSongToPlaylist(
     dirId: Long,
     songId: Long,
     songMid: String = "",
-): Boolean =
+): AddSongResult =
     withContext(Dispatchers.IO) {
-        if (!UserSession.isLoggedIn || dirId <= 0L) return@withContext false
+        if (!UserSession.isLoggedIn || dirId <= 0L) return@withContext AddSongResult.Failed
         val actualId = if (songId <= 0L && songMid.isNotBlank()) resolveSongId(songMid) else songId
-        if (actualId <= 0L) return@withContext false
+        if (actualId <= 0L) return@withContext AddSongResult.Failed
 
         try {
             LoginApiService().ensureMusicKey()
@@ -401,7 +423,7 @@ suspend fun MusicApiService.addSongToPlaylist(
         try {
             val respJson = postAg1Gateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            val addObj = root["addSongsToPlayList"]?.jsonObject ?: return@withContext false
+            val addObj = root["addSongsToPlayList"]?.jsonObject ?: return@withContext AddSongResult.Failed
             val code =
                 addObj["code"]?.jsonPrimitive?.intOrNull
                     ?: addObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
@@ -409,10 +431,113 @@ suspend fun MusicApiService.addSongToPlaylist(
                 val data = addObj["data"]?.jsonObject
                 val succNum = data?.get("succ_song_num")?.jsonPrimitive?.intOrNull ?: 1
                 val failNum = data?.get("fail_song_num")?.jsonPrimitive?.intOrNull ?: 0
-                succNum > 0 || failNum == 0
+                when {
+                    succNum > 0 -> AddSongResult.Success
+                    failNum > 0 -> AddSongResult.AlreadyExists
+                    else -> AddSongResult.Success
+                }
             } else {
-                false
+                AddSongResult.Failed
             }
+        } catch (_: Exception) {
+            AddSongResult.Failed
+        }
+    }
+
+suspend fun MusicApiService.addSongsToPlaylist(
+    dirId: Long,
+    songs: List<Song>,
+): AddSongResult =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn || dirId <= 0L || songs.isEmpty()) return@withContext AddSongResult.Failed
+        val resolvedSongInfos =
+            songs.mapNotNull { s ->
+                val id = if (s.songId > 0L) s.songId else if (s.songMid.isNotBlank()) resolveSongId(s.songMid) else 0L
+                if (id > 0L) id else null
+            }
+        if (resolvedSongInfos.isEmpty()) return@withContext AddSongResult.Failed
+
+        try {
+            LoginApiService().ensureMusicKey()
+        } catch (_: Exception) {
+        }
+
+        val songInfoJson = resolvedSongInfos.joinToString(separator = ",") { """{ "songId": $it, "songType": 0 }""" }
+        val payload =
+            """
+            {
+              "comm": { "ct": 24, "cv": 0 },
+              "addSongsToPlayList": {
+                "module": "music.musicasset.PlaylistDetailWrite",
+                "method": "AddSonglist",
+                "param": { "dirId": $dirId, "v_songInfo": [$songInfoJson] }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postAg1Gateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val addObj = root["addSongsToPlayList"]?.jsonObject ?: return@withContext AddSongResult.Failed
+            val code =
+                addObj["code"]?.jsonPrimitive?.intOrNull
+                    ?: addObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
+            if (code == 0) {
+                val data = addObj["data"]?.jsonObject
+                val succNum = data?.get("succ_song_num")?.jsonPrimitive?.intOrNull ?: 1
+                val failNum = data?.get("fail_song_num")?.jsonPrimitive?.intOrNull ?: 0
+                when {
+                    succNum > 0 -> AddSongResult.Success
+                    failNum > 0 -> AddSongResult.AlreadyExists
+                    else -> AddSongResult.Success
+                }
+            } else {
+                AddSongResult.Failed
+            }
+        } catch (_: Exception) {
+            AddSongResult.Failed
+        }
+    }
+
+suspend fun MusicApiService.deleteSongsFromPlaylist(
+    dirId: Long,
+    songs: List<Song>,
+): Boolean =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn || dirId <= 0L || songs.isEmpty()) return@withContext false
+        val resolvedSongInfos =
+            songs.mapNotNull { s ->
+                val id = if (s.songId > 0L) s.songId else if (s.songMid.isNotBlank()) resolveSongId(s.songMid) else 0L
+                if (id > 0L) id else null
+            }
+        if (resolvedSongInfos.isEmpty()) return@withContext false
+
+        try {
+            LoginApiService().ensureMusicKey()
+        } catch (_: Exception) {
+        }
+
+        val songInfoJson = resolvedSongInfos.joinToString(separator = ",") { """{ "songId": $it, "songType": 0 }""" }
+        val payload =
+            """
+            {
+              "comm": { "ct": 24, "cv": 0 },
+              "delSongsFromPlayList": {
+                "module": "music.musicasset.PlaylistDetailWrite",
+                "method": "DelSonglist",
+                "param": { "dirId": $dirId, "v_songInfo": [$songInfoJson] }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postAg1Gateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val delObj = root["delSongsFromPlayList"]?.jsonObject ?: return@withContext false
+            val code =
+                delObj["code"]?.jsonPrimitive?.intOrNull
+                    ?: delObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
+            code == 0
         } catch (_: Exception) {
             false
         }
@@ -461,10 +586,9 @@ suspend fun MusicApiService.deleteSongFromPlaylist(
 suspend fun MusicApiService.addSongToFavorite(
     songId: Long,
     songMid: String,
-): Boolean = addSongToPlaylist(dirId = 201L, songId = songId, songMid = songMid)
+): Boolean = addSongToPlaylist(dirId = 201L, songId = songId, songMid = songMid) == AddSongResult.Success
 
 suspend fun MusicApiService.deleteSongFromFavorite(
     songId: Long,
     songMid: String,
 ): Boolean = deleteSongFromPlaylist(dirId = 201L, songId = songId, songMid = songMid)
-

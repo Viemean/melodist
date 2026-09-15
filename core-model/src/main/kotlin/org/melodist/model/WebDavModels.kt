@@ -25,7 +25,12 @@ data class WebDavSongCache(
                 if (f.exists() && f.length() > 0L) {
                     if (coverPath.startsWith("/")) "file://$coverPath" else coverPath
                 } else {
-                    ""
+                    val webpFile = java.io.File(f.parentFile, "webdav_$hash.webp")
+                    if (webpFile.exists() && webpFile.length() > 0L) {
+                        "file://${webpFile.absolutePath}"
+                    } else {
+                        ""
+                    }
                 }
             } else {
                 ""

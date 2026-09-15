@@ -181,7 +181,21 @@ fun AcrTvScreen(
                             offsetSeconds = state.offsetSeconds,
                             primaryActionRequester = primaryActionRequester,
                             onPlayNow = {
-                                PlaybackManager.setPlaylist(listOf(state.song), startIndex = 0)
+                                val elapsedRealtimeMs =
+                                    if (state.anchorRealtimeMs > 0L) {
+                                        android.os.SystemClock.elapsedRealtime() - state.anchorRealtimeMs
+                                    } else {
+                                        0L
+                                    }
+                                val prepLatencyMs = 850L
+                                val seekMs =
+                                    ((state.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
+                                        .coerceAtLeast(0L)
+                                PlaybackManager.setPlaylist(
+                                    songs = listOf(state.song),
+                                    startIndex = 0,
+                                    initialSeekToMs = seekMs,
+                                )
                                 onNavigateToPlayer()
                             },
                             onAddToQueue = {

@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
+import org.melodist.api.UserSession
+import org.melodist.api.checkSingerFollowStatus
+import org.melodist.api.getFollowedSingerList
 import org.melodist.api.toggleSingerFollow
 
 object FavoriteArtistsManager {
@@ -30,11 +33,66 @@ object FavoriteArtistsManager {
         } catch (_: Exception) {
             _followedArtistMids.value = emptySet()
         }
+
+        // 监听登录状态自动触发全量云端关注列表同步
+        scope.launch {
+            UserSession.profileFlow.collect {
+                if (UserSession.isLoggedIn) {
+                    syncFromCloud()
+                }
+            }
+        }
     }
 
     fun isFollowed(artistMid: String): Boolean {
         if (artistMid.isBlank()) return false
         return _followedArtistMids.value.contains(artistMid)
+    }
+
+    fun syncFromCloud() {
+        if (!UserSession.isLoggedIn) return
+        scope.launch {
+            try {
+                val cloudMids = mutableSetOf<String>()
+                var from = 0
+                val pageSize = 50
+                var hasMore = true
+                while (hasMore) {
+                    val (artists, more) = apiService.getFollowedSingerList(from = from, size = pageSize)
+                    if (artists.isEmpty()) break
+                    artists.forEach { cloudMids.add(it.mid) }
+                    hasMore = more
+                    from += artists.size
+                }
+                if (cloudMids.isNotEmpty()) {
+                    val merged = _followedArtistMids.value.toMutableSet().apply { addAll(cloudMids) }
+                    _followedArtistMids.value = merged
+                    persist(merged)
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun checkStatus(artistMid: String) {
+        if (!UserSession.isLoggedIn || artistMid.isBlank()) return
+        scope.launch {
+            try {
+                val isFollowedOnline = apiService.checkSingerFollowStatus(artistMid)
+                val currentSet = _followedArtistMids.value.toMutableSet()
+                val changed =
+                    if (isFollowedOnline) {
+                        currentSet.add(artistMid)
+                    } else {
+                        currentSet.remove(artistMid)
+                    }
+                if (changed) {
+                    _followedArtistMids.value = currentSet
+                    persist(currentSet)
+                }
+            } catch (_: Exception) {
+            }
+        }
     }
 
     fun toggleFollow(artistMid: String): Boolean {
@@ -47,24 +105,36 @@ object FavoriteArtistsManager {
             currentSet.remove(artistMid)
         }
         _followedArtistMids.value = currentSet
+        persist(currentSet)
 
-        // 本地持久化
-        appContext?.let { ctx ->
-            try {
-                val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit().putStringSet(KEY_ARTISTS_SET, currentSet).apply()
-            } catch (_: Exception) {
-            }
-        }
-
-        // 云端异步同步
+        // 云端异步同步与失败回退
         scope.launch {
             try {
-                apiService.toggleSingerFollow(artistMid, willFollow)
+                val success = apiService.toggleSingerFollow(artistMid, willFollow)
+                if (!success && UserSession.isLoggedIn) {
+                    val rollbackSet = _followedArtistMids.value.toMutableSet()
+                    if (willFollow) {
+                        rollbackSet.remove(artistMid)
+                    } else {
+                        rollbackSet.add(artistMid)
+                    }
+                    _followedArtistMids.value = rollbackSet
+                    persist(rollbackSet)
+                }
             } catch (_: Exception) {
             }
         }
 
         return willFollow
+    }
+
+    private fun persist(set: Set<String>) {
+        appContext?.let { ctx ->
+            try {
+                val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putStringSet(KEY_ARTISTS_SET, set).apply()
+            } catch (_: Exception) {
+            }
+        }
     }
 }

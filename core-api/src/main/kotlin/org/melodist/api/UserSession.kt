@@ -18,7 +18,22 @@ data class UserProfile(
     var musicLevel: Int = 0,
     var encryptedUin: String = "",
     var cookies: Map<String, String> = emptyMap(),
-)
+) {
+    val effectiveAvatarUrl: String
+        get() {
+            if (avatarUrl.isNotBlank()) return avatarUrl
+            val qq =
+                cookies["pt2gguin"]?.trimStart('o')
+                    ?: cookies["uin"]?.trimStart('o')
+                    ?: cookies["qqmusic_uin"]?.trimStart('o')
+                    ?: uin.takeIf { it.isNotBlank() && it.all { c -> c.isDigit() } }
+            return if (!qq.isNullOrBlank() && qq.all { it.isDigit() }) {
+                "https://q1.qlogo.cn/g?b=qq&nk=$qq&s=640"
+            } else {
+                ""
+            }
+        }
+}
 
 object UserSession {
     private val _profileFlow = MutableStateFlow(UserProfile())
@@ -67,13 +82,26 @@ object UserSession {
                     ?: cookies["openid"]
                     ?: ""
             }
+        val resolvedAvatar =
+            avatarUrl.ifBlank {
+                val qq =
+                    cookies["pt2gguin"]?.trimStart('o')
+                        ?: cookies["uin"]?.trimStart('o')
+                        ?: cookies["qqmusic_uin"]?.trimStart('o')
+                        ?: resolvedUin.takeIf { it.isNotBlank() && it.all { c -> c.isDigit() } }
+                if (!qq.isNullOrBlank() && qq.all { it.isDigit() }) {
+                    "https://q1.qlogo.cn/g?b=qq&nk=$qq&s=640"
+                } else {
+                    ""
+                }
+            }
         profile =
             UserProfile(
                 uin = resolvedUin,
                 nick = nick.ifBlank { if (resolvedUin.isNotEmpty()) "用户_$resolvedUin" else "已登录用户" },
                 musicKey = musicKey,
                 cookies = cookies,
-                avatarUrl = avatarUrl,
+                avatarUrl = resolvedAvatar,
                 isVip = isVip,
             )
     }

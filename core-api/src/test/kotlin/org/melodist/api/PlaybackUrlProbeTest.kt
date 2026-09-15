@@ -90,4 +90,101 @@ class PlaybackUrlProbeTest {
         assertEquals(AudioQualityTier.Standard, selectedTier)
         assertTrue(selectedUrl!!.endsWith(".mp3"))
     }
+
+    @Test
+    fun `hires option is marked unavailable when track metadata indicates standard resolution`() {
+        val hiresRaw = 0L
+        val hiresSample = 44100
+        val hiresBitdepth = 16
+        val isTrueHiRes = hiresRaw > 0L || hiresSample > 48000 || hiresBitdepth > 16
+
+        val flacSize = 25000000L
+        val sizeMap = mutableMapOf<AudioQualityTier, Long>()
+        sizeMap[AudioQualityTier.HiRes] =
+            if (isTrueHiRes) {
+                if (hiresRaw > 0L) hiresRaw else flacSize
+            } else {
+                0L
+            }
+        sizeMap[AudioQualityTier.SQ] = flacSize
+
+        val hasValidUrl = true
+        val isAvailable = (sizeMap[AudioQualityTier.HiRes] ?: 0L) > 0L && hasValidUrl
+        assertFalse(isAvailable)
+    }
+
+    @Test
+    fun `hires option is marked unavailable for Dazzling style track with master but no hires`() {
+        // Dazzling 明透: has Master AI (135MB) in size_new[0], but size_new[11] is 0, hires_sample is 0
+        val hiresRaw = 0L
+        val masterSize = 135232956L
+        val hiresSample = 0
+        val hiresBitdepth = 0
+        val isTrueHiRes = hiresRaw > 0L || hiresSample > 48000 || hiresBitdepth > 16
+
+        val flacSize = 22772836L
+        val sizeMap = mutableMapOf<AudioQualityTier, Long>()
+        sizeMap[AudioQualityTier.HiRes] =
+            if (isTrueHiRes) {
+                if (hiresRaw > 0L) hiresRaw else flacSize
+            } else {
+                0L
+            }
+        sizeMap[AudioQualityTier.Master] = masterSize
+        sizeMap[AudioQualityTier.SQ] = flacSize
+
+        val hasValidUrl = true
+        val isHiResAvailable = (sizeMap[AudioQualityTier.HiRes] ?: 0L) > 0L && hasValidUrl
+        val isMasterAvailable = (sizeMap[AudioQualityTier.Master] ?: 0L) > 0L && hasValidUrl
+
+        // HiRes 必须为 false（无 HiRes 音源），Master 为 true
+        assertFalse(isHiResAvailable)
+        assertTrue(isMasterAvailable)
+        assertEquals(0L, sizeMap[AudioQualityTier.HiRes])
+        assertEquals(135232956L, sizeMap[AudioQualityTier.Master])
+    }
+
+    @Test
+    fun `hires option is marked available when track has genuine hires size in size_new 11`() {
+        // 妄想感傷代償連盟: size_new[11] = 50685154
+        val hiresRaw = 50685154L
+        val masterSize = 198166746L
+        val hiresSample = 0
+        val hiresBitdepth = 0
+        val isTrueHiRes = hiresRaw > 0L || hiresSample > 48000 || hiresBitdepth > 16
+
+        val flacSize = 61839633L
+        val sizeMap = mutableMapOf<AudioQualityTier, Long>()
+        sizeMap[AudioQualityTier.HiRes] =
+            if (isTrueHiRes) {
+                if (hiresRaw > 0L) hiresRaw else flacSize
+            } else {
+                0L
+            }
+        sizeMap[AudioQualityTier.Master] = masterSize
+        sizeMap[AudioQualityTier.SQ] = flacSize
+
+        val hasValidUrl = true
+        val isHiResAvailable = (sizeMap[AudioQualityTier.HiRes] ?: 0L) > 0L && hasValidUrl
+        val isMasterAvailable = (sizeMap[AudioQualityTier.Master] ?: 0L) > 0L && hasValidUrl
+
+        assertTrue(isHiResAvailable)
+        assertTrue(isMasterAvailable)
+        assertEquals(50685154L, sizeMap[AudioQualityTier.HiRes])
+        assertEquals(198166746L, sizeMap[AudioQualityTier.Master])
+    }
+
+    @Test
+    fun `probe meteor fallback search lyrics`() =
+        kotlinx.coroutines.runBlocking {
+            val api = MusicApiService()
+            val songs = api.search("メテオ ヰ世界情緒")
+            val targetSong = songs.firstOrNull { it.name.contains("メテオ") }
+            assertNotNull(targetSong)
+
+            val lyrics = api.getLyrics(targetSong!!.songMid, targetSong.songId, songName = targetSong.name, singer = targetSong.singer)
+            assertTrue(lyrics.isNotEmpty())
+            println("Resolved lyrics count for ${targetSong.name}: ${lyrics.size}")
+            println("First line: ${lyrics.first().text}, trans=${lyrics.first().transText}")
+        }
 }

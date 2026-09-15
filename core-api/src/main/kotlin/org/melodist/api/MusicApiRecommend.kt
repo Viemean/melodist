@@ -3,15 +3,21 @@ package org.melodist.api
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import org.melodist.model.RecommendShelf
 import org.melodist.model.Song
 
 /**
  * 智能推荐与电台雷达扩展
  */
 
-suspend fun MusicApiService.getDailyRecommendSongs(): List<Song> =
+data class DailyRecommendResult(
+    val description: String = "",
+    val songs: List<Song> = emptyList(),
+)
+
+suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
     withContext(Dispatchers.IO) {
-        if (!UserSession.isLoggedIn) return@withContext emptyList()
+        if (!UserSession.isLoggedIn) return@withContext DailyRecommendResult()
         try {
             LoginApiService().ensureMusicKey()
         } catch (_: Exception) {
@@ -65,9 +71,9 @@ suspend fun MusicApiService.getDailyRecommendSongs(): List<Song> =
                 }
             }
 
-            if (dailyDisstid <= 0L) return@withContext emptyList()
+            if (dailyDisstid <= 0L) return@withContext DailyRecommendResult()
 
-            // 阶段二：通过 uniform_get_Dissinfo 拉取专属推荐歌单全部歌曲
+            // 阶段二：通过 uniform_get_Dissinfo 拉取专属推荐歌单全部歌曲与官方描述
             val dissPayload =
                 """
                 {
@@ -82,19 +88,28 @@ suspend fun MusicApiService.getDailyRecommendSongs(): List<Song> =
 
             val dissJson = postGateway(dissPayload)
             val dissRoot = Json.parseToJsonElement(dissJson).jsonObject
-            val songArray =
-                dissRoot["req_diss"]
-                    ?.jsonObject
-                    ?.get("data")
-                    ?.jsonObject
-                    ?.get("songlist")
-                    ?.jsonArray ?: return@withContext emptyList()
+            val reqDissData = dissRoot["req_diss"]?.jsonObject?.get("data")?.jsonObject
+            val dirinfo = reqDissData?.get("dirinfo")?.jsonObject
+            val description =
+                dirinfo
+                    ?.get("desc")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
 
-            songArray.mapNotNull { MusicApiService.parseSongFromElement(it) }
+            val songArray =
+                reqDissData
+                    ?.get("songlist")
+                    ?.jsonArray ?: return@withContext DailyRecommendResult(description = description)
+
+            val songs = songArray.mapNotNull { MusicApiService.parseSongFromElement(it) }
+            DailyRecommendResult(description = description, songs = songs)
         } catch (_: Exception) {
-            emptyList()
+            DailyRecommendResult()
         }
     }
+
+suspend fun MusicApiService.getDailyRecommendSongs(): List<Song> = getDailyRecommendDetail().songs
 
 suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> =
     withContext(Dispatchers.IO) {
@@ -183,6 +198,198 @@ suspend fun MusicApiService.getTopList(
 
             songList.mapNotNull { MusicApiService.parseSongFromElement(it) }
         } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+suspend fun MusicApiService.getTrackInfoBatch(songIds: List<Long>): List<Song> =
+    withContext(Dispatchers.IO) {
+        if (songIds.isEmpty()) return@withContext emptyList()
+        val uin = UserSession.profile.uin.ifBlank { "0" }
+        val idsJson = songIds.joinToString(",", "[", "]")
+        val typesJson = songIds.joinToString(",", "[", "]") { "200" }
+
+        val payload =
+            """
+            {
+              "comm": { "ct": 20, "cv": 1770, "uin": "$uin", "format": "json", "platform": "wk_v17" },
+              "req_0": {
+                "module": "music.trackInfo.UniformRuleCtrl",
+                "method": "CgiGetTrackInfo",
+                "param": {
+                  "ids": $idsJson,
+                  "types": $typesJson,
+                  "source": "AiNoFree"
+                }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postGateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val tracks =
+                root["req_0"]
+                    ?.jsonObject
+                    ?.get("data")
+                    ?.jsonObject
+                    ?.get("tracks")
+                    ?.jsonArray ?: return@withContext emptyList()
+
+            tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+suspend fun MusicApiService.getRecommendFeed(
+    direction: Int = 0,
+    page: Int = 1,
+    sNum: Int = 6,
+): List<RecommendShelf> =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn) return@withContext emptyList()
+        try {
+            LoginApiService().ensureMusicKey()
+        } catch (_: Exception) {
+        }
+
+        val uin = UserSession.profile.uin.ifBlank { "0" }
+        val authst = UserSession.profile.musicKey
+
+        val payload =
+            """
+            {
+              "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 1770, "platform": "wk_v17", "authst": "$authst" },
+              "feed": {
+                "module": "music.recommend.RecommendFeed",
+                "method": "get_recommend_feed",
+                "param": { "direction": $direction, "page": $page, "v_cache": [], "v_uniq": [], "s_num": $sNum }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postGateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val shelvesArray =
+                root["feed"]
+                    ?.jsonObject
+                    ?.get("data")
+                    ?.jsonObject
+                    ?.get("v_shelf")
+                    ?.jsonArray ?: return@withContext emptyList()
+
+            val shelves = mutableListOf<RecommendShelf>()
+            for (shelfElem in shelvesArray) {
+                val shelfObj = shelfElem.jsonObject
+                val rawTemplate = shelfObj["title_template"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val titleContent = shelfObj["title_content"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val group = shelfObj["group"]?.jsonPrimitive?.intOrNull ?: 0
+                val style = shelfObj["style"]?.jsonPrimitive?.intOrNull ?: 0
+
+                val moreObj = shelfObj["more"]?.jsonObject
+                val moreTitle =
+                    moreObj
+                        ?.get("title")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+                val moreId =
+                    moreObj
+                        ?.get("id")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+
+                var title = shelfObj["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                if (rawTemplate.isNotBlank()) {
+                    title =
+                        if (titleContent.isNotBlank()) {
+                            rawTemplate.replace("{String}", titleContent)
+                        } else {
+                            rawTemplate
+                        }
+                }
+                title = title.replace(Regex("[💗❤️💖💕💓💘🤍🖤🤎💜💙💚💛🧡♥]"), "").trim()
+                if (title.isBlank()) {
+                    continue
+                }
+
+                // 仅保留基于特定种子衍生的“听「xxxx」的也在听 / 喜欢”专属货架，过滤掉“今日为你推荐”等非「xxxx」货架
+                val isTargetShelf =
+                    titleContent.isNotBlank() &&
+                        (rawTemplate.contains("听") || title.contains("听「")) &&
+                        (rawTemplate.contains("也在听") || rawTemplate.contains("喜欢") || title.contains("也在听") || title.contains("喜欢"))
+                if (!isTargetShelf) {
+                    continue
+                }
+
+                val niches = shelfObj["v_niche"]?.jsonArray ?: continue
+                val cardSongsFallback = mutableListOf<Song>()
+                val songIds = mutableListOf<Long>()
+
+                for (niche in niches) {
+                    val cards = niche.jsonObject["v_card"]?.jsonArray ?: continue
+                    for (cardElem in cards) {
+                        val cardObj = cardElem.jsonObject
+                        val id = cardObj["id"]?.jsonPrimitive?.longOrNull ?: 0L
+                        val cardTitle = cardObj["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                        val cardSubtitle = cardObj["subtitle"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                        val cardCover = cardObj["cover"]?.jsonPrimitive?.contentOrNull.orEmpty()
+
+                        if (id > 0L) {
+                            songIds.add(id)
+                            cardSongsFallback.add(
+                                Song(
+                                    songId = id,
+                                    name = cardTitle,
+                                    singer = cardSubtitle,
+                                    coverUrl = cardCover,
+                                ),
+                            )
+                        }
+                    }
+                }
+
+                if (songIds.isEmpty()) continue
+
+                // 批量获取高精度 Track 元数据
+                val detailedSongs =
+                    try {
+                        getTrackInfoBatch(songIds)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+
+                val finalSongs =
+                    if (detailedSongs.isNotEmpty()) {
+                        // 按原始 ID 顺序重排并补充缺失项
+                        val detailedMap = detailedSongs.associateBy { it.songId }
+                        songIds.mapNotNull { id ->
+                            detailedMap[id] ?: cardSongsFallback.firstOrNull { it.songId == id }
+                        }
+                    } else {
+                        cardSongsFallback
+                    }
+
+                if (finalSongs.isNotEmpty()) {
+                    shelves.add(
+                        RecommendShelf(
+                            title = title,
+                            rawTemplate = rawTemplate,
+                            titleContent = titleContent,
+                            group = group,
+                            style = style,
+                            moreTitle = moreTitle,
+                            moreId = moreId,
+                            songs = finalSongs,
+                        ),
+                    )
+                }
+            }
+            shelves
+        } catch (_: Exception) {
             emptyList()
         }
     }

@@ -82,7 +82,6 @@ fun AudioQualityDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-
                 // 全景声
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
@@ -246,11 +245,12 @@ private fun TierOptionItem(
                             onSelect()
                         } else {
                             val tip = if (!isDeviceSupported) (unsupportedReason ?: "当前设备不支持该音质") else "当前歌曲暂无该音质音源"
-                            android.widget.Toast.makeText(context, tip, android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast
+                                .makeText(context, tip, android.widget.Toast.LENGTH_SHORT)
+                                .show()
                         }
                     },
-                )
-                .focusable(interactionSource = interactionSource),
+                ).focusable(interactionSource = interactionSource),
         contentAlignment = Alignment.Center,
     ) {
         Column(

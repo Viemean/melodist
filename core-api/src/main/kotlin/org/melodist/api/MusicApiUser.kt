@@ -51,7 +51,7 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             val root = Json.parseToJsonElement(respJson).jsonObject
 
             var changed = false
-            val currentProfile = UserSession.profile
+            val newProfile = UserSession.profile.copy()
 
             // 1. 用户基础信息
             val baseInfo =
@@ -66,18 +66,25 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             if (baseInfo != null) {
                 val name = baseInfo["Name"]?.jsonPrimitive?.contentOrNull
                 val encUin = baseInfo["EncryptedUin"]?.jsonPrimitive?.contentOrNull
-                val avatar = baseInfo["Avatar"]?.jsonPrimitive?.contentOrNull
+                val bigAvatar = baseInfo["BigAvatar"]?.jsonPrimitive?.contentOrNull
+                val rawAvatar = baseInfo["Avatar"]?.jsonPrimitive?.contentOrNull
 
-                if (!name.isNullOrBlank() && name != currentProfile.nick) {
-                    currentProfile.nick = name
+                val normalizedAvatar =
+                    normalizeHighResAvatar(
+                        avatarUrl = bigAvatar ?: rawAvatar.orEmpty(),
+                        uin = uin,
+                    )
+
+                if (!name.isNullOrBlank() && name != newProfile.nick) {
+                    newProfile.nick = name
                     changed = true
                 }
                 if (!encUin.isNullOrBlank()) {
-                    currentProfile.encryptedUin = encUin
+                    newProfile.encryptedUin = encUin
                     changed = true
                 }
-                if (!avatar.isNullOrBlank() && avatar != currentProfile.avatarUrl) {
-                    currentProfile.avatarUrl = avatar
+                if (normalizedAvatar.isNotBlank() && normalizedAvatar != newProfile.avatarUrl) {
+                    newProfile.avatarUrl = normalizedAvatar
                     changed = true
                 }
             }
@@ -96,24 +103,44 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                         identity["HugeVipEnd"]?.jsonPrimitive?.contentOrNull
                             ?: identity["overdate"]?.jsonPrimitive?.contentOrNull ?: ""
 
-                    currentProfile.isVip = isVip
-                    currentProfile.vipLevel = level
-                    currentProfile.vipExpireAt = expireAt
+                    newProfile.isVip = isVip
+                    newProfile.vipLevel = level
+                    newProfile.vipExpireAt = expireAt
                     changed = true
                 }
 
                 val userInfo = vipData["userinfo"]?.jsonObject
                 if (userInfo != null) {
-                    currentProfile.musicLevel = userInfo["music_level"]?.jsonPrimitive?.intOrNull ?: 0
+                    newProfile.musicLevel = userInfo["music_level"]?.jsonPrimitive?.intOrNull ?: 0
                     changed = true
                 }
             }
 
             if (changed) {
-                UserSession.profile = currentProfile
+                UserSession.profile = newProfile
             }
             changed
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
+
+fun normalizeHighResAvatar(
+    avatarUrl: String,
+    uin: String = "",
+): String {
+    var url = avatarUrl.trim().replace("http://", "https://")
+    if (url.contains("qlogo.cn")) {
+        // QQ 头像规格提升到 640x640 高清
+        url = url.replace(Regex("&s=\\d+"), "&s=640")
+        url = url.replace(Regex("/(40|100|140)$"), "/640")
+    } else if (url.contains("thirdwx.qlogo.cn") || url.contains("/mmopen/")) {
+        // 微信头像规格提升到 /0 最高清原图
+        url = url.replace(Regex("/(132|96|64|46)$"), "/0")
+    }
+
+    if (url.isBlank() && uin.isNotBlank() && uin.all { it.isDigit() }) {
+        url = "https://q1.qlogo.cn/g?b=qq&nk=$uin&s=640"
+    }
+    return url
+}

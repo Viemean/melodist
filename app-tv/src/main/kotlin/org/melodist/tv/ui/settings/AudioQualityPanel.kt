@@ -228,7 +228,17 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
             },
         )
 
-        // 3. 本地与 WebDAV 智能歌词匹配
+        // 3. 音频硬件卸载 (Audio Offload)
+        SettingSwitchCard(
+            title = "音频硬件卸载",
+            checked = settings.enableAudioOffload,
+            menuRequester = menuRequester,
+            onToggle = {
+                AppSettingsManager.updateAudioOffload(!settings.enableAudioOffload)
+            },
+        )
+
+        // 4. 本地与 WebDAV 智能歌词匹配
         SettingSwitchCard(
             title = "本地与 WebDAV 音乐切片匹配歌词",
             checked = settings.enableAutoMatchLyrics,

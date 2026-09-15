@@ -224,11 +224,19 @@ class LoginApiService(
             cookies["qqmusic_key"] = skey
         }
 
+        val defaultAvatar =
+            if (uin.isNotEmpty() && uin.all { it.isDigit() }) {
+                "https://q1.qlogo.cn/g?b=qq&nk=$uin&s=640"
+            } else {
+                ""
+            }
+
         UserSession.update(
             uin = uin,
             nick = nick.ifBlank { if (uin.isNotEmpty()) "QQ用户_$uin" else "已登录用户" },
             musicKey = skey,
             cookies = cookies,
+            avatarUrl = defaultAvatar,
         )
 
         // 第二阶段：自动通过 OAuth2 换取专属 musickey 完整 VIP 凭据
@@ -347,6 +355,7 @@ class LoginApiService(
                             nick = UserSession.profile.nick,
                             musicKey = musicKey,
                             cookies = cookies,
+                            avatarUrl = UserSession.profile.avatarUrl,
                         )
                         return@withContext true
                     }
@@ -490,11 +499,18 @@ class LoginApiService(
                 data["psrf_wxopenid"]?.jsonPrimitive?.contentOrNull?.let { cookies["openid"] = it }
                 data["psrf_wx_access_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["access_token"] = it }
 
+                val rawAvatar =
+                    data["headimgurl"]?.jsonPrimitive?.contentOrNull
+                        ?: data["avatar"]?.jsonPrimitive?.contentOrNull
+                        ?: ""
+                val avatar = normalizeHighResAvatar(rawAvatar)
+
                 UserSession.update(
                     uin = musicId,
                     nick = nick,
                     musicKey = musicKey,
                     cookies = cookies,
+                    avatarUrl = avatar,
                 )
                 true
             }

@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import org.melodist.model.Album
+import org.melodist.model.Artist
 import org.melodist.model.ArtistDetail
 import org.melodist.model.Song
 
@@ -342,28 +343,131 @@ suspend fun MusicApiService.toggleSingerFollow(
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || singerMid.isBlank()) return@withContext false
         val uin = UserSession.profile.uin.ifBlank { "0" }
-        val method = if (isFollow) "FavSinger" else "CancelFavSinger"
-        val subKey = if (isFollow) "fav_singer" else "cancel_singer"
+        val operType = if (isFollow) 0 else 1
+        val subKey = if (isFollow) "focus_singer" else "cancel_singer"
         val payload =
             """
             {
-              "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "" },
+              "comm": { "ct": 20, "cv": 1770, "uin": "$uin", "tmeAppID": "qqmusic" },
               "$subKey": {
-                "module": "music.musicasset.SingerFavWrite",
-                "method": "$method",
-                "param": { "uin": "$uin", "singermid": ["$singerMid"] }
+                "module": "Concern.ConcernSystemServer",
+                "method": "cgi_concern_user_v2",
+                "param": {
+                  "opertype": $operType,
+                  "source": 0,
+                  "userinfo": {
+                    "usertype": 1,
+                    "userid": "$singerMid"
+                  },
+                  "encrypt_singerid": 1
+                }
               }
             }
             """.trimIndent()
         try {
             val respJson = postGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            root[subKey]
-                ?.jsonObject
-                ?.get("code")
-                ?.jsonPrimitive
-                ?.intOrNull == 0
+            val targetObj = root[subKey]?.jsonObject ?: return@withContext false
+            val outerCode = targetObj["code"]?.jsonPrimitive?.intOrNull ?: -1
+            val innerCode =
+                targetObj["data"]
+                    ?.jsonObject
+                    ?.get("code")
+                    ?.jsonPrimitive
+                    ?.intOrNull ?: -1
+            outerCode == 0 && innerCode == 0
         } catch (_: Exception) {
             false
+        }
+    }
+
+suspend fun MusicApiService.checkSingerFollowStatus(singerMid: String): Boolean =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn || singerMid.isBlank()) return@withContext false
+        val uin = UserSession.profile.uin.ifBlank { "0" }
+        val payload =
+            """
+            {
+              "comm": { "ct": 20, "cv": 1770, "uin": "$uin", "tmeAppID": "qqmusic" },
+              "concern_status": {
+                "module": "Concern.ConcernSystemServer",
+                "method": "cgi_qry_concern_status",
+                "param": {
+                  "vec_userinfo": [
+                    { "usertype": 1, "userid": "$singerMid" }
+                  ],
+                  "opertype": 5,
+                  "encrypt_singerid": 1
+                }
+              }
+            }
+            """.trimIndent()
+        try {
+            val respJson = postGateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val dataObj = root["concern_status"]?.jsonObject?.get("data")?.jsonObject ?: return@withContext false
+            val mapSingerStatus = dataObj["map_singer_status"]?.jsonObject ?: return@withContext false
+            val status = mapSingerStatus[singerMid]?.jsonPrimitive?.intOrNull ?: 0
+            status == 1
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+suspend fun MusicApiService.getFollowedSingerList(
+    from: Int = 0,
+    size: Int = 30,
+): Pair<List<Artist>, Boolean> =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn) return@withContext Pair(emptyList(), false)
+        val uin = UserSession.profile.uin.ifBlank { "0" }
+        val payload =
+            """
+            {
+              "comm": { "ct": 20, "cv": 1770, "uin": "$uin", "tmeAppID": "qqmusic" },
+              "follow_singers": {
+                "module": "music.concern.RelationList",
+                "method": "GetFollowSingerList",
+                "param": {
+                  "From": $from,
+                  "Size": $size
+                }
+              }
+            }
+            """.trimIndent()
+        try {
+            val respJson = postGateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val dataObj =
+                root["follow_singers"]?.jsonObject?.get("data")?.jsonObject
+                    ?: return@withContext Pair(emptyList(), false)
+            val hasMore = dataObj["HasMore"]?.jsonPrimitive?.booleanOrNull ?: false
+            val listArr = dataObj["List"]?.jsonArray ?: return@withContext Pair(emptyList(), hasMore)
+            val artists =
+                listArr.mapNotNull { item ->
+                    val obj = item.jsonObject
+                    val mid = obj["MID"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val name = obj["Name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val avatar = obj["AvatarUrl"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val singerId =
+                        obj["OtherInfo"]
+                            ?.jsonObject
+                            ?.get("SingerID")
+                            ?.jsonPrimitive
+                            ?.longOrNull ?: 0L
+                    if (mid.isNotBlank() && name.isNotBlank()) {
+                        Artist(
+                            id = singerId,
+                            mid = mid,
+                            name = name,
+                            avatarUrl = avatar,
+                        )
+                    } else {
+                        null
+                    }
+                }
+            Pair(artists, hasMore)
+        } catch (_: Exception) {
+            Pair(emptyList(), false)
         }
     }

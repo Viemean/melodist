@@ -1,8 +1,8 @@
 package org.melodist.api
 
+import kotlinx.serialization.json.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import kotlinx.serialization.json.*
 
 class LyricParserTest {
     @Test
@@ -125,4 +125,3 @@ class LyricParserTest {
         assertTrue(lyrics.any { it.text.contains("蝉の声が聞こえ") })
     }
 }
-

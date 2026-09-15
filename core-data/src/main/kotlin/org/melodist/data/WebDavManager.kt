@@ -68,61 +68,12 @@ object WebDavManager {
         return folder
     }
 
-    private fun safeWriteBytes(file: File, bytes: ByteArray) {
+    private fun safeWriteBytes(
+        file: File,
+        bytes: ByteArray,
+    ) {
         file.parentFile?.mkdirs()
         file.outputStream().use { it.write(bytes) }
-    }
-
-    private fun safeWriteOptimizedCover(file: File, bytes: ByteArray, maxDimension: Int = 1200) {
-        file.parentFile?.mkdirs()
-        try {
-            val boundsOpts = android.graphics.BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
-            }
-            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOpts)
-            val origW = boundsOpts.outWidth
-            val origH = boundsOpts.outHeight
-
-            if (origW <= 0 || origH <= 0 || (origW <= maxDimension && origH <= maxDimension)) {
-                file.outputStream().use { it.write(bytes) }
-                return
-            }
-
-            var inSample = 1
-            while ((origW / inSample) > maxDimension * 2 || (origH / inSample) > maxDimension * 2) {
-                inSample *= 2
-            }
-
-            val decodeOpts = android.graphics.BitmapFactory.Options().apply {
-                inSampleSize = inSample
-            }
-            val sampledBmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts)
-            if (sampledBmp == null) {
-                file.outputStream().use { it.write(bytes) }
-                return
-            }
-
-            val curW = sampledBmp.width
-            val curH = sampledBmp.height
-            val finalBmp: android.graphics.Bitmap =
-                if (curW > maxDimension || curH > maxDimension) {
-                    val scale = maxDimension.toFloat() / maxOf(curW, curH)
-                    val targetW = (curW * scale).toInt().coerceAtLeast(1)
-                    val targetH = (curH * scale).toInt().coerceAtLeast(1)
-                    android.graphics.Bitmap.createScaledBitmap(sampledBmp, targetW, targetH, true).also {
-                        if (it != sampledBmp) sampledBmp.recycle()
-                    }
-                } else {
-                    sampledBmp
-                }
-
-            file.outputStream().use { os ->
-                finalBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, os)
-            }
-            finalBmp.recycle()
-        } catch (_: Exception) {
-            file.outputStream().use { it.write(bytes) }
-        }
     }
 
     private fun loadConfig() {
@@ -280,17 +231,17 @@ object WebDavManager {
                     var finalDur = rawCache.duration
                     var coverPath = rawCache.coverPath
 
-                    // 封面处理：若解析出内嵌封面数据则直接写入
+                    // 封面处理：统一压缩为 500x500 WebP
                     val coversFolder = getSafeCoversDir()
-                    val targetPng = File(coversFolder, "webdav_$hash.png")
+                    val targetWebp = File(coversFolder, "webdav_$hash.webp")
 
                     val parsedPicBytes = parsed.pictureBytes
                     val parsedPicOffset = parsed.pictureOffsetInFile
                     val parsedPicLen = parsed.pictureLength
 
                     if (parsedPicBytes != null && parsedPicBytes.size > 512) {
-                        safeWriteOptimizedCover(targetPng, parsedPicBytes, maxDimension = 1200)
-                        coverPath = targetPng.absolutePath
+                        CoverCompressor.compressToWebp(parsedPicBytes, targetWebp)
+                        if (targetWebp.exists() && targetWebp.length() > 0L) coverPath = targetWebp.absolutePath
                     } else if (parsedPicOffset != null &&
                         parsedPicLen != null &&
                         parsedPicLen > 512 &&
@@ -301,8 +252,8 @@ object WebDavManager {
                         val picEnd = picStart + parsedPicLen - 1
                         val picBytes = webDavService.fetchRangeBytes(server, rawCache.href, picStart, picEnd)
                         if (picBytes != null && picBytes.size > 512) {
-                            safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
-                            coverPath = targetPng.absolutePath
+                            CoverCompressor.compressToWebp(picBytes, targetWebp)
+                            if (targetWebp.exists() && targetWebp.length() > 0L) coverPath = targetWebp.absolutePath
                         }
                     }
 
@@ -331,8 +282,8 @@ object WebDavManager {
                             if (coverPath.isNullOrBlank()) {
                                 val picBytes = retriever.embeddedPicture
                                 if (picBytes != null && picBytes.size > 512) {
-                                    safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
-                                    coverPath = targetPng.absolutePath
+                                    CoverCompressor.compressToWebp(picBytes, targetWebp)
+                                    if (targetWebp.exists() && targetWebp.length() > 0L) coverPath = targetWebp.absolutePath
                                 }
                             }
                         } catch (_: Exception) {
@@ -349,8 +300,8 @@ object WebDavManager {
                         val parentFolder = rawCache.href.substringBeforeLast('/', "")
                         val folderCoverBytes = webDavService.fetchRemoteCover(server, parentFolder)
                         if (folderCoverBytes != null && folderCoverBytes.size > 512) {
-                            targetPng.outputStream().use { it.write(folderCoverBytes) }
-                            coverPath = targetPng.absolutePath
+                            CoverCompressor.compressToWebp(folderCoverBytes, targetWebp)
+                            if (targetWebp.exists() && targetWebp.length() > 0L) coverPath = targetWebp.absolutePath
                         }
                     }
 
@@ -465,7 +416,11 @@ object WebDavManager {
 
             for (song in rawSongs) {
                 val existing = existingMap[song.href]
-                if (existing != null && existing.duration > 0 && !existing.coverPath.isNullOrBlank()) {
+                val isCoverValid =
+                    existing?.coverPath?.let { cp ->
+                        cp.isNotBlank() && File(cp).exists() && File(cp).length() > 0L
+                    } ?: false
+                if (existing != null && existing.duration > 0 && isCoverValid) {
                     // 已具有完整元数据，保留
                     existingMap[song.href] = existing
                 } else {
@@ -516,11 +471,13 @@ object WebDavManager {
             val allSongs = server.cachedSongs
             val missing =
                 allSongs.filter { s ->
+                    val cp = s.coverPath
+                    val isCoverMissing = cp.isNullOrBlank() || !File(cp).exists()
                     s.duration == 0 ||
                         s.artist.isBlank() ||
                         s.artist == "未知歌手" ||
                         s.artist == "WebDAV 音频" ||
-                        s.coverPath.isNullOrBlank()
+                        isCoverMissing
                 }
 
             if (missing.isEmpty()) {
@@ -595,12 +552,54 @@ object WebDavManager {
         saveServer(updated)
     }
 
+    fun removeSongsFromCache(songs: List<Song>, serverId: String? = null) {
+        if (songs.isEmpty()) return
+        val targetServer =
+            if (serverId != null) {
+                inMemoryConfig.servers.find { it.id == serverId }
+            } else {
+                getActiveServer()
+            } ?: return
+
+        val removedHrefs = songs.mapNotNull { it.mediaMid.ifBlank { it.localFilePath }.takeIf { p -> !p.isNullOrBlank() } }.toSet()
+        val removedMids = songs.map { it.songMid }.toSet()
+
+        val filtered = targetServer.cachedSongs.filterNot { cache ->
+            removedHrefs.contains(cache.href) || removedMids.contains(cache.toSong().songMid)
+        }
+        val updated = targetServer.copy(cachedSongs = filtered)
+        saveServer(updated)
+    }
+
+    fun onCacheCleared() {
+        val updatedServers =
+            inMemoryConfig.servers.map { server ->
+                val cleanedSongs =
+                    server.cachedSongs.map { song ->
+                        val cp = song.coverPath
+                        if (!cp.isNullOrBlank() && !File(cp).exists()) {
+                            song.copy(coverPath = null)
+                        } else {
+                            song
+                        }
+                    }
+                server.copy(cachedSongs = cleanedSongs)
+            }
+        inMemoryConfig = inMemoryConfig.copy(servers = updatedServers)
+        saveConfig()
+    }
+
     /**
      * 获取指定歌曲的本地封面文件路径（若存在则返回 file:// 协议 URI，否则返回 null）
      */
-    fun getSongCoverPath(serverId: String, href: String): String? {
+    fun getSongCoverPath(
+        serverId: String,
+        href: String,
+    ): String? {
         val folder = getSafeCoversDir()
         val hash = (serverId + href).hashCode().toString().replace("-", "n")
+        val webp = File(folder, "webdav_$hash.webp")
+        if (webp.exists() && webp.length() > 0L) return "file://${webp.absolutePath}"
         val png = File(folder, "webdav_$hash.png")
         if (png.exists() && png.length() > 0L) return "file://${png.absolutePath}"
         val jpg = File(folder, "webdav_$hash.jpg")
@@ -627,7 +626,7 @@ object WebDavManager {
             val existingCover = getSongCoverPath(server.id, relativeHref)
             val folder = getSafeCoversDir()
             val hash = (server.id + relativeHref).hashCode().toString().replace("-", "n")
-            val targetPng = File(folder, "webdav_$hash.png")
+            val targetWebp = File(folder, "webdav_$hash.webp")
             var finalCoverUrl = existingCover
             var finalTier: org.melodist.model.AudioQualityTier? = null
 
@@ -640,15 +639,19 @@ object WebDavManager {
                     if (finalCoverUrl.isNullOrBlank()) {
                         val picBytes = retriever.embeddedPicture
                         if (picBytes != null && picBytes.size > 512) {
-                            safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
-                            finalCoverUrl = "file://${targetPng.absolutePath}"
+                            CoverCompressor.compressToWebp(picBytes, targetWebp)
+                            if (targetWebp.exists() && targetWebp.length() > 0L) {
+                                finalCoverUrl = "file://${targetWebp.absolutePath}"
+                            }
                         }
                     }
                     val sRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull()
                     val bRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()
                     val ext = relativeHref.substringAfterLast('.', "flac")
                     if (sRate != null && sRate > 0) {
-                        finalTier = org.melodist.model.AudioQualityTier.inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
+                        finalTier =
+                            org.melodist.model.AudioQualityTier
+                                .inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
                     }
                 } catch (_: Exception) {
                 } finally {
@@ -674,8 +677,10 @@ object WebDavManager {
                         val parsedPicLen = parsed.pictureLength
 
                         if (parsedPicBytes != null && parsedPicBytes.size > 512) {
-                            safeWriteOptimizedCover(targetPng, parsedPicBytes, maxDimension = 1200)
-                            finalCoverUrl = "file://${targetPng.absolutePath}"
+                            CoverCompressor.compressToWebp(parsedPicBytes, targetWebp)
+                            if (targetWebp.exists() && targetWebp.length() > 0L) {
+                                finalCoverUrl = "file://${targetWebp.absolutePath}"
+                            }
                         } else if (parsedPicOffset != null &&
                             parsedPicLen != null &&
                             parsedPicLen > 512 &&
@@ -683,8 +688,10 @@ object WebDavManager {
                         ) {
                             val picBytes = webDavService.fetchRangeBytes(server, relativeHref, parsedPicOffset, parsedPicOffset + parsedPicLen - 1)
                             if (picBytes != null && picBytes.size > 512) {
-                                safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
-                                finalCoverUrl = "file://${targetPng.absolutePath}"
+                                CoverCompressor.compressToWebp(picBytes, targetWebp)
+                                if (targetWebp.exists() && targetWebp.length() > 0L) {
+                                    finalCoverUrl = "file://${targetWebp.absolutePath}"
+                                }
                             }
                         }
                     }
@@ -698,15 +705,19 @@ object WebDavManager {
                             if (finalCoverUrl.isNullOrBlank()) {
                                 val picBytes = retriever.embeddedPicture
                                 if (picBytes != null && picBytes.size > 512) {
-                                    safeWriteOptimizedCover(targetPng, picBytes, maxDimension = 1200)
-                                    finalCoverUrl = "file://${targetPng.absolutePath}"
+                                    CoverCompressor.compressToWebp(picBytes, targetWebp)
+                                    if (targetWebp.exists() && targetWebp.length() > 0L) {
+                                        finalCoverUrl = "file://${targetWebp.absolutePath}"
+                                    }
                                 }
                             }
                             if (finalTier == null) {
                                 val sRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull()
                                 val bRate = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()
                                 if (sRate != null && sRate > 0) {
-                                    finalTier = org.melodist.model.AudioQualityTier.inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
+                                    finalTier =
+                                        org.melodist.model.AudioQualityTier
+                                            .inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
                                 }
                             }
                         } catch (_: Exception) {
@@ -730,8 +741,10 @@ object WebDavManager {
                     val parentFolder = relativeHref.substringBeforeLast('/', "")
                     val folderCoverBytes = webDavService.fetchRemoteCover(server, parentFolder)
                     if (folderCoverBytes != null && folderCoverBytes.size > 512) {
-                        safeWriteOptimizedCover(targetPng, folderCoverBytes, maxDimension = 1200)
-                        finalCoverUrl = "file://${targetPng.absolutePath}"
+                        CoverCompressor.compressToWebp(folderCoverBytes, targetWebp)
+                        if (targetWebp.exists() && targetWebp.length() > 0L) {
+                            finalCoverUrl = "file://${targetWebp.absolutePath}"
+                        }
                     }
                 } catch (e: Exception) {
                     Log.w("WebDavManager", "Failed to fetch remote cover for folder: $relativeHref", e)

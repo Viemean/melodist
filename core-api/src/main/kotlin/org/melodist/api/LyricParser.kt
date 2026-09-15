@@ -108,12 +108,14 @@ object LyricParser {
                 } else if (cleanTrans.isNotEmpty()) {
                     // 2. 容差候选匹配 (<= 600ms)：
                     // 必须满足候选翻译行最匹配的是当前 orig，而不是后续更接近的 orig
-                    val candidates = cleanTrans.filter { cand ->
-                        cand !in usedSet && abs(cand.first - orig.first) <= 600 &&
-                            !origItems.drop(i + 1).any { nextOrig ->
-                                abs(cand.first - nextOrig.first) < abs(cand.first - orig.first)
-                            }
-                    }
+                    val candidates =
+                        cleanTrans.filter { cand ->
+                            cand !in usedSet &&
+                                abs(cand.first - orig.first) <= 600 &&
+                                !origItems.drop(i + 1).any { nextOrig ->
+                                    abs(cand.first - nextOrig.first) < abs(cand.first - orig.first)
+                                }
+                        }
                     if (candidates.isNotEmpty()) {
                         val best = candidates.minByOrNull { abs(it.first - orig.first) }!!
                         transText = best.second
@@ -181,25 +183,53 @@ object LyricParser {
 
         val metaPrefixes =
             listOf(
-                "词：", "词:", "作词：", "作词:",
-                "曲：", "曲:", "作曲：", "作曲:",
-                "编曲：", "编曲:",
-                "制作：", "制作:", "制作人：", "制作人:",
-                "监制：", "监制:",
-                "混音：", "混音:",
-                "录音：", "录音:",
-                "母带：", "母带:",
-                "出品：", "出品:",
-                "企划：", "企划:",
-                "歌手：", "歌手:",
-                "演唱：", "演唱:",
-                "原唱：", "原唱:",
-                "专辑：", "专辑:",
-                "歌名：", "歌名:",
-                "歌曲：", "歌曲:",
-                "OP：", "OP:",
-                "SP：", "SP:",
-                "ti:", "ar:", "al:", "by:", "offset:",
+                "词：",
+                "词:",
+                "作词：",
+                "作词:",
+                "曲：",
+                "曲:",
+                "作曲：",
+                "作曲:",
+                "编曲：",
+                "编曲:",
+                "制作：",
+                "制作:",
+                "制作人：",
+                "制作人:",
+                "监制：",
+                "监制:",
+                "混音：",
+                "混音:",
+                "录音：",
+                "录音:",
+                "母带：",
+                "母带:",
+                "出品：",
+                "出品:",
+                "企划：",
+                "企划:",
+                "歌手：",
+                "歌手:",
+                "演唱：",
+                "演唱:",
+                "原唱：",
+                "原唱:",
+                "专辑：",
+                "专辑:",
+                "歌名：",
+                "歌名:",
+                "歌曲：",
+                "歌曲:",
+                "OP：",
+                "OP:",
+                "SP：",
+                "SP:",
+                "ti:",
+                "ar:",
+                "al:",
+                "by:",
+                "offset:",
             )
         if (metaPrefixes.any { t.startsWith(it, ignoreCase = true) }) return true
 

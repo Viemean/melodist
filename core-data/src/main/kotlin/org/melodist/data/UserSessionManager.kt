@@ -14,6 +14,7 @@ object UserSessionManager {
 
     fun init(context: Context) {
         val appContext = context.applicationContext
+        PlaybackCredentialsPersistence.init(appContext)
         try {
             val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val jsonStr = prefs.getString(KEY_PROFILE, null)
@@ -31,9 +32,9 @@ object UserSessionManager {
                     try {
                         val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         if (UserSession.isLoggedIn) {
-                            prefs.edit().putString(KEY_PROFILE, UserSession.toJson()).apply()
+                            prefs.edit().putString(KEY_PROFILE, UserSession.toJson()).commit()
                         } else if (profile.uin.isBlank() && profile.cookies.isEmpty()) {
-                            prefs.edit().remove(KEY_PROFILE).apply()
+                            prefs.edit().remove(KEY_PROFILE).commit()
                         }
                     } catch (_: Exception) {
                     }

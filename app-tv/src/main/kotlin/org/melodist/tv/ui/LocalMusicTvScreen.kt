@@ -332,7 +332,7 @@ fun LocalMusicTvScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                             LocalMusicNavButton(
                                 icon = Icons.Filled.Storage,
-                                text = "切换其他存储位置 / U 盘",
+                                text = "切换存储位置 / U 盘",
                                 onClick = { showDriveSelectDialog = true },
                             )
                         }

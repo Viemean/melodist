@@ -42,7 +42,8 @@
         <activity
             android:name=".MainActivity"
             android:banner="@android:drawable/ic_media_play"
-            android:exported="true">
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

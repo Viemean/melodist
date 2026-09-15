@@ -95,4 +95,17 @@ class AcousticRecognitionTests {
         assertNotNull(result.song)
         assertEquals("003mQIjO4e38e6", result.song?.songMid)
     }
+
+    @Test
+    fun testLiveSyncOffsetCalculation() {
+        val recognizedOffset = 25.4
+        val recognizedTimestampMs = 10000L
+        val currentTimestampMs = 12500L
+        val latencyCompSec = 0.35
+
+        val elapsedSec = (currentTimestampMs - recognizedTimestampMs) / 1000.0
+        val targetPlaybackPosSec = recognizedOffset + elapsedSec - latencyCompSec
+
+        assertEquals(27.55, targetPlaybackPosSec, 0.001)
+    }
 }

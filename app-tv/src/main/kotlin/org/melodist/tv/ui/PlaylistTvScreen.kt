@@ -169,7 +169,10 @@ object PlaylistScreenCache {
         this.lockedAlbumMid = albumMid
     }
 
-    fun onSongFavoriteChanged(song: Song, isFav: Boolean) {
+    fun onSongFavoriteChanged(
+        song: Song,
+        isFav: Boolean,
+    ) {
         if (lastCacheKey != "favorites_0_0_") return
         val current = songs.toMutableList()
         current.removeAll { it.songMid == song.songMid || (song.songId > 0 && it.songId == song.songId) }

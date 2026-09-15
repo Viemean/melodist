@@ -17,6 +17,15 @@ class MelodistApp :
     SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
+        org.melodist.data.AppLifecycleManager.init(this)
+        org.melodist.data.AppLifecycleManager.onTrimMemoryAction = {
+            try {
+                SingletonImageLoader.get(this@MelodistApp).memoryCache?.clear()
+            } catch (_: Exception) {
+            }
+        }
+        org.melodist.data.AppSettingsManager
+            .init(this)
         org.melodist.data.AppSettingsManager.imageCacheClearAction = {
             try {
                 SingletonImageLoader.get(this@MelodistApp).diskCache?.clear()

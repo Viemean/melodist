@@ -19,9 +19,10 @@ enum class LyricFontSize(
     val titleSp: Int,
     val subSp: Int,
 ) {
-    Normal("标准", 1.0f, 22, 14),
-    Large("偏大", 1.18f, 26, 16),
-    ExtraLarge("超大", 1.36f, 30, 18),
+    Small("偏小", 0.85f, 18, 13),
+    Normal("标准", 1.0f, 22, 15),
+    Large("偏大", 1.18f, 26, 17),
+    ExtraLarge("超大", 1.36f, 30, 19),
     ;
 
     val spValue: Int get() = titleSp
@@ -82,7 +83,10 @@ enum class ScreenSaverTimeout(
 data class AppSettings(
     // 1. 音频与音质
     val preferredQualityTier: AudioQualityTier = AudioQualityTier.SQ,
+    val cellularQualityTier: AudioQualityTier = AudioQualityTier.HQ,
     val enableAudioPassthrough: Boolean = false,
+    val enableAudioOffload: Boolean = false,
+    val enableUsbExclusive: Boolean = true,
     val enableAutoMatchLyrics: Boolean = true,
     // 2. 播放与歌词
     val showBilingualLyrics: Boolean = true,
@@ -92,6 +96,8 @@ data class AppSettings(
     val screenSaverTimeout: ScreenSaverTimeout = ScreenSaverTimeout.Minutes5,
     val enablePixelShift: Boolean = true,
     val enableScreenSaverDuringPlayback: Boolean = true,
+    // 4. 下载与存储
+    val downloadDirectory: String = "",
 ) {
     // 向后兼容旧字段引用
     val enableAtmosPassthrough: Boolean get() = enableAudioPassthrough
@@ -102,7 +108,10 @@ object AppSettingsManager {
     private const val PREF_NAME = "melodist_app_settings"
 
     private const val KEY_PREFERRED_TIER = "preferred_tier"
+    private const val KEY_CELLULAR_TIER = "cellular_quality_tier"
     private const val KEY_AUDIO_PASSTHROUGH = "audio_passthrough"
+    private const val KEY_AUDIO_OFFLOAD = "audio_offload"
+    private const val KEY_USB_EXCLUSIVE = "usb_exclusive"
     private const val KEY_ATMOS_PASSTHROUGH = "atmos_passthrough"
     private const val KEY_AUTO_MATCH_LYRICS = "auto_match_lyrics"
     private const val KEY_BILINGUAL_TRANS = "bilingual_translation"
@@ -111,6 +120,7 @@ object AppSettingsManager {
     private const val KEY_SCREENSAVER_TIMEOUT = "screensaver_timeout"
     private const val KEY_SCREENSAVER_PIXEL_SHIFT = "screensaver_pixel_shift"
     private const val KEY_SCREENSAVER_DURING_PLAYBACK = "screensaver_during_playback"
+    private const val KEY_DOWNLOAD_DIRECTORY = "download_directory"
 
     private var prefs: SharedPreferences? = null
     private var appContext: Context? = null
@@ -123,6 +133,8 @@ object AppSettingsManager {
     val cacheUsage: StateFlow<CacheUsageDetail> = _cacheUsage.asStateFlow()
 
     var onAudioPassthroughChangedListener: ((Boolean) -> Unit)? = null
+    var onAudioOffloadChangedListener: ((Boolean) -> Unit)? = null
+    var onUsbExclusiveChangedListener: ((Boolean) -> Unit)? = null
 
     fun init(context: Context) {
         if (prefs == null) {
@@ -145,11 +157,30 @@ object AppSettingsManager {
                 AudioQualityTier.SQ
             }
 
+        val cellTierName = p.getString(KEY_CELLULAR_TIER, null)
+        val cellTier =
+            if (cellTierName != null) {
+                try {
+                    AudioQualityTier.valueOf(cellTierName)
+                } catch (_: Exception) {
+                    AudioQualityTier.HQ
+                }
+            } else {
+                AudioQualityTier.HQ
+            }
+
         val passthrough =
             if (p.contains(KEY_AUDIO_PASSTHROUGH)) {
                 p.getBoolean(KEY_AUDIO_PASSTHROUGH, false)
             } else {
                 p.getBoolean(KEY_ATMOS_PASSTHROUGH, false)
+            }
+        val audioOffload = p.getBoolean(KEY_AUDIO_OFFLOAD, false)
+        val usbExclusive =
+            if (p.contains(KEY_USB_EXCLUSIVE)) {
+                p.getBoolean(KEY_USB_EXCLUSIVE, true)
+            } else {
+                true
             }
         val autoLyrics = p.getBoolean(KEY_AUTO_MATCH_LYRICS, true)
         val bilingual = p.getBoolean(KEY_BILINGUAL_TRANS, true)
@@ -172,11 +203,15 @@ object AppSettingsManager {
 
         val pixelShift = p.getBoolean(KEY_SCREENSAVER_PIXEL_SHIFT, true)
         val duringPlayback = p.getBoolean(KEY_SCREENSAVER_DURING_PLAYBACK, true)
+        val downloadDir = p.getString(KEY_DOWNLOAD_DIRECTORY, "") ?: ""
 
         _settings.value =
             AppSettings(
                 preferredQualityTier = tier,
+                cellularQualityTier = cellTier,
                 enableAudioPassthrough = passthrough,
+                enableAudioOffload = audioOffload,
+                enableUsbExclusive = usbExclusive,
                 enableAutoMatchLyrics = autoLyrics,
                 showBilingualLyrics = bilingual,
                 enableWordByWordAnim = wordAnim,
@@ -184,7 +219,36 @@ object AppSettingsManager {
                 screenSaverTimeout = timeout,
                 enablePixelShift = pixelShift,
                 enableScreenSaverDuringPlayback = duringPlayback,
+                downloadDirectory = downloadDir,
             )
+    }
+
+    fun getDefaultDownloadDirectory(): String =
+        try {
+            val musicDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MUSIC)
+            File(musicDir, "Melodist").absolutePath
+        } catch (_: Exception) {
+            "/storage/emulated/0/Music/Melodist"
+        }
+
+    fun getEffectiveDownloadDirectory(): File {
+        val configured = _settings.value.downloadDirectory.trim()
+        val targetDir =
+            if (configured.isNotBlank()) {
+                File(configured)
+            } else {
+                File(getDefaultDownloadDirectory())
+            }
+        if (!targetDir.exists()) {
+            targetDir.mkdirs()
+        }
+        return targetDir
+    }
+
+    fun setDownloadDirectory(dirPath: String) {
+        val normalized = dirPath.trim()
+        _settings.value = _settings.value.copy(downloadDirectory = normalized)
+        prefs?.edit()?.putString(KEY_DOWNLOAD_DIRECTORY, normalized)?.apply()
     }
 
     fun setPreferredQualityTier(tier: AudioQualityTier) {
@@ -193,6 +257,13 @@ object AppSettingsManager {
     }
 
     fun updatePreferredQualityTier(tier: AudioQualityTier) = setPreferredQualityTier(tier)
+
+    fun setCellularQualityTier(tier: AudioQualityTier) {
+        _settings.value = _settings.value.copy(cellularQualityTier = tier)
+        prefs?.edit()?.putString(KEY_CELLULAR_TIER, tier.name)?.apply()
+    }
+
+    fun updateCellularQualityTier(tier: AudioQualityTier) = setCellularQualityTier(tier)
 
     fun setEnableAudioPassthrough(enable: Boolean) {
         _settings.value = _settings.value.copy(enableAudioPassthrough = enable)
@@ -205,6 +276,22 @@ object AppSettingsManager {
     fun setEnableAtmosPassthrough(enable: Boolean) = setEnableAudioPassthrough(enable)
 
     fun updateAtmosPassthrough(enable: Boolean) = setEnableAudioPassthrough(enable)
+
+    fun setEnableAudioOffload(enable: Boolean) {
+        _settings.value = _settings.value.copy(enableAudioOffload = enable)
+        prefs?.edit()?.putBoolean(KEY_AUDIO_OFFLOAD, enable)?.apply()
+        onAudioOffloadChangedListener?.invoke(enable)
+    }
+
+    fun updateAudioOffload(enable: Boolean) = setEnableAudioOffload(enable)
+
+    fun setEnableUsbExclusive(enable: Boolean) {
+        _settings.value = _settings.value.copy(enableUsbExclusive = enable)
+        prefs?.edit()?.putBoolean(KEY_USB_EXCLUSIVE, enable)?.apply()
+        onUsbExclusiveChangedListener?.invoke(enable)
+    }
+
+    fun updateUsbExclusive(enable: Boolean) = setEnableUsbExclusive(enable)
 
     fun setEnableAutoMatchLyrics(enable: Boolean) {
         _settings.value = _settings.value.copy(enableAutoMatchLyrics = enable)
@@ -276,31 +363,42 @@ object AppSettingsManager {
     /**
      * 异步后台精准统计应用缓存体积
      */
-    fun refreshCacheUsage() {
-        val ctx = appContext ?: return
+    fun refreshCacheUsage(context: Context? = null) {
+        if (context != null && appContext == null) {
+            init(context)
+        }
+        val ctx = appContext ?: context?.applicationContext ?: return
         scope.launch(Dispatchers.IO) {
             try {
-                val cacheDir = ctx.cacheDir
                 var imgBytes = 0L
                 var lyricsBytes = 0L
+                var mediaBytes = mediaCacheSizeProvider?.invoke() ?: 0L
                 var otherBytes = 0L
 
-                val mediaBytes =
-                    mediaCacheSizeProvider?.invoke()
-                        ?: calculateDirSize(File(cacheDir, "media_cache"))
-
-                cacheDir.listFiles()?.forEach { file ->
-                    when (file.name) {
-                        "image_cache", "coil_cache", "local_covers" -> imgBytes += calculateDirSize(file)
-                        "matched_lyrics" -> lyricsBytes += calculateDirSize(file)
-                        "media_cache" -> {
-                            // 已由 mediaCacheSizeProvider 精准获取
-                        }
-                        else -> {
-                            if (file.isDirectory) {
-                                otherBytes += calculateDirSize(file)
-                            } else {
-                                otherBytes += file.length()
+                val cacheDirs = listOfNotNull(ctx.cacheDir, ctx.externalCacheDir)
+                for (cacheDir in cacheDirs) {
+                    if (!cacheDir.exists()) continue
+                    val mediaDir = File(cacheDir, "media_cache")
+                    if (mediaDir.exists()) {
+                        mediaBytes = maxOf(mediaBytes, calculateDirSize(mediaDir))
+                    }
+                    cacheDir.listFiles()?.forEach { file ->
+                        when (file.name) {
+                            "image_cache", "coil_cache", "local_covers", "covers" -> {
+                                imgBytes += calculateDirSize(file)
+                            }
+                            "matched_lyrics", "lyrics" -> {
+                                lyricsBytes += calculateDirSize(file)
+                            }
+                            "media_cache" -> {
+                                // 已经通过 maxOf 统计
+                            }
+                            else -> {
+                                if (file.isDirectory) {
+                                    otherBytes += calculateDirSize(file)
+                                } else {
+                                    otherBytes += file.length()
+                                }
                             }
                         }
                     }
@@ -320,7 +418,7 @@ object AppSettingsManager {
     }
 
     /**
-     * 清理图片与媒体缓存（保留已匹配的歌词和登录状态）
+     * 清理图片与媒体缓存（保留 WebDAV/本地专辑封面、匹配歌词和登录状态）
      */
     suspend fun clearMediaAndImageCache(): Boolean =
         withContext(Dispatchers.IO) {
@@ -330,8 +428,9 @@ object AppSettingsManager {
                 imageCacheClearAction?.invoke()
 
                 val cacheDir = ctx.cacheDir
+                val preservedFolders = setOf("covers", "local_covers", "lyrics", "matched_lyrics")
                 cacheDir.listFiles()?.forEach { file ->
-                    if (file.name != "matched_lyrics" && file.name != "media_cache" && file.name != "image_cache") {
+                    if (!preservedFolders.contains(file.name)) {
                         deleteRecursively(file)
                     }
                 }
@@ -339,6 +438,10 @@ object AppSettingsManager {
                 File(cacheDir, "local_covers").mkdirs()
                 File(cacheDir, "webdav").mkdirs()
                 File(cacheDir, "lyrics").mkdirs()
+                File(cacheDir, "matched_lyrics").mkdirs()
+                LocalMusicManager.onCacheCleared()
+                WebDavManager.onCacheCleared()
+                LocalMusicManager.healMissingCovers()
                 refreshCacheUsage()
                 true
             } catch (e: Exception) {
@@ -348,7 +451,7 @@ object AppSettingsManager {
         }
 
     /**
-     * 一键清空所有缓存（图片、媒体、歌词与临时数据）
+     * 一键清空临时媒体与易失网络缓存（保留轻量 WebP 专辑封面与匹配歌词）
      */
     suspend fun clearAllCacheData(): Boolean =
         withContext(Dispatchers.IO) {
@@ -358,8 +461,9 @@ object AppSettingsManager {
                 imageCacheClearAction?.invoke()
 
                 val cacheDir = ctx.cacheDir
+                val preservedFolders = setOf("covers", "local_covers", "lyrics", "matched_lyrics")
                 cacheDir.listFiles()?.forEach { file ->
-                    if (file.name != "media_cache" && file.name != "image_cache") {
+                    if (!preservedFolders.contains(file.name)) {
                         deleteRecursively(file)
                     }
                 }
@@ -368,7 +472,12 @@ object AppSettingsManager {
                 File(cacheDir, "webdav").mkdirs()
                 File(cacheDir, "lyrics").mkdirs()
                 File(cacheDir, "matched_lyrics").mkdirs()
+                File(cacheDir, "image_cache").mkdirs()
+                File(cacheDir, "media_cache").mkdirs()
                 cleanStaleInstallers()
+                LocalMusicManager.onCacheCleared()
+                WebDavManager.onCacheCleared()
+                LocalMusicManager.healMissingCovers()
                 refreshCacheUsage()
                 true
             } catch (e: Exception) {

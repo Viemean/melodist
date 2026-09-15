@@ -473,7 +473,8 @@ private fun PlayerProgressBar(
     val progressInteractionSource = remember { MutableInteractionSource() }
     val isProgressFocused by progressInteractionSource.collectIsFocusedAsState()
 
-    val progressMs by org.melodist.playback.PlaybackManager.currentPositionMs.collectAsState()
+    val progressMs by org.melodist.playback.PlaybackManager.currentPositionMs
+        .collectAsState()
     val progressFraction =
         if (durationMs > 0) {
             (progressMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)

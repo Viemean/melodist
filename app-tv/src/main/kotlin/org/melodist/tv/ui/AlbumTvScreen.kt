@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
-import org.melodist.api.getAlbumDetail
+import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.model.AlbumDetail
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
@@ -43,11 +43,7 @@ fun AlbumTvScreen(
     LaunchedEffect(albumMid) {
         if (albumMid.isNotBlank()) {
             isLoading = true
-            val detail =
-                withContext(Dispatchers.IO) {
-                    apiService.getAlbumDetail(albumMid)
-                }
-            albumDetail = detail
+            albumDetail = ArtistAlbumCacheManager.getAlbumDetail(albumMid)
             isLoading = false
         }
     }

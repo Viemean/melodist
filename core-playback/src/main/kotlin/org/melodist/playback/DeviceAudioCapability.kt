@@ -7,11 +7,17 @@ import android.os.Build
 import org.melodist.model.AudioQualityTier
 
 object DeviceAudioCapability {
+    @Volatile
     private var isInitialized = false
+
+    @Volatile
     private var supportsDolbyAtmos = false
+
+    @Volatile
     private var supportsSurround51 = false
+
+    @Volatile
     private var supportsSurround71 = false
-    private var supportsFlac = true
 
     fun init(context: Context) {
         if (isInitialized) return

@@ -30,6 +30,7 @@ sealed interface AcrUiState {
     data class Success(
         val song: Song,
         val offsetSeconds: Double,
+        val anchorRealtimeMs: Long = 0L,
     ) : AcrUiState
 
     data class Failed(
@@ -47,6 +48,7 @@ class AcrViewModel(
     val audioEnergy: StateFlow<Float> = recordingManager.audioEnergy
 
     private var recognitionJob: Job? = null
+    private var recordStartRealtimeMs: Long = 0L
 
     fun setPermissionRequired() {
         _uiState.value = AcrUiState.PermissionRequired
@@ -66,6 +68,7 @@ class AcrViewModel(
             return
         }
 
+        recordStartRealtimeMs = android.os.SystemClock.elapsedRealtime()
         _uiState.value = AcrUiState.Listening(0f)
 
         recognitionJob?.cancel()
@@ -73,7 +76,7 @@ class AcrViewModel(
             viewModelScope.launch {
                 val startTime = System.currentTimeMillis()
                 val sessionUniqueId = startTime
-                val probeMilestones = listOf(3000L, 4500L, 6000L, 8000L, 10000L, 12000L)
+                val probeMilestones = listOf(3000L, 4500L, 6500L, 9000L, 11500L)
                 var nextProbeIndex = 0
                 val maxDurationMs = 12500L
 
@@ -128,7 +131,12 @@ class AcrViewModel(
 
                                 if (result.success && result.song != null) {
                                     recordingManager.stop()
-                                    _uiState.value = AcrUiState.Success(result.song!!, result.offsetSeconds)
+                                    _uiState.value =
+                                        AcrUiState.Success(
+                                            song = result.song!!,
+                                            offsetSeconds = result.offsetSeconds,
+                                            anchorRealtimeMs = recordStartRealtimeMs,
+                                        )
                                     return@launch
                                 }
                             }

@@ -87,6 +87,26 @@ class ShuffleQueueManager(
     }
 
     /**
+     * 预览下一首索引，不推进指针
+     */
+    fun peekNext(): Int? {
+        if (_shuffledIndices.isEmpty()) return null
+        if (_shuffledIndices.size == 1) return _shuffledIndices[0]
+        val nextPointer = (_pointer + 1) % _shuffledIndices.size
+        return _shuffledIndices.getOrNull(nextPointer)
+    }
+
+    /**
+     * 预览上一首索引，不推进指针
+     */
+    fun peekPrevious(): Int? {
+        if (_shuffledIndices.isEmpty()) return null
+        if (_shuffledIndices.size == 1) return _shuffledIndices[0]
+        val prevPointer = if (_pointer - 1 < 0) _shuffledIndices.size - 1 else _pointer - 1
+        return _shuffledIndices.getOrNull(prevPointer)
+    }
+
+    /**
      * 用户手动在列表中点播某首歌曲时，同步洗牌队列指针
      */
     fun syncTo(

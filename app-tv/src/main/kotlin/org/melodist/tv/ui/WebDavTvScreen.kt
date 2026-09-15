@@ -43,7 +43,6 @@ import org.melodist.model.Song
 import org.melodist.model.WebDavItem
 import org.melodist.model.WebDavServer
 import org.melodist.playback.PlaybackManager
-import org.melodist.tv.ui.components.MelodistAsyncImage
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
@@ -257,6 +256,14 @@ fun WebDavTvScreen(
                         text = if (currentServer != null) "配置管理" else "添加服务",
                         onClick = { showConfigDialog = true },
                     )
+
+                    if (currentServer != null && viewMode == WebDavViewMode.Library) {
+                        WebDavNavButton(
+                            icon = Icons.Default.Sync,
+                            text = if (isScanningMetadata) "扫描中..." else "扫描补充信息",
+                            onClick = { startScanMissingMetadata() },
+                        )
+                    }
 
                     if (currentServer != null && viewMode == WebDavViewMode.Directory) {
                         WebDavNavButton(

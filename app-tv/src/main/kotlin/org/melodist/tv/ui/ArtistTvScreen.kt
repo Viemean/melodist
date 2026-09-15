@@ -24,9 +24,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
-import org.melodist.api.getArtistDetail
 import org.melodist.api.getSingerAlbumList
 import org.melodist.api.getSingerSongList
+import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.data.FavoriteArtistsManager
 import org.melodist.model.Album
 import org.melodist.model.ArtistDetail
@@ -82,7 +82,6 @@ fun ArtistTvScreen(
     val followedMids by FavoriteArtistsManager.followedArtistMids.collectAsState()
     val isFollowed = followedMids.contains(artistMid)
 
-    val apiService = remember { MusicApiService() }
     val scope = rememberCoroutineScope()
 
     BackHandler {
@@ -96,23 +95,22 @@ fun ArtistTvScreen(
     // 加载歌手单曲（根据 isHotOrder 与分页）
     LaunchedEffect(artistMid, isHotOrder) {
         if (artistMid.isNotBlank()) {
+            FavoriteArtistsManager.checkStatus(artistMid)
             isLoadingSongs = true
             songPage = 1
-            withContext(Dispatchers.IO) {
-                if (artistDetail == null) {
-                    artistDetail = apiService.getArtistDetail(artistMid)
-                }
-                val (songs, total) =
-                    apiService.getSingerSongList(
-                        singerMid = artistMid,
-                        page = 1,
-                        pageSize = 30,
-                        isHotOrder = isHotOrder,
-                    )
-                artistSongs = songs
-                totalSongCount = total
-                hasMoreSongs = songs.isNotEmpty() && songs.size < total
+            if (artistDetail == null) {
+                artistDetail = ArtistAlbumCacheManager.getArtistDetail(artistMid)
             }
+            val (songs, total) =
+                ArtistAlbumCacheManager.getSingerSongList(
+                    singerMid = artistMid,
+                    page = 1,
+                    pageSize = 30,
+                    isHotOrder = isHotOrder,
+                )
+            artistSongs = songs
+            totalSongCount = total
+            hasMoreSongs = songs.isNotEmpty() && songs.size < total
             isLoadingSongs = false
         }
     }
@@ -122,17 +120,15 @@ fun ArtistTvScreen(
         if (subMode == ArtistSubMode.Albums && albums.isEmpty() && artistMid.isNotBlank()) {
             isLoadingAlbums = true
             albumPage = 1
-            withContext(Dispatchers.IO) {
-                val (albList, total) =
-                    apiService.getSingerAlbumList(
-                        singerMid = artistMid,
-                        page = 1,
-                        pageSize = 30,
-                    )
-                albums = albList
-                totalAlbumCount = total
-                hasMoreAlbums = albList.isNotEmpty() && albList.size < total
-            }
+            val (albList, total) =
+                ArtistAlbumCacheManager.getSingerAlbumList(
+                    singerMid = artistMid,
+                    page = 1,
+                    pageSize = 30,
+                )
+            albums = albList
+            totalAlbumCount = total
+            hasMoreAlbums = albList.isNotEmpty() && albList.size < total
             isLoadingAlbums = false
         }
     }
@@ -209,7 +205,7 @@ fun ArtistTvScreen(
                     isLoadingMoreSongs = true
                     val nextPage = songPage + 1
                     val (moreSongs, total) =
-                        apiService.getSingerSongList(
+                        ArtistAlbumCacheManager.getSingerSongList(
                             singerMid = artistMid,
                             page = nextPage,
                             pageSize = 30,
@@ -503,7 +499,7 @@ fun ArtistTvScreen(
                                         isLoadingMoreAlbums = true
                                         val nextPage = albumPage + 1
                                         val (moreAlb, total) =
-                                            apiService.getSingerAlbumList(
+                                            ArtistAlbumCacheManager.getSingerAlbumList(
                                                 singerMid = artistMid,
                                                 page = nextPage,
                                                 pageSize = 30,

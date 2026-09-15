@@ -26,14 +26,18 @@ data class AcousticRecognizeResult(
 )
 
 class AcousticRecognizeClient(
-    private val client: OkHttpClient =
-        OkHttpClient
-            .Builder()
-            .connectTimeout(6, TimeUnit.SECONDS)
-            .readTimeout(8, TimeUnit.SECONDS)
-            .build(),
+    private val client: OkHttpClient = sharedClient,
 ) {
     companion object {
+        val sharedClient: OkHttpClient by lazy {
+            OkHttpClient
+                .Builder()
+                .connectTimeout(6, TimeUnit.SECONDS)
+                .readTimeout(8, TimeUnit.SECONDS)
+                .connectionPool(okhttp3.ConnectionPool(5, 5, TimeUnit.MINUTES))
+                .build()
+        }
+
         private const val PROTOCOL_VERSION = 201506
         private const val ENDPOINT = "http://c.y.qq.com/youtu/humming/search"
         private val MEDIA_TYPE_FORM = "application/x-www-form-urlencoded".toMediaType()

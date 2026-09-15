@@ -1,13 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
 }
 
 android {
     namespace = "org.melodist.tv"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.melodist.tv"
@@ -30,14 +29,16 @@ android {
     val keyPassword = System.getenv("KEY_PASSWORD")
 
     signingConfigs {
-        create("release") {
-            storeFile = releaseKeystore
-            storePassword = keystorePassword
-            this.keyAlias = keyAlias
-            this.keyPassword = keyPassword
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
+        if (releaseKeystore.exists() && !keystorePassword.isNullOrBlank()) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = keystorePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
         }
     }
 
@@ -58,7 +59,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.getByName("release")
+            val releaseSigning = runCatching { signingConfigs.getByName("release") }.getOrNull()
+            signingConfig = releaseSigning ?: signingConfigs.getByName("debug")
         }
     }
 
