@@ -50,12 +50,28 @@ import org.melodist.model.AudioQualityTier
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
+import org.melodist.tv.ui.components.AudioQualityDialog
+import org.melodist.tv.ui.components.BottomPlayerBar
+import org.melodist.tv.ui.components.CenterAlignedKaraokeLyricsView
 import org.melodist.tv.ui.components.MelodistElevatedCover
+import org.melodist.tv.ui.components.PlayerQueueSidebar
 import org.melodist.tv.ui.components.TvPlaylistSongItem
+import org.melodist.tv.ui.components.TvSplitPlaybackScaffold
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.MonetColorExtractor
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.toArgb
+
+enum class PlaylistScreenMode {
+    List,
+    Player,
+}
 
 // 预设/演示歌单数据
 private val DefaultSampleSongs =
@@ -714,6 +730,83 @@ fun PlaylistTvScreen(
             }
         }
 
+    var screenMode by remember { mutableStateOf(PlaylistScreenMode.List) }
+    var dynamicReturnTargetIndex by remember { mutableIntStateOf(-1) }
+    var isControlsHidden by remember { mutableStateOf(false) }
+    var showQueueSidebar by remember { mutableStateOf(false) }
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var showArtistAlbumDialog by remember { mutableStateOf(false) }
+    var lastInteractionTimeMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    val playlist by PlaybackManager.playlist.collectAsState()
+    val isPlaying by PlaybackManager.isPlaying.collectAsState()
+    val durationMs by PlaybackManager.durationMs.collectAsState()
+    val selectedTier by PlaybackManager.currentTier.collectAsState()
+    val lyrics by PlaybackManager.lyrics.collectAsState()
+    val loopMode by PlaybackManager.loopMode.collectAsState()
+    val isPlaybackLoading by PlaybackManager.isLoading.collectAsState()
+    val playbackErrorMessage by PlaybackManager.errorMessage.collectAsState()
+    val favoriteSongMids by PlaybackManager.favoriteSongMids.collectAsState()
+
+    val themeHighlightColor =
+        remember(surfaceColor) {
+            val hsv = FloatArray(3)
+            android.graphics.Color.colorToHSV(surfaceColor.toArgb(), hsv)
+            val hue = hsv[0]
+            val rawSat = hsv[1]
+            val sat = (rawSat * 1.15f).coerceIn(0.40f, 0.68f)
+            val value = 0.94f
+            Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value)))
+        }
+
+    // 播放态 10 秒无操作全屏隐藏
+    LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
+        if (screenMode == PlaylistScreenMode.Player && !isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
+            kotlinx.coroutines.delay(10_000L)
+            isControlsHidden = true
+        }
+    }
+
+    // 播放态拦截返回键：平滑收起歌词并回到歌单列表
+    BackHandler(enabled = screenMode == PlaylistScreenMode.Player) {
+        if (showArtistAlbumDialog) {
+            showArtistAlbumDialog = false
+        } else if (showQualityDialog) {
+            showQualityDialog = false
+        } else if (showQueueSidebar) {
+            showQueueSidebar = false
+        } else if (isControlsHidden) {
+            isControlsHidden = false
+            lastInteractionTimeMs = System.currentTimeMillis()
+        } else {
+            screenMode = PlaylistScreenMode.List
+        }
+    }
+
+    // 切回歌单态时的焦点还原
+    LaunchedEffect(screenMode) {
+        if (screenMode == PlaylistScreenMode.List && playlistSongs.isNotEmpty()) {
+            val playingIndex =
+                playlistSongs.indexOfFirst {
+                    (it.songMid.isNotBlank() && it.songMid == currentSong?.songMid) ||
+                        (it.songId != 0L && it.songId == currentSong?.songId)
+                }
+            val target =
+                when {
+                    playingIndex in playlistSongs.indices -> playingIndex
+                    PlaylistScreenCache.lastFocusedIndex in playlistSongs.indices -> PlaylistScreenCache.lastFocusedIndex
+                    else -> PlaylistScreenCache.lastPlayedIndex.coerceIn(0, playlistSongs.size - 1)
+                }
+            dynamicReturnTargetIndex = target
+            listState.scrollToItem((target - 1).coerceAtLeast(0))
+            kotlinx.coroutines.delay(60)
+            try {
+                returnSongRequester.requestFocus()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     // 焦点与滚动生命周期：首次进入默认选中“播放全部”按钮；播放后或二级页面返回时定位并聚焦到记忆曲目
     LaunchedEffect(isReturningFromPlayer, playlistSongs.size) {
         if (returnTargetIndex >= 0 && playlistSongs.isNotEmpty()) {
@@ -732,207 +825,248 @@ fun PlaylistTvScreen(
         }
     }
 
-    // 纯色背景填充
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(surfaceColor)
-                .padding(
-                    start = metrics.horizontalSafePadding,
-                    end = metrics.horizontalSafePadding,
-                    top = metrics.verticalSafePadding,
-                    bottom = metrics.verticalSafePadding,
-                ),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(36.dp),
-        ) {
-            // 左侧：封面与信息主控 (封面向下对齐 36dp 与右侧单曲列表顶端对齐)
-            Column(
-                modifier =
-                    Modifier
-                        .width(240.dp)
-                        .fillMaxHeight()
-                        .padding(top = 36.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                // 封面展示
-                if (displayCoverUrl.isNotEmpty() || displayAlbumMid.isNotEmpty()) {
-                    MelodistElevatedCover(
-                        coverUrl = displayCoverUrl,
-                        albumMid = displayAlbumMid,
-                        contentDescription = resolvedTitle,
-                        shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.size(240.dp),
-                    )
-                } else if (categoryId == "favorites") {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(240.dp)
-                                .shadow(
-                                    elevation = 10.dp,
-                                    shape = RoundedCornerShape(6.dp),
-                                    ambientColor = Color.Black.copy(alpha = 0.25f),
-                                    spotColor = Color.Black.copy(alpha = 0.45f),
-                                ).clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF38151D))
-                                .border(BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center,
+    TvSplitPlaybackScaffold(
+        surfaceColor = surfaceColor,
+        isControlsHidden = (screenMode == PlaylistScreenMode.Player && isControlsHidden),
+        controlsBottomPadding = if (screenMode == PlaylistScreenMode.Player) 100.dp else 0.dp,
+        onUserInteraction = { lastInteractionTimeMs = System.currentTimeMillis() },
+        leftPanel = { coverSize ->
+            val isPlayerMode = (screenMode == PlaylistScreenMode.Player)
+            val activePlayingSong = currentSong
+            val effectiveCoverUrl =
+                if (isPlayerMode && activePlayingSong != null && activePlayingSong.coverUrl.isNotBlank()) {
+                    activePlayingSong.coverUrl
+                } else {
+                    displayCoverUrl
+                }
+            val effectiveAlbumMid =
+                if (isPlayerMode && activePlayingSong != null && activePlayingSong.albumMid.isNotBlank()) {
+                    activePlayingSong.albumMid
+                } else {
+                    displayAlbumMid
+                }
+
+            // 统一大屏大封面展示 (320dp)
+            if (effectiveCoverUrl.isNotEmpty() || effectiveAlbumMid.isNotEmpty()) {
+                MelodistElevatedCover(
+                    coverUrl = effectiveCoverUrl,
+                    albumMid = effectiveAlbumMid,
+                    visualMid = if (isPlayerMode) activePlayingSong?.visualMid.orEmpty() else "",
+                    songMid = if (isPlayerMode) activePlayingSong?.songMid.orEmpty() else "",
+                    contentDescription = if (isPlayerMode) activePlayingSong?.name.orEmpty() else resolvedTitle,
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.size(coverSize),
+                )
+            } else if (!isPlayerMode && categoryId == "favorites") {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(coverSize)
+                            .shadow(
+                                elevation = 10.dp,
+                                shape = RoundedCornerShape(6.dp),
+                                ambientColor = Color.Black.copy(alpha = 0.25f),
+                                spotColor = Color.Black.copy(alpha = 0.45f),
+                            ).clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF38151D))
+                            .border(BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Favorite,
-                                contentDescription = "我喜欢",
-                                tint = MelodistColors.FavoriteRed,
-                                modifier = Modifier.size(88.dp),
-                            )
+                        Icon(
+                            imageVector = Icons.Filled.Favorite,
+                            contentDescription = "我喜欢",
+                            tint = MelodistColors.FavoriteRed,
+                            modifier = Modifier.size(96.dp),
+                        )
+                        Text(
+                            text = "MELODIST FAVORITES",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(coverSize)
+                            .shadow(
+                                elevation = 10.dp,
+                                shape = RoundedCornerShape(6.dp),
+                                ambientColor = Color.Black.copy(alpha = 0.25f),
+                                spotColor = Color.Black.copy(alpha = 0.45f),
+                            ).clip(RoundedCornerShape(6.dp))
+                            .background(MelodistColors.ContainerDarkSecondary)
+                            .border(BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Melodist TV",
+                        color = MelodistColors.TextMuted,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 标题、副标题与控制区通过 Crossfade 顺畅过渡
+            Crossfade(
+                targetState = isPlayerMode,
+                animationSpec = tween(durationMillis = 250),
+                label = "PlaylistLeftPanelCrossfade",
+            ) { inPlayer ->
+                if (inPlayer) {
+                    Column(modifier = Modifier.offset(x = 8.dp)) {
+                        Text(
+                            text = activePlayingSong?.name?.ifBlank { "未选择曲目" } ?: "正在载入曲目...",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MelodistColors.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (activePlayingSong != null) "${activePlayingSong.singer} · ${activePlayingSong.album}" else "正在同步曲目信息...",
+                            fontSize = 15.sp,
+                            color = MelodistColors.TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (playbackErrorMessage != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "MELODIST FAVORITES",
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp,
+                                text = playbackErrorMessage ?: "",
+                                fontSize = 13.sp,
+                                color = Color(0xFFFF6B6B),
+                                maxLines = 1,
                             )
                         }
                     }
                 } else {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(240.dp)
-                                .shadow(
-                                    elevation = 10.dp,
-                                    shape = RoundedCornerShape(6.dp),
-                                    ambientColor = Color.Black.copy(alpha = 0.25f),
-                                    spotColor = Color.Black.copy(alpha = 0.45f),
-                                ).clip(RoundedCornerShape(6.dp))
-                                .background(MelodistColors.ContainerDarkSecondary)
-                                .border(BorderStroke(0.75.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center,
+                    Column(
+                        modifier = Modifier.offset(x = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Text(
-                            text = "Melodist TV",
-                            color = MelodistColors.TextMuted,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-
-                // 歌单标题与副信息
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = resolvedTitle,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MelodistColors.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = displaySubtitle,
-                        fontSize = 13.sp,
-                        color = MelodistColors.TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // 播放全部按钮 (充满左栏，移除随机播放按钮)
-                Button(
-                    onClick = {
-                        if (playlistSongs.isNotEmpty()) {
-                            val curQueue = PlaybackManager.playlist.value
-                            if (curQueue.size > playlistSongs.size && curQueue.firstOrNull()?.songMid == playlistSongs.first().songMid) {
-                                PlaybackManager.playSong(playlistSongs.first())
-                            } else {
-                                PlaybackManager.setPlaylist(playlistSongs, 0, isRadio = (categoryId == "radar"))
-                            }
-                            syncFullPlaylistToPlayback()
-                        }
-                        onPlayAll()
-                    },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(46.dp)
-                            .focusRequester(playAllRequester)
-                            .onFocusChanged {
-                                isPlayAllFocused = it.isFocused
-                                if (it.isFocused) focusedSongIndex = null
-                            }.then(
-                                if (playlistSongs.isNotEmpty()) {
-                                    Modifier.focusProperties { right = firstSongRequester }
-                                } else {
-                                    Modifier
-                                },
-                            ),
-                    shape =
-                        ButtonDefaults.shape(
-                            shape = MelodistShapes.CardCorner,
-                            focusedShape = MelodistShapes.CardCorner,
-                        ),
-                    colors =
-                        ButtonDefaults.colors(
-                            containerColor = Color.White.copy(alpha = 0.08f),
-                            focusedContainerColor = MelodistColors.AccentGreen,
-                            contentColor = Color.White,
-                            focusedContentColor = Color.Black,
-                        ),
-                    border =
-                        ButtonDefaults.border(
-                            border =
-                                Border(
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                                    shape = MelodistShapes.CardCorner,
-                                ),
-                            focusedBorder =
-                                Border(
-                                    border = BorderStroke(2.5.dp, MelodistColors.FocusTeal),
-                                    shape = MelodistShapes.CardCorner,
-                                ),
-                        ),
-                    scale = ButtonDefaults.scale(focusedScale = 1.0f),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxHeight(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.PlayArrow,
-                                contentDescription = "播放全部",
-                                modifier = Modifier.size(20.dp),
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = resolvedTitle,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MelodistColors.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = "播放全部",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = displaySubtitle,
+                                fontSize = 13.sp,
+                                color = MelodistColors.TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
+                        }
+
+                        Button(
+                            onClick = {
+                                if (playlistSongs.isNotEmpty()) {
+                                    val curQueue = PlaybackManager.playlist.value
+                                    if (curQueue.size > playlistSongs.size && curQueue.firstOrNull()?.songMid == playlistSongs.first().songMid) {
+                                        PlaybackManager.playSong(playlistSongs.first())
+                                    } else {
+                                        PlaybackManager.setPlaylist(playlistSongs, 0, isRadio = (categoryId == "radar"))
+                                    }
+                                    syncFullPlaylistToPlayback()
+                                    screenMode = PlaylistScreenMode.Player
+                                }
+                                onPlayAll()
+                            },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(46.dp)
+                                    .focusRequester(playAllRequester)
+                                    .onFocusChanged {
+                                        isPlayAllFocused = it.isFocused
+                                        if (it.isFocused) focusedSongIndex = null
+                                    }.then(
+                                        if (playlistSongs.isNotEmpty()) {
+                                            Modifier.focusProperties { right = firstSongRequester }
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
+                            shape =
+                                ButtonDefaults.shape(
+                                    shape = MelodistShapes.CardCorner,
+                                    focusedShape = MelodistShapes.CardCorner,
+                                ),
+                            colors =
+                                ButtonDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.08f),
+                                    focusedContainerColor = MelodistColors.AccentGreen,
+                                    contentColor = Color.White,
+                                    focusedContentColor = Color.Black,
+                                ),
+                            border =
+                                ButtonDefaults.border(
+                                    border =
+                                        Border(
+                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                                            shape = MelodistShapes.CardCorner,
+                                        ),
+                                    focusedBorder =
+                                        Border(
+                                            border = BorderStroke(2.5.dp, MelodistColors.FocusTeal),
+                                            shape = MelodistShapes.CardCorner,
+                                        ),
+                                ),
+                            scale = ButtonDefaults.scale(focusedScale = 1.0f),
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxHeight(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PlayArrow,
+                                        contentDescription = "播放全部",
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                    Text(
+                                        text = "播放全部",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
-
-            // 右侧：纵向歌曲列表与子分类选择条 (横向展示宽度大幅扩展)
-            Column(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
+        },
+        rightContent = {
+            // 模式 1：歌单单曲列表
+            AnimatedVisibility(
+                visible = (screenMode == PlaylistScreenMode.List),
+                modifier = Modifier.fillMaxSize(),
+                enter = fadeIn(tween(durationMillis = 250)) + slideInHorizontally(tween(durationMillis = 250)) { -30 },
+                exit = fadeOut(tween(durationMillis = 200)) + slideOutHorizontally(tween(durationMillis = 200)) { -30 },
             ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                ) {
                 // 歌单 / 收藏专辑横向筛选 Chips
                 if (categoryId == "playlists" && userPlaylists.isNotEmpty()) {
                     LazyRow(
@@ -1191,7 +1325,8 @@ fun PlaylistTvScreen(
                         itemsIndexed(playlistSongs) { index, song ->
                             val isFirst = index == 0
                             val isTarget = index == pageTargetFocusIndex
-                            val isReturnTarget = returnTargetIndex >= 0 && index == returnTargetIndex
+                            val effectiveReturnIndex = if (dynamicReturnTargetIndex >= 0) dynamicReturnTargetIndex else returnTargetIndex
+                            val isReturnTarget = effectiveReturnIndex >= 0 && index == effectiveReturnIndex
                             val isCurrentPlaying =
                                 (currentSong?.songMid == song.songMid && song.songMid.isNotBlank()) ||
                                     (song.songId != 0L && currentSong?.songId == song.songId)
@@ -1261,6 +1396,7 @@ fun PlaylistTvScreen(
                                         PlaybackManager.setPlaylist(playlistSongs, index, isRadio = (categoryId == "radar"))
                                     }
                                     syncFullPlaylistToPlayback()
+                                    screenMode = PlaylistScreenMode.Player
                                     onSongClick(song)
                                 },
                                 onLongClick = {
@@ -1293,20 +1429,200 @@ fun PlaylistTvScreen(
             }
         }
 
-        // 歌曲关联资产弹窗（长按呼出）
-        actionSong?.let { song ->
-            org.melodist.tv.ui.components.SongArtistAlbumDialog(
-                song = song,
-                onDismissRequest = { actionSong = null },
-                onSelectArtist = { mid, name ->
-                    onNavigateToArtist(mid, name)
+        // 模式 2：沉浸双语逐字歌词流
+            AnimatedVisibility(
+                visible = (screenMode == PlaylistScreenMode.Player),
+                modifier = Modifier.fillMaxSize(),
+                enter = fadeIn(tween(durationMillis = 300)) + slideInHorizontally(tween(durationMillis = 300)) { 30 },
+                exit = fadeOut(tween(durationMillis = 200)) + slideOutHorizontally(tween(durationMillis = 200)) { 30 },
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (lyrics.isNotEmpty()) {
+                        val lyricsCurrentPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+                        CenterAlignedKaraokeLyricsView(
+                            lyrics = lyrics,
+                            currentPositionMs = lyricsCurrentPositionMs,
+                            highlightColor = themeHighlightColor,
+                        )
+                    } else if (isPlaybackLoading) {
+                        Text(
+                            text = "正在拉取直链与同步歌词...",
+                            color = MelodistColors.TextSecondary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    } else {
+                        Text(
+                            text = "暂无同步歌词",
+                            color = MelodistColors.TextMuted,
+                            fontSize = 18.sp,
+                        )
+                    }
+                }
+            }
+        },
+        bottomBar = {
+            AnimatedVisibility(
+                visible = (screenMode == PlaylistScreenMode.Player && !isControlsHidden),
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter =
+                    slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = tween(durationMillis = 300),
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                exit =
+                    slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = tween(durationMillis = 300),
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300)),
+            ) {
+                val activePlayingSong = currentSong
+                val canFavorite = PlaybackManager.isSongFavoriteSupported(activePlayingSong)
+                val totalDurationMs =
+                    if (durationMs > 0L) {
+                        durationMs
+                    } else {
+                        activePlayingSong?.durationSeconds?.toLong()?.times(1000L) ?: 240000L
+                    }
+
+                BottomPlayerBar(
+                    modifier = Modifier.fillMaxWidth(),
+                    surfaceColor = surfaceColor,
+                    accentColor = themeHighlightColor,
+                    horizontalPadding = metrics.horizontalSafePadding,
+                    progressMsProvider = { PlaybackManager.currentPositionMs.value },
+                    durationMs = totalDurationMs,
+                    isPlaying = isPlaying,
+                    isFavorite = activePlayingSong?.songMid in favoriteSongMids,
+                    canFavorite = canFavorite,
+                    loopMode = loopMode.label,
+                    qualityLabel = AudioQualityTier.getBadge(selectedTier),
+                    onFavoriteClick = {
+                        PlaybackManager.toggleCurrentSongFavorite()
+                    },
+                    onPrevClick = { PlaybackManager.playPrevious() },
+                    onPlayPauseClick = { PlaybackManager.togglePlayPause() },
+                    onNextClick = { PlaybackManager.playNext() },
+                    onLoopClick = { PlaybackManager.cycleLoopMode() },
+                    onQualityClick = { showQualityDialog = true },
+                    onFullscreenClick = { isControlsHidden = true },
+                    onSeekBy = { deltaMs ->
+                        val currentPos = PlaybackManager.currentPositionMs.value
+                        val targetMs = (currentPos + deltaMs).coerceIn(0L, totalDurationMs)
+                        PlaybackManager.seekTo(targetMs)
+                    },
+                    queueCount = playlist.size,
+                    onQueueClick = { showQueueSidebar = true },
+                    onDownPress = {
+                        if (activePlayingSong?.canShowArtistAlbumDialog == true) {
+                            showArtistAlbumDialog = true
+                        }
+                    },
+                )
+            }
+        },
+        overlay = {
+            // 全屏模式下全屏挡板：监听任意按键退出全屏模式
+            if (screenMode == PlaylistScreenMode.Player && isControlsHidden) {
+                val restoreRequester = remember { FocusRequester() }
+                LaunchedEffect(Unit) {
+                    restoreRequester.requestFocus()
+                }
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .focusRequester(restoreRequester)
+                            .focusable()
+                            .onPreviewKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyDown) {
+                                    isControlsHidden = false
+                                    lastInteractionTimeMs = System.currentTimeMillis()
+                                    true
+                                } else {
+                                    true
+                                }
+                            }.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                isControlsHidden = false
+                                lastInteractionTimeMs = System.currentTimeMillis()
+                            },
+                )
+            }
+
+            // 侧边栏外部空白点击关闭遮罩
+            if (showQueueSidebar) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { showQueueSidebar = false },
+                )
+            }
+
+            // 播放队列侧边栏
+            PlayerQueueSidebar(
+                playlist = playlist,
+                currentSong = currentSong,
+                surfaceColor = surfaceColor,
+                isOpen = showQueueSidebar,
+                onSelectSong = { selectedSong ->
+                    PlaybackManager.playSong(selectedSong)
                 },
-                onSelectAlbum = { mid, name ->
-                    onNavigateToAlbum(mid, name)
-                },
+                onDismiss = { showQueueSidebar = false },
+                modifier = Modifier.align(Alignment.CenterEnd),
             )
-        }
-    }
+
+            // 浮动音质选择弹窗
+            if (showQualityDialog) {
+                AudioQualityDialog(
+                    selectedTier = selectedTier,
+                    onSelectTier = {
+                        PlaybackManager.switchTier(it)
+                    },
+                    onDismiss = { showQualityDialog = false },
+                )
+            }
+
+            // 浮动歌手/专辑选择弹窗（播放模式方向键下呼出）
+            if (showArtistAlbumDialog && currentSong != null && currentSong!!.canShowArtistAlbumDialog) {
+                org.melodist.tv.ui.components.SongArtistAlbumDialog(
+                    song = currentSong!!,
+                    onDismissRequest = { showArtistAlbumDialog = false },
+                    onSelectArtist = { mid, name ->
+                        showArtistAlbumDialog = false
+                        onNavigateToArtist(mid, name)
+                    },
+                    onSelectAlbum = { mid, name ->
+                        showArtistAlbumDialog = false
+                        onNavigateToAlbum(mid, name)
+                    },
+                )
+            }
+
+            // 歌曲关联资产弹窗（单曲列表长按呼出）
+            actionSong?.let { song ->
+                org.melodist.tv.ui.components.SongArtistAlbumDialog(
+                    song = song,
+                    onDismissRequest = { actionSong = null },
+                    onSelectArtist = { mid, name ->
+                        onNavigateToArtist(mid, name)
+                    },
+                    onSelectAlbum = { mid, name ->
+                        onNavigateToAlbum(mid, name)
+                    },
+                )
+            }
+        },
+    )
 }
 
 @Composable

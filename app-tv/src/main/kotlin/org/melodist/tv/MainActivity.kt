@@ -340,15 +340,9 @@ class MainActivity : ComponentActivity() {
                                     albumMid = dest.albumMid,
                                     isFavoritePlaylist = (dest.categoryId == "favorites"),
                                     isReturningFromPlayer = isReturningFromPlayer,
-                                    onPlayAll = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
-                                    onPlayShuffle = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
-                                    onSongClick = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
+                                    onPlayAll = {},
+                                    onPlayShuffle = {},
+                                    onSongClick = {},
                                     onNavigateToArtist = { mid, name ->
                                         navigateTo(TvScreenDestination.Artist(mid, name))
                                     },
