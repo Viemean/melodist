@@ -240,91 +240,91 @@ object TvConnectManager {
     }
 
     private fun handleIncomingCommand(command: TvIncomingCommand) {
-        when (command) {
-            is TvIncomingCommand.PlaySong -> {
-                val cmd = command.command
-                val audioSource = cmd.audioSource
-                val streamUrl = audioSource?.streamUrl
-                if (audioSource?.sourceType == AudioSourceType.STREAM_PROXY && !streamUrl.isNullOrBlank()) {
-                    if (cmd.queue.isNotEmpty()) {
-                        PlaybackManager.syncRemoteQueue(cmd.queue, cmd.index)
-                    }
-                    PlaybackManager.playCustomStream(
-                        song = cmd.song,
-                        streamUrl = streamUrl,
-                        headers = audioSource.headers,
-                        seekToMs = cmd.startPositionMs,
-                    )
-                } else {
-                    isSyncingFromMobile = true
-                    try {
+        isSyncingFromMobile = true
+        try {
+            when (command) {
+                is TvIncomingCommand.PlaySong -> {
+                    val cmd = command.command
+                    val audioSource = cmd.audioSource
+                    val streamUrl = audioSource?.streamUrl
+                    if (audioSource?.sourceType == AudioSourceType.STREAM_PROXY && !streamUrl.isNullOrBlank()) {
+                        if (cmd.queue.isNotEmpty()) {
+                            PlaybackManager.syncRemoteQueue(cmd.queue, cmd.index)
+                        }
+                        PlaybackManager.playCustomStream(
+                            song = cmd.song,
+                            streamUrl = streamUrl,
+                            headers = audioSource.headers,
+                            seekToMs = cmd.startPositionMs,
+                        )
+                    } else {
                         if (cmd.queue.isNotEmpty()) {
                             PlaybackManager.setPlaylist(cmd.queue, startIndex = cmd.index, forceTier = cmd.qualityTier)
                         } else {
                             PlaybackManager.playSong(cmd.song, forceTier = cmd.qualityTier, seekToMs = cmd.startPositionMs)
                         }
-                    } finally {
-                        isSyncingFromMobile = false
                     }
+                    broadcastQueueNow()
                 }
-                broadcastQueueNow()
-            }
-            is TvIncomingCommand.EnqueueNext -> {
-                PlaybackManager.insertNextPlay(command.command.song)
-                broadcastQueueNow()
-            }
-            is TvIncomingCommand.SwitchTier -> {
-                PlaybackManager.switchTier(command.command.tier)
-                broadcastPlayerStateNow()
-            }
-            is TvIncomingCommand.Pause -> {
-                PlaybackManager.pause()
-            }
-            is TvIncomingCommand.Resume -> {
-                PlaybackManager.play()
-            }
-            is TvIncomingCommand.Previous -> {
-                PlaybackManager.playPrevious()
-            }
-            is TvIncomingCommand.Next -> {
-                PlaybackManager.playNext()
-            }
-            is TvIncomingCommand.Seek -> {
-                PlaybackManager.seekTo(command.positionMs)
-            }
-            is TvIncomingCommand.SetVolume -> {
-                PlaybackManager.setVolume(command.volume)
-            }
-            is TvIncomingCommand.TriggerAod -> {
-                if (org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
-                    org.melodist.tv.screensaver.ScreenSaverManager.dismissScreenSaver()
-                } else {
-                    org.melodist.tv.screensaver.ScreenSaverManager.triggerScreenSaver()
+                is TvIncomingCommand.EnqueueNext -> {
+                    PlaybackManager.insertNextPlay(command.command.song)
+                    broadcastQueueNow()
                 }
-            }
-            is TvIncomingCommand.CycleLoopMode -> {
-                PlaybackManager.cycleLoopMode()
-                broadcastPlayerStateNow()
-            }
-            is TvIncomingCommand.OpenPlayer -> {
-                _navigateToPlayerEvent.tryEmit(Unit)
-            }
-            is TvIncomingCommand.GestureSwipe -> {
-                if (!org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
-                    TakeoverGestureState.updateGesture(command.payload)
-                }
-            }
-            is TvIncomingCommand.ToggleFavorite -> {
-                val cmd = command.command
-                val mid = cmd.songMid.ifBlank { cmd.song?.songMid.orEmpty() }
-                if (mid.isNotBlank()) {
-                    PlaybackManager.setSongFavoriteState(mid, cmd.isFavorite)
+                is TvIncomingCommand.SwitchTier -> {
+                    PlaybackManager.switchTier(command.command.tier)
                     broadcastPlayerStateNow()
                 }
+                is TvIncomingCommand.Pause -> {
+                    PlaybackManager.pause()
+                }
+                is TvIncomingCommand.Resume -> {
+                    PlaybackManager.play()
+                }
+                is TvIncomingCommand.Previous -> {
+                    PlaybackManager.playPrevious()
+                }
+                is TvIncomingCommand.Next -> {
+                    PlaybackManager.playNext()
+                }
+                is TvIncomingCommand.Seek -> {
+                    PlaybackManager.seekTo(command.positionMs)
+                }
+                is TvIncomingCommand.SetVolume -> {
+                    PlaybackManager.setVolume(command.volume)
+                }
+                is TvIncomingCommand.TriggerAod -> {
+                    if (org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
+                        org.melodist.tv.screensaver.ScreenSaverManager.dismissScreenSaver()
+                    } else {
+                        org.melodist.tv.screensaver.ScreenSaverManager.triggerScreenSaver()
+                    }
+                }
+                is TvIncomingCommand.CycleLoopMode -> {
+                    PlaybackManager.cycleLoopMode()
+                    broadcastPlayerStateNow()
+                }
+                is TvIncomingCommand.OpenPlayer -> {
+                    _navigateToPlayerEvent.tryEmit(Unit)
+                }
+                is TvIncomingCommand.GestureSwipe -> {
+                    if (!org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
+                        TakeoverGestureState.updateGesture(command.payload)
+                    }
+                }
+                is TvIncomingCommand.ToggleFavorite -> {
+                    val cmd = command.command
+                    val mid = cmd.songMid.ifBlank { cmd.song?.songMid.orEmpty() }
+                    if (mid.isNotBlank()) {
+                        PlaybackManager.setSongFavoriteState(mid, cmd.isFavorite)
+                        broadcastPlayerStateNow()
+                    }
+                }
+                is TvIncomingCommand.SyncLyricsScroll -> {
+                    TakeoverLyricsState.update(command.payload)
+                }
             }
-            is TvIncomingCommand.SyncLyricsScroll -> {
-                TakeoverLyricsState.update(command.payload)
-            }
+        } finally {
+            isSyncingFromMobile = false
         }
     }
 
@@ -406,14 +406,6 @@ object TvConnectManager {
                     return true
                 }
                 return false
-            }
-
-            override fun onInterceptCycleLoopMode(): Boolean {
-                if (isSyncingFromMobile) return false
-                val server = connectServer ?: return false
-                if (server.connectedDeviceFlow.value == null) return false
-                server.broadcastCycleLoopMode()
-                return true
             }
         }
     }
