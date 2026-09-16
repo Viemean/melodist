@@ -76,6 +76,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    val isReleaseLintEnabled = project.hasProperty("enableLint") || project.hasProperty("ci") || System.getenv("CI") == "true"
+    lint {
+        checkReleaseBuilds = isReleaseLintEnabled
+        abortOnError = isReleaseLintEnabled
+    }
 }
 
 dependencies {

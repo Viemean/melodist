@@ -496,7 +496,13 @@ private fun probeAudioCapabilities(context: Context): AudioProbeReport {
                 val caps = decoder.getCapabilitiesForType(mime)
                 val aCaps = caps.audioCapabilities
                 val maxCh = aCaps?.maxInputChannelCount ?: 2
-                val isHw = decoder.isHardwareAccelerated
+                val isHw =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        decoder.isHardwareAccelerated
+                    } else {
+                        !decoder.name.startsWith("OMX.google.", ignoreCase = true) &&
+                            !decoder.name.startsWith("c2.android.", ignoreCase = true)
+                    }
                 val sampleRateDesc =
                     aCaps?.supportedSampleRateRanges?.let { ranges ->
                         if (ranges.isNotEmpty()) "${ranges.first().lower / 1000}k~${ranges.last().upper / 1000}kHz" else "自适应"
