@@ -542,35 +542,6 @@ fun AcrTvScreen(
                             fontSize = 18.sp,
                         )
                     }
-                } else if (uiState is AcrUiState.Listening) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        Text(
-                            text = "正在通过声学指纹匹配曲目与歌词...",
-                            color = Color.White,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = "识别成功后将无缝同步展现双语逐字歌词",
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 15.sp,
-                        )
-                    }
-                } else if (uiState is AcrUiState.Failed) {
-                    Text(
-                        text = "未在当前环境录音中识别出匹配歌词",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 18.sp,
-                    )
-                } else {
-                    Text(
-                        text = "请靠近音源并开始识别",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 18.sp,
-                    )
                 }
             }
         }
