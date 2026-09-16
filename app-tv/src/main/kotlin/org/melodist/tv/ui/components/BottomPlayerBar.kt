@@ -1,5 +1,12 @@
 package org.melodist.tv.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -320,11 +327,22 @@ private fun TvIconButton(
                 focusedScale = 1.1f,
             ),
     ) {
-        Icon(
-            imageVector = imageVector,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(iconSize),
-        )
+        AnimatedContent(
+            targetState = imageVector,
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.8f, animationSpec = tween(180)))
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.8f, animationSpec = tween(140))
+                    )
+            },
+            label = "TvIconButtonAnim",
+        ) { targetIcon ->
+            Icon(
+                imageVector = targetIcon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(iconSize),
+            )
+        }
     }
 }
 
