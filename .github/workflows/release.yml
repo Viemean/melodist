@@ -49,8 +49,26 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Determine Build Targets
+        id: targets
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          if [[ "$TAG_NAME" == *-tv ]]; then
+            echo "tasks=:app-tv:assembleRelease" >> $GITHUB_OUTPUT
+            echo "build_tv=true" >> $GITHUB_OUTPUT
+            echo "build_mobile=false" >> $GITHUB_OUTPUT
+          elif [[ "$TAG_NAME" == *-mobile ]]; then
+            echo "tasks=:app-mobile:assembleRelease" >> $GITHUB_OUTPUT
+            echo "build_tv=false" >> $GITHUB_OUTPUT
+            echo "build_mobile=true" >> $GITHUB_OUTPUT
+          else
+            echo "tasks=:app-tv:assembleRelease :app-mobile:assembleRelease" >> $GITHUB_OUTPUT
+            echo "build_tv=true" >> $GITHUB_OUTPUT
+            echo "build_mobile=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build Release APK
-        run: ./gradlew :app-tv:assembleRelease :app-mobile:assembleRelease --stacktrace
+        run: ./gradlew ${{ steps.targets.outputs.tasks }} --stacktrace
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -63,25 +81,31 @@ jobs:
           if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "refs/heads/main" ]; then
             TAG_NAME="v1.0.0"
           fi
-          VERSION_NAME="${TAG_NAME#v}"
+          CLEAN_VERSION="${TAG_NAME#v}"
+          CLEAN_VERSION="${CLEAN_VERSION%-tv}"
+          CLEAN_VERSION="${CLEAN_VERSION%-mobile}"
           VERSION_CODE=$(git rev-list --count HEAD)
           
           mkdir -p release-assets
 
           # TV 全架构 APK
-          TV_SRC="app-tv/build/outputs/apk/release/app-tv-release.apk"
-          TV_DST="release-assets/melodist-tv-${VERSION_NAME}-${VERSION_CODE}.apk"
-          if [ -f "$TV_SRC" ]; then
-            cp "$TV_SRC" "$TV_DST"
-            (cd release-assets && sha256sum "melodist-tv-${VERSION_NAME}-${VERSION_CODE}.apk" > "melodist-tv-${VERSION_NAME}-${VERSION_CODE}.apk.sha256")
+          if [ "${{ steps.targets.outputs.build_tv }}" = "true" ]; then
+            TV_SRC="app-tv/build/outputs/apk/release/app-tv-release.apk"
+            TV_DST="release-assets/melodist-tv-${CLEAN_VERSION}-${VERSION_CODE}.apk"
+            if [ -f "$TV_SRC" ]; then
+              cp "$TV_SRC" "$TV_DST"
+              (cd release-assets && sha256sum "melodist-tv-${CLEAN_VERSION}-${VERSION_CODE}.apk" > "melodist-tv-${CLEAN_VERSION}-${VERSION_CODE}.apk.sha256")
+            fi
           fi
 
           # Mobile 全架构 APK
-          MOBILE_SRC="app-mobile/build/outputs/apk/release/app-mobile-release.apk"
-          MOBILE_DST="release-assets/melodist-mobile-${VERSION_NAME}-${VERSION_CODE}.apk"
-          if [ -f "$MOBILE_SRC" ]; then
-            cp "$MOBILE_SRC" "$MOBILE_DST"
-            (cd release-assets && sha256sum "melodist-mobile-${VERSION_NAME}-${VERSION_CODE}.apk" > "melodist-mobile-${VERSION_NAME}-${VERSION_CODE}.apk.sha256")
+          if [ "${{ steps.targets.outputs.build_mobile }}" = "true" ]; then
+            MOBILE_SRC="app-mobile/build/outputs/apk/release/app-mobile-release.apk"
+            MOBILE_DST="release-assets/melodist-mobile-${CLEAN_VERSION}-${VERSION_CODE}.apk"
+            if [ -f "$MOBILE_SRC" ]; then
+              cp "$MOBILE_SRC" "$MOBILE_DST"
+              (cd release-assets && sha256sum "melodist-mobile-${CLEAN_VERSION}-${VERSION_CODE}.apk" > "melodist-mobile-${CLEAN_VERSION}-${VERSION_CODE}.apk.sha256")
+            fi
           fi
           
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
