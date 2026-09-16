@@ -44,14 +44,14 @@ object LyricParser {
             if (content.isEmpty() || content == "//") continue
 
             for (m in matches) {
-                val min = m.groupValues[1].toInt()
-                val sec = m.groupValues[2].toInt()
+                val min = m.groupValues[1].toIntOrNull() ?: 0
+                val sec = m.groupValues[2].toIntOrNull() ?: 0
                 val msStr =
                     m.groupValues
                         .getOrNull(3)
                         ?.padEnd(3, '0')
                         ?.take(3) ?: "000"
-                val ms = msStr.toInt()
+                val ms = msStr.toIntOrNull() ?: 0
 
                 val timestampMs = min * 60_000L + sec * 1_000L + ms
                 rawList.add(Triple(timestampMs, content, lineOrder++))
@@ -139,14 +139,14 @@ object LyricParser {
      */
     fun parseQrcLine(rawLine: String): LyricLine? {
         val match = TIMESTAMP_REGEX.find(rawLine) ?: return null
-        val min = match.groupValues[1].toInt()
-        val sec = match.groupValues[2].toInt()
+        val min = match.groupValues[1].toIntOrNull() ?: 0
+        val sec = match.groupValues[2].toIntOrNull() ?: 0
         val msStr =
             match.groupValues
                 .getOrNull(3)
                 ?.padEnd(3, '0')
                 ?.take(3) ?: "000"
-        val lineTimestampMs = min * 60_000L + sec * 1_000L + msStr.toInt()
+        val lineTimestampMs = min * 60_000L + sec * 1_000L + (msStr.toIntOrNull() ?: 0)
 
         val afterTimestamp = rawLine.substring(match.range.last + 1)
         val wordMatches = QRC_WORD_REGEX.findAll(afterTimestamp).toList()
@@ -160,8 +160,8 @@ object LyricParser {
         val fullTextBuilder = StringBuilder()
 
         for (wm in wordMatches) {
-            val offset = wm.groupValues[1].toLong()
-            val dur = wm.groupValues[2].toLong()
+            val offset = wm.groupValues[1].toLongOrNull() ?: 0L
+            val dur = wm.groupValues[2].toLongOrNull() ?: 0L
             val word = wm.groupValues[3]
             words.add(WordSpan(word = word, offsetMs = offset, durationMs = dur))
             fullTextBuilder.append(word)
