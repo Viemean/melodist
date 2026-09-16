@@ -59,6 +59,7 @@ object ConnectActions {
     const val CMD_TRIGGER_AOD = "cmd_trigger_aod"
     const val CMD_CYCLE_LOOP_MODE = "cmd_cycle_loop_mode"
     const val CMD_OPEN_PLAYER = "cmd_open_player"
+    const val CMD_GESTURE_SWIPE = "cmd_gesture_swipe"
 
     const val EVENT_PLAY_STATE = "event_play_state"
     const val EVENT_QUEUE_STATE = "event_queue_state"
@@ -124,6 +125,8 @@ data class PlayerStateEvent(
     val currentIndex: Int = -1,
     val loopMode: String = "ListRepeat",
     val isAodActive: Boolean = false,
+    val prevSong: Song? = null,
+    val nextSong: Song? = null,
 )
 
 @Serializable
@@ -141,4 +144,21 @@ data class QrPairData(
     val port: Int,
     val token: String,
     val pinCode: String,
+)
+
+@Serializable
+enum class GestureSwipeState {
+    DRAGGING,
+    SETTLING,
+    CANCEL,
+    IDLE,
+}
+
+@Serializable
+data class GestureSwipePayload(
+    val state: GestureSwipeState,
+    val fraction: Float = 0f,
+    val targetFraction: Float = 0f,
+    val durationMs: Long = 200L,
+    val timestamp: Long = System.currentTimeMillis(),
 )

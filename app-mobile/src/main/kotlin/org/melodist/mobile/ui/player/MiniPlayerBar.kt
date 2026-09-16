@@ -149,8 +149,14 @@ fun MiniPlayerBar(
                                         (dragOffsetX.value + dragAmount.x > 0 && currentPrevSong == null) ||
                                             (dragOffsetX.value + dragAmount.x < 0 && currentNextSong == null)
                                     val factor = if (isBlocked) 0.25f else 1.0f
+                                    val newOffset = dragOffsetX.value + dragAmount.x * factor
+                                    val fullStepPx = with(density) { 280.dp.toPx() }
+                                    MobileConnectManager.sendGestureSwipe(
+                                        state = org.melodist.core.connect.model.GestureSwipeState.DRAGGING,
+                                        fraction = (newOffset / fullStepPx).coerceIn(-1f, 1f),
+                                    )
                                     coroutineScope.launch {
-                                        dragOffsetX.snapTo(dragOffsetX.value + dragAmount.x * factor)
+                                        dragOffsetX.snapTo(newOffset)
                                     }
                                 }
                                 MiniPlayerDragDirection.VERTICAL -> {
@@ -185,6 +191,12 @@ fun MiniPlayerBar(
 
                                 coroutineScope.launch {
                                     if (shouldPlayNext) {
+                                        MobileConnectManager.sendGestureSwipe(
+                                            state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
+                                            fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
+                                            targetFraction = -1f,
+                                            durationMs = 180L,
+                                        )
                                         dragOffsetX.animateTo(
                                             targetValue = -fullStepPx,
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
@@ -192,6 +204,12 @@ fun MiniPlayerBar(
                                         currentOnPlayNext()
                                         dragOffsetX.snapTo(0f)
                                     } else if (shouldPlayPrevious) {
+                                        MobileConnectManager.sendGestureSwipe(
+                                            state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
+                                            fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
+                                            targetFraction = 1f,
+                                            durationMs = 180L,
+                                        )
                                         dragOffsetX.animateTo(
                                             targetValue = fullStepPx,
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
@@ -199,6 +217,12 @@ fun MiniPlayerBar(
                                         currentOnPlayPrevious()
                                         dragOffsetX.snapTo(0f)
                                     } else {
+                                        MobileConnectManager.sendGestureSwipe(
+                                            state = org.melodist.core.connect.model.GestureSwipeState.CANCEL,
+                                            fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
+                                            targetFraction = 0f,
+                                            durationMs = 200L,
+                                        )
                                         dragOffsetX.animateTo(
                                             targetValue = 0f,
                                             animationSpec =
@@ -224,6 +248,13 @@ fun MiniPlayerBar(
                         onDragCancel = {
                             if (dragDirection == MiniPlayerDragDirection.HORIZONTAL) {
                                 isDraggingHorizontal = false
+                                val fullStepPx = with(density) { 280.dp.toPx() }
+                                MobileConnectManager.sendGestureSwipe(
+                                    state = org.melodist.core.connect.model.GestureSwipeState.CANCEL,
+                                    fraction = (dragOffsetX.value / fullStepPx).coerceIn(-1f, 1f),
+                                    targetFraction = 0f,
+                                    durationMs = 200L,
+                                )
                                 coroutineScope.launch {
                                     dragOffsetX.animateTo(
                                         targetValue = 0f,

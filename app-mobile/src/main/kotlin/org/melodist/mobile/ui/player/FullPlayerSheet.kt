@@ -126,12 +126,16 @@ fun FullPlayerSheet(
             .value
             .contains(song?.songMid)
 
+    val remotePrevSong by PlaybackManager.remotePrevSong.collectAsState()
+    val remoteNextSong by PlaybackManager.remoteNextSong.collectAsState()
+    val isRemoteActive by PlaybackManager.isRemoteActive.collectAsState()
+
     val prevSong =
-        remember(playlist, currentIndex, loopMode, song?.songMid) {
+        remember(playlist, currentIndex, loopMode, song?.songMid, isRemoteActive, remotePrevSong) {
             PlaybackManager.getPreviousSong()
         }
     val nextSong =
-        remember(playlist, currentIndex, loopMode, song?.songMid) {
+        remember(playlist, currentIndex, loopMode, song?.songMid, isRemoteActive, remoteNextSong) {
             PlaybackManager.getNextSong()
         }
 

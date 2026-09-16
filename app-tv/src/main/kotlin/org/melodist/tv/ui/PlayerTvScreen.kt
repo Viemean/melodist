@@ -41,6 +41,7 @@ import org.melodist.tv.ui.components.BottomPlayerBar
 import org.melodist.tv.ui.components.CenterAlignedKaraokeLyricsView
 import org.melodist.tv.ui.components.MelodistElevatedCover
 import org.melodist.tv.ui.components.PlayerQueueSidebar
+import org.melodist.tv.ui.components.TakeoverGestureCoverCarousel
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MonetColorExtractor
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
@@ -130,33 +131,12 @@ fun PlayerTvScreen(
         isControlsHidden = isControlsHidden,
         onUserInteraction = { lastInteractionTimeMs = System.currentTimeMillis() },
         leftPanel = { coverSize ->
-            if (coverUrl.isNotEmpty() || activeSong != null) {
-                MelodistElevatedCover(
-                    coverUrl = coverUrl,
-                    albumMid = activeSong?.albumMid.orEmpty(),
-                    visualMid = activeSong?.visualMid.orEmpty(),
-                    songMid = activeSong?.songMid.orEmpty(),
-                    contentDescription = "Cover",
-                    shape = RoundedCornerShape(6.dp),
-                    modifier = Modifier.size(coverSize),
-                )
-            } else {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(coverSize)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(MelodistColors.ContainerDark),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Melodist 4K",
-                        color = MelodistColors.TextMuted,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            TakeoverGestureCoverCarousel(
+                currentSong = activeSong,
+                coverUrl = coverUrl,
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier.size(coverSize),
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 

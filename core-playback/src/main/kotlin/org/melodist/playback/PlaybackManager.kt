@@ -160,6 +160,12 @@ object PlaybackManager {
     private val _remoteDeviceName = MutableStateFlow<String?>(null)
     val remoteDeviceName: StateFlow<String?> = _remoteDeviceName.asStateFlow()
 
+    private val _remotePrevSong = MutableStateFlow<Song?>(null)
+    val remotePrevSong: StateFlow<Song?> = _remotePrevSong.asStateFlow()
+
+    private val _remoteNextSong = MutableStateFlow<Song?>(null)
+    val remoteNextSong: StateFlow<Song?> = _remoteNextSong.asStateFlow()
+
     fun setRemoteActive(active: Boolean, deviceName: String? = null) {
         _isRemoteActive.value = active
         _remoteDeviceName.value = deviceName
@@ -169,6 +175,8 @@ object PlaybackManager {
         if (!_isRemoteActive.value) return
         _isRemoteActive.value = false
         _remoteDeviceName.value = null
+        _remotePrevSong.value = null
+        _remoteNextSong.value = null
         _isPlaying.value = false
         _currentSong.value = null
         _currentPositionMs.value = 0L
@@ -1706,18 +1714,46 @@ object PlaybackManager {
         isPlaying: Boolean,
         positionMs: Long,
         durationMs: Long,
+        currentIndex: Int = -1,
+        loopModeName: String? = null,
+        prevSong: Song? = null,
+        nextSong: Song? = null,
     ) {
-        val prevSong = _currentSong.value
+        val prevLocalSong = _currentSong.value
         if (song != null) {
             _currentSong.value = song
-            if (prevSong?.songMid != song.songMid) {
+            if (prevLocalSong?.songMid != song.songMid) {
                 loadLyricsForSong(song)
             }
+            if (currentIndex >= 0 && currentIndex < _playlist.value.size) {
+                _currentIndex.value = currentIndex
+            } else {
+                val idx = _playlist.value.indexOfFirst { it.songMid == song.songMid }
+                if (idx >= 0) {
+                    _currentIndex.value = idx
+                }
+            }
+        }
+        _remotePrevSong.value = prevSong
+        _remoteNextSong.value = nextSong
+        if (!loopModeName.isNullOrBlank()) {
+            try {
+                _loopMode.value = PlaybackLoopMode.valueOf(loopModeName)
+            } catch (_: Throwable) {}
         }
         _isPlaying.value = isPlaying
         _currentPositionMs.value = positionMs
         if (durationMs > 0L) {
             _durationMs.value = durationMs
+        }
+    }
+
+    fun syncRemoteQueue(queue: List<Song>, currentIndex: Int) {
+        if (queue.isNotEmpty()) {
+            _playlist.value = queue
+            if (currentIndex in queue.indices) {
+                _currentIndex.value = currentIndex
+            }
         }
     }
 
@@ -2070,6 +2106,9 @@ object PlaybackManager {
      * 获取上一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
     fun getPreviousSong(): Song? {
+        if (_isRemoteActive.value && _remotePrevSong.value != null) {
+            return _remotePrevSong.value
+        }
         val list = _playlist.value
         if (list.isEmpty()) return null
         if (_isRadioMode.value) {
@@ -2089,6 +2128,9 @@ object PlaybackManager {
      * 获取下一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
     fun getNextSong(): Song? {
+        if (_isRemoteActive.value && _remoteNextSong.value != null) {
+            return _remoteNextSong.value
+        }
         val list = _playlist.value
         if (list.isEmpty()) return null
         if (_isRadioMode.value) {

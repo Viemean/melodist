@@ -140,6 +140,8 @@ object TvConnectManager {
                                 currentIndex = PlaybackManager.currentIndex.value,
                                 loopMode = loopMode,
                                 isAodActive = isAod,
+                                prevSong = PlaybackManager.getPreviousSong(),
+                                nextSong = PlaybackManager.getNextSong(),
                             ),
                         )
                     }
@@ -273,6 +275,11 @@ object TvConnectManager {
             is TvIncomingCommand.OpenPlayer -> {
                 _navigateToPlayerEvent.tryEmit(Unit)
             }
+            is TvIncomingCommand.GestureSwipe -> {
+                if (!org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
+                    TakeoverGestureState.updateGesture(command.payload)
+                }
+            }
         }
     }
 
@@ -288,6 +295,8 @@ object TvConnectManager {
                 currentIndex = PlaybackManager.currentIndex.value,
                 loopMode = PlaybackManager.loopMode.value.name,
                 isAodActive = org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value,
+                prevSong = PlaybackManager.getPreviousSong(),
+                nextSong = PlaybackManager.getNextSong(),
             ),
         )
     }

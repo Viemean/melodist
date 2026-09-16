@@ -117,7 +117,13 @@ object MobileConnectManager {
             client.playerState.collect { state ->
                 val resolvedState = if (state != null) {
                     val resolvedSong = state.currentSong?.let { resolveWebDavCoverLocally(it) }
-                    state.copy(currentSong = resolvedSong)
+                    val resolvedPrev = state.prevSong?.let { resolveWebDavCoverLocally(it) }
+                    val resolvedNext = state.nextSong?.let { resolveWebDavCoverLocally(it) }
+                    state.copy(
+                        currentSong = resolvedSong,
+                        prevSong = resolvedPrev,
+                        nextSong = resolvedNext,
+                    )
                 } else {
                     null
                 }
@@ -147,6 +153,10 @@ object MobileConnectManager {
                                 isPlaying = isPlaying,
                                 positionMs = tvPos,
                                 durationMs = resolvedState.durationMs,
+                                currentIndex = resolvedState.currentIndex,
+                                loopModeName = resolvedState.loopMode,
+                                prevSong = resolvedState.prevSong,
+                                nextSong = resolvedState.nextSong,
                             )
                         } else {
                             // 关闭本地静音：手机端跟随 TV 发声
@@ -196,6 +206,15 @@ object MobileConnectManager {
                             PlaybackManager.clearRemotePlayback()
                         }
                     }
+                }
+            }
+        }
+
+        scope.launch {
+            client.queueState.collect { qState ->
+                if (qState != null && remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
+                    val resolvedQueue = qState.queue.map { resolveWebDavCoverLocally(it) }
+                    PlaybackManager.syncRemoteQueue(resolvedQueue, qState.currentIndex)
                 }
             }
         }
@@ -461,6 +480,25 @@ object MobileConnectManager {
     fun triggerTvAod() = connectClient?.triggerAod()
     fun tvCycleLoopMode() = connectClient?.cycleLoopMode()
     fun tvOpenPlayer() = connectClient?.openPlayer()
+
+    private var lastGestureSendTime = 0L
+
+    fun sendGestureSwipe(
+        state: org.melodist.core.connect.model.GestureSwipeState,
+        fraction: Float = 0f,
+        targetFraction: Float = 0f,
+        durationMs: Long = 200L,
+    ) {
+        if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) return
+        val now = System.currentTimeMillis()
+        if (state == org.melodist.core.connect.model.GestureSwipeState.DRAGGING) {
+            if (now - lastGestureSendTime < 20L) return
+            lastGestureSendTime = now
+        } else {
+            lastGestureSendTime = 0L
+        }
+        connectClient?.sendGestureSwipe(state, fraction, targetFraction, durationMs)
+    }
 
     private fun setupPlaybackInterceptor() {
         PlaybackManager.playbackInterceptor = object : PlaybackInterceptor {

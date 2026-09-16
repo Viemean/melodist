@@ -309,41 +309,18 @@ fun NowPlayingHeroCard(
 
             Spacer(modifier = Modifier.width(28.dp))
 
-            // 封面展示
-            if (coverUrl.isNotEmpty() || song != null) {
-                MelodistElevatedCover(
-                    coverUrl = coverUrl,
-                    albumMid = song?.albumMid.orEmpty(),
-                    visualMid = song?.visualMid.orEmpty(),
-                    songMid = song?.songMid.orEmpty(),
-                    contentDescription = "Cover",
-                    shape = RoundedCornerShape(6.dp),
-                    modifier =
-                        Modifier
-                            .fillMaxHeight()
-                            .padding(vertical = 10.dp, horizontal = 10.dp)
-                            .aspectRatio(1f),
-                    onClick = onCardClick,
-                )
-            } else {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxHeight()
-                            .padding(vertical = 10.dp, horizontal = 10.dp)
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(surfaceColor.toMonetContainer(0.08f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Melodist 4K",
-                        color = MelodistColors.TextMuted,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
+            // 封面展示（支持手机全面接管手势联动）
+            TakeoverGestureCoverCarousel(
+                currentSong = song,
+                coverUrl = coverUrl,
+                shape = RoundedCornerShape(6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxHeight()
+                        .padding(vertical = 10.dp, horizontal = 10.dp)
+                        .aspectRatio(1f),
+                onClick = onCardClick,
+            )
         }
     }
 }

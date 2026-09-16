@@ -118,8 +118,13 @@ fun PlayerCoverCarousel(
                                     (totalDragAccumulator > 0 && currentPrevSong == null) ||
                                         (totalDragAccumulator < 0 && currentNextSong == null)
                                 val factor = if (isBlocked) 0.25f else 1.0f
+                                val newOffset = dragOffsetX.value + dragAmount * factor
+                                org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
+                                    state = org.melodist.core.connect.model.GestureSwipeState.DRAGGING,
+                                    fraction = (newOffset / fullStepPx).coerceIn(-1f, 1f),
+                                )
                                 coroutineScope.launch {
-                                    dragOffsetX.snapTo(dragOffsetX.value + dragAmount * factor)
+                                    dragOffsetX.snapTo(newOffset)
                                 }
                             },
                             onDragEnd = {
@@ -143,6 +148,12 @@ fun PlayerCoverCarousel(
 
                                 coroutineScope.launch {
                                     if (shouldPlayNext) {
+                                        org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
+                                            state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
+                                            fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
+                                            targetFraction = -1f,
+                                            durationMs = 200L,
+                                        )
                                         dragOffsetX.animateTo(
                                             targetValue = -fullStepPx,
                                             animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
@@ -150,6 +161,12 @@ fun PlayerCoverCarousel(
                                         currentOnPlayNext()
                                         dragOffsetX.snapTo(0f)
                                     } else if (shouldPlayPrevious) {
+                                        org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
+                                            state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
+                                            fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
+                                            targetFraction = 1f,
+                                            durationMs = 200L,
+                                        )
                                         dragOffsetX.animateTo(
                                             targetValue = fullStepPx,
                                             animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
@@ -157,6 +174,12 @@ fun PlayerCoverCarousel(
                                         currentOnPlayPrevious()
                                         dragOffsetX.snapTo(0f)
                                     } else {
+                                        org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
+                                            state = org.melodist.core.connect.model.GestureSwipeState.CANCEL,
+                                            fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
+                                            targetFraction = 0f,
+                                            durationMs = 200L,
+                                        )
                                         dragOffsetX.animateTo(
                                             targetValue = 0f,
                                             animationSpec =
@@ -170,6 +193,12 @@ fun PlayerCoverCarousel(
                             },
                             onDragCancel = {
                                 isDragging = false
+                                org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
+                                    state = org.melodist.core.connect.model.GestureSwipeState.CANCEL,
+                                    fraction = (dragOffsetX.value / fullStepPx).coerceIn(-1f, 1f),
+                                    targetFraction = 0f,
+                                    durationMs = 200L,
+                                )
                                 coroutineScope.launch {
                                     dragOffsetX.animateTo(
                                         targetValue = 0f,

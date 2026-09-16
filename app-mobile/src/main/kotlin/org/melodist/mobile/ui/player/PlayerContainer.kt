@@ -78,6 +78,8 @@ fun PlayerContainer(
     val isPlaying by PlaybackManager.isPlaying.collectAsState()
     val loopMode by PlaybackManager.loopMode.collectAsState()
     val lyrics by PlaybackManager.lyrics.collectAsState()
+    val remotePrevSong by PlaybackManager.remotePrevSong.collectAsState()
+    val remoteNextSong by PlaybackManager.remoteNextSong.collectAsState()
 
     val scope = rememberCoroutineScope()
 
@@ -214,8 +216,8 @@ fun PlayerContainer(
                         onTogglePlayPause = { PlaybackManager.togglePlayPause() },
                         onPlayNext = { PlaybackManager.playNext() },
                         onPlayPrevious = { PlaybackManager.playPrevious() },
-                        prevSong = PlaybackManager.getPreviousSong(),
-                        nextSong = PlaybackManager.getNextSong(),
+                        prevSong = remember(currentSong, remotePrevSong) { PlaybackManager.getPreviousSong() },
+                        nextSong = remember(currentSong, remoteNextSong) { PlaybackManager.getNextSong() },
                         onClick = {
                             scope.launch {
                                 activeDirection = SheetExpandDirection.BottomToTop

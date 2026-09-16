@@ -44,6 +44,7 @@ sealed interface TvIncomingCommand {
     data object TriggerAod : TvIncomingCommand
     data object CycleLoopMode : TvIncomingCommand
     data object OpenPlayer : TvIncomingCommand
+    data class GestureSwipe(val payload: org.melodist.core.connect.model.GestureSwipePayload) : TvIncomingCommand
 }
 
 data class PendingPairRequest(
@@ -288,6 +289,12 @@ class TvConnectServer(
             }
             ConnectActions.CMD_OPEN_PLAYER -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.OpenPlayer) }
+            }
+            ConnectActions.CMD_GESTURE_SWIPE -> {
+                try {
+                    val payload = json.decodeFromString<org.melodist.core.connect.model.GestureSwipePayload>(msg.payload)
+                    scope.launch { _commandsFlow.emit(TvIncomingCommand.GestureSwipe(payload)) }
+                } catch (_: Exception) {}
             }
         }
     }

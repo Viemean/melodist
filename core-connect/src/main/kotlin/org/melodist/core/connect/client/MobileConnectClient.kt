@@ -197,6 +197,21 @@ class MobileConnectClient(
         sendMessage(ConnectActions.CMD_OPEN_PLAYER, "")
     }
 
+    fun sendGestureSwipe(
+        state: org.melodist.core.connect.model.GestureSwipeState,
+        fraction: Float = 0f,
+        targetFraction: Float = 0f,
+        durationMs: Long = 200L,
+    ) {
+        val payload = org.melodist.core.connect.model.GestureSwipePayload(
+            state = state,
+            fraction = fraction,
+            targetFraction = targetFraction,
+            durationMs = durationMs,
+        )
+        sendMessage(ConnectActions.CMD_GESTURE_SWIPE, json.encodeToString(payload))
+    }
+
     private fun sendMessage(action: String, payload: String) {
         val socket = activeSocket ?: return
         val message = json.encodeToString(ConnectMessage(action = action, payload = payload))
