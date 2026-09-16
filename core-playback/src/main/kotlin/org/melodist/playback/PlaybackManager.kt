@@ -2062,12 +2062,7 @@ object PlaybackManager {
 
         if (_isRadioMode.value) {
             checkPrefetchRadioSongs()
-            val nextIndex =
-                if (_loopMode.value == PlaybackLoopMode.SingleRepeat) {
-                    _currentIndex.value
-                } else {
-                    _currentIndex.value + 1
-                }
+            val nextIndex = _currentIndex.value + 1
             if (nextIndex in list.indices) {
                 _currentIndex.value = nextIndex
                 playSong(list[nextIndex])
@@ -2095,8 +2090,8 @@ object PlaybackManager {
 
         val nextIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.SingleRepeat -> _currentIndex.value
                 PlaybackLoopMode.Shuffle -> shuffleQueue.next(list)
+                PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat -> (_currentIndex.value + 1) % list.size
             }
         if (nextIndex in list.indices) {
@@ -2123,8 +2118,8 @@ object PlaybackManager {
 
         val prevIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.SingleRepeat -> _currentIndex.value
                 PlaybackLoopMode.Shuffle -> shuffleQueue.previous()
+                PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat -> if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
             }
         if (prevIndex in list.indices) {
@@ -2148,8 +2143,8 @@ object PlaybackManager {
         }
         val prevIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.SingleRepeat -> _currentIndex.value
                 PlaybackLoopMode.Shuffle -> shuffleQueue.peekPrevious() ?: if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat -> if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
             }
         return if (prevIndex in list.indices) list[prevIndex] else null
@@ -2170,8 +2165,8 @@ object PlaybackManager {
         }
         val nextIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.SingleRepeat -> _currentIndex.value
                 PlaybackLoopMode.Shuffle -> shuffleQueue.peekNext() ?: ((_currentIndex.value + 1) % list.size)
+                PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat -> (_currentIndex.value + 1) % list.size
             }
         return if (nextIndex in list.indices) list[nextIndex] else null
@@ -2198,8 +2193,8 @@ object PlaybackManager {
 
     private fun handleSongEnded() {
         _isTransitioning.value = true
-        when (_loopMode.value) {
-            PlaybackLoopMode.SingleRepeat -> {
+        when {
+            !_isRadioMode.value && _loopMode.value == PlaybackLoopMode.SingleRepeat -> {
                 exoPlayer?.seekTo(0L)
                 exoPlayer?.play()
                 _isTransitioning.value = false
