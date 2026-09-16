@@ -47,26 +47,26 @@ object MobileConnectManager {
     private const val MAX_AUTO_CONNECT_FAILURES = 6
     private val AUTO_CONNECT_BACKOFF_DELAYS = longArrayOf(3000L, 6000L, 12000L, 20000L, 35000L, 60000L)
 
-    val connectionState: StateFlow<MobileConnectionState>
-        get() = connectClient?.connectionState ?: MutableStateFlow(MobileConnectionState.Disconnected)
+    private val _connectionState = MutableStateFlow<MobileConnectionState>(MobileConnectionState.Disconnected)
+    val connectionState: StateFlow<MobileConnectionState> = _connectionState.asStateFlow()
 
     private val _tvPlayerState = MutableStateFlow<PlayerStateEvent?>(null)
     val tvPlayerState: StateFlow<PlayerStateEvent?> = _tvPlayerState.asStateFlow()
 
-    val discoveredDevices: StateFlow<List<ConnectDevice>>
-        get() = nsdHelper?.discoveredDevices ?: MutableStateFlow(emptyList())
+    private val _discoveredDevices = MutableStateFlow<List<ConnectDevice>>(emptyList())
+    val discoveredDevices: StateFlow<List<ConnectDevice>> = _discoveredDevices.asStateFlow()
 
-    val pairedDevices: StateFlow<List<ConnectDevice>>
-        get() = storageManager?.pairedDevicesFlow ?: MutableStateFlow(emptyList())
+    private val _pairedDevices = MutableStateFlow<List<ConnectDevice>>(emptyList())
+    val pairedDevices: StateFlow<List<ConnectDevice>> = _pairedDevices.asStateFlow()
 
-    val localMute: StateFlow<Boolean>
-        get() = storageManager?.localMuteFlow ?: MutableStateFlow(false)
+    private val _localMute = MutableStateFlow<Boolean>(false)
+    val localMute: StateFlow<Boolean> = _localMute.asStateFlow()
 
-    val tvOfflineProxy: StateFlow<Boolean>
-        get() = storageManager?.tvOfflineProxyFlow ?: MutableStateFlow(false)
+    private val _tvOfflineProxy = MutableStateFlow<Boolean>(false)
+    val tvOfflineProxy: StateFlow<Boolean> = _tvOfflineProxy.asStateFlow()
 
-    val remoteControlMode: StateFlow<RemoteControlMode>
-        get() = storageManager?.remoteControlModeFlow ?: MutableStateFlow(RemoteControlMode.BROWSE)
+    private val _remoteControlMode = MutableStateFlow<RemoteControlMode>(RemoteControlMode.BROWSE)
+    val remoteControlMode: StateFlow<RemoteControlMode> = _remoteControlMode.asStateFlow()
 
     private var appContext: Context? = null
 
@@ -94,6 +94,25 @@ object MobileConnectManager {
         server.start()
 
         setupPlaybackInterceptor()
+
+        scope.launch {
+            client.connectionState.collect { _connectionState.value = it }
+        }
+        scope.launch {
+            nsd.discoveredDevices.collect { _discoveredDevices.value = it }
+        }
+        scope.launch {
+            storage.pairedDevicesFlow.collect { _pairedDevices.value = it }
+        }
+        scope.launch {
+            storage.localMuteFlow.collect { _localMute.value = it }
+        }
+        scope.launch {
+            storage.tvOfflineProxyFlow.collect { _tvOfflineProxy.value = it }
+        }
+        scope.launch {
+            storage.remoteControlModeFlow.collect { _remoteControlMode.value = it }
+        }
 
         scope.launch {
             client.connectionState.collect { state ->
