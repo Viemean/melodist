@@ -186,6 +186,26 @@ object PlaybackManager {
 
     private var prefetchedUrlInfo: Pair<String, QualityResult>? = null
     private var prefetchJob: Job? = null
+    private var consecutiveErrorCount = 0
+
+    private fun handlePlaybackFailure(errorMsg: String) {
+        _isLoading.value = false
+        _isTransitioning.value = false
+        consecutiveErrorCount++
+        if (consecutiveErrorCount >= 3) {
+            Log.w("MelodistPlayback", "Continuous playback failure reached limit (3), stopping playback.")
+            _errorMessage.value = "$errorMsg (已尝试3次，已停止)"
+            _isPlaying.value = false
+            exoPlayer?.stop()
+            consecutiveErrorCount = 0
+        } else {
+            _errorMessage.value = "$errorMsg (重试中 $consecutiveErrorCount/3)"
+            scope.launch {
+                delay(1500L)
+                playNext()
+            }
+        }
+    }
 
     val isLocalPlaybackActive: Boolean
         get() = exoPlayer?.playWhenReady == true && exoPlayer?.playbackState != androidx.media3.common.Player.STATE_IDLE
@@ -232,7 +252,9 @@ object PlaybackManager {
                     return
                 }
                 _isPlaying.value = playing
-                if (!playing) {
+                if (playing) {
+                    consecutiveErrorCount = 0
+                } else {
                     savePlaybackProgress(exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L)
                 }
             }
@@ -242,6 +264,9 @@ object PlaybackManager {
                     Player.STATE_READY -> {
                         _isLoading.value = false
                         _durationMs.value = exoPlayer?.duration?.coerceAtLeast(0L) ?: 0L
+                        if (exoPlayer?.isPlaying == true) {
+                            consecutiveErrorCount = 0
+                        }
                         if (_isSwitchingQuality.value) {
                             _isSwitchingQuality.value = false
                             _isPlaying.value = exoPlayer?.isPlaying == true
@@ -277,11 +302,7 @@ object PlaybackManager {
                         switchTier(fallback)
                     }
                 } else {
-                    _errorMessage.value = "播放失败: ${error.localizedMessage}"
-                    scope.launch {
-                        delay(2000L)
-                        playNext()
-                    }
+                    handlePlaybackFailure("播放失败: ${error.errorCodeName}")
                 }
             }
 
@@ -1085,6 +1106,10 @@ object PlaybackManager {
                         } else {
                             player.setMediaSource(mediaSource)
                         }
+                    } else {
+                        Log.w("MelodistPlayback", "No valid local file or WebDAV server found for ${song.name}")
+                        handlePlaybackFailure("无法加载本地或 WebDAV 音频文件")
+                        return@launch
                     }
 
                     player.prepare()
@@ -1236,10 +1261,8 @@ object PlaybackManager {
                     _isTransitioning.value = false
                     savePlaybackState()
                 } else {
-                    _isLoading.value = false
-                    _isTransitioning.value = false
                     Log.w("MelodistPlayback", "Failed to obtain playback URL for songMid=${song.songMid}, preferredTier=$targetTier")
-                    _errorMessage.value = "无法获取播放直链 (需 VIP 或版权限制)"
+                    handlePlaybackFailure("无法获取播放直链 (需 VIP 或版权限制)")
                 }
             }
     }
@@ -1310,6 +1333,7 @@ object PlaybackManager {
         headers: Map<String, String> = emptyMap(),
         seekToMs: Long = 0L,
     ) {
+        consecutiveErrorCount = 0
         playJob?.cancel()
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
