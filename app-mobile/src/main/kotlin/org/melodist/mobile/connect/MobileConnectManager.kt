@@ -505,8 +505,26 @@ object MobileConnectManager {
 
     fun tvPause() = connectClient?.pause()
     fun tvResume() = connectClient?.resume()
-    fun tvNext() = connectClient?.next()
-    fun tvPrev() = connectClient?.previous()
+    fun tvNext() {
+        if (remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
+            val nextSong = PlaybackManager.getNextSong()
+            if (nextSong != null) {
+                playOnTv(nextSong)
+                return
+            }
+        }
+        connectClient?.next()
+    }
+    fun tvPrev() {
+        if (remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
+            val prevSong = PlaybackManager.getPreviousSong()
+            if (prevSong != null) {
+                playOnTv(prevSong)
+                return
+            }
+        }
+        connectClient?.previous()
+    }
     fun tvSeekTo(posMs: Long) = connectClient?.seekTo(posMs)
     fun tvSetVolume(vol: Float) = connectClient?.setVolume(vol)
     fun tvSwitchTier(tier: AudioQualityTier) = connectClient?.switchTier(tier)
@@ -648,6 +666,13 @@ object MobileConnectManager {
         if (coverUrl.isNotBlank() && (coverUrl.startsWith("file://") || coverUrl.startsWith("/"))) {
             updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
         }
+        if ((updated.isLocal || updated.songMid.startsWith("local_")) && updated.localFilePath.isNullOrBlank()) {
+            val localPath = org.melodist.data.LocalMusicManager.getScannedSongs()
+                .find { it.songMid == song.songMid }?.localFilePath
+            if (!localPath.isNullOrBlank()) {
+                updated = updated.copy(localFilePath = localPath)
+            }
+        }
         return updated
     }
 
@@ -682,7 +707,12 @@ object MobileConnectManager {
         val server = streamServer
 
         val filePath = song.localFilePath
-        if (song.isLocal && !filePath.isNullOrBlank() && server != null) {
+            ?: if (song.isLocal || song.songMid.startsWith("local_")) {
+                org.melodist.data.LocalMusicManager.getScannedSongs()
+                    .find { it.songMid == song.songMid }?.localFilePath
+            } else null
+
+        if ((song.isLocal || song.songMid.startsWith("local_") || !filePath.isNullOrBlank()) && !filePath.isNullOrBlank() && server != null) {
             return AudioSourceDescriptor(
                 sourceType = AudioSourceType.STREAM_PROXY,
                 streamUrl = server.buildLocalAudioStreamUrl(filePath),

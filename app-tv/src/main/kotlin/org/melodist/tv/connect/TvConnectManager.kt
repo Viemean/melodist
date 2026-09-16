@@ -242,10 +242,10 @@ object TvConnectManager {
                 val cmd = command.command
                 val audioSource = cmd.audioSource
                 val streamUrl = audioSource?.streamUrl
-                if (cmd.queue.isNotEmpty()) {
-                    PlaybackManager.setPlaylist(cmd.queue, startIndex = cmd.index, forceTier = cmd.qualityTier)
-                }
                 if (audioSource?.sourceType == AudioSourceType.STREAM_PROXY && !streamUrl.isNullOrBlank()) {
+                    if (cmd.queue.isNotEmpty()) {
+                        PlaybackManager.syncRemoteQueue(cmd.queue, cmd.index)
+                    }
                     PlaybackManager.playCustomStream(
                         song = cmd.song,
                         streamUrl = streamUrl,
@@ -253,7 +253,9 @@ object TvConnectManager {
                         seekToMs = cmd.startPositionMs,
                     )
                 } else {
-                    if (cmd.queue.isEmpty()) {
+                    if (cmd.queue.isNotEmpty()) {
+                        PlaybackManager.setPlaylist(cmd.queue, startIndex = cmd.index, forceTier = cmd.qualityTier)
+                    } else {
                         PlaybackManager.playSong(cmd.song, forceTier = cmd.qualityTier, seekToMs = cmd.startPositionMs)
                     }
                 }
