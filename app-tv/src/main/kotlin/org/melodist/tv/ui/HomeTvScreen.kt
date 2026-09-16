@@ -20,6 +20,19 @@ import org.melodist.tv.ui.components.TopNavBar
 import org.melodist.tv.ui.theme.MonetColorExtractor
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
 
+sealed interface HomeFocusTarget {
+    data class TopNav(val index: Int) : HomeFocusTarget
+    data object HeroCard : HomeFocusTarget
+    data class CoreCard(val index: Int) : HomeFocusTarget
+    data class FeedCard(val index: Int) : HomeFocusTarget
+}
+
+object HomeFocusMemory {
+    var lastTarget: HomeFocusTarget = HomeFocusTarget.TopNav(0)
+    var hasUserNavigated: Boolean = false
+    var scrollPosition: Int = 0
+}
+
 @Composable
 fun HomeTvScreen(
     currentSong: Song? = null,
@@ -43,7 +56,11 @@ fun HomeTvScreen(
     val favoriteCount by UserSession.favoriteSongCount.collectAsState()
     val connectedPhone by org.melodist.tv.connect.TvConnectManager.connectedDevice.collectAsState()
 
-    var selectedNavIndex by remember { mutableIntStateOf(0) }
+    var selectedNavIndex by remember {
+        mutableIntStateOf(
+            (HomeFocusMemory.lastTarget as? HomeFocusTarget.TopNav)?.index ?: 0
+        )
+    }
     val favoriteSongMids by PlaybackManager.favoriteSongMids.collectAsState()
     val displaySong = playingSong ?: currentSong
     val isFavorite =
@@ -53,20 +70,59 @@ fun HomeTvScreen(
         }
 
     // 确定性 D-Pad 导航焦点网络
-    val topNavTabRequester = remember { FocusRequester() }
+    val navTabRequesters = remember { List(7) { FocusRequester() } }
+    val coreCardRequesters = remember { List(5) { FocusRequester() } }
+    val feedCardRequesters = remember { List(5) { FocusRequester() } }
     val heroCardRequester = remember { FocusRequester() }
     val heroButtonsRequester = remember { FocusRequester() }
-    val firstTrackCardRequester = remember { FocusRequester() }
-    val feedRowFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        topNavTabRequester.requestFocus()
-        if (UserSession.isLoggedIn) {
-            PlaybackManager.syncFavoriteSongsAsync()
+    val initialCoreIndex =
+        remember {
+            (HomeFocusMemory.lastTarget as? HomeFocusTarget.CoreCard)?.index ?: 0
+        }
+    val initialFeedIndex =
+        remember {
+            (HomeFocusMemory.lastTarget as? HomeFocusTarget.FeedCard)?.index ?: 0
+        }
+
+    val scrollState = rememberScrollState(initial = HomeFocusMemory.scrollPosition)
+
+    LaunchedEffect(scrollState.value) {
+        if (scrollState.value > 0 || HomeFocusMemory.hasUserNavigated) {
+            HomeFocusMemory.scrollPosition = scrollState.value
         }
     }
 
-    val scrollState = rememberScrollState()
+    LaunchedEffect(Unit) {
+        if (UserSession.isLoggedIn) {
+            PlaybackManager.syncFavoriteSongsAsync()
+        }
+        if (!HomeFocusMemory.hasUserNavigated) {
+            navTabRequesters.firstOrNull()?.requestFocus()
+        } else {
+            try {
+                when (val target = HomeFocusMemory.lastTarget) {
+                    is HomeFocusTarget.TopNav -> {
+                        navTabRequesters.getOrNull(target.index)?.requestFocus()
+                            ?: navTabRequesters.firstOrNull()?.requestFocus()
+                    }
+                    is HomeFocusTarget.HeroCard -> {
+                        heroCardRequester.requestFocus()
+                    }
+                    is HomeFocusTarget.CoreCard -> {
+                        coreCardRequesters.getOrNull(target.index)?.requestFocus()
+                            ?: coreCardRequesters.firstOrNull()?.requestFocus()
+                    }
+                    is HomeFocusTarget.FeedCard -> {
+                        feedCardRequesters.getOrNull(target.index)?.requestFocus()
+                            ?: feedCardRequesters.firstOrNull()?.requestFocus()
+                    }
+                }
+            } catch (_: Exception) {
+                navTabRequesters.firstOrNull()?.requestFocus()
+            }
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -86,7 +142,12 @@ fun HomeTvScreen(
             TopNavBar(
                 selectedIndex = selectedNavIndex,
                 downFocusRequester = heroCardRequester,
-                currentTabRequester = topNavTabRequester,
+                tabRequesters = navTabRequesters,
+                onTabFocused = { index ->
+                    selectedNavIndex = index
+                    HomeFocusMemory.lastTarget = HomeFocusTarget.TopNav(index)
+                    HomeFocusMemory.hasUserNavigated = true
+                },
                 onItemSelected = { index ->
                     when (index) {
                         1 -> onNavigateToWebDav()
@@ -113,9 +174,13 @@ fun HomeTvScreen(
                 progressMsProvider = { PlaybackManager.currentPositionMs.value },
                 durationMs = durationMs,
                 cardFocusRequester = heroCardRequester,
-                upFocusRequester = topNavTabRequester,
-                downFocusRequester = firstTrackCardRequester,
+                upFocusRequester = navTabRequesters.firstOrNull(),
+                downFocusRequester = coreCardRequesters.firstOrNull(),
                 buttonsFocusRequester = heroButtonsRequester,
+                onFocusChangedCallback = {
+                    HomeFocusMemory.lastTarget = HomeFocusTarget.HeroCard
+                    HomeFocusMemory.hasUserNavigated = true
+                },
                 onCardClick = onNavigateToPlayer,
                 onPlayPauseClick = { PlaybackManager.togglePlayPause() },
                 onFavoriteClick = { PlaybackManager.toggleCurrentSongFavorite() },
@@ -130,7 +195,15 @@ fun HomeTvScreen(
             HomeCoreTracksRow(
                 cardWidth = metrics.trackCardWidth,
                 favoriteCount = favoriteCount,
-                trackFocusRequester = firstTrackCardRequester,
+                trackFocusRequester = coreCardRequesters.firstOrNull(),
+                upFocusRequester = heroCardRequester,
+                downFocusRequester = feedCardRequesters.firstOrNull(),
+                cardRequesters = coreCardRequesters,
+                initialFocusedIndex = initialCoreIndex,
+                onCardFocused = { index ->
+                    HomeFocusMemory.lastTarget = HomeFocusTarget.CoreCard(index)
+                    HomeFocusMemory.hasUserNavigated = true
+                },
                 onCardClick = { category -> onNavigateToDetail(category) },
                 onPlayRadar = { songs ->
                     if (PlaybackManager.isRadioMode.value && PlaybackManager.currentSong.value != null) {
@@ -165,7 +238,14 @@ fun HomeTvScreen(
             // 专属推荐轨道（听 xxx 的也喜欢听，平滑轮换与就地播放）
             org.melodist.tv.ui.components.FeedRecommendRow(
                 cardWidth = metrics.trackCardWidth,
-                rowFocusRequester = feedRowFocusRequester,
+                rowFocusRequester = feedCardRequesters.firstOrNull(),
+                upFocusRequester = coreCardRequesters.firstOrNull(),
+                cardRequesters = feedCardRequesters,
+                initialFocusedIndex = initialFeedIndex,
+                onCardFocused = { index ->
+                    HomeFocusMemory.lastTarget = HomeFocusTarget.FeedCard(index)
+                    HomeFocusMemory.hasUserNavigated = true
+                },
                 onPlaySong = { songs, startIndex ->
                     PlaybackManager.setPlaylist(songs, startIndex, isRadio = false)
                 },

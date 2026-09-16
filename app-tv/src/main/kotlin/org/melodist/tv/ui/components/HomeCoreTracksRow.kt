@@ -8,12 +8,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -94,6 +96,10 @@ fun HomeCoreTracksRow(
     favoriteCount: Int? = null,
     trackFocusRequester: FocusRequester? = null,
     upFocusRequester: FocusRequester? = null,
+    downFocusRequester: FocusRequester? = null,
+    cardRequesters: List<FocusRequester> = remember { List(5) { FocusRequester() } },
+    initialFocusedIndex: Int = 0,
+    onCardFocused: ((Int) -> Unit)? = null,
     onCardClick: (String) -> Unit = {},
     onPlayRadar: (List<org.melodist.model.Song>) -> Unit = {},
 ) {
@@ -316,9 +322,11 @@ fun HomeCoreTracksRow(
             color = MelodistColors.TextPrimary,
         )
 
-        var focusedCardIndex by remember { mutableIntStateOf(0) }
+        var focusedCardIndex by remember { mutableIntStateOf(initialFocusedIndex) }
+        val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialFocusedIndex.coerceIn(0, 4))
 
         LazyRow(
+            state = listState,
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(22.dp),
             contentPadding = PaddingValues(start = 14.dp, end = 32.dp, top = 14.dp, bottom = 14.dp),
@@ -330,14 +338,28 @@ fun HomeCoreTracksRow(
                     slotIndex = index,
                     showPlayButton = (item.id == "radar"), // 仅猜你喜欢保留播放按钮，其它均为二级页面入口
                     modifier =
-                        if (index == focusedCardIndex && trackFocusRequester != null) {
-                            Modifier.focusRequester(trackFocusRequester)
-                        } else {
-                            Modifier
-                        },
+                        Modifier
+                            .focusRequester(cardRequesters[index])
+                            .then(
+                                if (index == focusedCardIndex && trackFocusRequester != null) {
+                                    Modifier.focusRequester(trackFocusRequester)
+                                } else {
+                                    Modifier
+                                },
+                            ).focusProperties {
+                                if (upFocusRequester != null) {
+                                    up = upFocusRequester
+                                }
+                                if (downFocusRequester != null) {
+                                    down = downFocusRequester
+                                }
+                                left = if (index > 0) cardRequesters[index - 1] else cardRequesters.last()
+                                right = if (index < cardItems.size - 1) cardRequesters[index + 1] else cardRequesters.first()
+                            },
                     onFocusChanged = { focused ->
                         if (focused) {
                             focusedCardIndex = index
+                            onCardFocused?.invoke(index)
                         }
                     },
                     onClick = {

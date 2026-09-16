@@ -59,6 +59,7 @@ fun NowPlayingHeroCard(
     canFavorite: Boolean = true,
     onFavoriteClick: () -> Unit = {},
     connectedPhoneName: String? = null,
+    onFocusChangedCallback: ((Boolean) -> Unit)? = null,
 ) {
     val songTitle = song?.name ?: "未在播放曲目"
     val songArtist = song?.singer?.takeIf { it.isNotBlank() } ?: if (song != null) "未知歌手" else "请从歌单中选择歌曲播放"
@@ -78,7 +79,12 @@ fun NowPlayingHeroCard(
                 .fillMaxWidth()
                 .height(cardHeight)
                 .focusRequester(actualCardRequester)
-                .onFocusChanged { isCardFocused = it.isFocused }
+                .onFocusChanged {
+                    isCardFocused = it.isFocused
+                    if (it.isFocused) {
+                        onFocusChangedCallback?.invoke(true)
+                    }
+                }
                 .focusProperties {
                     if (upFocusRequester != null) up = upFocusRequester
                     if (downFocusRequester != null) down = downFocusRequester

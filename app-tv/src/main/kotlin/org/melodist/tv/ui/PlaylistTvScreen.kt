@@ -152,6 +152,7 @@ object PlaylistScreenCache {
     var lockedCoverUrl: String = ""
     var lockedAlbumMid: String = ""
     var lastPlayedIndex: Int = 0
+    var lastFocusedIndex: Int = -1
 
     fun matches(key: String): Boolean = lastCacheKey == key && songs.isNotEmpty()
 
@@ -163,6 +164,9 @@ object PlaylistScreenCache {
         cover: String,
         albumMid: String,
     ) {
+        if (this.lastCacheKey != key) {
+            this.lastFocusedIndex = -1
+        }
         this.lastCacheKey = key
         this.songs = songs
         this.totalCount = total
@@ -696,7 +700,9 @@ fun PlaylistTvScreen(
 
     val returnTargetIndex =
         remember(playlistSongs, isReturningFromPlayer) {
-            if (isReturningFromPlayer && playlistSongs.isNotEmpty()) {
+            if (PlaylistScreenCache.lastFocusedIndex in playlistSongs.indices) {
+                PlaylistScreenCache.lastFocusedIndex
+            } else if (isReturningFromPlayer && playlistSongs.isNotEmpty()) {
                 val playingIndex =
                     playlistSongs.indexOfFirst {
                         (it.songMid.isNotBlank() && it.songMid == currentSong?.songMid) ||
@@ -704,20 +710,20 @@ fun PlaylistTvScreen(
                     }
                 if (playingIndex >= 0) playingIndex else PlaylistScreenCache.lastPlayedIndex.coerceIn(0, playlistSongs.size - 1)
             } else {
-                0
+                -1
             }
         }
 
-    // 焦点与滚动生命周期：首次进入默认选中“播放全部”按钮；播放后返回时定位并聚焦到播放曲目
+    // 焦点与滚动生命周期：首次进入默认选中“播放全部”按钮；播放后或二级页面返回时定位并聚焦到记忆曲目
     LaunchedEffect(isReturningFromPlayer, playlistSongs.size) {
-        if (isReturningFromPlayer && playlistSongs.isNotEmpty()) {
+        if (returnTargetIndex >= 0 && playlistSongs.isNotEmpty()) {
             listState.scrollToItem((returnTargetIndex - 1).coerceAtLeast(0))
             kotlinx.coroutines.delay(80)
             try {
                 returnSongRequester.requestFocus()
             } catch (_: Exception) {
             }
-        } else if (!isReturningFromPlayer) {
+        } else if (!isReturningFromPlayer && returnTargetIndex < 0) {
             kotlinx.coroutines.delay(60)
             try {
                 playAllRequester.requestFocus()
@@ -1185,7 +1191,7 @@ fun PlaylistTvScreen(
                         itemsIndexed(playlistSongs) { index, song ->
                             val isFirst = index == 0
                             val isTarget = index == pageTargetFocusIndex
-                            val isReturnTarget = isReturningFromPlayer && index == returnTargetIndex
+                            val isReturnTarget = returnTargetIndex >= 0 && index == returnTargetIndex
                             val isCurrentPlaying =
                                 (currentSong?.songMid == song.songMid && song.songMid.isNotBlank()) ||
                                     (song.songId != 0L && currentSong?.songId == song.songId)
@@ -1196,6 +1202,7 @@ fun PlaylistTvScreen(
                                     .onFocusChanged {
                                         if (it.isFocused) {
                                             focusedSongIndex = index
+                                            PlaylistScreenCache.lastFocusedIndex = index
                                         }
                                     }.then(
                                         when {

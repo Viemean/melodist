@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,10 +35,10 @@ fun TopNavBar(
     selectedIndex: Int = 0,
     downFocusRequester: FocusRequester? = null,
     currentTabRequester: FocusRequester? = null,
+    tabRequesters: List<FocusRequester> = remember { List(NavItems.size) { FocusRequester() } },
+    onTabFocused: ((Int) -> Unit)? = null,
     onItemSelected: (Int) -> Unit = {},
 ) {
-    val tabRequesters = remember { List(NavItems.size) { FocusRequester() } }
-
     Row(
         modifier =
             Modifier
@@ -61,16 +62,16 @@ fun TopNavBar(
                         } else {
                             Modifier
                         },
-                    ).focusProperties {
+                    ).onFocusChanged { state ->
+                        if (state.isFocused) {
+                            onTabFocused?.invoke(index)
+                        }
+                    }.focusProperties {
                         if (downFocusRequester != null) {
                             down = downFocusRequester
                         }
-                        if (index > 0) {
-                            left = tabRequesters[index - 1]
-                        }
-                        if (index < NavItems.size - 1) {
-                            right = tabRequesters[index + 1]
-                        }
+                        left = if (index > 0) tabRequesters[index - 1] else tabRequesters[NavItems.size - 1]
+                        right = if (index < NavItems.size - 1) tabRequesters[index + 1] else tabRequesters[0]
                     }
 
             Button(
