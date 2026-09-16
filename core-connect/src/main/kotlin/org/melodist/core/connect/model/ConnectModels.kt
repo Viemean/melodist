@@ -1,6 +1,7 @@
 package org.melodist.core.connect.model
 
 import kotlinx.serialization.Serializable
+import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 
 enum class DeviceType {
@@ -127,6 +128,8 @@ data class PlayerStateEvent(
     val isAodActive: Boolean = false,
     val prevSong: Song? = null,
     val nextSong: Song? = null,
+    val currentTier: AudioQualityTier? = null,
+    val availableTiers: Set<AudioQualityTier> = emptySet(),
 )
 
 @Serializable

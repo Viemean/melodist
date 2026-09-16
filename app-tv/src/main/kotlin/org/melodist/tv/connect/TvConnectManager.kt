@@ -29,6 +29,7 @@ import org.melodist.core.connect.server.TvIncomingCommand
 import org.melodist.core.connect.storage.ConnectStorageManager
 import org.melodist.core.connect.util.NetworkUtils
 import org.melodist.core.connect.util.QrCodeUtils
+import org.melodist.model.AudioQualityTier
 import org.melodist.playback.PlaybackManager
 import kotlin.random.Random
 
@@ -111,6 +112,7 @@ object TvConnectManager {
             var lastSongMid = ""
             var lastLoopMode = ""
             var lastAod = false
+            var lastTier: AudioQualityTier? = null
             while (isActive) {
                 val s = connectServer ?: break
                 val dev = s.connectedDeviceFlow.value
@@ -121,14 +123,16 @@ object TvConnectManager {
                     val dur = PlaybackManager.durationMs.value
                     val loopMode = PlaybackManager.loopMode.value.name
                     val isAod = org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value
+                    val currentTier = PlaybackManager.currentTier.value
 
                     val songMid = currentSong?.songMid.orEmpty()
-                    if (pos != lastPosition || isPlaying != lastIsPlaying || songMid != lastSongMid || loopMode != lastLoopMode || isAod != lastAod) {
+                    if (pos != lastPosition || isPlaying != lastIsPlaying || songMid != lastSongMid || loopMode != lastLoopMode || isAod != lastAod || currentTier != lastTier) {
                         lastPosition = pos
                         lastIsPlaying = isPlaying
                         lastSongMid = songMid
                         lastLoopMode = loopMode
                         lastAod = isAod
+                        lastTier = currentTier
 
                         s.broadcastPlayerState(
                             PlayerStateEvent(
@@ -142,6 +146,8 @@ object TvConnectManager {
                                 isAodActive = isAod,
                                 prevSong = PlaybackManager.getPreviousSong(),
                                 nextSong = PlaybackManager.getNextSong(),
+                                currentTier = currentTier,
+                                availableTiers = PlaybackManager.availableTiers.value,
                             ),
                         )
                     }
@@ -242,6 +248,7 @@ object TvConnectManager {
             }
             is TvIncomingCommand.SwitchTier -> {
                 PlaybackManager.switchTier(command.command.tier)
+                broadcastPlayerStateNow()
             }
             is TvIncomingCommand.Pause -> {
                 PlaybackManager.pause()
@@ -297,6 +304,8 @@ object TvConnectManager {
                 isAodActive = org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value,
                 prevSong = PlaybackManager.getPreviousSong(),
                 nextSong = PlaybackManager.getNextSong(),
+                currentTier = PlaybackManager.currentTier.value,
+                availableTiers = PlaybackManager.availableTiers.value,
             ),
         )
     }

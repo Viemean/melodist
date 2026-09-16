@@ -1719,6 +1719,8 @@ object PlaybackManager {
         loopModeName: String? = null,
         prevSong: Song? = null,
         nextSong: Song? = null,
+        currentTier: AudioQualityTier? = null,
+        availableTiers: Set<AudioQualityTier> = emptySet(),
     ) {
         val prevLocalSong = _currentSong.value
         if (song != null) {
@@ -1737,6 +1739,12 @@ object PlaybackManager {
         }
         _remotePrevSong.value = prevSong
         _remoteNextSong.value = nextSong
+        if (currentTier != null) {
+            _currentTier.value = currentTier
+        }
+        if (availableTiers.isNotEmpty()) {
+            _availableTiers.value = availableTiers
+        }
         if (!loopModeName.isNullOrBlank()) {
             try {
                 _loopMode.value = PlaybackLoopMode.valueOf(loopModeName)

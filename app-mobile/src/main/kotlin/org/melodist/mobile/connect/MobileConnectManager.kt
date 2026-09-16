@@ -157,6 +157,8 @@ object MobileConnectManager {
                                 loopModeName = resolvedState.loopMode,
                                 prevSong = resolvedState.prevSong,
                                 nextSong = resolvedState.nextSong,
+                                currentTier = resolvedState.currentTier,
+                                availableTiers = resolvedState.availableTiers,
                             )
                         } else {
                             // 关闭本地静音：手机端跟随 TV 发声
