@@ -568,7 +568,7 @@ fun RemoteControlMobileScreen(
                                 ) {
                                     Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("扫码配对 TV")
+                                    Text("扫码配对")
                                 }
                                 OutlinedButton(
                                     onClick = { showManualInputDialog = true },
@@ -822,7 +822,11 @@ fun RemoteControlMobileScreen(
                             Icon(Icons.Filled.Tv, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Column {
                                 Text(device.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                Text("${device.host}:${device.port}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "${device.host}:${device.port}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                         if (isConnected) {
