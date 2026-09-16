@@ -119,16 +119,20 @@ object DailyRecommendCacheManager {
         }
 
         val now = System.currentTimeMillis()
-        val todayMidnight =
+        val calNow = Calendar.getInstance().apply { timeInMillis = now }
+        val cycleStart =
             Calendar.getInstance().apply {
                 timeInMillis = now
-                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.HOUR_OF_DAY, 6)
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
+                if (calNow.before(this)) {
+                    add(Calendar.DAY_OF_MONTH, -1)
+                }
             }
 
-        return data.fetchTimestamp >= todayMidnight.timeInMillis
+        return data.fetchTimestamp >= cycleStart.timeInMillis
     }
 
     suspend fun loadRecommendSongs(
