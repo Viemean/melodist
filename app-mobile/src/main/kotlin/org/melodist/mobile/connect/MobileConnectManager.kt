@@ -582,6 +582,15 @@ object MobileConnectManager {
                 tvPrev()
                 return true
             }
+
+            override fun onInterceptCycleLoopMode(): Boolean {
+                if (isSyncingFromTv) return false
+                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                    return false
+                }
+                tvCycleLoopMode()
+                return true
+            }
         }
     }
 

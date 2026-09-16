@@ -70,6 +70,7 @@ interface PlaybackInterceptor {
     fun onInterceptSeekTo(positionMs: Long): Boolean = false
     fun onInterceptPlayNext(): Boolean = false
     fun onInterceptPlayPrevious(): Boolean = false
+    fun onInterceptCycleLoopMode(): Boolean = false
 }
 
 object PlaybackManager {
@@ -2147,6 +2148,9 @@ object PlaybackManager {
     }
 
     fun cycleLoopMode() {
+        if (playbackInterceptor?.onInterceptCycleLoopMode() == true) {
+            return
+        }
         if (_isRadioMode.value) return
         val newMode =
             when (_loopMode.value) {
