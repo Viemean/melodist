@@ -747,26 +747,38 @@ fun RemoteControlMobileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "局域网设备与配对",
+                    text = "局域网设备",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { showQrScanner = true }) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("扫码", fontSize = 12.sp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = { showQrScanner = true },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                    ) {
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("扫码", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
-                    TextButton(onClick = { MobileConnectManager.startDiscovery() }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("刷新", fontSize = 12.sp)
+                    TextButton(
+                        onClick = { MobileConnectManager.startDiscovery() },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                    ) {
+                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("刷新", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
-                    TextButton(onClick = { showManualInputDialog = true }) {
-                        Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("手动", fontSize = 12.sp)
+                    TextButton(
+                        onClick = { showManualInputDialog = true },
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("手动", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
                 }
             }
