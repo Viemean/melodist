@@ -57,6 +57,7 @@ fun HomeTvScreen(
     val heroCardRequester = remember { FocusRequester() }
     val heroButtonsRequester = remember { FocusRequester() }
     val firstTrackCardRequester = remember { FocusRequester() }
+    val feedRowFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         topNavTabRequester.requestFocus()
@@ -158,6 +159,15 @@ fun HomeTvScreen(
                             }
                         }
                     }
+                },
+            )
+
+            // 专属推荐轨道（听 xxx 的也喜欢听，平滑轮换与就地播放）
+            org.melodist.tv.ui.components.FeedRecommendRow(
+                cardWidth = metrics.trackCardWidth,
+                rowFocusRequester = feedRowFocusRequester,
+                onPlaySong = { songs, startIndex ->
+                    PlaybackManager.setPlaylist(songs, startIndex, isRadio = false)
                 },
             )
         }
