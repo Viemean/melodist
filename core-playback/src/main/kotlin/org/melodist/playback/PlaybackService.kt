@@ -119,10 +119,11 @@ class PlaybackService : MediaSessionService() {
             combine(
                 PlaybackManager.currentSong,
                 PlaybackManager.isPlaying,
+                PlaybackManager.isTransitioning,
                 PlaybackManager.isRemoteActive,
                 PlaybackManager.remoteDeviceName,
-            ) { song, isPlaying, isRemote, deviceName ->
-                Triple(song?.songMid to isPlaying, isRemote, deviceName)
+            ) { song, isPlaying, isTransitioning, isRemote, deviceName ->
+                Triple(song?.songMid to (isPlaying to isTransitioning), isRemote, deviceName)
             }.distinctUntilChanged().collect {
                 forwardingPlayer?.notifyRemoteStateChanged()
                 mediaSession?.let { sessionToUpdate ->
@@ -144,7 +145,15 @@ class PlaybackService : MediaSessionService() {
         intent: Intent?,
         flags: Int,
         startId: Int,
-    ): Int = super.onStartCommand(intent, flags, startId)
+    ): Int {
+        val result = super.onStartCommand(intent, flags, startId)
+        mediaSession?.let { session ->
+            if (PlaybackManager.shouldHoldForeground()) {
+                onUpdateNotification(session, true)
+            }
+        }
+        return result
+    }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 

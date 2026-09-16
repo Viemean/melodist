@@ -1592,7 +1592,15 @@ object PlaybackManager {
             player.pause()
             savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
         } else {
+            if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
+                if (player.currentMediaItem == null && currSong != null) {
+                    playSong(currSong, seekToMs = _currentPositionMs.value)
+                    return
+                }
+                player.prepare()
+            }
             player.play()
+            appContext?.let { startPlaybackService(it) }
         }
     }
 
@@ -1613,7 +1621,11 @@ object PlaybackManager {
             if (player.currentMediaItem == null && currSong != null) {
                 playSong(currSong, seekToMs = _currentPositionMs.value)
             } else {
+                if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
+                    player.prepare()
+                }
                 player.play()
+                appContext?.let { startPlaybackService(it) }
             }
         }
     }
