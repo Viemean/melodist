@@ -40,9 +40,11 @@ import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.MonetColorExtractor
 
 object HomeCardsCache {
+    var favSongs: List<org.melodist.model.Song> = emptyList()
     var favCover: String = ""
     var favBgColor: Color? = null
 
+    var dailySongs: List<org.melodist.model.Song> = emptyList()
     var dailyCover: String = ""
     var dailySubtitle: String = "今日专属甄选 30 首"
     var dailyBgColor: Color? = null
@@ -53,11 +55,13 @@ object HomeCardsCache {
     var radarSubtitle: String = "猜你喜欢"
     var radarBgColor: Color? = null
 
+    var playlistItems: List<org.melodist.model.Playlist> = emptyList()
     var playlistCover: String = ""
     var playlistTitle: String = "我的歌单"
     var playlistSubtitle: String = "自建歌单列表"
     var playlistBgColor: Color? = null
 
+    var albumItems: List<org.melodist.model.Album> = emptyList()
     var albumCover: String = ""
     var albumAlbumMid: String = ""
     var albumTitle: String = "我的收藏"
@@ -72,18 +76,21 @@ object HomeCardsCache {
     fun isLoaded(): Boolean =
         lastFetchTimeMs > 0L &&
             (System.currentTimeMillis() - lastFetchTimeMs < TTL_MS) &&
-            (dailyCover.isNotBlank() || radarCover.isNotBlank() || favCover.isNotBlank() || playlistCover.isNotBlank())
-}
+            (dailySongs.isNotEmpty() || radarSongs.isNotEmpty() || favSongs.isNotEmpty() || playlistItems.isNotEmpty())
 
-data class TrackCardData(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val defaultColors: List<Color>,
-    val singleCoverUrl: String = "",
-    val albumMid: String = "",
-    val dynamicBgColor: Color? = null,
-)
+    fun onSongFavoriteChanged(song: org.melodist.model.Song, isFav: Boolean) {
+        if (isFav) {
+            val updated = mutableListOf(song)
+            updated.addAll(favSongs.filterNot { it.songMid == song.songMid }.take(14))
+            favSongs = updated
+            if (song.coverUrl.isNotBlank()) {
+                favCover = song.coverUrl
+            }
+        } else {
+            favSongs = favSongs.filterNot { it.songMid == song.songMid }
+        }
+    }
+}
 
 @Composable
 fun HomeCoreTracksRow(
@@ -94,204 +101,140 @@ fun HomeCoreTracksRow(
     onCardClick: (String) -> Unit = {},
     onPlayRadar: (List<org.melodist.model.Song>) -> Unit = {},
 ) {
-    val favoriteSubtitle =
-        when {
-            favoriteCount != null && favoriteCount > 0 -> "$favoriteCount 首已收藏单曲"
-            favoriteCount == 0 -> "暂无收藏曲目"
-            else -> "已收藏单曲列表"
-        }
-
     val userProfile by UserSession.profileFlow.collectAsState()
     val apiService = remember { MusicApiService() }
 
-    var favCover by remember { mutableStateOf(HomeCardsCache.favCover) }
-    var favBgColor by remember { mutableStateOf<Color?>(HomeCardsCache.favBgColor) }
+    var favSongs by remember { mutableStateOf(HomeCardsCache.favSongs) }
+    var dailySongs by remember { mutableStateOf(HomeCardsCache.dailySongs) }
+    var radarSongs by remember { mutableStateOf(HomeCardsCache.radarSongs) }
+    var playlistItems by remember { mutableStateOf(HomeCardsCache.playlistItems) }
+    var albumItems by remember { mutableStateOf(HomeCardsCache.albumItems) }
 
-    var dailyCover by remember { mutableStateOf(HomeCardsCache.dailyCover) }
-    var dailySubtitle by remember { mutableStateOf(HomeCardsCache.dailySubtitle) }
-    var dailyBgColor by remember { mutableStateOf<Color?>(HomeCardsCache.dailyBgColor) }
-
-    var radarCover by remember { mutableStateOf(HomeCardsCache.radarCover) }
-    var radarAlbumMid by remember { mutableStateOf(HomeCardsCache.radarAlbumMid) }
-    var radarSubtitle by remember { mutableStateOf(HomeCardsCache.radarSubtitle) }
-    var radarBgColor by remember { mutableStateOf<Color?>(HomeCardsCache.radarBgColor) }
-    var preloadedRadarSongs by remember { mutableStateOf<List<org.melodist.model.Song>>(HomeCardsCache.radarSongs) }
-
-    var playlistCover by remember { mutableStateOf(HomeCardsCache.playlistCover) }
-    var playlistTitle by remember { mutableStateOf(HomeCardsCache.playlistTitle) }
-    var playlistSubtitle by remember { mutableStateOf(HomeCardsCache.playlistSubtitle) }
-    var playlistBgColor by remember { mutableStateOf<Color?>(HomeCardsCache.playlistBgColor) }
-
-    var albumCover by remember { mutableStateOf(HomeCardsCache.albumCover) }
-    var albumAlbumMid by remember { mutableStateOf(HomeCardsCache.albumAlbumMid) }
-    var albumTitle by remember { mutableStateOf(HomeCardsCache.albumTitle) }
-    var albumSubtitle by remember { mutableStateOf(HomeCardsCache.albumSubtitle) }
-    var albumBgColor by remember { mutableStateOf<Color?>(HomeCardsCache.albumBgColor) }
+    // 5 张卡片当前选中的候选索引
+    var favIndex by remember { mutableIntStateOf(0) }
+    var dailyIndex by remember { mutableIntStateOf(0) }
+    var radarIndex by remember { mutableIntStateOf(0) }
+    var playlistIndex by remember { mutableIntStateOf(0) }
+    var albumIndex by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(userProfile) {
         if (!UserSession.isLoggedIn) {
+            HomeCardsCache.favSongs = emptyList()
             HomeCardsCache.favCover = ""
             HomeCardsCache.favBgColor = null
+            HomeCardsCache.dailySongs = emptyList()
             HomeCardsCache.dailyCover = ""
             HomeCardsCache.dailyBgColor = null
+            HomeCardsCache.radarSongs = emptyList()
             HomeCardsCache.radarCover = ""
             HomeCardsCache.radarAlbumMid = ""
             HomeCardsCache.radarBgColor = null
-            HomeCardsCache.radarSongs = emptyList()
+            HomeCardsCache.playlistItems = emptyList()
             HomeCardsCache.playlistCover = ""
             HomeCardsCache.playlistBgColor = null
+            HomeCardsCache.albumItems = emptyList()
             HomeCardsCache.albumCover = ""
             HomeCardsCache.albumAlbumMid = ""
             HomeCardsCache.albumBgColor = null
             HomeCardsCache.lastFetchTimeMs = 0L
             HomeCardsCache.lastRadarFetchTimeMs = 0L
 
-            favCover = ""
-            favBgColor = null
-            dailyCover = ""
-            dailyBgColor = null
-            radarCover = ""
-            radarAlbumMid = ""
-            radarBgColor = null
-            preloadedRadarSongs = emptyList()
-            playlistCover = ""
-            playlistBgColor = null
-            albumCover = ""
-            albumAlbumMid = ""
-            albumBgColor = null
+            favSongs = emptyList()
+            dailySongs = emptyList()
+            radarSongs = emptyList()
+            playlistItems = emptyList()
+            albumItems = emptyList()
             return@LaunchedEffect
         }
 
-        // 命中缓存时跳过重复请求
         if (HomeCardsCache.isLoaded()) {
+            favSongs = HomeCardsCache.favSongs
+            dailySongs = HomeCardsCache.dailySongs
+            radarSongs = HomeCardsCache.radarSongs
+            playlistItems = HomeCardsCache.playlistItems
+            albumItems = HomeCardsCache.albumItems
             return@LaunchedEffect
         }
 
-        // 5 个入口并发拉取
+        // 1. 我的喜欢：获取前 15 首，前 5 首保留作为最新收藏
         val j1 =
             launch {
                 try {
-                    val fav = apiService.getFavoriteSongsDetail(page = 1, pageSize = 1)
-                    val first = fav.songs.firstOrNull()
-                    if (first != null && first.coverUrl.isNotBlank()) {
-                        favCover = first.coverUrl
-                        val bg = MonetColorExtractor.extractFromUrl(first.coverUrl)
-                        favBgColor = bg
-                        HomeCardsCache.favCover = first.coverUrl
-                        HomeCardsCache.favBgColor = bg
+                    val fav = apiService.getFavoriteSongsDetail(page = 1, pageSize = 15)
+                    if (fav.songs.isNotEmpty()) {
+                        val valid = fav.songs.take(15)
+                        favSongs = valid
+                        HomeCardsCache.favSongs = valid
+                        HomeCardsCache.favCover = valid.first().coverUrl
                     }
                 } catch (_: Exception) {
                 }
             }
 
-        // 2. 每日推荐：首张推荐封面与莫奈单图取色
+        // 2. 每日推荐：30 首候选池
         val j2 =
             launch {
                 try {
                     val daily = apiService.getDailyRecommendSongs()
-                    val first = daily.firstOrNull()
-                    if (first != null) {
-                        val sub = "${first.name} · ${first.singer}"
-                        val bg = if (first.coverUrl.isNotBlank()) MonetColorExtractor.extractFromUrl(first.coverUrl) else null
-                        dailyCover = first.coverUrl
-                        dailySubtitle = sub
-                        dailyBgColor = bg
-
-                        HomeCardsCache.dailyCover = first.coverUrl
-                        HomeCardsCache.dailySubtitle = sub
-                        HomeCardsCache.dailyBgColor = bg
+                    if (daily.isNotEmpty()) {
+                        dailySongs = daily
+                        HomeCardsCache.dailySongs = daily
+                        HomeCardsCache.dailyCover = daily.first().coverUrl
                     }
                 } catch (_: Exception) {
                 }
             }
 
-        // 3. 猜你喜欢雷达
+        // 3. 猜你喜欢：15 首候选队列
         val j3 =
             launch {
                 try {
-                    val radar = apiService.getGuessRecommendSongs(count = 30)
-                    val first = radar.firstOrNull()
-                    if (first != null) {
-                        val bg = if (first.coverUrl.isNotBlank()) MonetColorExtractor.extractFromUrl(first.coverUrl) else null
-                        val sub = "${first.name} · ${first.singer}"
-
-                        radarCover = first.coverUrl
-                        radarAlbumMid = first.albumMid
-                        radarSubtitle = sub
-                        radarBgColor = bg
-                        preloadedRadarSongs = radar
-
-                        HomeCardsCache.radarSongs = radar
-                        HomeCardsCache.radarCover = first.coverUrl
-                        HomeCardsCache.radarAlbumMid = first.albumMid
-                        HomeCardsCache.radarSubtitle = sub
-                        HomeCardsCache.radarBgColor = bg
+                    val radar = apiService.getGuessRecommendSongs(count = 15)
+                    if (radar.isNotEmpty()) {
+                        val valid = radar.take(15)
+                        radarSongs = valid
+                        HomeCardsCache.radarSongs = valid
+                        HomeCardsCache.radarCover = valid.first().coverUrl
+                        HomeCardsCache.radarAlbumMid = valid.first().albumMid
                         HomeCardsCache.lastRadarFetchTimeMs = System.currentTimeMillis()
                     }
                 } catch (_: Exception) {
                 }
             }
 
-        // 4. 我的歌单：首个歌单封面
+        // 4. 我的歌单：复用前 10 个歌单候选
         val j4 =
             launch {
                 try {
                     val lists = apiService.getPlaylists().filterNot { it.isMyFavorite }
-                    val first = lists.firstOrNull()
-                    if (first != null) {
-                        var cover = first.picUrl
-                        if (cover.isBlank()) {
-                            try {
-                                val songs = apiService.getPlaylistSongs(first, page = 1, pageSize = 1)
-                                cover = songs.firstOrNull()?.coverUrl.orEmpty()
-                            } catch (_: Exception) {
-                            }
-                        }
-                        val sub = "${first.name} · 共 ${first.songCount} 首"
-                        val bg = if (cover.isNotBlank()) MonetColorExtractor.extractFromUrl(cover) else null
-
-                        playlistCover = cover
-                        playlistTitle = "我的歌单"
-                        playlistSubtitle = sub
-                        playlistBgColor = bg
-
-                        HomeCardsCache.playlistCover = cover
-                        HomeCardsCache.playlistTitle = "我的歌单"
-                        HomeCardsCache.playlistSubtitle = sub
-                        HomeCardsCache.playlistBgColor = bg
+                    if (lists.isNotEmpty()) {
+                        val valid = lists.take(10)
+                        playlistItems = valid
+                        HomeCardsCache.playlistItems = valid
+                        HomeCardsCache.playlistCover = valid.first().picUrl
                     }
                 } catch (_: Exception) {
                 }
             }
 
-        // 5. 我的收藏：首个专辑封面
+        // 5. 我的收藏：复用前 10 个专辑候选
         val j5 =
             launch {
                 try {
                     val albums = apiService.getFavoriteAlbums()
-                    val first = albums.firstOrNull()
-                    if (first != null) {
-                        val sub = "${first.title} · ${first.artist}"
-                        val bg = if (first.coverUrl.isNotBlank()) MonetColorExtractor.extractFromUrl(first.coverUrl) else null
-
-                        albumCover = first.coverUrl
-                        albumAlbumMid = first.mid
-                        albumTitle = "我的收藏"
-                        albumSubtitle = sub
-                        albumBgColor = bg
-
-                        HomeCardsCache.albumCover = first.coverUrl
-                        HomeCardsCache.albumAlbumMid = first.mid
-                        HomeCardsCache.albumTitle = "我的收藏"
-                        HomeCardsCache.albumSubtitle = sub
-                        HomeCardsCache.albumBgColor = bg
+                    if (albums.isNotEmpty()) {
+                        val valid = albums.take(10)
+                        albumItems = valid
+                        HomeCardsCache.albumItems = valid
+                        HomeCardsCache.albumCover = valid.first().coverUrl
+                        HomeCardsCache.albumAlbumMid = valid.first().mid
                     }
                 } catch (_: Exception) {
                 }
             }
 
         kotlinx.coroutines.joinAll(j1, j2, j3, j4, j5)
-        if (dailyCover.isNotBlank() || radarCover.isNotBlank() || favCover.isNotBlank() || playlistCover.isNotBlank()) {
+        if (dailySongs.isNotEmpty() || radarSongs.isNotEmpty() || favSongs.isNotEmpty() || playlistItems.isNotEmpty()) {
             HomeCardsCache.lastFetchTimeMs = System.currentTimeMillis()
         }
     }
@@ -300,7 +243,7 @@ fun HomeCoreTracksRow(
     val isPlaying by PlaybackManager.isPlaying.collectAsState()
     val isPlayingRadar = isRadioMode && isPlaying
 
-    // 若没有在播放猜你喜欢，每 5 分钟更新一批歌曲
+    // 猜你喜欢每 5 分钟在后台拉取新的一批 15 首
     LaunchedEffect(userProfile, isPlayingRadar) {
         if (!UserSession.isLoggedIn) return@LaunchedEffect
         while (isActive) {
@@ -309,148 +252,122 @@ fun HomeCoreTracksRow(
             if (HomeCardsCache.lastRadarFetchTimeMs > 0L && timeSinceLast >= HomeCardsCache.RADAR_REFRESH_INTERVAL_MS) {
                 if (!isPlayingRadar) {
                     try {
-                        val radar = apiService.getGuessRecommendSongs(count = 30)
-                        val first = radar.firstOrNull()
-                        if (first != null) {
-                            val bg = if (first.coverUrl.isNotBlank()) MonetColorExtractor.extractFromUrl(first.coverUrl) else null
-                            val sub = "${first.name} · ${first.singer}"
-
-                            radarCover = first.coverUrl
-                            radarAlbumMid = first.albumMid
-                            radarSubtitle = sub
-                            radarBgColor = bg
-                            preloadedRadarSongs = radar
-
-                            HomeCardsCache.radarSongs = radar
-                            HomeCardsCache.radarCover = first.coverUrl
-                            HomeCardsCache.radarAlbumMid = first.albumMid
-                            HomeCardsCache.radarSubtitle = sub
-                            HomeCardsCache.radarBgColor = bg
+                        val radar = apiService.getGuessRecommendSongs(count = 15)
+                        if (radar.isNotEmpty()) {
+                            val valid = radar.take(15)
+                            radarSongs = valid
+                            HomeCardsCache.radarSongs = valid
+                            HomeCardsCache.radarCover = valid.first().coverUrl
+                            HomeCardsCache.radarAlbumMid = valid.first().albumMid
                             HomeCardsCache.lastRadarFetchTimeMs = System.currentTimeMillis()
                         }
                     } catch (_: Exception) {
                     }
                 }
             }
-            delay(10_000L)
+            delay(15_000L)
+        }
+    }
+
+    // 10 秒固定轮换定时器：各个卡片从自身的候选池中随机换到下一张（仅当池大小 > 1 时触发，无网/单项静止）
+    LaunchedEffect(favSongs.size, dailySongs.size, radarSongs.size, playlistItems.size, albumItems.size) {
+        fun pickNextRandom(current: Int, size: Int): Int {
+            if (size <= 1) return 0
+            var next = kotlin.random.Random.nextInt(size)
+            if (next == current) {
+                next = (current + 1) % size
+            }
+            return next
+        }
+
+        while (isActive) {
+            delay(15_000L)
+            if (!isPlayingRadar && radarSongs.size > 1) {
+                radarIndex = pickNextRandom(radarIndex, radarSongs.size)
+            }
+            if (dailySongs.size > 1) {
+                dailyIndex = pickNextRandom(dailyIndex, dailySongs.size)
+            }
+            if (favSongs.size > 1) {
+                favIndex = pickNextRandom(favIndex, favSongs.size)
+            }
+            if (playlistItems.size > 1) {
+                playlistIndex = pickNextRandom(playlistIndex, playlistItems.size)
+            }
+            if (albumItems.size > 1) {
+                albumIndex = pickNextRandom(albumIndex, albumItems.size)
+            }
         }
     }
 
     val currentSong by PlaybackManager.currentSong.collectAsState()
 
-    // 若当前正在播放猜你喜欢，卡片信息跟随当前播放的歌曲动态变化（切下一首回到主页跟随变化）
-    val displayRadarCover =
+    // 构建 5 张卡片当前展示的项
+    val currentRadarSong =
         if (isRadioMode && currentSong != null && currentSong?.coverUrl?.isNotBlank() == true) {
-            currentSong!!.coverUrl
+            currentSong
         } else {
-            radarCover
+            radarSongs.getOrNull(radarIndex)
         }
+    val currentDailySong = dailySongs.getOrNull(dailyIndex)
+    val currentFavSong = favSongs.getOrNull(favIndex)
+    val currentPlaylist = playlistItems.getOrNull(playlistIndex)
+    val currentAlbum = albumItems.getOrNull(albumIndex)
 
-    val displayRadarAlbumMid =
-        if (isRadioMode && currentSong != null) {
-            currentSong!!.albumMid
-        } else {
-            radarAlbumMid
-        }
-
-    val displayRadarSubtitle =
-        if (isRadioMode && currentSong != null) {
-            "${currentSong!!.name} · ${currentSong!!.singer}"
-        } else {
-            radarSubtitle
-        }
-
-    var radarDynamicMonetBg by remember { mutableStateOf<Color?>(null) }
-    LaunchedEffect(displayRadarCover) {
-        if (displayRadarCover.isNotBlank()) {
-            radarDynamicMonetBg = MonetColorExtractor.extractFromUrl(displayRadarCover)
-        }
-    }
-    val displayRadarBgColor = radarDynamicMonetBg ?: radarBgColor
-
-    // 状态与全局缓存实时同步
-    LaunchedEffect(isRadioMode, currentSong) {
-        if (isRadioMode && currentSong != null) {
-            val song = currentSong!!
-            val sub = "${song.name} · ${song.singer}"
-            radarCover = song.coverUrl
-            radarAlbumMid = song.albumMid
-            radarSubtitle = sub
-            HomeCardsCache.radarCover = song.coverUrl
-            HomeCardsCache.radarAlbumMid = song.albumMid
-            HomeCardsCache.radarSubtitle = sub
-            if (song.coverUrl.isNotBlank()) {
-                val bg = MonetColorExtractor.extractFromUrl(song.coverUrl)
-                radarBgColor = bg
-                HomeCardsCache.radarBgColor = bg
-            }
-        }
-    }
-
-    val cards =
-        remember(
-            favoriteSubtitle,
-            favCover,
-            favBgColor,
-            dailyCover,
-            dailySubtitle,
-            dailyBgColor,
-            displayRadarCover,
-            displayRadarAlbumMid,
-            displayRadarSubtitle,
-            displayRadarBgColor,
-            playlistCover,
-            playlistTitle,
-            playlistSubtitle,
-            playlistBgColor,
-            albumCover,
-            albumAlbumMid,
-            albumTitle,
-            albumSubtitle,
-            albumBgColor,
-        ) {
+    val cardItems =
+        remember(currentRadarSong, currentDailySong, currentFavSong, currentPlaylist, currentAlbum, favoriteCount) {
             listOf(
-                TrackCardData(
-                    id = "favorites",
-                    title = "我的喜欢",
-                    subtitle = favoriteSubtitle,
-                    defaultColors = listOf(Color(0xFFE91E63), Color(0xFF880E4F)),
-                    singleCoverUrl = favCover,
-                    dynamicBgColor = favBgColor,
-                ),
-                TrackCardData(
-                    id = "daily",
-                    title = "每日推荐",
-                    subtitle = dailySubtitle,
-                    defaultColors = listOf(Color(0xFF00B0FF), Color(0xFF0D47A1)),
-                    singleCoverUrl = dailyCover,
-                    dynamicBgColor = dailyBgColor,
-                ),
-                TrackCardData(
+                // 1. 猜你喜欢（排在第一位，唯一保留播放按钮）
+                RotatingCardItem(
                     id = "radar",
-                    title = "猜你喜欢",
-                    subtitle = displayRadarSubtitle,
-                    defaultColors = listOf(Color(0xFF00E676), Color(0xFF1B5E20)),
-                    singleCoverUrl = displayRadarCover,
-                    albumMid = displayRadarAlbumMid,
-                    dynamicBgColor = displayRadarBgColor,
+                    badgeText = "猜你喜欢",
+                    title = currentRadarSong?.name?.ifBlank { "猜你喜欢" } ?: "猜你喜欢",
+                    subtitle = currentRadarSong?.let { "${it.singer} · ${it.album}" } ?: "常听雷达推荐",
+                    coverUrl = currentRadarSong?.coverUrl.orEmpty(),
+                    albumMid = currentRadarSong?.albumMid.orEmpty(),
+                    songMid = currentRadarSong?.songMid.orEmpty(),
+                    defaultBgColor = Color(0xFF00E676),
                 ),
-                TrackCardData(
+                // 2. 每日推荐（二级页面，无播放按钮）
+                RotatingCardItem(
+                    id = "daily",
+                    badgeText = "每日推荐",
+                    title = currentDailySong?.name?.ifBlank { "每日推荐" } ?: "每日推荐",
+                    subtitle = currentDailySong?.let { "${it.singer} · ${it.album}" } ?: "今日专属甄选 30 首",
+                    coverUrl = currentDailySong?.coverUrl.orEmpty(),
+                    albumMid = currentDailySong?.albumMid.orEmpty(),
+                    songMid = currentDailySong?.songMid.orEmpty(),
+                    defaultBgColor = Color(0xFF00B0FF),
+                ),
+                // 3. 我的喜欢（二级页面，无播放按钮）
+                RotatingCardItem(
+                    id = "favorites",
+                    badgeText = "我的喜欢",
+                    title = currentFavSong?.name?.ifBlank { "我的喜欢" } ?: "我的喜欢",
+                    subtitle = currentFavSong?.let { "${it.singer} · ${it.album}" } ?: (favoriteCount?.let { "$it 首已收藏单曲" } ?: "已收藏单曲列表"),
+                    coverUrl = currentFavSong?.coverUrl.orEmpty(),
+                    albumMid = currentFavSong?.albumMid.orEmpty(),
+                    songMid = currentFavSong?.songMid.orEmpty(),
+                    defaultBgColor = Color(0xFFE91E63),
+                ),
+                // 4. 我的歌单（二级页面，无播放按钮）
+                RotatingCardItem(
                     id = "playlists",
-                    title = "我的歌单",
-                    subtitle = playlistSubtitle,
-                    defaultColors = listOf(Color(0xFFFF9100), Color(0xFFE65100)),
-                    singleCoverUrl = playlistCover,
-                    dynamicBgColor = playlistBgColor,
+                    badgeText = "我的歌单",
+                    title = currentPlaylist?.name?.ifBlank { "我的歌单" } ?: "我的歌单",
+                    subtitle = currentPlaylist?.let { "共 ${it.songCount} 首" } ?: "自建歌单列表",
+                    coverUrl = currentPlaylist?.picUrl.orEmpty(),
+                    defaultBgColor = Color(0xFFFF9100),
                 ),
-                TrackCardData(
+                // 5. 我的收藏（二级页面，无播放按钮）
+                RotatingCardItem(
                     id = "collections",
-                    title = "我的收藏",
-                    subtitle = albumSubtitle,
-                    defaultColors = listOf(Color(0xFFAA00FF), Color(0xFF4A148C)),
-                    singleCoverUrl = albumCover,
-                    albumMid = albumAlbumMid,
-                    dynamicBgColor = albumBgColor,
+                    badgeText = "我的收藏",
+                    title = currentAlbum?.title?.ifBlank { "我的收藏" } ?: "我的收藏",
+                    subtitle = currentAlbum?.artist?.ifBlank { "收藏的专辑与歌手" } ?: "收藏的专辑与歌手",
+                    coverUrl = currentAlbum?.coverUrl.orEmpty(),
+                    albumMid = currentAlbum?.mid.orEmpty(),
+                    defaultBgColor = Color(0xFFAA00FF),
                 ),
             )
         }
@@ -473,162 +390,40 @@ fun HomeCoreTracksRow(
             horizontalArrangement = Arrangement.spacedBy(22.dp),
             contentPadding = PaddingValues(start = 14.dp, end = 32.dp, top = 14.dp, bottom = 14.dp),
         ) {
-            itemsIndexed(cards) { index, card ->
-                CoreTrackCard(
-                    data = card,
+            itemsIndexed(cardItems) { index, item ->
+                RotatingTrackCard(
+                    item = item,
                     cardWidth = cardWidth,
+                    slotIndex = index,
+                    showPlayButton = (item.id == "radar"), // 仅猜你喜欢保留播放按钮，其它均为二级页面入口
                     modifier =
                         if (index == focusedCardIndex && trackFocusRequester != null) {
                             Modifier.focusRequester(trackFocusRequester)
                         } else {
                             Modifier
                         },
-                    onFocused = { focusedCardIndex = index },
+                    onFocusChanged = { focused ->
+                        if (focused) {
+                            focusedCardIndex = index
+                        }
+                    },
                     onClick = {
-                        if (card.id == "radar") {
-                            onPlayRadar(preloadedRadarSongs)
-                        } else {
-                            onCardClick(card.id)
+                        when (item.id) {
+                            "radar" -> {
+                                val available = radarSongs.ifEmpty { HomeCardsCache.radarSongs }
+                                if (available.isNotEmpty()) {
+                                    val start = radarIndex.coerceIn(0, available.size - 1)
+                                    PlaybackManager.setPlaylist(available, start, isRadio = true)
+                                } else {
+                                    onPlayRadar(emptyList())
+                                }
+                            }
+                            else -> {
+                                onCardClick(item.id)
+                            }
                         }
                     },
                 )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun CoreTrackCard(
-    data: TrackCardData,
-    cardWidth: Dp,
-    modifier: Modifier = Modifier,
-    onFocused: () -> Unit = {},
-    onClick: () -> Unit,
-) {
-    var isFocused by remember { mutableStateOf(false) }
-    val cardHeight = cardWidth * 1.22f
-
-    val currentBgColor = data.dynamicBgColor ?: data.defaultColors[0]
-    val animatedBgColor by animateColorAsState(
-        targetValue = currentBgColor,
-        animationSpec = tween(600),
-        label = "CardBgColor",
-    )
-
-    Card(
-        onClick = onClick,
-        modifier =
-            modifier
-                .width(cardWidth)
-                .height(cardHeight)
-                .onFocusChanged {
-                    isFocused = it.isFocused
-                    if (it.isFocused) {
-                        onFocused()
-                    }
-                },
-        shape =
-            CardDefaults.shape(
-                shape = MelodistShapes.CardCorner,
-                focusedShape = MelodistShapes.CardCorner,
-            ),
-        colors =
-            CardDefaults.colors(
-                containerColor = animatedBgColor.copy(alpha = 0.90f),
-                focusedContainerColor = animatedBgColor,
-            ),
-        border =
-            CardDefaults.border(
-                border =
-                    Border(
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                        shape = MelodistShapes.CardCorner,
-                    ),
-                focusedBorder =
-                    Border(
-                        border = BorderStroke(3.dp, MelodistColors.FocusTeal),
-                        shape = MelodistShapes.CardCorner,
-                    ),
-            ),
-        scale =
-            CardDefaults.scale(
-                focusedScale = 1.05f,
-            ),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(animatedBgColor),
-        ) {
-            // 上半部：封面展示区
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(cardHeight * 0.65f)
-                        .padding(top = 16.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (data.singleCoverUrl.isNotBlank() || data.albumMid.isNotBlank()) {
-                    // 单封面展示
-                    val singleSize = (cardWidth * 0.64f).coerceIn(130.dp, 175.dp)
-                    MelodistElevatedCover(
-                        coverUrl = data.singleCoverUrl,
-                        albumMid = data.albumMid,
-                        contentDescription = null,
-                        shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.size(singleSize),
-                    )
-                } else {
-                    // 无封面或未登录时的内置质感图标兜底
-                    Box(
-                        modifier =
-                            Modifier
-                                .size((cardWidth * 0.50f).coerceIn(100.dp, 130.dp))
-                                .clip(MelodistShapes.CardCorner)
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .border(1.dp, Color.White.copy(alpha = 0.12f), MelodistShapes.CardCorner),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = data.title.take(2),
-                            color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-            }
-
-            // 下半部：冷调微透纯色遮罩与文字排版 (无渐变以防电视摩尔纹)
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomStart)
-                        .background(Color(0xFF1A2234).copy(alpha = 0.45f))
-                        .padding(horizontal = 18.dp, vertical = 14.dp),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = data.title,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-
-                    Text(
-                        text = data.subtitle,
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.75f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
         }
     }

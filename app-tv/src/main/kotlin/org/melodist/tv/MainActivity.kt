@@ -132,9 +132,7 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(Unit) {
                             PlaybackManager.songFavoriteToggledEvent.collect { (song, isFav) ->
                                 PlaylistScreenCache.onSongFavoriteChanged(song, isFav)
-                                if (isFav && song.coverUrl.isNotBlank()) {
-                                    org.melodist.tv.ui.components.HomeCardsCache.favCover = song.coverUrl
-                                }
+                                org.melodist.tv.ui.components.HomeCardsCache.onSongFavoriteChanged(song, isFav)
                             }
                         }
 

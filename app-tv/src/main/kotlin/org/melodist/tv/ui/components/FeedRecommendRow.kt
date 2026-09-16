@@ -123,11 +123,11 @@ fun FeedRecommendRow(
     // 轮换槽位控制：0..6（每卡片分配 7 首歌）
     var rotationIndex by remember { mutableIntStateOf(0) }
 
-    // 10 秒固定轮换定时器：持续平滑更新
+    // 15 秒固定轮换定时器：持续平滑更新
     LaunchedEffect(songs.size) {
         if (songs.size < 5) return@LaunchedEffect
         while (isActive) {
-            delay(10_000L)
+            delay(15_000L)
             rotationIndex = (rotationIndex + 1) % 7
         }
     }
@@ -155,10 +155,27 @@ fun FeedRecommendRow(
                 val songGlobalIndex = ((rotationIndex * 5 + slotIndex) % songs.size).coerceIn(0, songs.size - 1)
                 val song = songs[songGlobalIndex]
 
-                FeedTrackCard(
-                    slotIndex = slotIndex,
-                    song = song,
+                val item =
+                    RotatingCardItem(
+                        id = "feed_${song.songId}_$songGlobalIndex",
+                        title = song.name.ifBlank { "未知单曲" },
+                        subtitle =
+                            when {
+                                song.singer.isNotBlank() && song.album.isNotBlank() -> "${song.singer} · ${song.album}"
+                                song.singer.isNotBlank() -> song.singer
+                                song.album.isNotBlank() -> song.album
+                                else -> "精选推荐"
+                            },
+                        coverUrl = song.coverUrl,
+                        albumMid = song.albumMid,
+                        songMid = song.songMid,
+                    )
+
+                RotatingTrackCard(
+                    item = item,
                     cardWidth = cardWidth,
+                    slotIndex = slotIndex,
+                    showPlayButton = true,
                     modifier =
                         if (slotIndex == focusedCardIndex && rowFocusRequester != null) {
                             Modifier.focusRequester(rowFocusRequester)
@@ -174,220 +191,6 @@ fun FeedRecommendRow(
                         onPlaySong(songs, songGlobalIndex)
                     },
                 )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun FeedTrackCard(
-    slotIndex: Int,
-    song: Song,
-    cardWidth: Dp,
-    modifier: Modifier = Modifier,
-    onFocusChanged: (Boolean) -> Unit = {},
-    onClick: () -> Unit,
-) {
-    val cardHeight = cardWidth * 1.22f
-
-    // 单图 Monet 取色
-    var dynamicBgColor by remember { mutableStateOf<Color?>(null) }
-    LaunchedEffect(song.coverUrl) {
-        if (song.coverUrl.isNotBlank()) {
-            dynamicBgColor = MonetColorExtractor.extractFromUrl(song.coverUrl)
-        }
-    }
-
-    val currentBgColor = dynamicBgColor ?: Color(0xFF1A2234)
-    val animatedBgColor by animateColorAsState(
-        targetValue = currentBgColor,
-        animationSpec = tween(600),
-        label = "FeedCardBgColor",
-    )
-
-    Card(
-        onClick = onClick,
-        modifier =
-            modifier
-                .width(cardWidth)
-                .height(cardHeight)
-                .onFocusChanged { state ->
-                    onFocusChanged(state.isFocused)
-                },
-        shape =
-            CardDefaults.shape(
-                shape = MelodistShapes.CardCorner,
-                focusedShape = MelodistShapes.CardCorner,
-            ),
-        colors =
-            CardDefaults.colors(
-                containerColor = animatedBgColor.copy(alpha = 0.90f),
-                focusedContainerColor = animatedBgColor,
-            ),
-        border =
-            CardDefaults.border(
-                border =
-                    Border(
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                        shape = MelodistShapes.CardCorner,
-                    ),
-                focusedBorder =
-                    Border(
-                        border = BorderStroke(3.dp, MelodistColors.FocusTeal),
-                        shape = MelodistShapes.CardCorner,
-                    ),
-            ),
-        scale =
-            CardDefaults.scale(
-                focusedScale = 1.05f,
-            ),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(animatedBgColor),
-        ) {
-            // 上半部：专辑封面（缓缓滑出与缓缓滑进，持续 900ms）
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(cardHeight * 0.65f)
-                        .padding(top = 16.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                AnimatedContent(
-                    targetState = song,
-                    transitionSpec = {
-                        (slideInHorizontally(
-                            animationSpec = tween(durationMillis = 900, delayMillis = slotIndex * 100, easing = FastOutSlowInEasing),
-                            initialOffsetX = { fullWidth -> (fullWidth * 0.45f).toInt() },
-                        ) + fadeIn(
-                            animationSpec = tween(durationMillis = 800, delayMillis = slotIndex * 100),
-                        )) togetherWith (slideOutHorizontally(
-                            animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-                            targetOffsetX = { fullWidth -> -(fullWidth * 0.45f).toInt() },
-                        ) + fadeOut(
-                            animationSpec = tween(durationMillis = 700),
-                        ))
-                    },
-                    label = "FeedCoverTransition",
-                ) { currentSong ->
-                    val singleSize = (cardWidth * 0.64f).coerceIn(130.dp, 175.dp)
-                    if (currentSong.coverUrl.isNotBlank() || currentSong.albumMid.isNotBlank()) {
-                        MelodistElevatedCover(
-                            coverUrl = currentSong.coverUrl,
-                            albumMid = currentSong.albumMid,
-                            songMid = currentSong.songMid,
-                            contentDescription = null,
-                            shape = RoundedCornerShape(6.dp),
-                            modifier = Modifier.size(singleSize),
-                        )
-                    } else {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size((cardWidth * 0.50f).coerceIn(100.dp, 130.dp))
-                                    .clip(MelodistShapes.CardCorner)
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.12f), MelodistShapes.CardCorner),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = currentSong.name.take(2).ifBlank { "推荐" },
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 下半部：歌曲与歌手信息 + 悬浮播放圆形小徽章
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomStart)
-                        .background(Color(0xFF1A2234).copy(alpha = 0.50f))
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    // 左侧：大字歌曲名 + 小字歌手与专辑名（与封面同步缓缓切入）
-                    AnimatedContent(
-                        targetState = song,
-                        transitionSpec = {
-                            (slideInHorizontally(
-                                animationSpec = tween(durationMillis = 850, delayMillis = slotIndex * 100, easing = FastOutSlowInEasing),
-                                initialOffsetX = { fullWidth -> (fullWidth * 0.35f).toInt() },
-                            ) + fadeIn(
-                                animationSpec = tween(durationMillis = 750, delayMillis = slotIndex * 100),
-                            )) togetherWith (slideOutHorizontally(
-                                animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing),
-                                targetOffsetX = { fullWidth -> -(fullWidth * 0.35f).toInt() },
-                            ) + fadeOut(
-                                animationSpec = tween(durationMillis = 650),
-                            ))
-                        },
-                        modifier = Modifier.weight(1f),
-                        label = "FeedTextTransition",
-                    ) { targetSong ->
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = targetSong.name.ifBlank { "未知单曲" },
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-
-                            val subtitleText =
-                                when {
-                                    targetSong.singer.isNotBlank() && targetSong.album.isNotBlank() ->
-                                        "${targetSong.singer} · ${targetSong.album}"
-                                    targetSong.singer.isNotBlank() -> targetSong.singer
-                                    targetSong.album.isNotBlank() -> targetSong.album
-                                    else -> "精选推荐"
-                                }
-
-                            Text(
-                                text = subtitleText,
-                                fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.75f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    // 右侧：播放小图标圆钮
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFB4F8FF))
-                                .border(1.dp, Color.White.copy(alpha = 0.4f), CircleShape),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "播放",
-                            tint = Color(0xFF102A2D),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
             }
         }
     }
