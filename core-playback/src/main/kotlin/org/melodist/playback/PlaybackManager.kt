@@ -166,6 +166,7 @@ object PlaybackManager {
     }
 
     fun clearRemotePlayback() {
+        if (!_isRemoteActive.value) return
         _isRemoteActive.value = false
         _remoteDeviceName.value = null
         _isPlaying.value = false
@@ -785,7 +786,7 @@ object PlaybackManager {
         }
     }
 
-    private fun savePlaybackProgress(posMs: Long) {
+    fun savePlaybackProgress(posMs: Long = _currentPositionMs.value) {
         val prefs = getPrefs() ?: return
         try {
             prefs.edit().putLong("current_position_ms", posMs).apply()

@@ -120,6 +120,11 @@ class MainActivity : ComponentActivity() {
         setupHighRefreshRate()
     }
 
+    override fun onStop() {
+        super.onStop()
+        PlaybackManager.savePlaybackProgress()
+    }
+
     private fun setupHighRefreshRate() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

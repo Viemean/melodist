@@ -102,8 +102,8 @@ object MobileConnectManager {
                     setRemoteControlMode(RemoteControlMode.BROWSE)
                     PlaybackManager.setVolume(if (localMute.value) 0f else 1f)
                 } else {
-                    PlaybackManager.setRemoteActive(false, null)
-                    if (!PlaybackManager.isLocalPlaybackActive) {
+                    if (PlaybackManager.isRemoteActive.value) {
+                        PlaybackManager.setRemoteActive(false, null)
                         PlaybackManager.clearRemotePlayback()
                     }
                     if (localMute.value) {
@@ -192,7 +192,7 @@ object MobileConnectManager {
                         }
                     } else {
                         // TV 暂无播放曲目
-                        if (localMute.value) {
+                        if (PlaybackManager.isRemoteActive.value && localMute.value) {
                             PlaybackManager.clearRemotePlayback()
                         }
                     }
@@ -332,8 +332,8 @@ object MobileConnectManager {
         userManuallyDisconnected = true
         connectClient?.disconnect()
         _tvPlayerState.value = null
-        PlaybackManager.setRemoteActive(false, null)
-        if (!PlaybackManager.isLocalPlaybackActive) {
+        if (PlaybackManager.isRemoteActive.value) {
+            PlaybackManager.setRemoteActive(false, null)
             PlaybackManager.clearRemotePlayback()
         }
         if (localMute.value) {
@@ -389,8 +389,8 @@ object MobileConnectManager {
     fun setRemoteControlMode(mode: RemoteControlMode) {
         storageManager?.setRemoteControlMode(mode)
         if (mode != RemoteControlMode.TAKEOVER) {
-            PlaybackManager.setRemoteActive(false, null)
-            if (!PlaybackManager.isLocalPlaybackActive) {
+            if (PlaybackManager.isRemoteActive.value) {
+                PlaybackManager.setRemoteActive(false, null)
                 PlaybackManager.clearRemotePlayback()
             }
         } else if (isTvOnline && localMute.value) {
