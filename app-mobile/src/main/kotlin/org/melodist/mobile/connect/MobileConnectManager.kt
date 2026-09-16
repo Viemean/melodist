@@ -258,6 +258,32 @@ object MobileConnectManager {
             }
         }
 
+        scope.launch {
+            client.commandsFlow.collect { cmd ->
+                when (cmd) {
+                    is org.melodist.core.connect.client.MobileIncomingCommand.Next -> {
+                        tvNext()
+                    }
+                    is org.melodist.core.connect.client.MobileIncomingCommand.Previous -> {
+                        tvPrev()
+                    }
+                    is org.melodist.core.connect.client.MobileIncomingCommand.PlaySong -> {
+                        val targetSong = cmd.song ?: return@collect
+                        playOnTv(targetSong)
+                    }
+                    is org.melodist.core.connect.client.MobileIncomingCommand.CycleLoopMode -> {
+                        PlaybackManager.cycleLoopMode()
+                    }
+                    is org.melodist.core.connect.client.MobileIncomingCommand.Pause -> {
+                        PlaybackManager.pause()
+                    }
+                    is org.melodist.core.connect.client.MobileIncomingCommand.Resume -> {
+                        PlaybackManager.play()
+                    }
+                }
+            }
+        }
+
         startAutoConnectLoop()
     }
 
@@ -506,8 +532,12 @@ object MobileConnectManager {
     fun tvPause() = connectClient?.pause()
     fun tvResume() = connectClient?.resume()
     fun tvNext() {
-        if (remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
-            val nextSong = PlaybackManager.getNextSong()
+        if (isTvOnline) {
+            val nextSong = if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
+                PlaybackManager.getNextSong()
+            } else {
+                tvPlayerState.value?.nextSong ?: PlaybackManager.getNextSong()
+            }
             if (nextSong != null) {
                 playOnTv(nextSong)
                 return
@@ -516,8 +546,12 @@ object MobileConnectManager {
         connectClient?.next()
     }
     fun tvPrev() {
-        if (remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
-            val prevSong = PlaybackManager.getPreviousSong()
+        if (isTvOnline) {
+            val prevSong = if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
+                PlaybackManager.getPreviousSong()
+            } else {
+                tvPlayerState.value?.prevSong ?: PlaybackManager.getPreviousSong()
+            }
             if (prevSong != null) {
                 playOnTv(prevSong)
                 return

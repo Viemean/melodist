@@ -3,8 +3,11 @@ package org.melodist.core.connect.client
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -38,6 +41,15 @@ sealed interface MobileConnectionState {
     data class Error(val message: String) : MobileConnectionState
 }
 
+sealed interface MobileIncomingCommand {
+    data object Next : MobileIncomingCommand
+    data object Previous : MobileIncomingCommand
+    data class PlaySong(val song: Song?) : MobileIncomingCommand
+    data object CycleLoopMode : MobileIncomingCommand
+    data object Pause : MobileIncomingCommand
+    data object Resume : MobileIncomingCommand
+}
+
 class MobileConnectClient(
     private val storageManager: ConnectStorageManager,
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
@@ -61,6 +73,9 @@ class MobileConnectClient(
 
     private val _queueState = MutableStateFlow<QueueStateEvent?>(null)
     val queueState: StateFlow<QueueStateEvent?> = _queueState.asStateFlow()
+
+    private val _commandsFlow = kotlinx.coroutines.flow.MutableSharedFlow<MobileIncomingCommand>(extraBufferCapacity = 32)
+    val commandsFlow: kotlinx.coroutines.flow.SharedFlow<MobileIncomingCommand> = _commandsFlow.asSharedFlow()
 
     fun connect(targetDevice: ConnectDevice, pinCode: String = "") {
         disconnect()
@@ -277,6 +292,31 @@ class MobileConnectClient(
                     val queue = json.decodeFromString<QueueStateEvent>(msg.payload)
                     _queueState.value = queue
                 } catch (_: Exception) {}
+            }
+            ConnectActions.CMD_NEXT -> {
+                _commandsFlow.tryEmit(MobileIncomingCommand.Next)
+            }
+            ConnectActions.CMD_PREVIOUS -> {
+                _commandsFlow.tryEmit(MobileIncomingCommand.Previous)
+            }
+            ConnectActions.CMD_PLAY_SONG -> {
+                val song = if (msg.payload.isNotBlank()) {
+                    try {
+                        json.decodeFromString<Song>(msg.payload)
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else null
+                _commandsFlow.tryEmit(MobileIncomingCommand.PlaySong(song))
+            }
+            ConnectActions.CMD_CYCLE_LOOP_MODE -> {
+                _commandsFlow.tryEmit(MobileIncomingCommand.CycleLoopMode)
+            }
+            ConnectActions.CMD_PAUSE -> {
+                _commandsFlow.tryEmit(MobileIncomingCommand.Pause)
+            }
+            ConnectActions.CMD_RESUME -> {
+                _commandsFlow.tryEmit(MobileIncomingCommand.Resume)
             }
         }
     }

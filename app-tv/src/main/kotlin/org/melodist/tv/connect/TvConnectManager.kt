@@ -43,6 +43,7 @@ object TvConnectManager {
     private var storageManager: ConnectStorageManager? = null
     private var connectServer: TvConnectServer? = null
     private var nsdHelper: ConnectNsdHelper? = null
+    private var isSyncingFromMobile = false
 
     private val _currentPinCode = MutableStateFlow(generateRandomPin())
     val currentPinCode: StateFlow<String> = _currentPinCode.asStateFlow()
@@ -77,6 +78,8 @@ object TvConnectManager {
 
         val nsd = ConnectNsdHelper(context)
         nsdHelper = nsd
+
+        setupPlaybackInterceptor()
 
         val localDevice = storage.getOrCreateLocalDevice()
 
@@ -253,10 +256,15 @@ object TvConnectManager {
                         seekToMs = cmd.startPositionMs,
                     )
                 } else {
-                    if (cmd.queue.isNotEmpty()) {
-                        PlaybackManager.setPlaylist(cmd.queue, startIndex = cmd.index, forceTier = cmd.qualityTier)
-                    } else {
-                        PlaybackManager.playSong(cmd.song, forceTier = cmd.qualityTier, seekToMs = cmd.startPositionMs)
+                    isSyncingFromMobile = true
+                    try {
+                        if (cmd.queue.isNotEmpty()) {
+                            PlaybackManager.setPlaylist(cmd.queue, startIndex = cmd.index, forceTier = cmd.qualityTier)
+                        } else {
+                            PlaybackManager.playSong(cmd.song, forceTier = cmd.qualityTier, seekToMs = cmd.startPositionMs)
+                        }
+                    } finally {
+                        isSyncingFromMobile = false
                     }
                 }
                 broadcastQueueNow()
@@ -354,5 +362,59 @@ object TvConnectManager {
 
     private fun generateRandomPin(): String {
         return "%06d".format(Random.nextInt(100000, 999999))
+    }
+
+    private fun setupPlaybackInterceptor() {
+        PlaybackManager.playbackInterceptor = object : org.melodist.playback.PlaybackInterceptor {
+            override fun onInterceptPlayNext(): Boolean {
+                if (isSyncingFromMobile) return false
+                val server = connectServer ?: return false
+                if (server.connectedDeviceFlow.value == null) return false
+                server.broadcastNext()
+                return true
+            }
+
+            override fun onInterceptPlayPrevious(): Boolean {
+                if (isSyncingFromMobile) return false
+                val server = connectServer ?: return false
+                if (server.connectedDeviceFlow.value == null) return false
+                server.broadcastPrevious()
+                return true
+            }
+
+            override fun onInterceptPlaySong(
+                song: org.melodist.model.Song,
+                forceTier: AudioQualityTier?,
+                seekToMs: Long,
+            ): Boolean {
+                if (isSyncingFromMobile) return false
+                val server = connectServer ?: return false
+                if (server.connectedDeviceFlow.value == null) return false
+                val isLocalSong = song.isLocal || (!song.localFilePath.isNullOrBlank() && !song.isWebDav)
+                val localPath = song.localFilePath
+                val directFileExists = if (isLocalSong && !localPath.isNullOrBlank()) {
+                    try {
+                        java.io.File(localPath).exists()
+                    } catch (_: Exception) {
+                        false
+                    }
+                } else {
+                    false
+                }
+                if (isLocalSong && !directFileExists) {
+                    server.broadcastPlaySong(song)
+                    return true
+                }
+                return false
+            }
+
+            override fun onInterceptCycleLoopMode(): Boolean {
+                if (isSyncingFromMobile) return false
+                val server = connectServer ?: return false
+                if (server.connectedDeviceFlow.value == null) return false
+                server.broadcastCycleLoopMode()
+                return true
+            }
+        }
     }
 }

@@ -141,6 +141,22 @@ class TvConnectServer(
         broadcast(ConnectActions.EVENT_QUEUE_STATE, payload)
     }
 
+    fun broadcastNext() {
+        broadcast(ConnectActions.CMD_NEXT, "")
+    }
+
+    fun broadcastPrevious() {
+        broadcast(ConnectActions.CMD_PREVIOUS, "")
+    }
+
+    fun broadcastPlaySong(song: org.melodist.model.Song) {
+        broadcast(ConnectActions.CMD_PLAY_SONG, json.encodeToString(song))
+    }
+
+    fun broadcastCycleLoopMode() {
+        broadcast(ConnectActions.CMD_CYCLE_LOOP_MODE, "")
+    }
+
     private fun broadcast(action: String, payload: String) {
         val message = json.encodeToString(ConnectMessage(action = action, payload = payload))
         activeClients.keys.forEach { ws ->

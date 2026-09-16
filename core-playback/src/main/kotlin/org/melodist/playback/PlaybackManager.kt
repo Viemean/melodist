@@ -1029,7 +1029,7 @@ object PlaybackManager {
                     }
                 }
 
-                if (song.songMid.startsWith("webdav_") || !song.localFilePath.isNullOrBlank()) {
+                if (song.songMid.startsWith("webdav_")) {
                     val server =
                         org.melodist.data.WebDavManager
                             .getActiveServer()
