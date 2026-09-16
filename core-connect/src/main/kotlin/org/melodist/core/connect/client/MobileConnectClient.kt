@@ -212,6 +212,20 @@ class MobileConnectClient(
         sendMessage(ConnectActions.CMD_GESTURE_SWIPE, json.encodeToString(payload))
     }
 
+    fun toggleFavorite(
+        song: Song? = null,
+        songMid: String = "",
+        isFavorite: Boolean = false,
+    ) {
+        val effectiveMid = songMid.ifBlank { song?.songMid.orEmpty() }
+        val cmd = org.melodist.core.connect.model.ToggleFavoriteCommand(
+            song = song,
+            songMid = effectiveMid,
+            isFavorite = isFavorite,
+        )
+        sendMessage(ConnectActions.CMD_TOGGLE_FAVORITE, json.encodeToString(cmd))
+    }
+
     private fun sendMessage(action: String, payload: String) {
         val socket = activeSocket ?: return
         val message = json.encodeToString(ConnectMessage(action = action, payload = payload))

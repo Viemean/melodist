@@ -202,6 +202,13 @@ object MobileConnectManager {
                                 }
                             }
                         }
+                        val curMid = tvSong?.songMid.orEmpty()
+                        if (curMid.isNotBlank() && !curMid.startsWith("webdav_")) {
+                            val localFav = PlaybackManager.isSongFavorite(curMid)
+                            if (localFav != resolvedState.isFavorite) {
+                                PlaybackManager.setSongFavoriteState(curMid, resolvedState.isFavorite)
+                            }
+                        }
                     } else {
                         // TV 暂无播放曲目
                         if (PlaybackManager.isRemoteActive.value && localMute.value) {
@@ -217,6 +224,14 @@ object MobileConnectManager {
                 if (qState != null && remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
                     val resolvedQueue = qState.queue.map { resolveWebDavCoverLocally(it) }
                     PlaybackManager.syncRemoteQueue(resolvedQueue, qState.currentIndex)
+                }
+            }
+        }
+
+        scope.launch {
+            PlaybackManager.songFavoriteToggledEvent.collect { (song, isFav) ->
+                if (remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
+                    connectClient?.toggleFavorite(song = song, songMid = song.songMid, isFavorite = isFav)
                 }
             }
         }

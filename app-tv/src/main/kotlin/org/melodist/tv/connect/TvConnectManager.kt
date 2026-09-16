@@ -113,6 +113,7 @@ object TvConnectManager {
             var lastLoopMode = ""
             var lastAod = false
             var lastTier: AudioQualityTier? = null
+            var lastIsFav = false
             while (isActive) {
                 val s = connectServer ?: break
                 val dev = s.connectedDeviceFlow.value
@@ -124,15 +125,17 @@ object TvConnectManager {
                     val loopMode = PlaybackManager.loopMode.value.name
                     val isAod = org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value
                     val currentTier = PlaybackManager.currentTier.value
+                    val isFav = PlaybackManager.isSongFavorite(currentSong?.songMid)
 
                     val songMid = currentSong?.songMid.orEmpty()
-                    if (pos != lastPosition || isPlaying != lastIsPlaying || songMid != lastSongMid || loopMode != lastLoopMode || isAod != lastAod || currentTier != lastTier) {
+                    if (pos != lastPosition || isPlaying != lastIsPlaying || songMid != lastSongMid || loopMode != lastLoopMode || isAod != lastAod || currentTier != lastTier || isFav != lastIsFav) {
                         lastPosition = pos
                         lastIsPlaying = isPlaying
                         lastSongMid = songMid
                         lastLoopMode = loopMode
                         lastAod = isAod
                         lastTier = currentTier
+                        lastIsFav = isFav
 
                         s.broadcastPlayerState(
                             PlayerStateEvent(
@@ -148,6 +151,7 @@ object TvConnectManager {
                                 nextSong = PlaybackManager.getNextSong(),
                                 currentTier = currentTier,
                                 availableTiers = PlaybackManager.availableTiers.value,
+                                isFavorite = isFav,
                             ),
                         )
                     }
@@ -287,14 +291,23 @@ object TvConnectManager {
                     TakeoverGestureState.updateGesture(command.payload)
                 }
             }
+            is TvIncomingCommand.ToggleFavorite -> {
+                val cmd = command.command
+                val mid = cmd.songMid.ifBlank { cmd.song?.songMid.orEmpty() }
+                if (mid.isNotBlank()) {
+                    PlaybackManager.setSongFavoriteState(mid, cmd.isFavorite)
+                    broadcastPlayerStateNow()
+                }
+            }
         }
     }
 
     private fun broadcastPlayerStateNow() {
         val s = connectServer ?: return
+        val curSong = PlaybackManager.currentSong.value
         s.broadcastPlayerState(
             PlayerStateEvent(
-                currentSong = PlaybackManager.currentSong.value,
+                currentSong = curSong,
                 isPlaying = PlaybackManager.isPlaying.value,
                 positionMs = PlaybackManager.currentPositionMs.value,
                 durationMs = PlaybackManager.durationMs.value,
@@ -306,6 +319,7 @@ object TvConnectManager {
                 nextSong = PlaybackManager.getNextSong(),
                 currentTier = PlaybackManager.currentTier.value,
                 availableTiers = PlaybackManager.availableTiers.value,
+                isFavorite = PlaybackManager.isSongFavorite(curSong?.songMid),
             ),
         )
     }

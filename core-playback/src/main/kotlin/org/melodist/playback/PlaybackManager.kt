@@ -945,6 +945,21 @@ object PlaybackManager {
         return _favoriteSongMids.value.contains(songMid)
     }
 
+    fun setSongFavoriteState(songMid: String, isFav: Boolean) {
+        if (songMid.isBlank()) return
+        val currentSet = _favoriteSongMids.value
+        val updated = if (isFav) currentSet + songMid else currentSet - songMid
+        if (updated != currentSet) {
+            _favoriteSongMids.value = updated
+            savePlaybackState()
+            _currentSong.value?.let { current ->
+                if (current.songMid == songMid) {
+                    _songFavoriteToggledEvent.tryEmit(current to isFav)
+                }
+            }
+        }
+    }
+
     fun toggleSongFavorite(song: Song) {
         if (!isSongFavoriteSupported(song)) {
             val ctx = appContext

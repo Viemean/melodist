@@ -61,6 +61,7 @@ object ConnectActions {
     const val CMD_CYCLE_LOOP_MODE = "cmd_cycle_loop_mode"
     const val CMD_OPEN_PLAYER = "cmd_open_player"
     const val CMD_GESTURE_SWIPE = "cmd_gesture_swipe"
+    const val CMD_TOGGLE_FAVORITE = "cmd_toggle_favorite"
 
     const val EVENT_PLAY_STATE = "event_play_state"
     const val EVENT_QUEUE_STATE = "event_queue_state"
@@ -116,6 +117,13 @@ data class SetVolumeCommand(
 )
 
 @Serializable
+data class ToggleFavoriteCommand(
+    val song: Song? = null,
+    val songMid: String = "",
+    val isFavorite: Boolean = false,
+)
+
+@Serializable
 data class PlayerStateEvent(
     val currentSong: Song? = null,
     val isPlaying: Boolean = false,
@@ -130,6 +138,7 @@ data class PlayerStateEvent(
     val nextSong: Song? = null,
     val currentTier: AudioQualityTier? = null,
     val availableTiers: Set<AudioQualityTier> = emptySet(),
+    val isFavorite: Boolean = false,
 )
 
 @Serializable
