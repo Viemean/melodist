@@ -5,7 +5,7 @@ import java.net.NetworkInterface
 import java.util.Collections
 
 object NetworkUtils {
-    private val VIRTUAL_INTERFACE_PATTERNS = listOf(
+    internal val VIRTUAL_INTERFACE_PATTERNS = listOf(
         "tun", "tap", "ppp", "p2p", "virbr", "docker", "dummy", "vbox",
         "mihomo", "clash", "tailscale", "wireguard", "wg", "zt", "br-",
     )
@@ -19,44 +19,54 @@ object NetworkUtils {
             hw.contains("goldfish") || hw.contains("ranchu")
     }
 
+    // 判断 IP 地址是否属于需要过滤的范围（回环、APIPA、FakeIP、Docker 等）
+    internal fun isBlockedIp(host: String): Boolean =
+        host.startsWith("127.") ||
+            host.startsWith("169.254.") ||
+            host.startsWith("198.18.") ||
+            host.startsWith("172.17.") ||
+            host.startsWith("172.18.")
+
+    // 判断网络接口名是否属于虚拟/隧道接口
+    internal fun isVirtualInterface(name: String): Boolean =
+        VIRTUAL_INTERFACE_PATTERNS.any { name.lowercase().contains(it) }
+
+    // 计算 IP 地址的优先级得分（越高越优先推荐为本机地址）
+    internal fun scoreIp(host: String, interfaceName: String): Int {
+        var score = 0
+        val name = interfaceName.lowercase()
+        if (name.startsWith("wlan") || name.startsWith("eth") ||
+            name.startsWith("en") || name.startsWith("wl")
+        ) {
+            score += 50
+        }
+        if (host.startsWith("192.168.")) {
+            score += 40
+        } else if (host.startsWith("172.")) {
+            score += 30
+        } else if (host.startsWith("10.") && !host.startsWith("10.0.2.")) {
+            score += 20
+        } else if (host.startsWith("10.0.2.")) {
+            score += 1
+        }
+        return score
+    }
+
     fun getAvailableIpv4Addresses(): List<String> {
         val results = mutableListOf<Pair<String, Int>>() // Pair<IP, PriorityScore>
         try {
             val interfaces = Collections.list(NetworkInterface.getNetworkInterfaces())
             for (intf in interfaces) {
                 if (intf.isLoopback || !intf.isUp) continue
-                val name = intf.name.lowercase()
-                if (VIRTUAL_INTERFACE_PATTERNS.any { name.contains(it) }) continue
+                val name = intf.name
+                if (isVirtualInterface(name)) continue
 
                 val addresses = Collections.list(intf.inetAddresses)
                 for (addr in addresses) {
                     if (!addr.isLoopbackAddress && addr is Inet4Address) {
                         val host = addr.hostAddress ?: continue
-                        // 过滤回环、APIPA 自分配、TUN/FakeIP (198.18.)、Docker (172.17/18) 等
-                        if (host.startsWith("127.") ||
-                            host.startsWith("169.254.") ||
-                            host.startsWith("198.18.") ||
-                            host.startsWith("172.17.") ||
-                            host.startsWith("172.18.")
-                        ) {
-                            continue
-                        }
-
-                        var score = 0
-                        if (name.startsWith("wlan") || name.startsWith("eth") || name.startsWith("en") || name.startsWith("wl")) {
-                            score += 50
-                        }
-                        if (host.startsWith("192.168.")) {
-                            score += 40
-                        } else if (host.startsWith("172.")) {
-                            score += 30
-                        } else if (host.startsWith("10.") && !host.startsWith("10.0.2.")) {
-                            score += 20
-                        } else if (host.startsWith("10.0.2.")) {
-                            score += 1 // 模拟器私有 NAT
-                        }
-
-                        results.add(host to score)
+                        if (isBlockedIp(host)) continue
+                        results.add(host to scoreIp(host, name))
                     }
                 }
             }
