@@ -128,12 +128,15 @@ fun FeedRecommendRow(
 
     // 轮换槽位控制：0..6（每卡片分配 7 首歌）
     var rotationIndex by remember { mutableIntStateOf(0) }
+    var isRowFocused by remember { mutableStateOf(false) }
+    val isRowFocusedState = rememberUpdatedState(isRowFocused)
 
-    // 15 秒固定轮换定时器：持续平滑更新
+    // 15 秒固定轮换定时器：持续平滑更新（获焦时挂起）
     LaunchedEffect(songs.size) {
         if (songs.size < 5) return@LaunchedEffect
         while (isActive) {
             delay(15_000L)
+            if (isRowFocusedState.value) continue
             rotationIndex = (rotationIndex + 1) % 7
         }
     }
@@ -158,7 +161,7 @@ fun FeedRecommendRow(
             horizontalArrangement = Arrangement.spacedBy(22.dp),
             contentPadding = PaddingValues(start = 14.dp, end = 32.dp, top = 14.dp, bottom = 14.dp),
         ) {
-            items(5) { slotIndex ->
+            items(5, key = { slotIndex -> slotIndex }) { slotIndex ->
                 // 计算当前卡片展示的全局歌曲索引
                 val songGlobalIndex = ((rotationIndex * 5 + slotIndex) % songs.size).coerceIn(0, songs.size - 1)
                 val song = songs[songGlobalIndex]
@@ -205,7 +208,12 @@ fun FeedRecommendRow(
                     onFocusChanged = { focused ->
                         if (focused) {
                             focusedCardIndex = slotIndex
+                            isRowFocused = true
                             onCardFocused?.invoke(slotIndex)
+                        } else {
+                            if (focusedCardIndex == slotIndex) {
+                                isRowFocused = false
+                            }
                         }
                     },
                     onClick = {
