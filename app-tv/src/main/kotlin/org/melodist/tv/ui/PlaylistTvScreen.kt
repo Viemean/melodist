@@ -43,6 +43,8 @@ import org.melodist.api.getFavoriteSongsDetail
 import org.melodist.api.getGuessRecommendSongs
 import org.melodist.api.getPlaylistSongs
 import org.melodist.api.getPlaylists
+import org.melodist.data.DailyRecommendCacheManager
+import org.melodist.data.UserLibraryCacheManager
 import org.melodist.model.Album
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Playlist
@@ -434,25 +436,50 @@ fun PlaylistTvScreen(
         try {
             when (categoryId) {
                 "favorites" -> {
-                    val favResult = apiService.getFavoriteSongsDetail(page = 1, pageSize = 100)
-                    val currentList = favResult.songs
-                    playlistSongs = currentList
-                    totalCount = favResult.total
-                    UserSession.updateFavoriteSongCount(favResult.total)
-                    hasMore = favResult.hasMore
-                    saveToCache(currentList, favResult.total, favResult.hasMore)
-                    if (favResult.songs.isNotEmpty()) {
-                        PlaybackManager.addFavoriteSongMids(favResult.songs.map { it.songMid })
-                    }
-                    if (hasMore) {
-                        syncFullPlaylistToPlayback()
+                    val cachedFavs = UserLibraryCacheManager.favoriteSongsFlow.value
+                    if (cachedFavs.isNotEmpty()) {
+                        playlistSongs = cachedFavs
+                        totalCount = cachedFavs.size
+                        hasMore = false
+                        saveToCache(cachedFavs, cachedFavs.size, false)
+                        PlaybackManager.addFavoriteSongMids(cachedFavs.map { it.songMid })
+                        // 后台静默执行第一页轻量差分探测
+                        launch {
+                            try {
+                                val updated = UserLibraryCacheManager.probeAndSyncFavoritesFirstPage(apiService)
+                                if (updated != cachedFavs && updated.isNotEmpty()) {
+                                    playlistSongs = updated
+                                    totalCount = updated.size
+                                    saveToCache(updated, updated.size, false)
+                                    PlaybackManager.addFavoriteSongMids(updated.map { it.songMid })
+                                }
+                            } catch (_: Exception) {
+                            }
+                        }
+                    } else {
+                        val favSongs = UserLibraryCacheManager.loadFavoriteSongs(apiService, forceRefresh = false)
+                        playlistSongs = favSongs
+                        totalCount = favSongs.size
+                        hasMore = false
+                        saveToCache(favSongs, favSongs.size, false)
+                        if (favSongs.isNotEmpty()) {
+                            PlaybackManager.addFavoriteSongMids(favSongs.map { it.songMid })
+                        }
                     }
                 }
                 "daily" -> {
-                    val dailySongs = apiService.getDailyRecommendSongs()
-                    playlistSongs = dailySongs
-                    totalCount = dailySongs.size
+                    val cachedData = DailyRecommendCacheManager.recommendFlow.value
+                    val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
+                    val songs =
+                        if (DailyRecommendCacheManager.isCacheValidInCycle(cachedData, currentUin)) {
+                            cachedData.songs
+                        } else {
+                            DailyRecommendCacheManager.loadRecommendSongs(apiService).songs
+                        }
+                    playlistSongs = songs
+                    totalCount = songs.size
                     hasMore = false
+                    saveToCache(songs, songs.size, false)
                 }
                 "radar" -> {
                     val radarSongs = apiService.getGuessRecommendSongs(count = 30)
@@ -466,7 +493,9 @@ fun PlaylistTvScreen(
                             null
                         } else {
                             if (userPlaylists.isEmpty()) {
-                                userPlaylists = apiService.getPlaylists().filterNot { it.isMyFavorite }
+                                userPlaylists =
+                                    UserLibraryCacheManager.libraryFlow.value.playlists.filterNot { it.isMyFavorite }
+                                        .ifEmpty { apiService.getPlaylists().filterNot { it.isMyFavorite } }
                             }
                             userPlaylists.getOrNull(selectedPlaylistIndex)
                         }
@@ -477,21 +506,36 @@ fun PlaylistTvScreen(
                     val targetCount = if (activePlaylist != null) activePlaylist.songCount else 0
 
                     if (targetDirId > 0L || targetTid > 0L) {
-                        val pSongs =
-                            apiService.getPlaylistSongs(
-                                dirId = targetDirId,
-                                tid = targetTid,
-                                isFav = targetIsFav,
-                                page = 1,
-                                pageSize = 100,
-                            )
-                        playlistSongs = pSongs
-                        totalCount = if (targetCount > 0) targetCount else pSongs.size
-                        hasMore = (targetCount > pSongs.size) || (pSongs.size >= 100)
-
-                        // 若歌单曲目总数超过第一页，立即在后台自动全量拉取合并，确保选项列表与队列完整
-                        if (hasMore) {
-                            syncFullPlaylistToPlayback()
+                        val cached = UserLibraryCacheManager.getCachedPlaylistSongs(targetDirId, targetTid)
+                        if (cached != null && cached.isNotEmpty()) {
+                            playlistSongs = cached
+                            totalCount = if (targetCount > 0) targetCount else cached.size
+                            hasMore = false
+                            saveToCache(cached, totalCount, false)
+                            // 后台智能差分探测第一页
+                            launch {
+                                try {
+                                    val synced =
+                                        UserLibraryCacheManager.probeAndSyncPlaylistFirstPage(
+                                            apiService, targetDirId, targetTid, targetIsFav, targetCount
+                                        )
+                                    if (synced != cached && synced.isNotEmpty()) {
+                                        playlistSongs = synced
+                                        totalCount = synced.size
+                                        saveToCache(synced, synced.size, false)
+                                    }
+                                } catch (_: Exception) {
+                                }
+                            }
+                        } else {
+                            val pSongs =
+                                UserLibraryCacheManager.probeAndSyncPlaylistFirstPage(
+                                    apiService, targetDirId, targetTid, targetIsFav, targetCount
+                                )
+                            playlistSongs = pSongs
+                            totalCount = if (targetCount > 0) targetCount else pSongs.size
+                            hasMore = false
+                            saveToCache(pSongs, totalCount, false)
                         }
                     } else {
                         playlistSongs = emptyList()

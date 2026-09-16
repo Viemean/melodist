@@ -104,8 +104,8 @@ object DailyRecommendCacheManager {
     }
 
     /**
-     * 判断给定缓存是否属于当前 06:00 更新周期。
-     * QQ 音乐每日推荐在每日 06:00 进行周期性更新。
+     * 判断给定缓存是否属于当前自然日（每日 00:00 更新周期）。
+     * 只要今日更新过一次，直接使用本地持久化缓存。
      */
     fun isCacheValidInCycle(
         data: DailyRecommendData,
@@ -119,22 +119,16 @@ object DailyRecommendCacheManager {
         }
 
         val now = System.currentTimeMillis()
-        val calNow = Calendar.getInstance().apply { timeInMillis = now }
-
-        val cycleStart =
+        val todayMidnight =
             Calendar.getInstance().apply {
                 timeInMillis = now
-                set(Calendar.HOUR_OF_DAY, 6)
+                set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-                // 如果当前时刻在今日 06:00 之前，则当前周期的起始为昨日 06:00
-                if (calNow.before(this)) {
-                    add(Calendar.DAY_OF_MONTH, -1)
-                }
             }
 
-        return data.fetchTimestamp >= cycleStart.timeInMillis
+        return data.fetchTimestamp >= todayMidnight.timeInMillis
     }
 
     suspend fun loadRecommendSongs(

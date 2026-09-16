@@ -17,6 +17,7 @@ import org.melodist.api.UserSession
 import org.melodist.api.addAlbumToFavorite
 import org.melodist.api.getFavoriteAlbums
 import org.melodist.api.getFavoriteSongsDetail
+import org.melodist.api.getPlaylistSongs
 import org.melodist.api.getPlaylists
 import org.melodist.api.removeAlbumFromFavorite
 import org.melodist.model.Album
@@ -42,6 +43,14 @@ data class FavoriteSongsCache(
     val accountUin: String = "",
 )
 
+@Serializable
+data class PlaylistSongsCache(
+    val songs: List<Song> = emptyList(),
+    val totalCount: Int = 0,
+    val fetchTimestamp: Long = 0L,
+    val accountUin: String = "",
+)
+
 object UserLibraryCacheManager {
     private const val CACHE_FILE_NAME = "user_library_cache.json"
     private const val FAV_SONGS_CACHE_FILE_NAME = "favorite_songs_cache.json"
@@ -62,6 +71,7 @@ object UserLibraryCacheManager {
 
     private var cacheFile: File? = null
     private var favSongsCacheFile: File? = null
+    private var playlistCacheDir: File? = null
     private var isObservingUser = false
     private var periodicRefreshJob: Job? = null
     private var favSongsCache = FavoriteSongsCache()
@@ -70,6 +80,7 @@ object UserLibraryCacheManager {
         val appContext = context.applicationContext
         cacheFile = File(appContext.cacheDir, CACHE_FILE_NAME)
         favSongsCacheFile = File(appContext.cacheDir, FAV_SONGS_CACHE_FILE_NAME)
+        playlistCacheDir = File(appContext.cacheDir, "playlist_cache").apply { mkdirs() }
         loadFromDisk()
         loadFavSongsFromDisk()
 
@@ -85,6 +96,8 @@ object UserLibraryCacheManager {
                     }
                     if (currentUin != lastUin) {
                         lastUin = currentUin
+                        playlistCacheDir?.deleteRecursively()
+                        playlistCacheDir?.mkdirs()
                         if (currentUin.isBlank()) {
                             _libraryFlow.value = UserLibraryData()
                             _favoriteSongsFlow.value = emptyList()
@@ -206,6 +219,101 @@ object UserLibraryCacheManager {
         }
     }
 
+    private fun updateFavoriteCount(count: Int, uin: String) {
+        val updated =
+            _libraryFlow.value.copy(
+                favoriteCount = count,
+                accountUin = uin,
+            )
+        _libraryFlow.value = updated
+        saveToDisk(updated)
+    }
+
+    /**
+     * 智能轻量第一页探测与同步 (Top-Page Smart Diff Probe)
+     * - 头部新增：仅将新收藏的歌曲追加合并到本地头部，0 后续网络开销
+     * - 中间或末尾变动（外部大清理/取消收藏/重排）：触发异步全量拉取
+     * - 无变动：仅更新时间戳
+     */
+    suspend fun probeAndSyncFavoritesFirstPage(apiService: MusicApiService): List<Song> {
+        if (!UserSession.isLoggedIn) return emptyList()
+        return withContext(Dispatchers.IO) {
+            try {
+                val firstPageResult = apiService.getFavoriteSongsDetail(page = 1, pageSize = 30)
+                val remoteSongs = firstPageResult.songs
+                val remoteTotal = firstPageResult.total
+                val localSongs = favSongsCache.songs
+                val currentUin = UserSession.profile.uin
+
+                // Case 1: 本地为空但远端有数据 -> 触发全量拉取
+                if (localSongs.isEmpty() && remoteSongs.isNotEmpty()) {
+                    return@withContext loadFavoriteSongs(apiService, forceRefresh = true)
+                }
+
+                // Case 2: 远端为空但本地不为空 -> 说明用户在外部清空了全部喜欢
+                if (remoteSongs.isEmpty() && localSongs.isNotEmpty()) {
+                    val emptyCache = FavoriteSongsCache(emptyList(), System.currentTimeMillis(), currentUin)
+                    favSongsCache = emptyCache
+                    _favoriteSongsFlow.value = emptyList()
+                    saveFavSongsToDisk(emptyCache)
+                    updateFavoriteCount(0, currentUin)
+                    return@withContext emptyList()
+                }
+
+                val localFirstMid = localSongs.firstOrNull()?.songMid
+                val remoteFirstMid = remoteSongs.firstOrNull()?.songMid
+
+                if (localFirstMid == remoteFirstMid) {
+                    // 头部第一首相同，进一步比对前 30 首序列
+                    val checkCount = minOf(remoteSongs.size, localSongs.size)
+                    val isPrefixIdentical = (0 until checkCount).all { i ->
+                        remoteSongs[i].songMid == localSongs[i].songMid
+                    }
+                    if (isPrefixIdentical && (remoteTotal <= 0 || remoteTotal == localSongs.size)) {
+                        // Case 3: 完全一致，无任何变更，仅更新时间戳
+                        val updatedCache = favSongsCache.copy(fetchTimestamp = System.currentTimeMillis(), accountUin = currentUin)
+                        favSongsCache = updatedCache
+                        saveFavSongsToDisk(updatedCache)
+                        return@withContext localSongs
+                    } else {
+                        // 中间或尾部有变动（例如在外部删除了中间的歌，导致位移）-> 触发异步全量拉取
+                        return@withContext loadFavoriteSongs(apiService, forceRefresh = true)
+                    }
+                }
+
+                // 头部第一首不同，检查是否为“头部新增”
+                val localHeadIndexInRemote = remoteSongs.indexOfFirst { it.songMid == localFirstMid }
+                if (localHeadIndexInRemote > 0) {
+                    // 检查从 localHeadIndexInRemote 开始的连续子序列是否与本地头部吻合
+                    val matchLength = minOf(remoteSongs.size - localHeadIndexInRemote, localSongs.size)
+                    val isSubsequenceMatch = (0 until matchLength).all { i ->
+                        remoteSongs[localHeadIndexInRemote + i].songMid == localSongs[i].songMid
+                    }
+                    if (isSubsequenceMatch) {
+                        // Case 4: 确认为头部新增了 N 首歌
+                        val newSongs = remoteSongs.take(localHeadIndexInRemote)
+                        val merged = newSongs + localSongs
+                        val updatedCache = FavoriteSongsCache(
+                            songs = merged,
+                            fetchTimestamp = System.currentTimeMillis(),
+                            accountUin = currentUin,
+                        )
+                        favSongsCache = updatedCache
+                        _favoriteSongsFlow.value = merged
+                        saveFavSongsToDisk(updatedCache)
+                        updateFavoriteCount(merged.size, currentUin)
+                        return@withContext merged
+                    }
+                }
+
+                // Case 5: 既不是完全一致，也不是纯粹头部新增 -> 说明外部进行了复杂清理或重排，执行异步全量更新
+                loadFavoriteSongs(apiService, forceRefresh = true)
+            } catch (_: Exception) {
+                favSongsCache.songs
+            }
+        }
+    }
+
     fun onFavoriteToggled(
         song: Song,
         isFavorited: Boolean,
@@ -218,22 +326,18 @@ object UserLibraryCacheManager {
             current.removeAll { it.songMid == song.songMid }
         }
         _favoriteSongsFlow.value = current
+        val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
+        val updatedCache = favSongsCache.copy(songs = current, fetchTimestamp = System.currentTimeMillis(), accountUin = currentUin)
+        favSongsCache = updatedCache
+        saveFavSongsToDisk(updatedCache)
+        updateFavoriteCount(current.size, currentUin)
 
-        // Background full refresh after server sync
+        // 延迟 1.5 秒后主动拉取第 1 页进行服务端确认校验
         scope.launch {
-            delay(1500) // wait for API call to complete
+            delay(1500)
             if (!UserSession.isLoggedIn) return@launch
             try {
-                loadFavoriteSongs(MusicApiService(), forceRefresh = true)
-                val favCount = _favoriteSongsFlow.value.size
-                val currentUin = UserSession.profile.uin
-                val updated =
-                    _libraryFlow.value.copy(
-                        favoriteCount = favCount,
-                        accountUin = currentUin,
-                    )
-                _libraryFlow.value = updated
-                saveToDisk(updated)
+                probeAndSyncFavoritesFirstPage(MusicApiService())
             } catch (_: Exception) {
             }
         }
@@ -388,7 +492,8 @@ object UserLibraryCacheManager {
                     }
                     if (UserSession.isLoggedIn) {
                         try {
-                            loadFavoriteSongs(MusicApiService(), forceRefresh = true)
+                            probeAndSyncFavoritesFirstPage(MusicApiService())
+                            loadLibrary(MusicApiService(), forceRefresh = false)
                         } catch (_: Exception) {
                         }
                     }
@@ -443,5 +548,135 @@ object UserLibraryCacheManager {
                 _isLoadingFlow.value = false
             }
         }
+    }
+
+    private fun getPlaylistCacheFile(dirId: Long, tid: Long): File? {
+        val dir = playlistCacheDir ?: return null
+        return File(dir, "${dirId}_${tid}.json")
+    }
+
+    fun getCachedPlaylistSongs(dirId: Long, tid: Long): List<Song>? {
+        try {
+            val file = getPlaylistCacheFile(dirId, tid) ?: return null
+            if (file.exists() && file.length() > 0) {
+                val cache = json.decodeFromString<PlaylistSongsCache>(file.readText())
+                val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
+                if (cache.accountUin == currentUin) {
+                    return cache.songs
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return null
+    }
+
+    fun savePlaylistSongsCache(dirId: Long, tid: Long, songs: List<Song>, totalCount: Int = songs.size) {
+        scope.launch {
+            try {
+                val file = getPlaylistCacheFile(dirId, tid) ?: return@launch
+                val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
+                val cache =
+                    PlaylistSongsCache(
+                        songs = songs,
+                        totalCount = totalCount,
+                        fetchTimestamp = System.currentTimeMillis(),
+                        accountUin = currentUin,
+                    )
+                file.writeText(json.encodeToString(PlaylistSongsCache.serializer(), cache))
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    suspend fun probeAndSyncPlaylistFirstPage(
+        apiService: MusicApiService,
+        dirId: Long,
+        tid: Long,
+        isFav: Boolean,
+        targetTotalCount: Int = 0,
+    ): List<Song> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val localSongs = getCachedPlaylistSongs(dirId, tid) ?: emptyList()
+                val remoteSongs =
+                    apiService.getPlaylistSongs(
+                        dirId = dirId,
+                        tid = tid,
+                        isFav = isFav,
+                        page = 1,
+                        pageSize = 30,
+                    )
+
+                if (localSongs.isEmpty() && remoteSongs.isNotEmpty()) {
+                    val all = fetchAllPlaylistSongs(apiService, dirId, tid, isFav)
+                    savePlaylistSongsCache(dirId, tid, all, all.size)
+                    return@withContext all
+                }
+
+                if (remoteSongs.isEmpty() && localSongs.isNotEmpty()) {
+                    savePlaylistSongsCache(dirId, tid, emptyList(), 0)
+                    return@withContext emptyList()
+                }
+
+                val localFirstMid = localSongs.firstOrNull()?.songMid
+                val remoteFirstMid = remoteSongs.firstOrNull()?.songMid
+
+                if (localFirstMid == remoteFirstMid) {
+                    val checkCount = minOf(remoteSongs.size, localSongs.size)
+                    val isPrefixIdentical = (0 until checkCount).all { i ->
+                        remoteSongs[i].songMid == localSongs[i].songMid
+                    }
+                    if (isPrefixIdentical && (targetTotalCount <= 0 || targetTotalCount == localSongs.size)) {
+                        return@withContext localSongs
+                    } else {
+                        val all = fetchAllPlaylistSongs(apiService, dirId, tid, isFav)
+                        savePlaylistSongsCache(dirId, tid, all, all.size)
+                        return@withContext all
+                    }
+                }
+
+                val localHeadIndexInRemote = remoteSongs.indexOfFirst { it.songMid == localFirstMid }
+                if (localHeadIndexInRemote > 0) {
+                    val matchLength = minOf(remoteSongs.size - localHeadIndexInRemote, localSongs.size)
+                    val isSubsequenceMatch = (0 until matchLength).all { i ->
+                        remoteSongs[localHeadIndexInRemote + i].songMid == localSongs[i].songMid
+                    }
+                    if (isSubsequenceMatch) {
+                        val newSongs = remoteSongs.take(localHeadIndexInRemote)
+                        val merged = newSongs + localSongs
+                        savePlaylistSongsCache(dirId, tid, merged, merged.size)
+                        return@withContext merged
+                    }
+                }
+
+                val all = fetchAllPlaylistSongs(apiService, dirId, tid, isFav)
+                savePlaylistSongsCache(dirId, tid, all, all.size)
+                all
+            } catch (_: Exception) {
+                getCachedPlaylistSongs(dirId, tid) ?: emptyList()
+            }
+        }
+    }
+
+    private suspend fun fetchAllPlaylistSongs(
+        apiService: MusicApiService,
+        dirId: Long,
+        tid: Long,
+        isFav: Boolean,
+    ): List<Song> {
+        val all = mutableListOf<Song>()
+        var page = 1
+        var hasMore = true
+        while (hasMore) {
+            val songs = apiService.getPlaylistSongs(dirId, tid, isFav, page = page, pageSize = 100)
+            if (songs.isEmpty()) break
+            all.addAll(songs)
+            if (songs.size < 100) {
+                hasMore = false
+            } else {
+                page++
+            }
+        }
+        return all
     }
 }

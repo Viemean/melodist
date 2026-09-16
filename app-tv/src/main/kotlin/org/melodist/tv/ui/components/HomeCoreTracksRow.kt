@@ -34,6 +34,8 @@ import org.melodist.api.getFavoriteSongsDetail
 import org.melodist.api.getGuessRecommendSongs
 import org.melodist.api.getPlaylistSongs
 import org.melodist.api.getPlaylists
+import org.melodist.data.DailyRecommendCacheManager
+import org.melodist.data.UserLibraryCacheManager
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
@@ -70,13 +72,7 @@ object HomeCardsCache {
 
     var lastFetchTimeMs: Long = 0L
     var lastRadarFetchTimeMs: Long = 0L
-    private const val TTL_MS = 30 * 60 * 1000L // 30 分钟缓存保持
     const val RADAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000L // 5 分钟更新一次
-
-    fun isLoaded(): Boolean =
-        lastFetchTimeMs > 0L &&
-            (System.currentTimeMillis() - lastFetchTimeMs < TTL_MS) &&
-            (dailySongs.isNotEmpty() || radarSongs.isNotEmpty() || favSongs.isNotEmpty() || playlistItems.isNotEmpty())
 
     fun onSongFavoriteChanged(song: org.melodist.model.Song, isFav: Boolean) {
         if (isFav) {
@@ -104,11 +100,16 @@ fun HomeCoreTracksRow(
     val userProfile by UserSession.profileFlow.collectAsState()
     val apiService = remember { MusicApiService() }
 
-    var favSongs by remember { mutableStateOf(HomeCardsCache.favSongs) }
-    var dailySongs by remember { mutableStateOf(HomeCardsCache.dailySongs) }
+    val dailyData by DailyRecommendCacheManager.recommendFlow.collectAsState()
+    val favSongsList by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
+    val userLibraryData by UserLibraryCacheManager.libraryFlow.collectAsState()
+
     var radarSongs by remember { mutableStateOf(HomeCardsCache.radarSongs) }
-    var playlistItems by remember { mutableStateOf(HomeCardsCache.playlistItems) }
-    var albumItems by remember { mutableStateOf(HomeCardsCache.albumItems) }
+
+    val favSongs = favSongsList
+    val dailySongs = dailyData.songs
+    val playlistItems = userLibraryData.playlists.filterNot { it.isMyFavorite }
+    val albumItems = userLibraryData.favoriteAlbums
 
     // 5 张卡片当前选中的候选索引
     var favIndex by remember { mutableIntStateOf(0) }
@@ -119,76 +120,43 @@ fun HomeCoreTracksRow(
 
     LaunchedEffect(userProfile) {
         if (!UserSession.isLoggedIn) {
-            HomeCardsCache.favSongs = emptyList()
-            HomeCardsCache.favCover = ""
-            HomeCardsCache.favBgColor = null
-            HomeCardsCache.dailySongs = emptyList()
-            HomeCardsCache.dailyCover = ""
-            HomeCardsCache.dailyBgColor = null
-            HomeCardsCache.radarSongs = emptyList()
-            HomeCardsCache.radarCover = ""
-            HomeCardsCache.radarAlbumMid = ""
-            HomeCardsCache.radarBgColor = null
-            HomeCardsCache.playlistItems = emptyList()
-            HomeCardsCache.playlistCover = ""
-            HomeCardsCache.playlistBgColor = null
-            HomeCardsCache.albumItems = emptyList()
-            HomeCardsCache.albumCover = ""
-            HomeCardsCache.albumAlbumMid = ""
-            HomeCardsCache.albumBgColor = null
-            HomeCardsCache.lastFetchTimeMs = 0L
-            HomeCardsCache.lastRadarFetchTimeMs = 0L
-
-            favSongs = emptyList()
-            dailySongs = emptyList()
             radarSongs = emptyList()
-            playlistItems = emptyList()
-            albumItems = emptyList()
+            HomeCardsCache.radarSongs = emptyList()
             return@LaunchedEffect
         }
 
-        if (HomeCardsCache.isLoaded()) {
-            favSongs = HomeCardsCache.favSongs
-            dailySongs = HomeCardsCache.dailySongs
-            radarSongs = HomeCardsCache.radarSongs
-            playlistItems = HomeCardsCache.playlistItems
-            albumItems = HomeCardsCache.albumItems
-            return@LaunchedEffect
+        // 1. 每日推荐：按 00:00 自然日周期判定，今日已拉取则直接使用本地持久化缓存（0网络请求）
+        launch {
+            try {
+                DailyRecommendCacheManager.loadRecommendSongs(apiService, forceRefresh = false)
+            } catch (_: Exception) {
+            }
         }
 
-        // 1. 我的喜欢：获取前 15 首，前 5 首保留作为最新收藏
-        val j1 =
-            launch {
-                try {
-                    val fav = apiService.getFavoriteSongsDetail(page = 1, pageSize = 15)
-                    if (fav.songs.isNotEmpty()) {
-                        val valid = fav.songs.take(15)
-                        favSongs = valid
-                        HomeCardsCache.favSongs = valid
-                        HomeCardsCache.favCover = valid.first().coverUrl
-                    }
-                } catch (_: Exception) {
+        // 2. 我的喜欢：本地持久化秒出；后台轻量探测第 1 页进行增量合并
+        launch {
+            try {
+                if (favSongsList.isEmpty()) {
+                    UserLibraryCacheManager.loadFavoriteSongs(apiService, forceRefresh = false)
+                } else {
+                    UserLibraryCacheManager.probeAndSyncFavoritesFirstPage(apiService)
                 }
+            } catch (_: Exception) {
             }
+        }
 
-        // 2. 每日推荐：30 首候选池
-        val j2 =
-            launch {
-                try {
-                    val daily = apiService.getDailyRecommendSongs()
-                    if (daily.isNotEmpty()) {
-                        dailySongs = daily
-                        HomeCardsCache.dailySongs = daily
-                        HomeCardsCache.dailyCover = daily.first().coverUrl
-                    }
-                } catch (_: Exception) {
-                }
+        // 3. 用户库（歌单与收藏专辑）：本地持久化秒出
+        launch {
+            try {
+                UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = false)
+            } catch (_: Exception) {
             }
+        }
 
-        // 3. 猜你喜欢：15 首候选队列
-        val j3 =
-            launch {
-                try {
+        // 4. 猜你喜欢：拉取 15 首候选队列并支持 5 分钟定时刷新
+        launch {
+            try {
+                if (radarSongs.isEmpty()) {
                     val radar = apiService.getGuessRecommendSongs(count = 15)
                     if (radar.isNotEmpty()) {
                         val valid = radar.take(15)
@@ -198,44 +166,9 @@ fun HomeCoreTracksRow(
                         HomeCardsCache.radarAlbumMid = valid.first().albumMid
                         HomeCardsCache.lastRadarFetchTimeMs = System.currentTimeMillis()
                     }
-                } catch (_: Exception) {
                 }
+            } catch (_: Exception) {
             }
-
-        // 4. 我的歌单：复用前 10 个歌单候选
-        val j4 =
-            launch {
-                try {
-                    val lists = apiService.getPlaylists().filterNot { it.isMyFavorite }
-                    if (lists.isNotEmpty()) {
-                        val valid = lists.take(10)
-                        playlistItems = valid
-                        HomeCardsCache.playlistItems = valid
-                        HomeCardsCache.playlistCover = valid.first().picUrl
-                    }
-                } catch (_: Exception) {
-                }
-            }
-
-        // 5. 我的收藏：复用前 10 个专辑候选
-        val j5 =
-            launch {
-                try {
-                    val albums = apiService.getFavoriteAlbums()
-                    if (albums.isNotEmpty()) {
-                        val valid = albums.take(10)
-                        albumItems = valid
-                        HomeCardsCache.albumItems = valid
-                        HomeCardsCache.albumCover = valid.first().coverUrl
-                        HomeCardsCache.albumAlbumMid = valid.first().mid
-                    }
-                } catch (_: Exception) {
-                }
-            }
-
-        kotlinx.coroutines.joinAll(j1, j2, j3, j4, j5)
-        if (dailySongs.isNotEmpty() || radarSongs.isNotEmpty() || favSongs.isNotEmpty() || playlistItems.isNotEmpty()) {
-            HomeCardsCache.lastFetchTimeMs = System.currentTimeMillis()
         }
     }
 

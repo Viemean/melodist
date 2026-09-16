@@ -68,8 +68,9 @@ class MainActivity : ComponentActivity() {
             .init(this)
         org.melodist.data.LocalMusicManager
             .init(this)
-        org.melodist.data.AppSettingsManager
-            .init(this)
+        org.melodist.data.AppSettingsManager.init(this)
+        org.melodist.data.DailyRecommendCacheManager.init(this)
+        org.melodist.data.UserLibraryCacheManager.init(this)
         ScreenSaverManager.init()
         TvConnectManager.init(this)
         checkAndRequestStoragePermissions()
@@ -133,6 +134,7 @@ class MainActivity : ComponentActivity() {
                             PlaybackManager.songFavoriteToggledEvent.collect { (song, isFav) ->
                                 PlaylistScreenCache.onSongFavoriteChanged(song, isFav)
                                 org.melodist.tv.ui.components.HomeCardsCache.onSongFavoriteChanged(song, isFav)
+                                org.melodist.data.UserLibraryCacheManager.onFavoriteToggled(song, isFav)
                             }
                         }
 
