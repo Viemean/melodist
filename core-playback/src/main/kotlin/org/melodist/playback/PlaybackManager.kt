@@ -20,6 +20,7 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -186,22 +187,47 @@ object PlaybackManager {
 
     private var prefetchedUrlInfo: Pair<String, QualityResult>? = null
     private var prefetchJob: Job? = null
+    private var currentSongRetryCount = 0
     private var consecutiveErrorCount = 0
+    private var lastCustomStreamArgs: Triple<Song, String, Map<String, String>>? = null
 
-    private fun handlePlaybackFailure(errorMsg: String) {
+    private fun handlePlaybackFailure(errorMsg: String, allowCurrentSongRetry: Boolean = true) {
         _isLoading.value = false
         _isTransitioning.value = false
+        val curr = _currentSong.value
+
+        if (allowCurrentSongRetry && curr != null && currentSongRetryCount < 2) {
+            currentSongRetryCount++
+            Log.w("MelodistPlayback", "Playback failure for ${curr.name} (retry $currentSongRetryCount/2): $errorMsg")
+            _errorMessage.value = "网络加载波动，正在等待重试 ($currentSongRetryCount/2)..."
+            _isLoading.value = true
+            scope.launch {
+                delay(3000L)
+                val targetSong = _currentSong.value
+                if (targetSong?.songMid == curr.songMid) {
+                    val custom = lastCustomStreamArgs
+                    if (custom != null && custom.first.songMid == curr.songMid) {
+                        playCustomStream(custom.first, custom.second, custom.third, seekToMs = _currentPositionMs.value)
+                    } else {
+                        playSong(curr, forceTier = _currentTier.value, seekToMs = _currentPositionMs.value)
+                    }
+                }
+            }
+            return
+        }
+
+        currentSongRetryCount = 0
         consecutiveErrorCount++
         if (consecutiveErrorCount >= 3) {
             Log.w("MelodistPlayback", "Continuous playback failure reached limit (3), stopping playback.")
-            _errorMessage.value = "$errorMsg (已尝试3次，已停止)"
+            _errorMessage.value = "$errorMsg (多次尝试失败已停止)"
             _isPlaying.value = false
             exoPlayer?.stop()
             consecutiveErrorCount = 0
         } else {
-            _errorMessage.value = "$errorMsg (重试中 $consecutiveErrorCount/3)"
+            _errorMessage.value = "$errorMsg (即将尝试下一首 $consecutiveErrorCount/3)"
             scope.launch {
-                delay(1500L)
+                delay(3000L)
                 playNext()
             }
         }
@@ -253,6 +279,7 @@ object PlaybackManager {
                 }
                 _isPlaying.value = playing
                 if (playing) {
+                    currentSongRetryCount = 0
                     consecutiveErrorCount = 0
                 } else {
                     savePlaybackProgress(exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L)
@@ -265,6 +292,7 @@ object PlaybackManager {
                         _isLoading.value = false
                         _durationMs.value = exoPlayer?.duration?.coerceAtLeast(0L) ?: 0L
                         if (exoPlayer?.isPlaying == true) {
+                            currentSongRetryCount = 0
                             consecutiveErrorCount = 0
                         }
                         if (_isSwitchingQuality.value) {
@@ -459,8 +487,8 @@ object PlaybackManager {
                 .Factory()
                 .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                 .setAllowCrossProtocolRedirects(true)
-                .setConnectTimeoutMs(15000)
-                .setReadTimeoutMs(15000)
+                .setConnectTimeoutMs(30_000)
+                .setReadTimeoutMs(30_000)
 
         val defaultDataSourceFactory = DefaultDataSource.Factory(context.applicationContext, httpDataSourceFactory)
         val cachedDataSourceFactory =
@@ -469,6 +497,7 @@ object PlaybackManager {
         val mediaSourceFactory =
             DefaultMediaSourceFactory(context.applicationContext)
                 .setDataSourceFactory(cachedDataSourceFactory)
+                .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
 
         val isOffload = org.melodist.data.AppSettingsManager.settings.value.enableAudioOffload
         val offloadMode =
@@ -490,13 +519,13 @@ object PlaybackManager {
                 .Builder()
                 .setBufferDurationsMs(
                     // minBufferMs =
-                    15_000,
+                    30_000,
                     // maxBufferMs =
-                    45_000,
+                    90_000,
                     // bufferForPlaybackMs =
-                    500,
+                    2_000,
                     // bufferForPlaybackAfterRebufferMs =
-                    1_500,
+                    4_000,
                 ).setPrioritizeTimeOverSizeThresholds(true)
                 .build()
 
@@ -768,6 +797,10 @@ object PlaybackManager {
                             _currentPositionMs.value = pos
                             if (dur > 0L) {
                                 _durationMs.value = dur
+                                val mid = _currentSong.value?.songMid
+                                if (!mid.isNullOrBlank()) {
+                                    MelodistCacheManager.recordPlayProgress(mid, pos, dur)
+                                }
                             }
                             saveCounter++
                             if (saveCounter >= 250) {
@@ -875,6 +908,11 @@ object PlaybackManager {
         forceTier: AudioQualityTier? = null,
         seekToMs: Long = 0L,
     ) {
+        lastCustomStreamArgs = null
+        MelodistCacheManager.onNewSongStarted(song.songMid)
+        if (_currentSong.value?.songMid != song.songMid) {
+            currentSongRetryCount = 0
+        }
         playJob?.cancel()
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
@@ -1091,6 +1129,8 @@ object PlaybackManager {
                                 .Factory()
                                 .setUserAgent("MelodistTV/1.0 ExoPlayer")
                                 .setAllowCrossProtocolRedirects(true)
+                                .setConnectTimeoutMs(30_000)
+                                .setReadTimeoutMs(30_000)
                         if (!authHeader.isNullOrBlank()) {
                             baseHttpFactory.setDefaultRequestProperties(mapOf("Authorization" to authHeader))
                         }
@@ -1100,6 +1140,7 @@ object PlaybackManager {
                         val mediaSource =
                             ProgressiveMediaSource
                                 .Factory(cachedDataSourceFactory)
+                                .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
                                 .createMediaSource(buildMediaItem(android.net.Uri.parse(streamUrl), song))
                         if (seekToMs > 0L) {
                             player.setMediaSource(mediaSource, seekToMs)
@@ -1249,11 +1290,40 @@ object PlaybackManager {
                     )
                     _currentTier.value = playUrlInfo.tier
                     val player = exoPlayer ?: return@launch
-                    val mediaItem = buildMediaItem(android.net.Uri.parse(rawUrl), song)
+                    val ctx = appContext ?: return@launch
+                    val isFav = isSongFavorite(song.songMid)
+                    val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav)
+                    val isCached = MelodistCacheManager.isUriCached(rawUrl)
+                    Log.i(
+                        "MelodistPlayback",
+                        "Admission cache check for ${song.name}: shouldCache=$shouldCache (fav=$isFav, plays=${MelodistCacheManager.getPlayCount(song.songMid)}, isCached=$isCached)",
+                    )
+
+                    val httpFactory =
+                        DefaultHttpDataSource
+                            .Factory()
+                            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                            .setAllowCrossProtocolRedirects(true)
+                            .setConnectTimeoutMs(30_000)
+                            .setReadTimeoutMs(30_000)
+                    val defaultFactory = DefaultDataSource.Factory(ctx, httpFactory)
+                    val dsFactory =
+                        if (shouldCache || isCached) {
+                            MelodistCacheManager.buildCacheDataSourceFactory(ctx, defaultFactory)
+                        } else {
+                            defaultFactory
+                        }
+
+                    val mediaSource =
+                        ProgressiveMediaSource
+                            .Factory(dsFactory)
+                            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
+                            .createMediaSource(buildMediaItem(android.net.Uri.parse(rawUrl), song))
+
                     if (seekToMs > 0L) {
-                        player.setMediaItem(mediaItem, seekToMs)
+                        player.setMediaSource(mediaSource, seekToMs)
                     } else {
-                        player.setMediaItem(mediaItem)
+                        player.setMediaSource(mediaSource)
                     }
                     player.volume = if (_isMuted.value) 0f else targetVolume
                     player.prepare()
@@ -1333,6 +1403,11 @@ object PlaybackManager {
         headers: Map<String, String> = emptyMap(),
         seekToMs: Long = 0L,
     ) {
+        lastCustomStreamArgs = Triple(song, streamUrl, headers)
+        MelodistCacheManager.onNewSongStarted(song.songMid)
+        if (_currentSong.value?.songMid != song.songMid) {
+            currentSongRetryCount = 0
+        }
         consecutiveErrorCount = 0
         playJob?.cancel()
         switchQualityJob?.cancel()
@@ -1360,12 +1435,15 @@ object PlaybackManager {
         val baseHttpFactory = DefaultHttpDataSource.Factory()
             .setUserAgent("MelodistTV/1.0 ConnectStream")
             .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(30_000)
+            .setReadTimeoutMs(30_000)
         if (headers.isNotEmpty()) {
             baseHttpFactory.setDefaultRequestProperties(headers)
         }
         val ctx = appContext ?: return
         val dataSourceFactory = DefaultDataSource.Factory(ctx, baseHttpFactory)
         val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
             .createMediaSource(buildMediaItem(android.net.Uri.parse(streamUrl), song))
 
         if (seekToMs > 0L) {
