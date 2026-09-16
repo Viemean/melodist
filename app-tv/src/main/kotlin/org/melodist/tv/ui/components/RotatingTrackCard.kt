@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
@@ -30,9 +31,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
+import org.melodist.tv.ui.theme.LocalMonetSurface
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.MonetColorExtractor
+import org.melodist.tv.ui.theme.toMonetContainer
 
 /**
  * 统一卡片候选数据结构
@@ -64,50 +67,72 @@ fun RotatingTrackCard(
 ) {
     val cardHeight = cardWidth * 1.22f
 
-    // 单图 Monet 取色
-    var dynamicBgColor by remember { mutableStateOf<Color?>(null) }
+    // Material You 规范：卡片底色基于全局环境表面色推导统一的深色容器层 (Container Surface)
+    val globalMonetSurface = LocalMonetSurface.current
+    val cardContainerColor =
+        remember(globalMonetSurface) {
+            globalMonetSurface.toMonetContainer(0.06f)
+        }
+    val animatedCardBg by animateColorAsState(
+        targetValue = cardContainerColor,
+        animationSpec = tween(600),
+        label = "RotatingCardContainerColor",
+    )
+
+    // 单图 Monet 取色：作为点睛强调色 (Dynamic Accent) 赋予 Badge 与播放按钮
+    var dynamicCoverColor by remember { mutableStateOf<Color?>(null) }
     LaunchedEffect(item.coverUrl) {
         if (item.coverUrl.isNotBlank()) {
-            dynamicBgColor = MonetColorExtractor.extractFromUrl(item.coverUrl)
+            dynamicCoverColor = MonetColorExtractor.extractFromUrl(item.coverUrl)
         }
     }
 
-    val currentBgColor = dynamicBgColor ?: item.defaultBgColor
-    val animatedBgColor by animateColorAsState(
-        targetValue = currentBgColor,
-        animationSpec = tween(600),
-        label = "RotatingCardBgColor",
-    )
-
-    // 基于卡片当前莫奈色推导同色系明亮活泼的按钮色彩（高亮背景 + 深色前景）
-    val playButtonBgColor =
-        remember(currentBgColor) {
+    // 点睛强调色：提取封面色相，提升明度呈现高亮活力质感
+    val accentColor =
+        remember(dynamicCoverColor) {
+            val base = dynamicCoverColor ?: Color(0xFFB4F8FF)
             val hsv = FloatArray(3)
-            android.graphics.Color.colorToHSV(currentBgColor.toArgb(), hsv)
-            // 保持原图主色相，提升明度至 0.95f，适度饱和度 0.35f 呈现清爽通透质感
-            hsv[1] = (hsv[1] * 0.85f).coerceIn(0.28f, 0.45f)
+            android.graphics.Color.colorToHSV(base.toArgb(), hsv)
+            hsv[1] = (hsv[1] * 0.90f).coerceIn(0.35f, 0.75f)
             hsv[2] = 0.95f
             Color(android.graphics.Color.HSVToColor(hsv))
         }
-    val animatedPlayButtonBg by animateColorAsState(
-        targetValue = playButtonBgColor,
+    val animatedAccentColor by animateColorAsState(
+        targetValue = accentColor,
         animationSpec = tween(600),
-        label = "PlayButtonBgColor",
+        label = "RotatingAccentColor",
     )
 
-    val playButtonIconColor =
-        remember(currentBgColor) {
+    // 点睛容器底色：微暗同色系底色，用于徽章胶囊背景
+    val accentContainerColor =
+        remember(dynamicCoverColor) {
+            val base = dynamicCoverColor ?: Color(0xFF1E2E40)
             val hsv = FloatArray(3)
-            android.graphics.Color.colorToHSV(currentBgColor.toArgb(), hsv)
-            // 深色图标前景色保证充足对比度
-            hsv[1] = (hsv[1] * 1.15f).coerceIn(0.60f, 0.95f)
-            hsv[2] = 0.20f
+            android.graphics.Color.colorToHSV(base.toArgb(), hsv)
+            hsv[1] = (hsv[1] * 0.70f).coerceIn(0.25f, 0.50f)
+            hsv[2] = 0.35f
             Color(android.graphics.Color.HSVToColor(hsv))
         }
-    val animatedPlayButtonIcon by animateColorAsState(
-        targetValue = playButtonIconColor,
+    val animatedAccentContainer by animateColorAsState(
+        targetValue = accentContainerColor,
         animationSpec = tween(600),
-        label = "PlayButtonIconColor",
+        label = "RotatingAccentContainer",
+    )
+
+    // 播放按钮深色前景图标色，保证高对比度
+    val accentOnColor =
+        remember(dynamicCoverColor) {
+            val base = dynamicCoverColor ?: Color(0xFF0F172A)
+            val hsv = FloatArray(3)
+            android.graphics.Color.colorToHSV(base.toArgb(), hsv)
+            hsv[1] = (hsv[1] * 1.20f).coerceIn(0.60f, 0.95f)
+            hsv[2] = 0.18f
+            Color(android.graphics.Color.HSVToColor(hsv))
+        }
+    val animatedAccentOnColor by animateColorAsState(
+        targetValue = accentOnColor,
+        animationSpec = tween(600),
+        label = "RotatingAccentOnColor",
     )
 
     Card(
@@ -126,8 +151,8 @@ fun RotatingTrackCard(
             ),
         colors =
             CardDefaults.colors(
-                containerColor = animatedBgColor.copy(alpha = 0.90f),
-                focusedContainerColor = animatedBgColor,
+                containerColor = animatedCardBg.copy(alpha = 0.88f),
+                focusedContainerColor = animatedCardBg,
             ),
         border =
             CardDefaults.border(
@@ -151,7 +176,7 @@ fun RotatingTrackCard(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(animatedBgColor),
+                    .background(animatedCardBg),
         ) {
             // 上半部：专辑封面展示（平滑滑出滑进）
             Box(
@@ -211,12 +236,22 @@ fun RotatingTrackCard(
             }
 
             // 下半部：大字标题 + 小字副标题 + 悬浮播放按钮
+            // 采用垂直渐变过渡层，使上方封面与底部文字无缝融合
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomStart)
-                        .background(Color(0xFF1A2234).copy(alpha = 0.50f))
+                        .background(
+                            Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        Color.Transparent,
+                                        animatedCardBg.toMonetContainer(0.02f).copy(alpha = 0.82f),
+                                        animatedCardBg.toMonetContainer(0.04f).copy(alpha = 0.96f),
+                                    ),
+                            ),
+                        )
                         .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Row(
@@ -242,16 +277,25 @@ fun RotatingTrackCard(
                         modifier = Modifier.weight(1f),
                         label = "RotatingTextTransition",
                     ) { targetItem ->
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             if (targetItem.badgeText.isNotBlank()) {
-                                Text(
-                                    text = targetItem.badgeText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFB4F8FF),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(animatedAccentContainer.copy(alpha = 0.65f))
+                                            .border(0.5.dp, animatedAccentColor.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        text = targetItem.badgeText,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = animatedAccentColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
 
                             Text(
@@ -281,14 +325,14 @@ fun RotatingTrackCard(
                                 Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(animatedPlayButtonBg)
+                                    .background(animatedAccentColor)
                                     .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = "播放",
-                                tint = animatedPlayButtonIcon,
+                                tint = animatedAccentOnColor,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
