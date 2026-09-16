@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
+import kotlinx.coroutines.delay
 import kotlin.math.abs
 import org.melodist.core.connect.model.GestureSwipeState
 import org.melodist.model.Song
@@ -92,6 +93,18 @@ fun TakeoverGestureCoverCarousel(
         when (gesturePayload.state) {
             GestureSwipeState.DRAGGING -> {
                 animFraction.snapTo(gesturePayload.fraction)
+                // 超时看门狗：若 400ms 内未收到后续手势帧或结算指令，自动平滑弹回原位
+                delay(400L)
+                if (animFraction.value != 0f) {
+                    animFraction.animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow,
+                        ),
+                    )
+                    TakeoverGestureState.reset()
+                }
             }
             GestureSwipeState.SETTLING -> {
                 val target = gesturePayload.targetFraction
@@ -100,6 +113,18 @@ fun TakeoverGestureCoverCarousel(
                     targetValue = target,
                     animationSpec = tween(durationMillis = dur, easing = LinearEasing),
                 )
+                // 若结算后 600ms 歌曲未发生切换，自动复位弹回
+                delay(600L)
+                if (animFraction.value != 0f) {
+                    animFraction.animateTo(
+                        targetValue = 0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow,
+                        ),
+                    )
+                    TakeoverGestureState.reset()
+                }
             }
             GestureSwipeState.CANCEL -> {
                 animFraction.animateTo(
