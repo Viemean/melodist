@@ -1,13 +1,22 @@
 package org.melodist.mobile.ui.player
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -91,6 +100,18 @@ fun MiniPlayerBar(
     val currentOnPlayPrevious by rememberUpdatedState(onPlayPrevious)
     val currentPrevSong by rememberUpdatedState(prevSong ?: PlaybackManager.getPreviousSong())
     val currentNextSong by rememberUpdatedState(nextSong ?: PlaybackManager.getNextSong())
+
+    val playPauseInteractionSource = remember { MutableInteractionSource() }
+    val isPlayPausePressed by playPauseInteractionSource.collectIsPressedAsState()
+    val playPauseScale by animateFloatAsState(
+        targetValue = if (isPlayPausePressed) 0.88f else 1f,
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "MiniPlayPauseScale",
+    )
 
     // 播放曲目切换后归位
     LaunchedEffect(song?.songMid) {
@@ -366,18 +387,36 @@ fun MiniPlayerBar(
                 // M3 风格实心播放/暂停按钮 (40dp 圆形容器，深浅主题自适应 Primary 色)
                 FilledIconButton(
                     onClick = onTogglePlayPause,
-                    modifier = Modifier.size(40.dp),
+                    interactionSource = playPauseInteractionSource,
+                    modifier =
+                        Modifier
+                            .size(40.dp)
+                            .graphicsLayer {
+                                scaleX = playPauseScale
+                                scaleY = playPauseScale
+                            },
                     colors =
                         IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "暂停" else "播放",
-                        modifier = Modifier.size(24.dp),
-                    )
+                    AnimatedContent(
+                        targetState = isPlaying,
+                        transitionSpec = {
+                            (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.75f, animationSpec = tween(180)))
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.75f, animationSpec = tween(140))
+                                )
+                        },
+                        label = "MiniPlayPauseIconAnim",
+                    ) { targetPlaying ->
+                        Icon(
+                            imageVector = if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (targetPlaying) "暂停" else "播放",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
 
