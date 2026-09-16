@@ -45,11 +45,14 @@ class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY))
                         .build()
                 val isFav = isCurrentSongFavorite()
-                return MediaSession.ConnectionResult
-                    .AcceptedResultBuilder(session)
-                    .setAvailableSessionCommands(sessionCommands)
-                    .setCustomLayout(listOf(createFavoriteButton(isFav)))
-                    .build()
+                @Suppress("DEPRECATION")
+                val result =
+                    MediaSession.ConnectionResult
+                        .AcceptedResultBuilder(session)
+                        .setAvailableSessionCommands(sessionCommands)
+                        .setCustomLayout(listOf(createFavoriteButton(isFav)))
+                        .build()
+                return result
             }
 
             override fun onCustomCommand(

@@ -393,12 +393,14 @@ object PlaybackManager {
                 val settings = org.melodist.data.AppSettingsManager.settings.value
                 val isExclusive = settings.enableUsbExclusive
                 val isPassthrough = settings.enableAudioPassthrough || isExclusive
+                @Suppress("DEPRECATION")
                 val audioCapabilities =
                     if (isPassthrough) {
                         AudioCapabilities.getCapabilities(context)
                     } else {
                         AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES
                     }
+                @Suppress("DEPRECATION")
                 val builder =
                     DefaultAudioSink
                         .Builder(context)
@@ -711,7 +713,7 @@ object PlaybackManager {
                     val rawTargetTier = _preferredTier.value
                     val targetTier = clampCellularTier(rawTargetTier, nextSong)
                     val playUrlInfo = apiService.getPlayUrl(nextSong.songMid, mediaMid = nextSong.mediaMid, preferredTier = targetTier)
-                    if (playUrlInfo != null && !playUrlInfo.url.isNullOrBlank()) {
+                    if (!playUrlInfo.url.isNullOrBlank()) {
                         prefetchedUrlInfo = Pair(nextSong.songMid, playUrlInfo)
                         Log.i("MelodistPlayback", "Prefetched next song URL: ${nextSong.name}, tier: ${playUrlInfo.tier}")
                     }
@@ -1247,7 +1249,7 @@ object PlaybackManager {
         probeJob?.cancel()
         val isLocalOrWebDav = song.songMid.startsWith("webdav_") || !song.localFilePath.isNullOrBlank()
         if (isLocalOrWebDav) {
-            val actualTier = song.currentTier ?: AudioQualityTier.SQ
+            val actualTier = song.currentTier
             _availableTiers.value = setOf(actualTier)
             val localPath = song.localFilePath
             val localSize =
