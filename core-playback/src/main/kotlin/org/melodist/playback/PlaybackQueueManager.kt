@@ -58,7 +58,15 @@ class PlaybackQueueManager(
     }
 
     fun setLoopMode(mode: PlaybackLoopMode) {
+        val oldMode = _loopMode.value
         _loopMode.value = mode
+        if (mode == PlaybackLoopMode.Shuffle && (oldMode != PlaybackLoopMode.Shuffle || shuffleQueue.shuffledIndices.isEmpty())) {
+            val list = _playlist.value
+            if (list.isNotEmpty()) {
+                shuffleQueue.reset(list.size, _currentIndex.value.coerceAtLeast(0), list)
+            }
+        }
+        onStateChanged()
     }
 
     fun setRadioMode(isRadio: Boolean) {
@@ -67,6 +75,12 @@ class PlaybackQueueManager(
 
     fun setCurrentIndex(index: Int) {
         _currentIndex.value = index
+        if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
+            val list = _playlist.value
+            if (list.isNotEmpty() && index in list.indices) {
+                shuffleQueue.syncTo(index, list.size, list)
+            }
+        }
     }
 
     fun setPlaylist(
@@ -344,7 +358,10 @@ class PlaybackQueueManager(
 
         val nextIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.next(list)
+                PlaybackLoopMode.Shuffle -> {
+                    val idx = shuffleQueue.next(list)
+                    if (idx in list.indices) idx else ((_currentIndex.value + 1) % list.size)
+                }
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat -> (_currentIndex.value + 1) % list.size
             }
@@ -369,7 +386,10 @@ class PlaybackQueueManager(
 
         val prevIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.previous()
+                PlaybackLoopMode.Shuffle -> {
+                    val idx = shuffleQueue.previous()
+                    if (idx in list.indices) idx else if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                }
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat -> if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
             }
@@ -383,5 +403,8 @@ class PlaybackQueueManager(
         _playlist.value = queue
         _currentIndex.value = currentIndex
         _isRadioMode.value = false
+        if (_loopMode.value == PlaybackLoopMode.Shuffle && queue.isNotEmpty()) {
+            shuffleQueue.syncTo(currentIndex.coerceAtLeast(0), queue.size, queue)
+        }
     }
 }
