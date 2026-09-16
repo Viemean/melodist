@@ -184,14 +184,14 @@ fun ArtistTvScreen(
         onPlayAll = {
             if (artistSongs.isNotEmpty()) {
                 PlaybackManager.setPlaylist(artistSongs, startIndex = 0)
-                onNavigateToPlayer()
             }
         },
         onSongClick = { song ->
             val index = artistSongs.indexOfFirst { it.songMid == song.songMid }
             PlaybackManager.setPlaylist(artistSongs, startIndex = if (index >= 0) index else 0)
-            onNavigateToPlayer()
         },
+        onNavigateToArtist = onNavigateToArtist,
+        onNavigateToAlbum = onNavigateToAlbum,
         onSongLongClick = { song ->
             if (song.canShowArtistAlbumDialog) {
                 selectedSongForDialog = song

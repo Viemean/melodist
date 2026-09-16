@@ -362,9 +362,7 @@ class MainActivity : ComponentActivity() {
                                     artistMid = dest.mid,
                                     artistName = dest.name,
                                     surfaceColor = globalMonetBg,
-                                    onNavigateToPlayer = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
+                                    onNavigateToPlayer = {},
                                     onNavigateToArtist = { mid, name ->
                                         navigateTo(TvScreenDestination.Artist(mid, name))
                                     },
@@ -382,9 +380,7 @@ class MainActivity : ComponentActivity() {
                                     albumName = dest.name,
                                     surfaceColor = globalMonetBg,
                                     isReturningFromPlayer = isReturningFromPlayer,
-                                    onNavigateToPlayer = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
+                                    onNavigateToPlayer = {},
                                     onNavigateToArtist = { mid, name ->
                                         navigateTo(TvScreenDestination.Artist(mid, name))
                                     },
