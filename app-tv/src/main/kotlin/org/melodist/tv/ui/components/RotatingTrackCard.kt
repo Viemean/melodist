@@ -178,13 +178,13 @@ fun RotatingTrackCard(
                     .fillMaxSize()
                     .background(animatedCardBg),
         ) {
-            // 上半部：专辑封面展示（平滑滑出滑进）
+            // 上半部：专辑封面展示（画幅增大至 80%，更加饱满充盈）
             Box(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(cardHeight * 0.65f)
-                        .padding(top = 16.dp),
+                        .height(cardHeight * 0.68f)
+                        .padding(top = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 AnimatedContent(
@@ -204,21 +204,22 @@ fun RotatingTrackCard(
                     },
                     label = "RotatingCoverTransition",
                 ) { currentItem ->
-                    val singleSize = (cardWidth * 0.64f).coerceIn(130.dp, 175.dp)
+                    // 封面占比由 64% (max 175dp) 提升至 80% (max 240dp)
+                    val singleSize = (cardWidth * 0.80f).coerceIn(160.dp, 240.dp)
                     if (currentItem.coverUrl.isNotBlank() || currentItem.albumMid.isNotBlank()) {
                         MelodistElevatedCover(
                             coverUrl = currentItem.coverUrl,
                             albumMid = currentItem.albumMid,
                             songMid = currentItem.songMid,
                             contentDescription = null,
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.size(singleSize),
                         )
                     } else {
                         Box(
                             modifier =
                                 Modifier
-                                    .size((cardWidth * 0.50f).coerceIn(100.dp, 130.dp))
+                                    .size((cardWidth * 0.60f).coerceIn(120.dp, 180.dp))
                                     .clip(MelodistShapes.CardCorner)
                                     .background(Color.White.copy(alpha = 0.08f))
                                     .border(1.dp, Color.White.copy(alpha = 0.12f), MelodistShapes.CardCorner),
@@ -227,7 +228,7 @@ fun RotatingTrackCard(
                             Text(
                                 text = currentItem.title.take(2).ifBlank { "音乐" },
                                 color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 24.sp,
+                                fontSize = 26.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
