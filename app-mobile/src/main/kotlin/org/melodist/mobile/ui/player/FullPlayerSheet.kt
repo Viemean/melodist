@@ -1,12 +1,18 @@
 package org.melodist.mobile.ui.player
 
 import android.app.Activity
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -381,46 +387,70 @@ fun FullPlayerSheet(
                         .fillMaxWidth(),
                 contentAlignment = Alignment.Center,
             ) {
-                if (displayMode == PlayerDisplayMode.Cover) {
-                    PlayerCoverCarousel(
-                        currentSong = song,
-                        prevSong = prevSong,
-                        nextSong = nextSong,
-                        onPlayNext = onPlayNext,
-                        onPlayPrevious = onPlayPrevious,
-                        onClick = { displayMode = PlayerDisplayMode.Lyrics },
-                        onLongClick = { showSongActionSheet = true },
-                    )
-                } else {
-                    var lyricDragX by remember { mutableFloatStateOf(0f) }
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .pointerInput(Unit) {
-                                    detectHorizontalDragGestures(
-                                        onDragStart = { lyricDragX = 0f },
-                                        onHorizontalDrag = { _, dragAmount -> lyricDragX += dragAmount },
-                                        onDragEnd = {
-                                            if (abs(lyricDragX) > 70f) {
-                                                displayMode = PlayerDisplayMode.Cover
-                                            }
-                                            lyricDragX = 0f
-                                        },
-                                        onDragCancel = { lyricDragX = 0f },
-                                    )
-                                },
-                    ) {
-                        val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
-                        MobileLyricsView(
-                            lyrics = lyrics,
-                            currentPositionMs = lyricPositionMs,
-                            onSeekTo = onSeekTo,
-                            highlightColor = animatedAccentColor,
-                            textColor = contentPrimary.copy(alpha = 0.72f),
-                            transColor = contentPrimary.copy(alpha = 0.55f),
-                            modifier = Modifier.fillMaxSize(),
+                AnimatedContent(
+                    targetState = displayMode,
+                    transitionSpec = {
+                        if (targetState == PlayerDisplayMode.Lyrics) {
+                            (fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing)))
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                        scaleOut(targetScale = 1.04f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                                )
+                        } else {
+                            (fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                scaleIn(initialScale = 1.04f, animationSpec = tween(280, easing = FastOutSlowInEasing)))
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                        scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                                )
+                        }
+                    },
+                    label = "PlayerCoverLyricsTransition",
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) { currentMode ->
+                    if (currentMode == PlayerDisplayMode.Cover) {
+                        PlayerCoverCarousel(
+                            currentSong = song,
+                            prevSong = prevSong,
+                            nextSong = nextSong,
+                            onPlayNext = onPlayNext,
+                            onPlayPrevious = onPlayPrevious,
+                            onClick = { displayMode = PlayerDisplayMode.Lyrics },
+                            onLongClick = { showSongActionSheet = true },
                         )
+                    } else {
+                        var lyricDragX by remember { mutableFloatStateOf(0f) }
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        detectHorizontalDragGestures(
+                                            onDragStart = { lyricDragX = 0f },
+                                            onHorizontalDrag = { _, dragAmount -> lyricDragX += dragAmount },
+                                            onDragEnd = {
+                                                if (abs(lyricDragX) > 70f) {
+                                                    displayMode = PlayerDisplayMode.Cover
+                                                }
+                                                lyricDragX = 0f
+                                            },
+                                            onDragCancel = { lyricDragX = 0f },
+                                        )
+                                    },
+                        ) {
+                            val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+                            MobileLyricsView(
+                                lyrics = lyrics,
+                                currentPositionMs = lyricPositionMs,
+                                onSeekTo = onSeekTo,
+                                highlightColor = animatedAccentColor,
+                                textColor = contentPrimary.copy(alpha = 0.72f),
+                                transColor = contentPrimary.copy(alpha = 0.55f),
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
             }
