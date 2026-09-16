@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.tv.material3.*
@@ -450,8 +451,9 @@ private fun CodecRowItem(
     }
 }
 
+@Suppress("DEPRECATION")
 private fun probeAudioCapabilities(context: Context): AudioProbeReport {
-    val audioCaps = AudioCapabilities.getCapabilities(context)
+    val audioCaps = AudioCapabilities.getCapabilities(context, AudioAttributes.DEFAULT, null)
     val maxChannels = audioCaps.maxChannelCount
 
     val candidateFormats =
