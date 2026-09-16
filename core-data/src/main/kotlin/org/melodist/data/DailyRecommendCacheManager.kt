@@ -105,11 +105,12 @@ object DailyRecommendCacheManager {
 
     /**
      * 判断给定缓存是否属于当前自然日（每日 00:00 更新周期）。
-     * 只要今日更新过一次，直接使用本地持久化缓存。
+     * 只要今日（00:00 以后）更新过一次，直接使用本地持久化缓存。
      */
     fun isCacheValidInCycle(
         data: DailyRecommendData,
         currentUin: String,
+        currentTimeMs: Long = System.currentTimeMillis(),
     ): Boolean {
         if (data.songs.isEmpty() || data.fetchTimestamp <= 0L) {
             return false
@@ -118,18 +119,13 @@ object DailyRecommendCacheManager {
             return false
         }
 
-        val now = System.currentTimeMillis()
-        val calNow = Calendar.getInstance().apply { timeInMillis = now }
         val cycleStart =
             Calendar.getInstance().apply {
-                timeInMillis = now
-                set(Calendar.HOUR_OF_DAY, 6)
+                timeInMillis = currentTimeMs
+                set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-                if (calNow.before(this)) {
-                    add(Calendar.DAY_OF_MONTH, -1)
-                }
             }
 
         return data.fetchTimestamp >= cycleStart.timeInMillis
