@@ -73,6 +73,8 @@ fun HomeTvScreen(
     val navTabRequesters = remember { List(7) { FocusRequester() } }
     val coreCardRequesters = remember { List(5) { FocusRequester() } }
     val feedCardRequesters = remember { List(5) { FocusRequester() } }
+    val coreRowRequester = remember { FocusRequester() }
+    val feedRowRequester = remember { FocusRequester() }
     val heroCardRequester = remember { FocusRequester() }
     val heroButtonsRequester = remember { FocusRequester() }
 
@@ -175,7 +177,7 @@ fun HomeTvScreen(
                 durationMs = durationMs,
                 cardFocusRequester = heroCardRequester,
                 upFocusRequester = navTabRequesters.firstOrNull(),
-                downFocusRequester = coreCardRequesters.firstOrNull(),
+                downFocusRequester = coreRowRequester,
                 buttonsFocusRequester = heroButtonsRequester,
                 onFocusChangedCallback = {
                     HomeFocusMemory.lastTarget = HomeFocusTarget.HeroCard
@@ -195,9 +197,9 @@ fun HomeTvScreen(
             HomeCoreTracksRow(
                 cardWidth = metrics.trackCardWidth,
                 favoriteCount = favoriteCount,
-                trackFocusRequester = coreCardRequesters.firstOrNull(),
+                trackFocusRequester = coreRowRequester,
                 upFocusRequester = heroCardRequester,
-                downFocusRequester = feedCardRequesters.firstOrNull(),
+                downFocusRequester = feedRowRequester,
                 cardRequesters = coreCardRequesters,
                 initialFocusedIndex = initialCoreIndex,
                 onCardFocused = { index ->
@@ -238,8 +240,8 @@ fun HomeTvScreen(
             // 专属推荐轨道（听 xxx 的也喜欢听，平滑轮换与就地播放）
             org.melodist.tv.ui.components.FeedRecommendRow(
                 cardWidth = metrics.trackCardWidth,
-                rowFocusRequester = feedCardRequesters.firstOrNull(),
-                upFocusRequester = coreCardRequesters.firstOrNull(),
+                rowFocusRequester = feedRowRequester,
+                upFocusRequester = coreRowRequester,
                 cardRequesters = feedCardRequesters,
                 initialFocusedIndex = initialFeedIndex,
                 onCardFocused = { index ->
