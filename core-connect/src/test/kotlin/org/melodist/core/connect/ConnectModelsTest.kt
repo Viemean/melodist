@@ -118,6 +118,9 @@ class ConnectModelsTest {
             ConnectActions.CMD_TRIGGER_AOD,
             ConnectActions.CMD_CYCLE_LOOP_MODE,
             ConnectActions.CMD_OPEN_PLAYER,
+            ConnectActions.CMD_GESTURE_SWIPE,
+            ConnectActions.CMD_TOGGLE_FAVORITE,
+            ConnectActions.CMD_SYNC_LYRICS_SCROLL,
         )
         cmds.forEach { assertTrue(it.isNotBlank()) }
         assertEquals(cmds.size, cmds.toSet().size, "CMD 常量存在重复值")

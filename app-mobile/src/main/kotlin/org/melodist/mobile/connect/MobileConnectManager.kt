@@ -538,6 +538,20 @@ object MobileConnectManager {
         connectClient?.sendGestureSwipe(state, fraction, targetFraction, durationMs)
     }
 
+    private var lastLyricsScrollSendTime = 0L
+
+    fun sendLyricsScroll(lineIndex: Int, isUserScrolling: Boolean) {
+        if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) return
+        val now = System.currentTimeMillis()
+        if (isUserScrolling) {
+            if (now - lastLyricsScrollSendTime < 30L) return
+            lastLyricsScrollSendTime = now
+        } else {
+            lastLyricsScrollSendTime = 0L
+        }
+        connectClient?.syncLyricsScroll(lineIndex, isUserScrolling)
+    }
+
     private fun setupPlaybackInterceptor() {
         PlaybackManager.playbackInterceptor = object : PlaybackInterceptor {
             override fun onInterceptPlaySong(

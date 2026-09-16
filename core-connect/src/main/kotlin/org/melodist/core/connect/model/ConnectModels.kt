@@ -62,6 +62,7 @@ object ConnectActions {
     const val CMD_OPEN_PLAYER = "cmd_open_player"
     const val CMD_GESTURE_SWIPE = "cmd_gesture_swipe"
     const val CMD_TOGGLE_FAVORITE = "cmd_toggle_favorite"
+    const val CMD_SYNC_LYRICS_SCROLL = "cmd_sync_lyrics_scroll"
 
     const val EVENT_PLAY_STATE = "event_play_state"
     const val EVENT_QUEUE_STATE = "event_queue_state"
@@ -172,5 +173,12 @@ data class GestureSwipePayload(
     val fraction: Float = 0f,
     val targetFraction: Float = 0f,
     val durationMs: Long = 200L,
+    val timestamp: Long = System.currentTimeMillis(),
+)
+
+@Serializable
+data class LyricsScrollPayload(
+    val lineIndex: Int,
+    val isUserScrolling: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
 )

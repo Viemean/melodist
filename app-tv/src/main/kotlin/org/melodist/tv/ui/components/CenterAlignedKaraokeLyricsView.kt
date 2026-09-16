@@ -60,14 +60,25 @@ fun CenterAlignedKaraokeLyricsView(
         }
 
     val listState = rememberLazyListState()
+    val takeoverScroll by org.melodist.tv.connect.TakeoverLyricsState.scrollFlow.collectAsState()
 
-    // 自动平滑居中滚动至当前行
-    LaunchedEffect(activeIndex) {
-        if (activeIndex in lyrics.indices) {
-            listState.animateScrollToItem(
-                index = activeIndex,
-                scrollOffset = -80,
-            )
+    // 自动平滑居中滚动至当前行 / 接收接管端歌词滚动同步
+    LaunchedEffect(activeIndex, takeoverScroll) {
+        val takeover = takeoverScroll
+        if (takeover != null && takeover.isUserScrolling) {
+            if (takeover.lineIndex in lyrics.indices) {
+                listState.animateScrollToItem(
+                    index = takeover.lineIndex,
+                    scrollOffset = -80,
+                )
+            }
+        } else {
+            if (activeIndex in lyrics.indices) {
+                listState.animateScrollToItem(
+                    index = activeIndex,
+                    scrollOffset = -80,
+                )
+            }
         }
     }
 

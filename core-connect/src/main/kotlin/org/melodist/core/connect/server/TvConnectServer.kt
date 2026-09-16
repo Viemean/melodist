@@ -46,6 +46,7 @@ sealed interface TvIncomingCommand {
     data object OpenPlayer : TvIncomingCommand
     data class GestureSwipe(val payload: org.melodist.core.connect.model.GestureSwipePayload) : TvIncomingCommand
     data class ToggleFavorite(val command: org.melodist.core.connect.model.ToggleFavoriteCommand) : TvIncomingCommand
+    data class SyncLyricsScroll(val payload: org.melodist.core.connect.model.LyricsScrollPayload) : TvIncomingCommand
 }
 
 data class PendingPairRequest(
@@ -301,6 +302,12 @@ class TvConnectServer(
                 try {
                     val cmd = json.decodeFromString<org.melodist.core.connect.model.ToggleFavoriteCommand>(msg.payload)
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.ToggleFavorite(cmd)) }
+                } catch (_: Exception) {}
+            }
+            ConnectActions.CMD_SYNC_LYRICS_SCROLL -> {
+                try {
+                    val payload = json.decodeFromString<org.melodist.core.connect.model.LyricsScrollPayload>(msg.payload)
+                    scope.launch { _commandsFlow.emit(TvIncomingCommand.SyncLyricsScroll(payload)) }
                 } catch (_: Exception) {}
             }
         }

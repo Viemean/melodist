@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,6 +112,34 @@ fun MobileLyricsView(
             } else if (isUserInteracting) {
                 delay(3000L)
                 isUserInteracting = false
+            }
+        }
+
+        val centerVisibleLyricIndex by remember {
+            derivedStateOf {
+                val layoutInfo = listState.layoutInfo
+                if (layoutInfo.visibleItemsInfo.isEmpty()) return@derivedStateOf activeIndex
+                val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+                val centerItem = layoutInfo.visibleItemsInfo.minByOrNull { item ->
+                    abs((item.offset + item.size / 2) - viewportCenter)
+                }
+                val lineIndex = centerItem?.index?.minus(1) ?: activeIndex
+                lineIndex.coerceIn(0, lyrics.size - 1)
+            }
+        }
+
+        // 全面接管模式下同步歌词滚动视图至 TV
+        LaunchedEffect(centerVisibleLyricIndex, isUserInteracting) {
+            if (isUserInteracting) {
+                org.melodist.mobile.connect.MobileConnectManager.sendLyricsScroll(
+                    lineIndex = centerVisibleLyricIndex,
+                    isUserScrolling = true,
+                )
+            } else {
+                org.melodist.mobile.connect.MobileConnectManager.sendLyricsScroll(
+                    lineIndex = activeIndex,
+                    isUserScrolling = false,
+                )
             }
         }
 

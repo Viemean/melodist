@@ -226,6 +226,14 @@ class MobileConnectClient(
         sendMessage(ConnectActions.CMD_TOGGLE_FAVORITE, json.encodeToString(cmd))
     }
 
+    fun syncLyricsScroll(lineIndex: Int, isUserScrolling: Boolean) {
+        val payload = org.melodist.core.connect.model.LyricsScrollPayload(
+            lineIndex = lineIndex,
+            isUserScrolling = isUserScrolling,
+        )
+        sendMessage(ConnectActions.CMD_SYNC_LYRICS_SCROLL, json.encodeToString(payload))
+    }
+
     private fun sendMessage(action: String, payload: String) {
         val socket = activeSocket ?: return
         val message = json.encodeToString(ConnectMessage(action = action, payload = payload))

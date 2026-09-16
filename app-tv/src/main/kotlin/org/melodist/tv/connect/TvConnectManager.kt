@@ -299,6 +299,9 @@ object TvConnectManager {
                     broadcastPlayerStateNow()
                 }
             }
+            is TvIncomingCommand.SyncLyricsScroll -> {
+                TakeoverLyricsState.update(command.payload)
+            }
         }
     }
 
