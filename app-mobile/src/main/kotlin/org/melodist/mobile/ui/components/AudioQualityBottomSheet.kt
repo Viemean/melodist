@@ -53,6 +53,7 @@ fun AudioQualityBottomSheet(
     isProbing: Boolean = false,
     enforceCellularRestriction: Boolean = true,
     showSubtitle: Boolean = true,
+    targetSong: org.melodist.model.Song? = null,
     onSelectTier: (AudioQualityTier) -> Unit,
     onDismissRequest: () -> Unit,
 ) {
@@ -60,7 +61,8 @@ fun AudioQualityBottomSheet(
     val settings by AppSettingsManager.settings.collectAsState()
     val isCellular = remember { PlaybackManager.isCellularNetwork() }
     val currentSong by PlaybackManager.currentSong.collectAsState()
-    val isLocalOrWebDav = remember(currentSong) { PlaybackManager.isLocalOrWebDavSong(currentSong) }
+    val effectiveSong = targetSong ?: currentSong
+    val isLocalOrWebDav = remember(effectiveSong) { PlaybackManager.isLocalOrWebDavSong(effectiveSong) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val supportedTiers =

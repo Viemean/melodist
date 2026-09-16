@@ -38,8 +38,8 @@ import org.melodist.tv.ui.theme.LocalMonetSurface
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.toMonetContainer
-import org.melodist.tv.update.UpdateChecker
-import org.melodist.tv.update.UpdateResult
+import org.melodist.data.update.UpdateChecker
+import org.melodist.data.update.UpdateResult
 
 private data class CodecItem(
     val formatName: String,
@@ -121,7 +121,13 @@ fun AboutPanel(menuRequester: FocusRequester) {
                         isCheckingUpdate = true
                         updateFeedback = "正在连接 GitHub 检查更新..."
                         coroutineScope.launch {
-                            when (val result = UpdateChecker.checkUpdate()) {
+                            when (
+                                val result =
+                                    UpdateChecker.checkUpdate(
+                                        currentVersion = BuildConfig.VERSION_NAME,
+                                        targetKeyword = "tv",
+                                    )
+                            ) {
                                 is UpdateResult.NewVersion -> {
                                     updateFeedback = "发现新版本 ${result.tagName}"
                                 }

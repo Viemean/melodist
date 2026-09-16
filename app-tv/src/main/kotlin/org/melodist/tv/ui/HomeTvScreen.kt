@@ -30,6 +30,7 @@ fun HomeTvScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToWebDav: () -> Unit = {},
     onNavigateToLocalMusic: () -> Unit = {},
+    onNavigateToConnect: () -> Unit = {},
     onNavigateToDetail: (String) -> Unit = {},
 ) {
     val metrics = rememberTvWindowMetrics()
@@ -40,6 +41,7 @@ fun HomeTvScreen(
     val currentTier by PlaybackManager.currentTier.collectAsState()
     val durationMs by PlaybackManager.durationMs.collectAsState()
     val favoriteCount by UserSession.favoriteSongCount.collectAsState()
+    val connectedPhone by org.melodist.tv.connect.TvConnectManager.connectedDevice.collectAsState()
 
     var selectedNavIndex by remember { mutableIntStateOf(0) }
     val favoriteSongMids by PlaybackManager.favoriteSongMids.collectAsState()
@@ -88,6 +90,7 @@ fun HomeTvScreen(
                     when (index) {
                         1 -> onNavigateToWebDav()
                         2 -> onNavigateToLocalMusic()
+                        3 -> onNavigateToConnect()
                         4 -> onNavigateToAcr()
                         5 -> onNavigateToSearch()
                         6 -> onNavigateToSettings()
@@ -105,6 +108,7 @@ fun HomeTvScreen(
                 isFavorite = isFavorite,
                 canFavorite = PlaybackManager.isSongFavoriteSupported(playingSong ?: currentSong),
                 currentTier = currentTier,
+                connectedPhoneName = connectedPhone?.name,
                 progressMsProvider = { PlaybackManager.currentPositionMs.value },
                 durationMs = durationMs,
                 cardFocusRequester = heroCardRequester,

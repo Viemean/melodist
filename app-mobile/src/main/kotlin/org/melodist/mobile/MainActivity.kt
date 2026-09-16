@@ -96,6 +96,8 @@ class MainActivity : ComponentActivity() {
             .init(this)
         org.melodist.data.SearchKeywordHistoryManager
             .init(this)
+        org.melodist.mobile.connect.MobileConnectManager
+            .init(this)
 
         if (UserSession.isLoggedIn) {
             lifecycleScope.launch(Dispatchers.IO) {

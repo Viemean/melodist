@@ -85,6 +85,7 @@ import org.melodist.mobile.ui.album.AlbumDetailScreen
 import org.melodist.mobile.ui.album.FavoriteAlbumsScreen
 import org.melodist.mobile.ui.artist.ArtistDetailScreen
 import org.melodist.mobile.ui.auth.MobileLoginDialog
+import org.melodist.mobile.ui.connect.RemoteControlMobileScreen
 import org.melodist.mobile.ui.discover.DiscoverScreen
 import org.melodist.mobile.ui.download.DownloadMobileScreen
 import org.melodist.mobile.ui.library.LibraryScreen
@@ -112,6 +113,7 @@ enum class HomeFilter(
     Download("下载管理"),
     WebDav("WebDAV"),
     Local("本地音乐"),
+    Remote("远程控制"),
 }
 
 private sealed interface AppScreen {
@@ -904,6 +906,10 @@ private fun RenderAppScreen(
                                 )
                             HomeFilter.Local ->
                                 LocalMusicMobileScreen(
+                                    contentPadding = innerPadding,
+                                )
+                            HomeFilter.Remote ->
+                                RemoteControlMobileScreen(
                                     contentPadding = innerPadding,
                                 )
                         }

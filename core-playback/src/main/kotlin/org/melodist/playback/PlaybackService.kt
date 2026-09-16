@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
+    private var forwardingPlayer: MelodistForwardingPlayer? = null
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var wakeLock: android.os.PowerManager.WakeLock? = null
 
@@ -76,7 +77,8 @@ class PlaybackService : MediaSessionService() {
         setMediaNotificationProvider(notificationProvider)
 
         val player = PlaybackManager.getOrCreatePlayer(this)
-        val forwardingPlayer = MelodistForwardingPlayer(player)
+        val forwarding = MelodistForwardingPlayer(player)
+        forwardingPlayer = forwarding
 
         val launchIntent =
             packageManager.getLaunchIntentForPackage(packageName)
@@ -96,7 +98,7 @@ class PlaybackService : MediaSessionService() {
         val isFav = isCurrentSongFavorite()
         val session =
             MediaSession
-                .Builder(this, forwardingPlayer)
+                .Builder(this, forwarding)
                 .setId("MelodistPlaybackSession")
                 .setSessionActivity(sessionActivity)
                 .setCallback(sessionCallback)
@@ -110,6 +112,22 @@ class PlaybackService : MediaSessionService() {
                 song != null && favs.contains(song.songMid)
             }.distinctUntilChanged().collect { isFavState ->
                 mediaSession?.setCustomLayout(listOf(createFavoriteButton(isFavState)))
+            }
+        }
+
+        serviceScope.launch {
+            combine(
+                PlaybackManager.currentSong,
+                PlaybackManager.isPlaying,
+                PlaybackManager.isRemoteActive,
+                PlaybackManager.remoteDeviceName,
+            ) { song, isPlaying, isRemote, deviceName ->
+                Triple(song?.songMid to isPlaying, isRemote, deviceName)
+            }.distinctUntilChanged().collect {
+                forwardingPlayer?.notifyRemoteStateChanged()
+                mediaSession?.let { sessionToUpdate ->
+                    onUpdateNotification(sessionToUpdate, PlaybackManager.shouldHoldForeground())
+                }
             }
         }
 
@@ -148,6 +166,7 @@ class PlaybackService : MediaSessionService() {
     override fun onDestroy() {
         updateWakeLock(false)
         serviceScope.cancel()
+        forwardingPlayer = null
         mediaSession?.run {
             removeSession(this)
             release()

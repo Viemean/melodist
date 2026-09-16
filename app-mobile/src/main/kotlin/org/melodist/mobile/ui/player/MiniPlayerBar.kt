@@ -22,8 +22,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import org.melodist.core.connect.client.MobileConnectionState
+import org.melodist.mobile.connect.MobileConnectManager
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -33,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +85,7 @@ fun MiniPlayerBar(
     val coroutineScope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
     var isDraggingHorizontal by remember { mutableStateOf(false) }
+    val connectState by MobileConnectManager.connectionState.collectAsState()
 
     val currentOnPlayNext by rememberUpdatedState(onPlayNext)
     val currentOnPlayPrevious by rememberUpdatedState(onPlayPrevious)
@@ -302,6 +307,30 @@ fun MiniPlayerBar(
                 }
 
                 Spacer(modifier = Modifier.width(10.dp))
+
+                if (connectState is MobileConnectionState.Paired) {
+                    val localCtx = androidx.compose.ui.platform.LocalContext.current
+                    val isTakeover = MobileConnectManager.remoteControlMode.collectAsState().value == org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
+                    androidx.compose.material3.IconButton(
+                        onClick = {
+                            if (isTakeover) {
+                                android.widget.Toast.makeText(localCtx, "全面接管模式生效中：播放直通 TV", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                MobileConnectManager.relayCurrentPlaybackToTv()
+                                android.widget.Toast.makeText(localCtx, "正在接力至 TV 播放", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Computer,
+                            contentDescription = "已连接电脑/电视",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
 
                 // M3 风格实心播放/暂停按钮 (40dp 圆形容器，深浅主题自适应 Primary 色)
                 FilledIconButton(

@@ -1,6 +1,5 @@
 package org.melodist.tv.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.Dispatchers
@@ -36,10 +35,6 @@ fun AlbumTvScreen(
     val scope = rememberCoroutineScope()
     val apiService = remember { MusicApiService() }
 
-    BackHandler {
-        onBack()
-    }
-
     LaunchedEffect(albumMid) {
         if (albumMid.isNotBlank()) {
             isLoading = true
@@ -72,6 +67,7 @@ fun AlbumTvScreen(
         isLoading = isLoading,
         emptyMessage = "专辑暂无曲目数据",
         isReturningFromPlayer = isReturningFromPlayer,
+        onBack = onBack,
         onPlayAll = {
             if (songs.isNotEmpty()) {
                 PlaybackManager.setPlaylist(songs, startIndex = 0)

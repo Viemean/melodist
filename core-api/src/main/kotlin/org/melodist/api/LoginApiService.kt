@@ -380,6 +380,16 @@ class LoginApiService(
             false
         }
 
+    suspend fun forceRefreshMusicKey(): Boolean =
+        withContext(Dispatchers.IO) {
+            val cookies = UserSession.profile.cookies.toMutableMap()
+            val pskey = cookies["p_skey"] ?: cookies["skey"]
+            if (!pskey.isNullOrEmpty()) {
+                return@withContext exchangeOAuthForMusicKey(cookies)
+            }
+            false
+        }
+
     // ================== 微信扫码登录 ==================
 
     suspend fun fetchWeChatQrCode(): QrCodeInfo =

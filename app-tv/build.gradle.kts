@@ -42,15 +42,6 @@ android {
         }
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = false
-        }
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -92,6 +83,7 @@ dependencies {
     implementation(project(":core-api"))
     implementation(project(":core-data"))
     implementation(project(":core-playback"))
+    implementation(project(":core-connect"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

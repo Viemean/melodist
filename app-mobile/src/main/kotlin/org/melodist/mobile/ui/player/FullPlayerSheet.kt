@@ -26,8 +26,19 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CastConnected
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import org.melodist.core.connect.client.MobileConnectionState
+import org.melodist.mobile.connect.MobileConnectManager
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -104,7 +115,9 @@ fun FullPlayerSheet(
     val currentIndex by PlaybackManager.currentIndex.collectAsState()
     val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
     val isMuted by PlaybackManager.isMuted.collectAsState()
+    val connectState by MobileConnectManager.connectionState.collectAsState()
     var displayMode by remember { mutableStateOf(PlayerDisplayMode.Cover) }
+    var showTvMenu by remember { mutableStateOf(false) }
 
     val isFavSupported = remember(song) { PlaybackManager.isSongFavoriteSupported(song) }
     val isFavorite =
@@ -286,20 +299,74 @@ fun FullPlayerSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .height(32.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onCollapse,
-                        ),
+                        .height(32.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     modifier =
                         Modifier
                             .size(width = 38.dp, height = 4.5.dp)
-                            .background(contentTertiary.copy(alpha = 0.35f), CircleShape),
+                            .background(contentTertiary.copy(alpha = 0.35f), CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onCollapse,
+                            ),
                 )
+
+                if (connectState is MobileConnectionState.Paired) {
+                    val pairedDevice = (connectState as MobileConnectionState.Paired).targetDevice
+                    Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                        IconButton(
+                            onClick = { showTvMenu = true },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Computer,
+                                contentDescription = "已连接 ${pairedDevice.name}",
+                                tint = animatedAccentColor,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showTvMenu,
+                            onDismissRequest = { showTvMenu = false },
+                        ) {
+                            val isTakeover =
+                                MobileConnectManager.remoteControlMode.collectAsState().value == org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
+                            DropdownMenuItem(
+                                text = { Text(if (isTakeover) "全面接管中 (${pairedDevice.name})" else "一键接力到 ${pairedDevice.name}") },
+                                leadingIcon = { Icon(Icons.Filled.CastConnected, contentDescription = null) },
+                                onClick = {
+                                    showTvMenu = false
+                                    if (isTakeover) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "当前处于全面接管模式，播放直通 TV",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        MobileConnectManager.relayCurrentPlaybackToTv()
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "已接力至 TV 播放",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("断开连接") },
+                                onClick = {
+                                    showTvMenu = false
+                                    MobileConnectManager.disconnect()
+                                    android.widget.Toast.makeText(context, "已断开与 TV 的连接", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                            )
+                        }
+                    }
+                }
             }
 
             // 中间主区域（封面视图 vs 歌词全屏流）

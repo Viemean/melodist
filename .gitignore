@@ -14,8 +14,12 @@
 .tmp/
 scripts/
 /push.sh
+/run-avd-tv
+/deploy_tv.sh
 app-mobile/PROJECT_PLAN.md
 docs/qqmusic_singer_concern_api.md
 bin/
 */bin/
 **/bin/
+/dist/
+build_release.sh

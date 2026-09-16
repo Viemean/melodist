@@ -50,7 +50,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Build Release APK
-        run: ./gradlew :app-tv:assembleRelease --stacktrace
+        run: ./gradlew :app-tv:assembleRelease :app-mobile:assembleRelease --stacktrace
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -63,19 +63,26 @@ jobs:
           if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "refs/heads/main" ]; then
             TAG_NAME="v1.0.0"
           fi
-          # 去除开头的 v 字符
           VERSION_NAME="${TAG_NAME#v}"
           VERSION_CODE=$(git rev-list --count HEAD)
           
           mkdir -p release-assets
-          for ABI in arm64-v8a armeabi-v7a x86_64 x86; do
-            SRC="app-tv/build/outputs/apk/release/app-tv-${ABI}-release.apk"
-            DST="release-assets/melodist-tv-${VERSION_NAME}-${VERSION_CODE}-${ABI}.apk"
-            if [ -f "$SRC" ]; then
-              cp "$SRC" "$DST"
-              (cd release-assets && sha256sum "melodist-tv-${VERSION_NAME}-${VERSION_CODE}-${ABI}.apk" > "melodist-tv-${VERSION_NAME}-${VERSION_CODE}-${ABI}.apk.sha256")
-            fi
-          done
+
+          # TV 全架构 APK
+          TV_SRC="app-tv/build/outputs/apk/release/app-tv-release.apk"
+          TV_DST="release-assets/melodist-tv-${VERSION_NAME}-${VERSION_CODE}.apk"
+          if [ -f "$TV_SRC" ]; then
+            cp "$TV_SRC" "$TV_DST"
+            (cd release-assets && sha256sum "melodist-tv-${VERSION_NAME}-${VERSION_CODE}.apk" > "melodist-tv-${VERSION_NAME}-${VERSION_CODE}.apk.sha256")
+          fi
+
+          # Mobile 全架构 APK
+          MOBILE_SRC="app-mobile/build/outputs/apk/release/app-mobile-release.apk"
+          MOBILE_DST="release-assets/melodist-mobile-${VERSION_NAME}-${VERSION_CODE}.apk"
+          if [ -f "$MOBILE_SRC" ]; then
+            cp "$MOBILE_SRC" "$MOBILE_DST"
+            (cd release-assets && sha256sum "melodist-mobile-${VERSION_NAME}-${VERSION_CODE}.apk" > "melodist-mobile-${VERSION_NAME}-${VERSION_CODE}.apk.sha256")
+          fi
           
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 

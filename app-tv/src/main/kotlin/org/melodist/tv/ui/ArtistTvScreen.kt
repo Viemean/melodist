@@ -1,6 +1,5 @@
 package org.melodist.tv.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -83,14 +82,6 @@ fun ArtistTvScreen(
     val isFollowed = followedMids.contains(artistMid)
 
     val scope = rememberCoroutineScope()
-
-    BackHandler {
-        if (subMode == ArtistSubMode.Albums) {
-            subMode = ArtistSubMode.Songs
-        } else {
-            onBack()
-        }
-    }
 
     // 加载歌手单曲（根据 isHotOrder 与分页）
     LaunchedEffect(artistMid, isHotOrder) {
@@ -183,6 +174,13 @@ fun ArtistTvScreen(
         isLoading = if (subMode == ArtistSubMode.Albums) isLoadingAlbums else isLoadingSongs,
         isLoadingMore = isLoadingMoreSongs,
         emptyMessage = if (subMode == ArtistSubMode.Albums) "暂无相关专辑" else "暂未收录相关单曲",
+        onBack = {
+            if (subMode == ArtistSubMode.Albums) {
+                subMode = ArtistSubMode.Songs
+            } else {
+                onBack()
+            }
+        },
         onPlayAll = {
             if (artistSongs.isNotEmpty()) {
                 PlaybackManager.setPlaylist(artistSongs, startIndex = 0)

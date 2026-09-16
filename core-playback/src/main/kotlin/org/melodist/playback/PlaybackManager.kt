@@ -53,7 +53,27 @@ enum class PlaybackLoopMode(
     Shuffle("随机播放"),
 }
 
+interface PlaybackInterceptor {
+    fun onInterceptPlaySong(
+        song: Song,
+        forceTier: AudioQualityTier?,
+        seekToMs: Long,
+    ): Boolean = false
+
+    fun onInterceptSwitchTier(
+        tier: AudioQualityTier,
+    ): Boolean = false
+
+    fun onInterceptTogglePlayPause(): Boolean = false
+    fun onInterceptPause(): Boolean = false
+    fun onInterceptResume(): Boolean = false
+    fun onInterceptSeekTo(positionMs: Long): Boolean = false
+    fun onInterceptPlayNext(): Boolean = false
+    fun onInterceptPlayPrevious(): Boolean = false
+}
+
 object PlaybackManager {
+    var playbackInterceptor: PlaybackInterceptor? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val apiService = MusicApiService()
     private var appContext: Context? = null
@@ -67,6 +87,7 @@ object PlaybackManager {
     private var exoPlayer: ExoPlayer? = null
     private var progressJob: Job? = null
     private var playJob: Job? = null
+    private var lyricLoadJob: Job? = null
     private val shuffleQueue = ShuffleQueueManager()
 
     private val _playlist = MutableStateFlow<List<Song>>(emptyList())
@@ -133,7 +154,33 @@ object PlaybackManager {
     private var prefetchedUrlInfo: Pair<String, QualityResult>? = null
     private var prefetchJob: Job? = null
 
+    private val _isRemoteActive = MutableStateFlow(false)
+    val isRemoteActive: StateFlow<Boolean> = _isRemoteActive.asStateFlow()
+
+    private val _remoteDeviceName = MutableStateFlow<String?>(null)
+    val remoteDeviceName: StateFlow<String?> = _remoteDeviceName.asStateFlow()
+
+    fun setRemoteActive(active: Boolean, deviceName: String? = null) {
+        _isRemoteActive.value = active
+        _remoteDeviceName.value = deviceName
+    }
+
+    fun clearRemotePlayback() {
+        _isRemoteActive.value = false
+        _remoteDeviceName.value = null
+        _isPlaying.value = false
+        _currentSong.value = null
+        _currentPositionMs.value = 0L
+        _durationMs.value = 0L
+    }
+
+    val isLocalPlaybackActive: Boolean
+        get() = exoPlayer?.playWhenReady == true && exoPlayer?.playbackState != androidx.media3.common.Player.STATE_IDLE
+
     fun shouldHoldForeground(): Boolean {
+        if (_isRemoteActive.value && _currentSong.value != null) {
+            return _isPlaying.value
+        }
         val player = exoPlayer ?: return false
         return player.playWhenReady || _isPlaying.value || _isLoading.value || _isTransitioning.value
     }
@@ -466,14 +513,21 @@ object PlaybackManager {
         }
     }
 
-    private fun buildMediaMetadata(song: Song): MediaMetadata {
+    fun buildMediaMetadata(song: Song, remoteDeviceName: String? = null): MediaMetadata {
+        val albumDesc = if (!remoteDeviceName.isNullOrBlank()) {
+            val base = if (song.album.isNotBlank()) song.album else "单曲"
+            "$base · 正在 $remoteDeviceName 播放"
+        } else {
+            song.album
+        }
+
         val builder =
             MediaMetadata
                 .Builder()
                 .setTitle(song.name)
                 .setArtist(song.singer)
                 .setDisplayTitle(song.name)
-                .setAlbumTitle(song.album)
+                .setAlbumTitle(albumDesc)
 
         val coverUrl = song.coverUrl
         if (coverUrl.isNotBlank()) {
@@ -501,6 +555,24 @@ object PlaybackManager {
             .setMediaId(song.songMid)
             .setMediaMetadata(buildMediaMetadata(song))
             .build()
+
+    fun buildMediaItemForSong(song: Song, remoteDeviceName: String? = null): MediaItem {
+        val uri = if (song.coverUrl.isNotBlank()) {
+            try {
+                android.net.Uri.parse(song.coverUrl)
+            } catch (_: Exception) {
+                android.net.Uri.EMPTY
+            }
+        } else {
+            android.net.Uri.EMPTY
+        }
+        return MediaItem
+            .Builder()
+            .setUri(uri)
+            .setMediaId(song.songMid)
+            .setMediaMetadata(buildMediaMetadata(song, remoteDeviceName))
+            .build()
+    }
 
     private fun updateCurrentMediaMetadata(song: Song) {
         val player = exoPlayer ?: return
@@ -862,7 +934,20 @@ object PlaybackManager {
     }
 
     fun toggleSongFavorite(song: Song) {
-        if (!isSongFavoriteSupported(song)) return
+        if (!isSongFavoriteSupported(song)) {
+            val ctx = appContext
+            if (ctx != null) {
+                val msg = if (song.songMid.startsWith("webdav_")) {
+                    "WebDAV 音乐不支持收藏"
+                } else {
+                    "本地音乐不支持收藏"
+                }
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            return
+        }
         val mid = song.songMid
         val id = song.songId
         val isFav = _favoriteSongMids.value.contains(mid)
@@ -1128,6 +1213,16 @@ object PlaybackManager {
             } else if (isCoverInvalid) {
                 effectiveSong = effectiveSong.copy(coverUrl = "")
             }
+        }
+        if (playbackInterceptor?.onInterceptPlaySong(effectiveSong, forceTier, seekToMs) == true) {
+            exoPlayer?.pause()
+            _currentSong.value = effectiveSong
+            _currentTier.value = forceTier ?: _preferredTier.value
+            _isPlaying.value = true
+            _isTransitioning.value = false
+            savePlaybackState()
+            loadLyricsForSong(effectiveSong)
+            return
         }
         _currentSong.value = effectiveSong
         _isTransitioning.value = true
@@ -1468,7 +1563,7 @@ object PlaybackManager {
                     } else {
                         player.setMediaItem(mediaItem)
                     }
-                    player.volume = if (_isMuted.value) 0f else 1.0f
+                    player.volume = if (_isMuted.value) 0f else targetVolume
                     player.prepare()
                     player.play()
                     _isTransitioning.value = false
@@ -1483,6 +1578,7 @@ object PlaybackManager {
     }
 
     fun togglePlayPause() {
+        if (playbackInterceptor?.onInterceptTogglePlayPause() == true) return
         val player = exoPlayer ?: return
         val currSong = _currentSong.value
 
@@ -1499,10 +1595,171 @@ object PlaybackManager {
         }
     }
 
+    fun pause() {
+        if (playbackInterceptor?.onInterceptPause() == true) return
+        val player = exoPlayer ?: return
+        if (player.isPlaying) {
+            player.pause()
+            savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
+        }
+    }
+
+    fun play() {
+        if (playbackInterceptor?.onInterceptResume() == true) return
+        val player = exoPlayer ?: return
+        if (!player.isPlaying) {
+            val currSong = _currentSong.value
+            if (player.currentMediaItem == null && currSong != null) {
+                playSong(currSong, seekToMs = _currentPositionMs.value)
+            } else {
+                player.play()
+            }
+        }
+    }
+
+    private var targetVolume = 1f
+
+    fun setVolume(volume: Float) {
+        val clamped = volume.coerceIn(0f, 1f)
+        targetVolume = clamped
+        exoPlayer?.volume = if (_isMuted.value) 0f else clamped
+    }
+
+    fun playCustomStream(
+        song: Song,
+        streamUrl: String,
+        headers: Map<String, String> = emptyMap(),
+        seekToMs: Long = 0L,
+    ) {
+        playJob?.cancel()
+        switchQualityJob?.cancel()
+        _isSwitchingQuality.value = false
+        appContext?.let { startPlaybackService(it) }
+
+        _currentSong.value = song
+        _isTransitioning.value = true
+        updateCurrentMediaMetadata(song)
+        org.melodist.data.RecentPlaybackManager.recordSong(song)
+        _currentTrackSpec.value = null
+
+        val list = _playlist.value
+        val foundIndex = list.indexOfFirst { it.songMid == song.songMid }
+        if (foundIndex != -1) {
+            _currentIndex.value = foundIndex
+        }
+
+        _isLoading.value = true
+        _errorMessage.value = null
+        _lyrics.value = emptyList()
+        _currentPositionMs.value = seekToMs
+
+        val player = exoPlayer ?: return
+        val baseHttpFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("MelodistTV/1.0 ConnectStream")
+            .setAllowCrossProtocolRedirects(true)
+        if (headers.isNotEmpty()) {
+            baseHttpFactory.setDefaultRequestProperties(headers)
+        }
+        val ctx = appContext ?: return
+        val dataSourceFactory = DefaultDataSource.Factory(ctx, baseHttpFactory)
+        val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+            .createMediaSource(buildMediaItem(android.net.Uri.parse(streamUrl), song))
+
+        if (seekToMs > 0L) {
+            player.setMediaSource(mediaSource, seekToMs)
+        } else {
+            player.setMediaSource(mediaSource)
+        }
+        player.volume = if (_isMuted.value) 0f else targetVolume
+        player.prepare()
+        player.play()
+        _isTransitioning.value = false
+        _isLoading.value = false
+        savePlaybackState()
+        loadLyricsForSong(song)
+    }
+
     fun seekTo(positionMs: Long) {
+        if (playbackInterceptor?.onInterceptSeekTo(positionMs) == true) return
         exoPlayer?.seekTo(positionMs)
         _currentPositionMs.value = positionMs
         savePlaybackProgress(positionMs)
+    }
+
+    fun syncRemotePlaybackState(
+        song: Song?,
+        isPlaying: Boolean,
+        positionMs: Long,
+        durationMs: Long,
+    ) {
+        val prevSong = _currentSong.value
+        if (song != null) {
+            _currentSong.value = song
+            if (prevSong?.songMid != song.songMid) {
+                loadLyricsForSong(song)
+            }
+        }
+        _isPlaying.value = isPlaying
+        _currentPositionMs.value = positionMs
+        if (durationMs > 0L) {
+            _durationMs.value = durationMs
+        }
+    }
+
+    fun loadLyricsForSong(song: Song) {
+        lyricLoadJob?.cancel()
+        _lyrics.value = emptyList()
+        lyricLoadJob = scope.launch(Dispatchers.IO) {
+            try {
+                if (song.songMid.startsWith("webdav_")) {
+                    val lrcText = org.melodist.data.WebDavManager.getSongLyrics(song)
+                    val baseLyrics = if (!lrcText.isNullOrBlank()) {
+                        LyricParser.parseMergedLyrics(lrcText, null)
+                    } else {
+                        emptyList()
+                    }
+                    if (_currentSong.value?.songMid == song.songMid && baseLyrics.isNotEmpty()) {
+                        _lyrics.value = baseLyrics
+                    }
+                    // 智能匹配官方逐行歌词与双语翻译
+                    val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, null, baseLyrics)
+                    if (matched != null && matched.isNotEmpty() && _currentSong.value?.songMid == song.songMid) {
+                        Log.i("MelodistPlayback", "Applied auto-matched lyrics for WebDAV song: ${song.name}")
+                        _lyrics.value = matched
+                    }
+                } else if (!song.localFilePath.isNullOrBlank() || song.isLocal) {
+                    val lrcText = org.melodist.data.LocalMusicManager.getSongLyrics(song)
+                    val baseLyrics = if (!lrcText.isNullOrBlank()) {
+                        LyricParser.parseMergedLyrics(lrcText, null)
+                    } else {
+                        emptyList()
+                    }
+                    if (_currentSong.value?.songMid == song.songMid && baseLyrics.isNotEmpty()) {
+                        _lyrics.value = baseLyrics
+                    }
+                    val path = song.localFilePath
+                    val directFile = if (!path.isNullOrBlank()) java.io.File(path) else null
+                    val validFile = if (directFile != null && directFile.exists() && directFile.isFile) directFile else null
+                    val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, validFile, baseLyrics)
+                    if (matched != null && matched.isNotEmpty() && _currentSong.value?.songMid == song.songMid) {
+                        Log.i("MelodistPlayback", "Applied auto-matched lyrics for local song: ${song.name}")
+                        _lyrics.value = matched
+                    }
+                } else {
+                    val onlineLyrics = apiService.getLyrics(
+                        song.songMid,
+                        song.songId,
+                        songName = song.name,
+                        singer = song.singer,
+                    )
+                    if (_currentSong.value?.songMid == song.songMid) {
+                        _lyrics.value = onlineLyrics
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("MelodistPlayback", "Error loading lyrics for ${song.name}", e)
+            }
+        }
     }
 
     fun isCellularNetwork(): Boolean = PlaybackSourceResolver.isCellularNetwork(appContext)
@@ -1550,6 +1807,12 @@ object PlaybackManager {
             .updatePreferredQualityTier(effectiveTier)
         savePlaybackState()
 
+        if (playbackInterceptor?.onInterceptSwitchTier(effectiveTier) == true) {
+            _currentTier.value = effectiveTier
+            _isSwitchingQuality.value = false
+            return
+        }
+
         if (previousTier == effectiveTier && exoPlayer?.currentMediaItem != null) {
             _isSwitchingQuality.value = false
             return
@@ -1594,7 +1857,7 @@ object PlaybackManager {
                                 _currentPositionMs.value
                             }
 
-                        player.volume = if (_isMuted.value) 0f else 1.0f
+                        player.volume = if (_isMuted.value) 0f else targetVolume
                         val mediaItem = buildMediaItem(android.net.Uri.parse(rawUrl), current)
                         if (livePositionMs > 0L) {
                             player.setMediaItem(mediaItem, livePositionMs)
@@ -1709,6 +1972,9 @@ object PlaybackManager {
     }
 
     fun playNext() {
+        if (playbackInterceptor?.onInterceptPlayNext() == true) {
+            return
+        }
         val list = _playlist.value
         if (list.isEmpty()) return
 
@@ -1758,6 +2024,9 @@ object PlaybackManager {
     }
 
     fun playPrevious() {
+        if (playbackInterceptor?.onInterceptPlayPrevious() == true) {
+            return
+        }
         val list = _playlist.value
         if (list.isEmpty()) return
 

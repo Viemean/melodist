@@ -751,6 +751,40 @@ class MusicApiService(
                     }
                 }
 
+                if (availableMap.isEmpty() && UserSession.isLoggedIn) {
+                    val refreshed = LoginApiService().forceRefreshMusicKey()
+                    if (refreshed) {
+                        val newUin = PlaybackCredentialsManager.getActiveUin()
+                        val newAuthst = PlaybackCredentialsManager.getActiveAuthst()
+                        val newCookieHeader = PlaybackCredentialsManager.getActiveCookieHeader()
+                        val retryPayload = sb.toString()
+                            .replace(""""uin":"$uin"""", """"uin":"$newUin"""")
+                            .replace(""""authst":"$authst"""", """"authst":"$newAuthst"""")
+                        try {
+                            val retryResp = postGateway(retryPayload, customCookieHeader = newCookieHeader)
+                            val retryRoot = Json.parseToJsonElement(retryResp).jsonObject
+                            for (req in requests) {
+                                val key = req.first
+                                val tier = req.second
+                                val prefix = req.third.first
+                                val reqData = retryRoot[key]?.jsonObject?.get("data")?.jsonObject ?: continue
+                                val sips = reqData["sip"]?.jsonArray
+                                val sip = sips?.firstOrNull()?.jsonPrimitive?.contentOrNull ?: continue
+                                val midInfo = reqData["midurlinfo"]?.jsonArray?.firstOrNull()?.jsonObject
+                                val purl = midInfo?.get("purl")?.jsonPrimitive?.contentOrNull
+                                val result = midInfo?.get("result")?.jsonPrimitive?.intOrNull ?: 0
+                                val fileSize = sizeMap[tier] ?: 0L
+                                val hasValidUrl = !purl.isNullOrBlank() && purl.length > 5 && result == 0 && purl.contains(prefix, ignoreCase = true)
+                                val isAvailable = if (fileObj != null) fileSize > 0L && hasValidUrl else hasValidUrl
+                                if (isAvailable && purl != null) {
+                                    if (purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) continue
+                                    availableMap[tier] = sip + purl
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+
                 // 优先检查 preferredTier
                 availableMap[preferredTier]?.let { url ->
                     return@withContext QualityResult(url, preferredTier, AudioQualityTier.getBadge(preferredTier))

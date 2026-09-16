@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,6 +58,7 @@ fun NowPlayingHeroCard(
     onPlayPauseClick: () -> Unit = {},
     canFavorite: Boolean = true,
     onFavoriteClick: () -> Unit = {},
+    connectedPhoneName: String? = null,
 ) {
     val songTitle = song?.name ?: "未在播放曲目"
     val songArtist = song?.singer?.takeIf { it.isNotBlank() } ?: if (song != null) "未知歌手" else "请从歌单中选择歌曲播放"
@@ -187,12 +189,12 @@ fun NowPlayingHeroCard(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(0.85f),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             val btnBg = surfaceColor.toMonetContainer(0.08f)
@@ -238,21 +240,54 @@ fun NowPlayingHeroCard(
                                     modifier =
                                         Modifier
                                             .height(40.dp)
-                                            .defaultMinSize(minWidth = 76.dp)
+                                            .defaultMinSize(minWidth = 56.dp)
                                             .clip(MelodistShapes.ButtonCorner)
                                             .background(btnBg)
                                             .border(
                                                 BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
                                                 MelodistShapes.ButtonCorner,
-                                            ).padding(horizontal = 16.dp),
+                                            ).padding(horizontal = 12.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
                                         text = qualityTag,
                                         color = MelodistColors.QualityGoldText,
-                                        fontSize = 15.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                     )
+                                }
+                            }
+
+                            if (!connectedPhoneName.isNullOrBlank()) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .height(40.dp)
+                                            .clip(MelodistShapes.ButtonCorner)
+                                            .background(Color(0xFF2E7D32).copy(alpha = 0.25f))
+                                            .border(
+                                                BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.6f)),
+                                                MelodistShapes.ButtonCorner,
+                                            ).padding(horizontal = 10.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.PhoneAndroid,
+                                            contentDescription = "手机已连接",
+                                            tint = Color(0xFF81C784),
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Text(
+                                            text = "手机互联",
+                                            color = Color(0xFF81C784),
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -387,7 +422,7 @@ private fun HeroProgressBar(
     Box(
         modifier =
             modifier
-                .fillMaxWidth(0.85f)
+                .fillMaxWidth()
                 .height(4.dp)
                 .clip(MelodistShapes.PillCorner)
                 .background(MelodistColors.ProgressTrack),
@@ -425,6 +460,8 @@ private fun HeroProgressText(
         color = Color.White.copy(alpha = 0.85f),
         fontSize = 13.sp,
         fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        softWrap = false,
         modifier = modifier,
     )
 }

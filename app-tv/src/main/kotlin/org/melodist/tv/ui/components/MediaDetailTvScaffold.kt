@@ -1,5 +1,7 @@
 package org.melodist.tv.ui.components
 
+import android.view.KeyEvent as AndroidKeyEvent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,13 +20,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +60,7 @@ fun MediaDetailTvScaffold(
     isLoading: Boolean = false,
     emptyMessage: String = "暂无相关曲目",
     isReturningFromPlayer: Boolean = false,
+    onBack: (() -> Unit)? = null,
     onPlayAll: () -> Unit = {},
     onSongClick: (Song) -> Unit = {},
     onSongLongClick: (Song) -> Unit = {},
@@ -103,19 +103,35 @@ fun MediaDetailTvScaffold(
     var pageTargetFocusIndex by remember { mutableStateOf<Int?>(null) }
     val pageFocusRequester = remember { FocusRequester() }
     var hasRequestedInitialFocus by remember { mutableStateOf(false) }
+    var isPlayAllFocused by remember { mutableStateOf(true) }
+    var lastBackHandledTime by remember { mutableLongStateOf(0L) }
 
-    LaunchedEffect(isReturningFromPlayer) {
-        if (isReturningFromPlayer && songs.isNotEmpty() && !currentPlayingMid.isNullOrBlank()) {
-            val idx = songs.indexOfFirst { it.songMid == currentPlayingMid }
-            if (idx >= 0) {
-                listState.scrollToItem((idx - 2).coerceAtLeast(0))
-                pageTargetFocusIndex = idx
-                return@LaunchedEffect
+    val scaffoldCoroutineScope = rememberCoroutineScope()
+    val returnToPlayAll: () -> Boolean = {
+        val now = System.currentTimeMillis()
+        lastBackHandledTime = now
+        isPlayAllFocused = true
+        scaffoldCoroutineScope.launch {
+            try {
+                playAllFocusRequester.requestFocus()
+            } catch (_: Exception) {
             }
         }
-        if (!hasRequestedInitialFocus) {
-            hasRequestedInitialFocus = true
-            playAllFocusRequester.requestFocus()
+        true
+    }
+
+    if (onBack != null) {
+        BackHandler {
+            val now = System.currentTimeMillis()
+            if (now - lastBackHandledTime < 500L) {
+                return@BackHandler
+            }
+            lastBackHandledTime = now
+            if (!isPlayAllFocused) {
+                returnToPlayAll()
+            } else {
+                onBack()
+            }
         }
     }
 
@@ -225,6 +241,9 @@ fun MediaDetailTvScaffold(
                             .fillMaxWidth()
                             .height(46.dp)
                             .focusRequester(playAllFocusRequester)
+                            .onFocusChanged {
+                                isPlayAllFocused = it.isFocused
+                            }
                             .focusProperties {
                                 right = firstSongFocusRequester
                             },
@@ -283,24 +302,32 @@ fun MediaDetailTvScaffold(
                 }
             }
 
+            val rightPanelModifier =
+                Modifier
+                    .fillMaxHeight()
+                    .weight(1f)
+                    .padding(top = 28.dp)
+                    .onPreviewKeyEvent { event ->
+                        if (event.key == Key.Back || event.nativeKeyEvent.keyCode == AndroidKeyEvent.KEYCODE_BACK) {
+                            if (event.type == KeyEventType.KeyDown) {
+                                returnToPlayAll()
+                            }
+                            true
+                        } else {
+                            false
+                        }
+                    }
+
             // ── 右侧内容区：自定义内容（如选专辑）或曲目列表 ──
             if (rightContent != null) {
                 Box(
-                    modifier =
-                        Modifier
-                            .fillMaxHeight()
-                            .weight(1f)
-                            .padding(top = 28.dp),
+                    modifier = rightPanelModifier,
                 ) {
                     rightContent()
                 }
             } else {
                 Column(
-                    modifier =
-                        Modifier
-                            .fillMaxHeight()
-                            .weight(1f)
-                            .padding(top = 28.dp),
+                    modifier = rightPanelModifier,
                 ) {
                     // 表头 (与左侧封面顶部对齐)
                     Row(
@@ -385,7 +412,12 @@ fun MediaDetailTvScaffold(
                                                         else -> Modifier
                                                     },
                                                 ).onPreviewKeyEvent { event ->
-                                                    if (event.type == KeyEventType.KeyDown) {
+                                                    if (event.key == Key.Back || event.nativeKeyEvent.keyCode == AndroidKeyEvent.KEYCODE_BACK) {
+                                                        if (event.type == KeyEventType.KeyDown) {
+                                                            returnToPlayAll()
+                                                        }
+                                                        true
+                                                    } else if (event.type == KeyEventType.KeyDown) {
                                                         when (event.key) {
                                                             Key.DirectionRight -> {
                                                                 val targetIndex = (index + 8).coerceAtMost(songs.size - 1)

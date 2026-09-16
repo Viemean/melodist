@@ -19,8 +19,17 @@ androidx-material-icons = "1.7.8"
 detekt = "1.23.8"
 detekt-rules-compose = "0.6.6"
 ktlint = "14.2.0"
+java-websocket = "1.6.0"
+zxing = "3.5.3"
+camerax = "1.4.1"
 
 [libraries]
+camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+java-websocket = { module = "org.java-websocket:Java-WebSocket", version.ref = "java-websocket" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }

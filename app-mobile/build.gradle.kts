@@ -20,6 +20,9 @@ android {
                 storePassword = keystorePassword
                 this.keyAlias = keyAlias
                 this.keyPassword = keyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
@@ -31,9 +34,6 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        ndk {
-            abiFilters += listOf("arm64-v8a")
-        }
     }
 
     buildFeatures {
@@ -83,6 +83,7 @@ dependencies {
     implementation(project(":core-api"))
     implementation(project(":core-data"))
     implementation(project(":core-playback"))
+    implementation(project(":core-connect"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -97,6 +98,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.androidx.palette)
+
+    // CameraX and ZXing for QR code scanner
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.view)
+    implementation(libs.zxing.core)
 
     // Media3 ExoPlayer & MediaSession
     implementation(libs.media3.exoplayer)

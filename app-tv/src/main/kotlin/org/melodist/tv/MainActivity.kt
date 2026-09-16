@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.flow.collect
 import org.melodist.api.MusicApiService
 import org.melodist.data.UserSessionManager
 import org.melodist.playback.DeviceAudioCapability
@@ -32,6 +33,8 @@ import org.melodist.tv.ui.PlaylistTvScreen
 import org.melodist.tv.ui.SearchTvScreen
 import org.melodist.tv.ui.SettingsTvScreen
 import org.melodist.tv.ui.WebDavTvScreen
+import org.melodist.tv.connect.TvConnectManager
+import org.melodist.tv.ui.connect.ConnectTvScreen
 import org.melodist.tv.ui.settings.ScreenSaverOverlay
 import org.melodist.tv.ui.theme.MelodistTvTheme
 import org.melodist.tv.ui.theme.rememberMonetSurfaceColor
@@ -46,6 +49,7 @@ enum class ScreenRoute {
     Search,
     WebDav,
     LocalMusic,
+    Connect,
     Artist,
     Album,
 }
@@ -67,6 +71,7 @@ class MainActivity : ComponentActivity() {
         org.melodist.data.AppSettingsManager
             .init(this)
         ScreenSaverManager.init()
+        TvConnectManager.init(this)
         checkAndRequestStoragePermissions()
         setContent {
             MelodistTvTheme {
@@ -133,6 +138,12 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
+                        LaunchedEffect(Unit) {
+                            TvConnectManager.navigateToPlayerEvent.collect {
+                                navigateTo(ScreenRoute.Player)
+                            }
+                        }
+
                         // 主页返回键双击退出应用
                         BackHandler(enabled = currentRoute == ScreenRoute.Home) {
                             val currentTime = System.currentTimeMillis()
@@ -166,6 +177,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onNavigateToLocalMusic = {
                                         navigateTo(ScreenRoute.LocalMusic)
+                                    },
+                                    onNavigateToConnect = {
+                                        navigateTo(ScreenRoute.Connect)
                                     },
                                     onNavigateToDetail = { categoryId ->
                                         currentCategoryId = categoryId
@@ -411,6 +425,13 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToPlayer = {
                                         navigateTo(ScreenRoute.Player)
                                     },
+                                    onBack = {
+                                        navigateBack()
+                                    },
+                                )
+                            }
+                            ScreenRoute.Connect -> {
+                                ConnectTvScreen(
                                     onBack = {
                                         navigateBack()
                                     },

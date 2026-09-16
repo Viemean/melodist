@@ -34,6 +34,9 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Tv
+import org.melodist.core.connect.client.MobileConnectionState
+import org.melodist.mobile.connect.MobileConnectManager
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -99,6 +102,8 @@ fun SongActionSheet(
     val navController = LocalAppNavigation.current
     val favoriteMids by PlaybackManager.favoriteSongMids.collectAsState()
     val isFavorite = favoriteMids.contains(song.songMid)
+    val connectState by MobileConnectManager.connectionState.collectAsState()
+    val isTvOnline = connectState is MobileConnectionState.Paired
 
     var showArtistSelectDialog by remember { mutableStateOf(false) }
     var showDownloadQualityDialog by remember { mutableStateOf(false) }
@@ -266,6 +271,29 @@ fun SongActionSheet(
                     onClick = {
                         PlaybackManager.insertNextPlay(song)
                         Toast.makeText(context, "已加入下一首播放", Toast.LENGTH_SHORT).show()
+                        onDismissRequest()
+                    },
+                )
+            }
+
+            if (isTvOnline) {
+                ActionSheetItem(
+                    icon = Icons.Filled.Tv,
+                    title = "在 TV 上立即播放",
+                    tint = MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        MobileConnectManager.playOnTv(song)
+                        Toast.makeText(context, "已发送至 TV 播放", Toast.LENGTH_SHORT).show()
+                        onDismissRequest()
+                    },
+                )
+                ActionSheetItem(
+                    icon = Icons.AutoMirrored.Filled.PlaylistPlay,
+                    title = "在 TV 上稍后播放",
+                    tint = MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        MobileConnectManager.enqueueNextOnTv(song)
+                        Toast.makeText(context, "已插播至 TV 队列", Toast.LENGTH_SHORT).show()
                         onDismissRequest()
                     },
                 )
