@@ -89,19 +89,57 @@ object PlaybackManager {
     private var progressJob: Job? = null
     private var playJob: Job? = null
     private var lyricLoadJob: Job? = null
-    private val shuffleQueue = ShuffleQueueManager()
 
-    private val _playlist = MutableStateFlow<List<Song>>(emptyList())
-    val playlist: StateFlow<List<Song>> = _playlist.asStateFlow()
+    private val remoteStateHolder = PlaybackRemoteStateHolder()
+    val isRemoteActive: StateFlow<Boolean> = remoteStateHolder.isRemoteActive
+    val remoteDeviceName: StateFlow<String?> = remoteStateHolder.remoteDeviceName
+    val remotePrevSong: StateFlow<Song?> = remoteStateHolder.remotePrevSong
+    val remoteNextSong: StateFlow<Song?> = remoteStateHolder.remoteNextSong
 
-    private val _paginationSource = MutableStateFlow<QueuePaginationSource?>(null)
-    val paginationSource: StateFlow<QueuePaginationSource?> = _paginationSource.asStateFlow()
+    fun setRemoteActive(active: Boolean, deviceName: String? = null) {
+        remoteStateHolder.setRemoteActive(active, deviceName)
+    }
 
-    private val _isLoadingMoreForQueue = MutableStateFlow(false)
-    val isLoadingMoreForQueue: StateFlow<Boolean> = _isLoadingMoreForQueue.asStateFlow()
+    fun clearRemotePlayback() {
+        if (!remoteStateHolder.isRemoteActive.value) return
+        remoteStateHolder.clearRemotePlayback()
+        _isPlaying.value = false
+        _currentSong.value = null
+        _currentPositionMs.value = 0L
+        _durationMs.value = 0L
+    }
 
-    private val _currentIndex = MutableStateFlow(-1)
-    val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
+    private val favoriteController =
+        PlaybackFavoriteController(
+            scope = scope,
+            apiService = apiService,
+            onStateChanged = { savePlaybackState() },
+        )
+    val favoriteSongMids: StateFlow<Set<String>> = favoriteController.favoriteSongMids
+    val songFavoriteToggledEvent: SharedFlow<Pair<Song, Boolean>> = favoriteController.songFavoriteToggledEvent
+
+    private val queueManager =
+        PlaybackQueueManager(
+            scope = scope,
+            apiService = apiService,
+            onStateChanged = { savePlaybackState() },
+            onPlaySongRequest = { song, forceTier, seekToMs ->
+                playSong(song, forceTier = forceTier, seekToMs = seekToMs)
+            },
+            onStopPlaybackRequest = {
+                exoPlayer?.stop()
+                exoPlayer?.clearMediaItems()
+                _currentSong.value = null
+                _lyrics.value = emptyList()
+                _isPlaying.value = false
+            },
+        )
+    val playlist: StateFlow<List<Song>> = queueManager.playlist
+    val currentIndex: StateFlow<Int> = queueManager.currentIndex
+    val loopMode: StateFlow<PlaybackLoopMode> = queueManager.loopMode
+    val isRadioMode: StateFlow<Boolean> = queueManager.isRadioMode
+    val paginationSource: StateFlow<QueuePaginationSource?> = queueManager.paginationSource
+    val isLoadingMoreForQueue: StateFlow<Boolean> = queueManager.isLoadingMoreForQueue
 
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
@@ -123,12 +161,6 @@ object PlaybackManager {
 
     private val _currentTrackSpec = MutableStateFlow<AudioTrackSpec?>(null)
     val currentTrackSpec: StateFlow<AudioTrackSpec?> = _currentTrackSpec.asStateFlow()
-
-    private val _favoriteSongMids = MutableStateFlow<Set<String>>(emptySet())
-    val favoriteSongMids: StateFlow<Set<String>> = _favoriteSongMids.asStateFlow()
-
-    private val _songFavoriteToggledEvent = MutableSharedFlow<Pair<Song, Boolean>>(extraBufferCapacity = 16)
-    val songFavoriteToggledEvent: SharedFlow<Pair<Song, Boolean>> = _songFavoriteToggledEvent.asSharedFlow()
 
     private val _availableTiers = MutableStateFlow<Set<AudioQualityTier>>(emptySet())
     val availableTiers: StateFlow<Set<AudioQualityTier>> = _availableTiers.asStateFlow()
@@ -155,40 +187,11 @@ object PlaybackManager {
     private var prefetchedUrlInfo: Pair<String, QualityResult>? = null
     private var prefetchJob: Job? = null
 
-    private val _isRemoteActive = MutableStateFlow(false)
-    val isRemoteActive: StateFlow<Boolean> = _isRemoteActive.asStateFlow()
-
-    private val _remoteDeviceName = MutableStateFlow<String?>(null)
-    val remoteDeviceName: StateFlow<String?> = _remoteDeviceName.asStateFlow()
-
-    private val _remotePrevSong = MutableStateFlow<Song?>(null)
-    val remotePrevSong: StateFlow<Song?> = _remotePrevSong.asStateFlow()
-
-    private val _remoteNextSong = MutableStateFlow<Song?>(null)
-    val remoteNextSong: StateFlow<Song?> = _remoteNextSong.asStateFlow()
-
-    fun setRemoteActive(active: Boolean, deviceName: String? = null) {
-        _isRemoteActive.value = active
-        _remoteDeviceName.value = deviceName
-    }
-
-    fun clearRemotePlayback() {
-        if (!_isRemoteActive.value) return
-        _isRemoteActive.value = false
-        _remoteDeviceName.value = null
-        _remotePrevSong.value = null
-        _remoteNextSong.value = null
-        _isPlaying.value = false
-        _currentSong.value = null
-        _currentPositionMs.value = 0L
-        _durationMs.value = 0L
-    }
-
     val isLocalPlaybackActive: Boolean
         get() = exoPlayer?.playWhenReady == true && exoPlayer?.playbackState != androidx.media3.common.Player.STATE_IDLE
 
     fun shouldHoldForeground(): Boolean {
-        if (_isRemoteActive.value && _currentSong.value != null) {
+        if (remoteStateHolder.isRemoteActive.value && _currentSong.value != null) {
             return _isPlaying.value
         }
         val player = exoPlayer ?: return false
@@ -206,14 +209,8 @@ object PlaybackManager {
         exoPlayer?.volume = if (muted) 0f else 1f
     }
 
-    private val _loopMode = MutableStateFlow(PlaybackLoopMode.ListRepeat)
-    val loopMode: StateFlow<PlaybackLoopMode> = _loopMode.asStateFlow()
-
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
-    private val _isRadioMode = MutableStateFlow(false)
-    val isRadioMode: StateFlow<Boolean> = _isRadioMode.asStateFlow()
 
     private val usbRouter =
         UsbAudioRouter(
@@ -739,7 +736,7 @@ object PlaybackManager {
                 var saveCounter = 0
                 var prefetchCounter = 0
                 while (isActive) {
-                    if (_isRemoteActive.value) {
+                    if (remoteStateHolder.isRemoteActive.value) {
                         delay(200L)
                         continue
                     }
@@ -770,270 +767,57 @@ object PlaybackManager {
             }
     }
 
-    private fun getPrefs() = appContext?.getSharedPreferences("melodist_playback_prefs", Context.MODE_PRIVATE)
-
     fun savePlaybackState() {
-        val prefs = getPrefs() ?: return
-        try {
-            val currSong = _currentSong.value
-            val list = _playlist.value
-            val favs = _favoriteSongMids.value
-            prefs.edit().apply {
-                if (currSong != null) {
-                    putString("current_song", jsonHelper.encodeToString(currSong))
-                }
-                if (list.isNotEmpty()) {
-                    putString("playback_queue", jsonHelper.encodeToString(list))
-                }
-                putInt("current_index", _currentIndex.value)
-                putLong("current_position_ms", _currentPositionMs.value)
-                putLong("duration_ms", _durationMs.value)
-                putString("preferred_tier", _preferredTier.value.name)
-                putString("loop_mode", _loopMode.value.name)
-                putString("shuffled_indices", shuffleQueue.serialize())
-                putInt("shuffled_pointer", shuffleQueue.pointer)
-                putString("favorite_song_mids", jsonHelper.encodeToString(favs))
-                putBoolean("is_radio_mode", _isRadioMode.value)
-                apply()
-            }
-        } catch (e: Exception) {
-            Log.w("MelodistPlayback", "Failed to save playback state", e)
-        }
+        PlaybackStateStorage.savePlaybackState(
+            context = appContext,
+            currentSong = _currentSong.value,
+            playlist = queueManager.playlist.value,
+            favoriteSongMids = favoriteController.favoriteSongMids.value,
+            currentIndex = queueManager.currentIndex.value,
+            currentPositionMs = _currentPositionMs.value,
+            durationMs = _durationMs.value,
+            preferredTier = _preferredTier.value,
+            loopMode = queueManager.loopMode.value,
+            shuffledIndices = queueManager.shuffleQueue.serialize(),
+            shuffledPointer = queueManager.shuffleQueue.pointer,
+            isRadioMode = queueManager.isRadioMode.value,
+        )
     }
 
     fun savePlaybackProgress(posMs: Long = _currentPositionMs.value) {
-        val prefs = getPrefs() ?: return
-        try {
-            prefs.edit().putLong("current_position_ms", posMs).apply()
-        } catch (_: Exception) {
-        }
-    }
-
-    private fun sanitizeSongCover(song: Song): Song {
-        val url = song.coverUrl
-        if (url.startsWith("file://")) {
-            val path = url.removePrefix("file://")
-            val file = java.io.File(path)
-            if (!file.exists() || file.length() == 0L) {
-                return song.copy(coverUrl = "")
-            }
-        }
-        return song
+        PlaybackStateStorage.savePlaybackProgress(appContext, posMs)
     }
 
     private fun restorePlaybackState() {
-        val prefs = getPrefs() ?: return
-        try {
-            val settingsTier = org.melodist.data.AppSettingsManager.settings.value.preferredQualityTier
-            _preferredTier.value = settingsTier
-
-            val modeName = prefs.getString("loop_mode", null)
-            if (modeName != null) {
-                try {
-                    _loopMode.value = PlaybackLoopMode.valueOf(modeName)
-                } catch (_: Exception) {
-                }
-            }
-            _isRadioMode.value = prefs.getBoolean("is_radio_mode", false)
-
-            val favJson = prefs.getString("favorite_song_mids", null)
-            if (!favJson.isNullOrBlank()) {
-                try {
-                    val favSet = jsonHelper.decodeFromString<Set<String>>(favJson)
-                    _favoriteSongMids.value = favSet
-                } catch (_: Exception) {
-                }
-            }
-
-            val queueJson = prefs.getString("playback_queue", null)
-            if (!queueJson.isNullOrBlank()) {
-                try {
-                    val queue = jsonHelper.decodeFromString<List<Song>>(queueJson).map { sanitizeSongCover(it) }
-                    _playlist.value = queue
-                    val shufStr = prefs.getString("shuffled_indices", null)
-                    val shufPointer = prefs.getInt("shuffled_pointer", 0)
-                    shuffleQueue.restore(shufStr, shufPointer, queue.size)
-                } catch (_: Exception) {
-                }
-            }
-
-            _currentIndex.value = prefs.getInt("current_index", -1)
-
-            val songJson = prefs.getString("current_song", null)
-            if (!songJson.isNullOrBlank()) {
-                try {
-                    val rawSong = jsonHelper.decodeFromString<Song>(songJson)
-                    val song = sanitizeSongCover(rawSong)
-                    _currentSong.value = song
-                    _currentTier.value = song.currentTier
-                } catch (_: Exception) {
-                }
-            }
-
-            _currentPositionMs.value = prefs.getLong("current_position_ms", 0L)
-            _durationMs.value = prefs.getLong("duration_ms", 0L)
-        } catch (e: Exception) {
-            Log.w("MelodistPlayback", "Failed to restore playback state", e)
+        val restored = PlaybackStateStorage.restorePlaybackState(appContext)
+        restored.preferredTier?.let { _preferredTier.value = it }
+        favoriteController.restoreFavorites(restored.favoriteSongMids)
+        queueManager.restoreState(
+            playlist = restored.playlist,
+            currentIndex = restored.currentIndex,
+            loopMode = restored.loopMode,
+            isRadioMode = restored.isRadioMode,
+            shuffledIndices = restored.shuffledIndices,
+            shuffledPointer = restored.shuffledPointer,
+        )
+        if (restored.currentSong != null) {
+            _currentSong.value = restored.currentSong
+            _currentTier.value = restored.currentSong.currentTier
         }
+        _currentPositionMs.value = restored.currentPositionMs
+        _durationMs.value = restored.durationMs
     }
 
-    fun setFavoriteSongMids(mids: Set<String>) {
-        if (mids.isEmpty()) return
-        _favoriteSongMids.value = _favoriteSongMids.value + mids
-        savePlaybackState()
-    }
-
-    fun addFavoriteSongMids(mids: Collection<String>) {
-        if (mids.isEmpty()) return
-        val validMids = mids.filter { it.isNotBlank() }
-        if (validMids.isEmpty()) return
-        _favoriteSongMids.value = _favoriteSongMids.value + validMids
-        savePlaybackState()
-    }
-
-    @Volatile
-    private var isSyncingFavorites = false
-
-    /**
-     * 同步用户收藏歌曲列表
-     */
-    fun syncFavoriteSongsAsync(forceRefresh: Boolean = false) {
-        if (!UserSession.isLoggedIn) return
-        if (isSyncingFavorites) return
-        isSyncingFavorites = true
-
-        scope.launch(Dispatchers.IO) {
-            try {
-                var page = 1
-                var hasMore = true
-                val allFavMids = mutableSetOf<String>()
-                while (hasMore && UserSession.isLoggedIn && page <= 50) {
-                    val result = apiService.getFavoriteSongsDetail(page = page, pageSize = 100)
-                    if (result.songs.isNotEmpty()) {
-                        val mids = result.songs.mapNotNull { it.songMid.takeIf { m -> m.isNotBlank() } }
-                        allFavMids.addAll(mids)
-                        _favoriteSongMids.value = _favoriteSongMids.value + mids
-                        hasMore = result.hasMore && (allFavMids.size < result.total)
-                        page++
-                    } else {
-                        hasMore = false
-                    }
-                }
-                if (allFavMids.isNotEmpty()) {
-                    if (forceRefresh) {
-                        _favoriteSongMids.value = allFavMids
-                    } else {
-                        _favoriteSongMids.value = _favoriteSongMids.value + allFavMids
-                    }
-                    savePlaybackState()
-                }
-            } catch (e: Exception) {
-                Log.w("MelodistPlayback", "Failed to sync favorite songs: $e")
-            } finally {
-                isSyncingFavorites = false
-            }
-        }
-    }
-
-    fun isSongFavoriteSupported(song: Song?): Boolean {
-        if (song == null) return false
-        // WebDAV 歌曲或本地音乐不支持红心收藏
-        if (song.songMid.startsWith("webdav_") || !song.localFilePath.isNullOrBlank()) {
-            return false
-        }
-        return true
-    }
-
-    fun isSongFavorite(songMid: String?): Boolean {
-        if (songMid == null || songMid.startsWith("webdav_")) return false
-        return _favoriteSongMids.value.contains(songMid)
-    }
-
-    fun setSongFavoriteState(songMid: String, isFav: Boolean) {
-        if (songMid.isBlank()) return
-        val currentSet = _favoriteSongMids.value
-        val updated = if (isFav) currentSet + songMid else currentSet - songMid
-        if (updated != currentSet) {
-            _favoriteSongMids.value = updated
-            savePlaybackState()
-            _currentSong.value?.let { current ->
-                if (current.songMid == songMid) {
-                    _songFavoriteToggledEvent.tryEmit(current to isFav)
-                }
-            }
-        }
-    }
-
-    fun toggleSongFavorite(song: Song) {
-        if (!isSongFavoriteSupported(song)) {
-            val ctx = appContext
-            if (ctx != null) {
-                val msg = if (song.songMid.startsWith("webdav_")) {
-                    "WebDAV 音乐不支持收藏"
-                } else {
-                    "本地音乐不支持收藏"
-                }
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }
-            return
-        }
-        val mid = song.songMid
-        val id = song.songId
-        val isFav = _favoriteSongMids.value.contains(mid)
-        val willBeFav = !isFav
-        val updated =
-            if (isFav) {
-                _favoriteSongMids.value - mid
-            } else {
-                _favoriteSongMids.value + mid
-            }
-        _favoriteSongMids.value = updated
-        savePlaybackState()
-        _songFavoriteToggledEvent.tryEmit(song to willBeFav)
-
-        scope.launch(Dispatchers.IO) {
-            try {
-                if (isFav) {
-                    apiService.deleteSongFromFavorite(id, mid)
-                } else {
-                    apiService.addSongToFavorite(id, mid)
-                }
-                UserLibraryCacheManager.onFavoriteToggled(song, willBeFav)
-            } catch (e: Exception) {
-                Log.w("MelodistPlayback", "Failed to sync favorite to cloud: $e")
-            }
-        }
-    }
-
+    fun setFavoriteSongMids(mids: Set<String>) = favoriteController.setFavoriteSongMids(mids)
+    fun addFavoriteSongMids(mids: Collection<String>) = favoriteController.addFavoriteSongMids(mids)
+    fun syncFavoriteSongsAsync(forceRefresh: Boolean = false) = favoriteController.syncFavoriteSongsAsync(forceRefresh)
+    fun isSongFavoriteSupported(song: Song?): Boolean = favoriteController.isSongFavoriteSupported(song)
+    fun isSongFavorite(songMid: String?): Boolean = favoriteController.isSongFavorite(songMid)
+    fun setSongFavoriteState(songMid: String, isFav: Boolean) = favoriteController.setSongFavoriteState(songMid, isFav, _currentSong.value)
+    fun toggleSongFavorite(song: Song) = favoriteController.toggleSongFavorite(song, appContext)
     fun toggleCurrentSongFavorite() {
         val song = _currentSong.value ?: return
         toggleSongFavorite(song)
-    }
-
-    @Volatile
-    private var isFetchingMoreRadio = false
-
-    private fun checkPrefetchRadioSongs() {
-        if (!_isRadioMode.value || isFetchingMoreRadio) return
-        val currentList = _playlist.value
-        if (_currentIndex.value >= currentList.size - 3) {
-            isFetchingMoreRadio = true
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val moreSongs = apiService.getGuessRecommendSongs(count = 15)
-                    if (moreSongs.isNotEmpty()) {
-                        withContext(Dispatchers.Main) {
-                            appendPlaylist(moreSongs)
-                        }
-                    }
-                } catch (_: Exception) {
-                } finally {
-                    isFetchingMoreRadio = false
-                }
-            }
-        }
     }
 
     fun setPlaylist(
@@ -1045,170 +829,25 @@ object PlaybackManager {
         forceTier: AudioQualityTier? = null,
         paginationSource: QueuePaginationSource? = null,
     ) {
-        _isRadioMode.value = isRadio
-        _paginationSource.value = paginationSource
-        _playlist.value = songs
-        if (songs.isNotEmpty() && startIndex in songs.indices) {
-            _currentIndex.value = startIndex
-            if (!isRadio && _loopMode.value == PlaybackLoopMode.Shuffle) {
-                shuffleQueue.reset(songs.size, startIndex, songs)
-            }
-            setMuted(startMuted)
-            playSong(songs[startIndex], forceTier = forceTier, seekToMs = initialSeekToMs)
-        }
-        savePlaybackState()
+        setMuted(startMuted)
+        queueManager.setPlaylist(
+            songs = songs,
+            startIndex = startIndex,
+            isRadio = isRadio,
+            initialSeekToMs = initialSeekToMs,
+            forceTier = forceTier,
+            paginationSource = paginationSource,
+        )
     }
 
-    fun setPaginationSource(source: QueuePaginationSource?) {
-        _paginationSource.value = source
-    }
-
-    suspend fun loadMoreForQueue(): Boolean {
-        val source = _paginationSource.value ?: return false
-        if (!source.hasMore || source.isLoadingMore || _isLoadingMoreForQueue.value) return false
-        _isLoadingMoreForQueue.value = true
-        return try {
-            val newSongs = source.loadMore()
-            if (newSongs.isNotEmpty()) {
-                appendPlaylist(newSongs)
-                true
-            } else {
-                false
-            }
-        } finally {
-            _isLoadingMoreForQueue.value = false
-        }
-    }
-
-    fun appendPlaylist(newSongs: List<Song>) {
-        if (newSongs.isEmpty()) return
-        val current = _playlist.value
-        val existingMids = current.map { it.songMid }.toSet()
-        val toAdd = newSongs.filter { it.songMid.isNotBlank() && !existingMids.contains(it.songMid) }
-        if (toAdd.isNotEmpty()) {
-            val updated = current + toAdd
-            _playlist.value = updated
-            if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
-                shuffleQueue.syncTo(_currentIndex.value, updated.size, updated)
-            }
-            savePlaybackState()
-        }
-    }
-
-    fun insertNextPlay(song: Song) {
-        if (song.songMid.isBlank()) return
-        val current = _playlist.value.toMutableList()
-        if (current.isEmpty()) {
-            setPlaylist(listOf(song), startIndex = 0)
-            return
-        }
-        val curIdx = _currentIndex.value
-        val insertPos = (curIdx + 1).coerceIn(0, current.size)
-        // 若队列中已有该歌曲，且不在当前位置之后，先移除旧位置再插入
-        val existingIndex = current.indexOfFirst { it.songMid == song.songMid }
-        if (existingIndex != -1) {
-            current.removeAt(existingIndex)
-            val adjustedPos = if (existingIndex < insertPos) (insertPos - 1).coerceAtLeast(0) else insertPos
-            current.add(adjustedPos, song)
-        } else {
-            current.add(insertPos, song)
-        }
-        _playlist.value = current
-        savePlaybackState()
-    }
-
-    fun insertAndPlay(
-        song: Song,
-        seekToMs: Long = 0L,
-    ) {
-        if (song.songMid.isBlank()) return
-        val current = _playlist.value.toMutableList()
-        if (current.isEmpty()) {
-            setPlaylist(listOf(song), startIndex = 0, initialSeekToMs = seekToMs)
-            return
-        }
-        val existingIndex = current.indexOfFirst { it.songMid == song.songMid }
-        if (existingIndex != -1) {
-            _currentIndex.value = existingIndex
-            playSong(current[existingIndex], seekToMs = seekToMs)
-        } else {
-            val curIdx = _currentIndex.value
-            val insertPos = (curIdx + 1).coerceIn(0, current.size)
-            current.add(insertPos, song)
-            _playlist.value = current
-            _currentIndex.value = insertPos
-            playSong(song, seekToMs = seekToMs)
-        }
-    }
-
-    fun removeFromPlaylist(index: Int) {
-        val list = _playlist.value.toMutableList()
-        if (index !in list.indices) return
-        val isCurrent = index == _currentIndex.value
-        list.removeAt(index)
-        _playlist.value = list
-        if (list.isEmpty()) {
-            exoPlayer?.stop()
-            exoPlayer?.clearMediaItems()
-            _currentSong.value = null
-            _currentIndex.value = -1
-            _lyrics.value = emptyList()
-            _isPlaying.value = false
-        } else if (isCurrent) {
-            val nextIndex = index.coerceAtMost(list.lastIndex)
-            _currentIndex.value = nextIndex
-            playSong(list[nextIndex])
-        } else if (index < _currentIndex.value) {
-            _currentIndex.value = _currentIndex.value - 1
-        }
-        if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
-            shuffleQueue.syncTo(_currentIndex.value, list.size, list)
-        }
-        savePlaybackState()
-    }
-
-    fun removeFromPlaylist(songs: List<Song>) {
-        if (songs.isEmpty()) return
-        val current = _playlist.value.toMutableList()
-        val removeMids = songs.map { it.songMid }.toSet()
-        val currentPlayingMid = _currentSong.value?.songMid
-        val isCurrentRemoved = currentPlayingMid != null && removeMids.contains(currentPlayingMid)
-
-        val remaining = current.filterNot { removeMids.contains(it.songMid) }
-        _playlist.value = remaining
-        if (remaining.isEmpty()) {
-            exoPlayer?.stop()
-            exoPlayer?.clearMediaItems()
-            _currentSong.value = null
-            _currentIndex.value = -1
-            _lyrics.value = emptyList()
-            _isPlaying.value = false
-        } else if (isCurrentRemoved) {
-            val newIndex = 0
-            _currentIndex.value = newIndex
-            playSong(remaining[newIndex])
-        } else {
-            val newCurSong = _currentSong.value
-            val newIdx = remaining.indexOfFirst { it.songMid == newCurSong?.songMid }
-            _currentIndex.value = if (newIdx != -1) newIdx else 0
-        }
-        if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
-            shuffleQueue.syncTo(_currentIndex.value, remaining.size, remaining)
-        }
-        savePlaybackState()
-    }
-
-    fun clearPlaylist() {
-        exoPlayer?.stop()
-        exoPlayer?.clearMediaItems()
-        _paginationSource.value = null
-        _playlist.value = emptyList()
-        _currentSong.value = null
-        _currentIndex.value = -1
-        _lyrics.value = emptyList()
-        _isPlaying.value = false
-        savePlaybackState()
-    }
+    fun setPaginationSource(source: QueuePaginationSource?) = queueManager.setPaginationSource(source)
+    suspend fun loadMoreForQueue(): Boolean = queueManager.loadMoreForQueue()
+    fun appendPlaylist(newSongs: List<Song>) = queueManager.appendPlaylist(newSongs)
+    fun insertNextPlay(song: Song) = queueManager.insertNextPlay(song)
+    fun insertAndPlay(song: Song, seekToMs: Long = 0L) = queueManager.insertAndPlay(song, seekToMs)
+    fun removeFromPlaylist(index: Int) = queueManager.removeFromPlaylist(index)
+    fun removeFromPlaylist(songs: List<Song>) = queueManager.removeFromPlaylist(songs, _currentSong.value?.songMid)
+    fun clearPlaylist() = queueManager.clearPlaylist()
 
     fun playSong(
         song: Song,
@@ -1264,15 +903,15 @@ object PlaybackManager {
         org.melodist.data.RecentPlaybackManager
             .recordSong(effectiveSong)
         _currentTrackSpec.value = null
-        val list = _playlist.value
+        val list = queueManager.playlist.value
         val foundIndex = list.indexOfFirst { it.songMid == song.songMid }
         if (foundIndex != -1) {
-            _currentIndex.value = foundIndex
-            if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
-                shuffleQueue.syncTo(foundIndex, list.size, list)
+            queueManager.setCurrentIndex(foundIndex)
+            if (!queueManager.isRadioMode.value && queueManager.loopMode.value == PlaybackLoopMode.Shuffle) {
+                queueManager.shuffleQueue.syncTo(foundIndex, list.size, list)
             }
         }
-        checkPrefetchRadioSongs()
+        queueManager.checkPrefetchRadioSongs()
         _isLoading.value = true
         _errorMessage.value = null
         _lyrics.value = emptyList()
@@ -1522,13 +1161,7 @@ object PlaybackManager {
                                                     _availableTiers.value = setOf(newTier)
                                                 }
                                                 if (updated != null) {
-                                                    val currentList = _playlist.value
-                                                    val idx = currentList.indexOfFirst { it.songMid == song.songMid }
-                                                    if (idx >= 0) {
-                                                        val mutable = currentList.toMutableList()
-                                                        mutable[idx] = updated
-                                                        _playlist.value = mutable
-                                                    }
+                                                    queueManager.updateSongInPlaylist(updated)
                                                     updateCurrentMediaMetadata(updated)
                                                 }
                                             }
@@ -1688,10 +1321,10 @@ object PlaybackManager {
         org.melodist.data.RecentPlaybackManager.recordSong(song)
         _currentTrackSpec.value = null
 
-        val list = _playlist.value
+        val list = queueManager.playlist.value
         val foundIndex = list.indexOfFirst { it.songMid == song.songMid }
         if (foundIndex != -1) {
-            _currentIndex.value = foundIndex
+            queueManager.setCurrentIndex(foundIndex)
         }
 
         _isLoading.value = true
@@ -1751,18 +1384,18 @@ object PlaybackManager {
             if (prevLocalSong?.songMid != song.songMid) {
                 loadLyricsForSong(song)
             }
-            if (currentIndex >= 0 && currentIndex < _playlist.value.size) {
-                _currentIndex.value = currentIndex
+            if (currentIndex >= 0 && currentIndex < queueManager.playlist.value.size) {
+                queueManager.setCurrentIndex(currentIndex)
             } else {
-                val idx = _playlist.value.indexOfFirst { it.songMid == song.songMid }
+                val idx = queueManager.playlist.value.indexOfFirst { it.songMid == song.songMid }
                 if (idx >= 0) {
-                    _currentIndex.value = idx
+                    queueManager.setCurrentIndex(idx)
                 }
             }
         }
-        _remotePrevSong.value = prevSong
-        _remoteNextSong.value = nextSong
-        _isRadioMode.value = isRadioMode
+        remoteStateHolder.setRemotePrevSong(prevSong)
+        remoteStateHolder.setRemoteNextSong(nextSong)
+        queueManager.setRadioMode(isRadioMode)
         if (currentTier != null) {
             _currentTier.value = currentTier
         }
@@ -1771,7 +1404,7 @@ object PlaybackManager {
         }
         if (!loopModeName.isNullOrBlank()) {
             try {
-                _loopMode.value = PlaybackLoopMode.valueOf(loopModeName)
+                queueManager.setLoopMode(PlaybackLoopMode.valueOf(loopModeName))
             } catch (_: Throwable) {}
         }
         _isPlaying.value = isPlaying
@@ -1783,10 +1416,7 @@ object PlaybackManager {
 
     fun syncRemoteQueue(queue: List<Song>, currentIndex: Int) {
         if (queue.isNotEmpty()) {
-            _playlist.value = queue
-            if (currentIndex in queue.indices) {
-                _currentIndex.value = currentIndex
-            }
+            queueManager.syncRemoteQueue(queue, currentIndex)
         }
     }
 
@@ -2040,13 +1670,7 @@ object PlaybackManager {
                         if (_currentSong.value?.songMid == song.songMid) {
                             _currentSong.value = healed
                         }
-                        val currentList = _playlist.value
-                        val idx = currentList.indexOfFirst { it.songMid == song.songMid }
-                        if (idx >= 0) {
-                            val mutableList = currentList.toMutableList()
-                            mutableList[idx] = healed
-                            _playlist.value = mutableList
-                        }
+                        queueManager.updateSongInPlaylist(healed)
                     }
                 }
             } catch (e: Exception) {
@@ -2059,144 +1683,39 @@ object PlaybackManager {
         if (playbackInterceptor?.onInterceptPlayNext() == true) {
             return
         }
-        val list = _playlist.value
-        if (list.isEmpty()) return
-
-        if (_isRadioMode.value) {
-            checkPrefetchRadioSongs()
-            val nextIndex = _currentIndex.value + 1
-            if (nextIndex in list.indices) {
-                _currentIndex.value = nextIndex
-                playSong(list[nextIndex])
-            } else {
-                // 已达队尾，等待并获取下一批电台推荐曲目
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val moreSongs = apiService.getGuessRecommendSongs(count = 15)
-                        withContext(Dispatchers.Main) {
-                            if (moreSongs.isNotEmpty()) {
-                                appendPlaylist(moreSongs)
-                                val updated = _playlist.value
-                                if (nextIndex in updated.indices) {
-                                    _currentIndex.value = nextIndex
-                                    playSong(updated[nextIndex])
-                                }
-                            }
-                        }
-                    } catch (_: Exception) {
-                    }
-                }
-            }
-            return
-        }
-
-        val nextIndex =
-            when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.next(list)
-                PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> (_currentIndex.value + 1) % list.size
-            }
-        if (nextIndex in list.indices) {
-            _currentIndex.value = nextIndex
-            playSong(list[nextIndex])
-        }
+        queueManager.playNext()
     }
 
     fun playPrevious() {
         if (playbackInterceptor?.onInterceptPlayPrevious() == true) {
             return
         }
-        val list = _playlist.value
-        if (list.isEmpty()) return
-
-        if (_isRadioMode.value) {
-            val prevIndex = (_currentIndex.value - 1).coerceAtLeast(0)
-            if (prevIndex in list.indices) {
-                _currentIndex.value = prevIndex
-                playSong(list[prevIndex])
-            }
-            return
-        }
-
-        val prevIndex =
-            when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.previous()
-                PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
-            }
-        if (prevIndex in list.indices) {
-            _currentIndex.value = prevIndex
-            playSong(list[prevIndex])
-        }
+        queueManager.playPrevious()
     }
 
     /**
      * 获取上一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
-    fun getPreviousSong(): Song? {
-        if (_isRemoteActive.value) {
-            return _remotePrevSong.value
-        }
-        val list = _playlist.value
-        if (list.isEmpty()) return null
-        if (_isRadioMode.value) {
-            val prevIndex = _currentIndex.value - 1
-            return if (prevIndex in list.indices) list[prevIndex] else null
-        }
-        val prevIndex =
-            when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.peekPrevious() ?: if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
-                PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
-            }
-        return if (prevIndex in list.indices) list[prevIndex] else null
-    }
+    fun getPreviousSong(): Song? =
+        queueManager.getPreviousSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remotePrevSong.value)
 
     /**
      * 获取下一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
-    fun getNextSong(): Song? {
-        if (_isRemoteActive.value) {
-            return _remoteNextSong.value
-        }
-        val list = _playlist.value
-        if (list.isEmpty()) return null
-        if (_isRadioMode.value) {
-            val nextIndex = _currentIndex.value + 1
-            return if (nextIndex in list.indices) list[nextIndex] else null
-        }
-        val nextIndex =
-            when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.peekNext() ?: ((_currentIndex.value + 1) % list.size)
-                PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> (_currentIndex.value + 1) % list.size
-            }
-        return if (nextIndex in list.indices) list[nextIndex] else null
-    }
+    fun getNextSong(): Song? =
+        queueManager.getNextSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remoteNextSong.value)
 
     fun cycleLoopMode() {
         if (playbackInterceptor?.onInterceptCycleLoopMode() == true) {
             return
         }
-        if (_isRadioMode.value) return
-        val newMode =
-            when (_loopMode.value) {
-                PlaybackLoopMode.ListRepeat -> PlaybackLoopMode.SingleRepeat
-                PlaybackLoopMode.SingleRepeat -> PlaybackLoopMode.Shuffle
-                PlaybackLoopMode.Shuffle -> PlaybackLoopMode.ListRepeat
-            }
-        _loopMode.value = newMode
-        if (newMode == PlaybackLoopMode.Shuffle) {
-            val list = _playlist.value
-            shuffleQueue.reset(list.size, _currentIndex.value, list)
-        }
-        savePlaybackState()
+        queueManager.cycleLoopMode()
     }
 
     private fun handleSongEnded() {
         _isTransitioning.value = true
         when {
-            !_isRadioMode.value && _loopMode.value == PlaybackLoopMode.SingleRepeat -> {
+            !queueManager.isRadioMode.value && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {
                 exoPlayer?.seekTo(0L)
                 exoPlayer?.play()
                 _isTransitioning.value = false
