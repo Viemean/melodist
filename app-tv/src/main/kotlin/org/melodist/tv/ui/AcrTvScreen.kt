@@ -90,16 +90,63 @@ fun AcrTvScreen(
 
     val btnContainer = remember(surfaceColor) { surfaceColor.toMonetContainer(0.08f) }
 
+    // 记录进入听歌识曲前的播放快照
+    val originalSong = remember { PlaybackManager.currentSong.value }
+    val originalIsPlaying = remember { PlaybackManager.isPlaying.value }
+    val originalPositionMs = remember { PlaybackManager.currentPositionMs.value }
+    val originalPlaylist = remember { PlaybackManager.playlist.value }
+    val originalIndex = remember { PlaybackManager.currentIndex.value }
+    val originalTier = remember { PlaybackManager.currentTier.value }
+
     // 是否已点击静音按钮转正进入播放控制态（原地动画过渡）
     var hasUnmutedToPlayer by remember { mutableStateOf(false) }
+    var isPlaybackRestored by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var showQueueSidebar by remember { mutableStateOf(false) }
 
-    // 离开界面时重置识别流，并在处于静音模式时安全恢复全局音量
+    fun restoreOriginalPlayback() {
+        if (isPlaybackRestored) return
+        isPlaybackRestored = true
+        if (PlaybackManager.isMuted.value) {
+            PlaybackManager.setMuted(false)
+        }
+        if (originalSong != null) {
+            val currentSongNow = PlaybackManager.currentSong.value
+            if (currentSongNow?.songMid != originalSong.songMid || PlaybackManager.playlist.value != originalPlaylist) {
+                if (originalPlaylist.isNotEmpty()) {
+                    PlaybackManager.setPlaylist(
+                        songs = originalPlaylist,
+                        startIndex = originalIndex.coerceIn(0, (originalPlaylist.size - 1).coerceAtLeast(0)),
+                        initialSeekToMs = originalPositionMs,
+                        forceTier = originalTier,
+                    )
+                } else {
+                    PlaybackManager.playSong(originalSong, forceTier = originalTier, seekToMs = originalPositionMs)
+                }
+                if (!originalIsPlaying) {
+                    PlaybackManager.pause()
+                }
+            } else {
+                if (originalIsPlaying) {
+                    PlaybackManager.play()
+                } else {
+                    PlaybackManager.pause()
+                }
+            }
+        } else {
+            if (PlaybackManager.currentSong.value != null) {
+                PlaybackManager.pause()
+            }
+        }
+    }
+
+    // 离开界面时重置识别流，并在未转正播放识别歌曲时恢复原曲目与播放状态
     DisposableEffect(Unit) {
         onDispose {
             viewModel.reset()
-            if (PlaybackManager.isMuted.value) {
+            if (!hasUnmutedToPlayer) {
+                restoreOriginalPlayback()
+            } else if (PlaybackManager.isMuted.value) {
                 PlaybackManager.setMuted(false)
             }
         }
@@ -130,8 +177,11 @@ fun AcrTvScreen(
         }
     }
 
-    // 首次进入自动检查权限并启动识别
+    // 首次进入自动暂停原播放（避免麦克风自拾音干扰）并启动识别
     LaunchedEffect(Unit) {
+        if (originalIsPlaying) {
+            PlaybackManager.pause()
+        }
         checkAndStartRecognition()
     }
 
@@ -186,9 +236,8 @@ fun AcrTvScreen(
         } else if (showQueueSidebar) {
             showQueueSidebar = false
         } else {
-            if (PlaybackManager.isMuted.value) {
-                PlaybackManager.setMuted(false)
-                PlaybackManager.pause()
+            if (!hasUnmutedToPlayer) {
+                restoreOriginalPlayback()
             }
             onBack()
         }
@@ -231,9 +280,8 @@ fun AcrTvScreen(
         ) {
             AcrHeaderBackButton(
                 onClick = {
-                    if (PlaybackManager.isMuted.value) {
-                        PlaybackManager.setMuted(false)
-                        PlaybackManager.pause()
+                    if (!hasUnmutedToPlayer) {
+                        restoreOriginalPlayback()
                     }
                     onBack()
                 },
