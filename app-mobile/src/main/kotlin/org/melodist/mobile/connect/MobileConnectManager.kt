@@ -153,6 +153,23 @@ object MobileConnectManager {
                         val isPlaying = resolvedState.isPlaying
                         val tvPos = resolvedState.positionMs
 
+                        val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
+                        appContext?.let { PlaybackManager.startPlaybackService(it) }
+                        PlaybackManager.setRemoteActive(true, pairedName)
+                        PlaybackManager.syncRemotePlaybackState(
+                            song = tvSong,
+                            isPlaying = isPlaying,
+                            positionMs = tvPos,
+                            durationMs = resolvedState.durationMs,
+                            currentIndex = resolvedState.currentIndex,
+                            loopModeName = resolvedState.loopMode,
+                            prevSong = resolvedState.prevSong,
+                            nextSong = resolvedState.nextSong,
+                            currentTier = resolvedState.currentTier,
+                            availableTiers = resolvedState.availableTiers,
+                            isRadioMode = resolvedState.isRadioMode,
+                        )
+
                         if (localMute.value) {
                             // 开启本地静音：手机本地静音且不发声，仅同步 UI 与系统媒体控制通知
                             if (PlaybackManager.isPlaying.value && !PlaybackManager.isRemoteActive.value) {
@@ -164,24 +181,8 @@ object MobileConnectManager {
                                 }
                             }
                             PlaybackManager.setVolume(0f)
-                            val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
-                            appContext?.let { PlaybackManager.startPlaybackService(it) }
-                            PlaybackManager.setRemoteActive(true, pairedName)
-                            PlaybackManager.syncRemotePlaybackState(
-                                song = tvSong,
-                                isPlaying = isPlaying,
-                                positionMs = tvPos,
-                                durationMs = resolvedState.durationMs,
-                                currentIndex = resolvedState.currentIndex,
-                                loopModeName = resolvedState.loopMode,
-                                prevSong = resolvedState.prevSong,
-                                nextSong = resolvedState.nextSong,
-                                currentTier = resolvedState.currentTier,
-                                availableTiers = resolvedState.availableTiers,
-                            )
                         } else {
                             // 关闭本地静音：手机端跟随 TV 发声
-                            PlaybackManager.setRemoteActive(false, null)
                             PlaybackManager.setVolume(1f)
                             if (tvSong != null) {
                                 val localSong = PlaybackManager.currentSong.value
@@ -232,7 +233,7 @@ object MobileConnectManager {
                         }
                     } else {
                         // TV 暂无播放曲目
-                        if (PlaybackManager.isRemoteActive.value && localMute.value) {
+                        if (PlaybackManager.isRemoteActive.value) {
                             PlaybackManager.clearRemotePlayback()
                         }
                     }
@@ -410,20 +411,7 @@ object MobileConnectManager {
                 } finally {
                     isSyncingFromTv = false
                 }
-                val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
-                appContext?.let { PlaybackManager.startPlaybackService(it) }
-                PlaybackManager.setRemoteActive(true, pairedName)
-                val state = tvPlayerState.value
-                if (state != null) {
-                    PlaybackManager.syncRemotePlaybackState(
-                        song = state.currentSong,
-                        isPlaying = state.isPlaying,
-                        positionMs = state.positionMs,
-                        durationMs = state.durationMs,
-                    )
-                }
             } else {
-                PlaybackManager.setRemoteActive(false, null)
                 // 关闭静音：若 TV 正在播放，立即驱动本地播放发声
                 val state = tvPlayerState.value
                 val tvSong = state?.currentSong
@@ -450,7 +438,7 @@ object MobileConnectManager {
                 PlaybackManager.setRemoteActive(false, null)
                 PlaybackManager.clearRemotePlayback()
             }
-        } else if (isTvOnline && localMute.value) {
+        } else if (isTvOnline) {
             val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
             appContext?.let { PlaybackManager.startPlaybackService(it) }
             PlaybackManager.setRemoteActive(true, pairedName)
@@ -460,6 +448,13 @@ object MobileConnectManager {
                     isPlaying = state.isPlaying,
                     positionMs = state.positionMs,
                     durationMs = state.durationMs,
+                    currentIndex = state.currentIndex,
+                    loopModeName = state.loopMode,
+                    prevSong = state.prevSong,
+                    nextSong = state.nextSong,
+                    currentTier = state.currentTier,
+                    availableTiers = state.availableTiers,
+                    isRadioMode = state.isRadioMode,
                 )
             }
         }

@@ -140,6 +140,7 @@ data class PlayerStateEvent(
     val currentTier: AudioQualityTier? = null,
     val availableTiers: Set<AudioQualityTier> = emptySet(),
     val isFavorite: Boolean = false,
+    val isRadioMode: Boolean = false,
 )
 
 @Serializable

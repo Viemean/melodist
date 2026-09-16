@@ -105,6 +105,15 @@ object TvConnectManager {
             }
         }
 
+        scope.launch {
+            server.connectedDeviceFlow.collect { dev ->
+                if (dev != null) {
+                    broadcastPlayerStateNow()
+                    broadcastQueueNow()
+                }
+            }
+        }
+
         // 持续同步播放状态给连接端
         scope.launch(Dispatchers.IO) {
             var lastPosition = -1L
@@ -114,6 +123,7 @@ object TvConnectManager {
             var lastAod = false
             var lastTier: AudioQualityTier? = null
             var lastIsFav = false
+            var lastIsRadio = false
             while (isActive) {
                 val s = connectServer ?: break
                 val dev = s.connectedDeviceFlow.value
@@ -126,9 +136,10 @@ object TvConnectManager {
                     val isAod = org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value
                     val currentTier = PlaybackManager.currentTier.value
                     val isFav = PlaybackManager.isSongFavorite(currentSong?.songMid)
+                    val isRadio = PlaybackManager.isRadioMode.value
 
                     val songMid = currentSong?.songMid.orEmpty()
-                    if (pos != lastPosition || isPlaying != lastIsPlaying || songMid != lastSongMid || loopMode != lastLoopMode || isAod != lastAod || currentTier != lastTier || isFav != lastIsFav) {
+                    if (pos != lastPosition || isPlaying != lastIsPlaying || songMid != lastSongMid || loopMode != lastLoopMode || isAod != lastAod || currentTier != lastTier || isFav != lastIsFav || isRadio != lastIsRadio) {
                         lastPosition = pos
                         lastIsPlaying = isPlaying
                         lastSongMid = songMid
@@ -136,6 +147,7 @@ object TvConnectManager {
                         lastAod = isAod
                         lastTier = currentTier
                         lastIsFav = isFav
+                        lastIsRadio = isRadio
 
                         s.broadcastPlayerState(
                             PlayerStateEvent(
@@ -152,6 +164,7 @@ object TvConnectManager {
                                 currentTier = currentTier,
                                 availableTiers = PlaybackManager.availableTiers.value,
                                 isFavorite = isFav,
+                                isRadioMode = isRadio,
                             ),
                         )
                     }
@@ -323,6 +336,7 @@ object TvConnectManager {
                 currentTier = PlaybackManager.currentTier.value,
                 availableTiers = PlaybackManager.availableTiers.value,
                 isFavorite = PlaybackManager.isSongFavorite(curSong?.songMid),
+                isRadioMode = PlaybackManager.isRadioMode.value,
             ),
         )
     }

@@ -1743,6 +1743,7 @@ object PlaybackManager {
         nextSong: Song? = null,
         currentTier: AudioQualityTier? = null,
         availableTiers: Set<AudioQualityTier> = emptySet(),
+        isRadioMode: Boolean = false,
     ) {
         val prevLocalSong = _currentSong.value
         if (song != null) {
@@ -1761,6 +1762,7 @@ object PlaybackManager {
         }
         _remotePrevSong.value = prevSong
         _remoteNextSong.value = nextSong
+        _isRadioMode.value = isRadioMode
         if (currentTier != null) {
             _currentTier.value = currentTier
         }
@@ -2132,7 +2134,7 @@ object PlaybackManager {
      * 获取上一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
     fun getPreviousSong(): Song? {
-        if (_isRemoteActive.value && _remotePrevSong.value != null) {
+        if (_isRemoteActive.value) {
             return _remotePrevSong.value
         }
         val list = _playlist.value
@@ -2154,7 +2156,7 @@ object PlaybackManager {
      * 获取下一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
     fun getNextSong(): Song? {
-        if (_isRemoteActive.value && _remoteNextSong.value != null) {
+        if (_isRemoteActive.value) {
             return _remoteNextSong.value
         }
         val list = _playlist.value
