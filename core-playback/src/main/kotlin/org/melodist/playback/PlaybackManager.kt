@@ -739,6 +739,10 @@ object PlaybackManager {
                 var saveCounter = 0
                 var prefetchCounter = 0
                 while (isActive) {
+                    if (_isRemoteActive.value) {
+                        delay(200L)
+                        continue
+                    }
                     exoPlayer?.let { player ->
                         if (player.isPlaying) {
                             val pos = player.currentPosition.coerceAtLeast(0L)
@@ -1244,6 +1248,7 @@ object PlaybackManager {
         if (playbackInterceptor?.onInterceptPlaySong(effectiveSong, forceTier, seekToMs) == true) {
             exoPlayer?.pause()
             _currentSong.value = effectiveSong
+            _currentPositionMs.value = seekToMs
             _currentTier.value = forceTier ?: _preferredTier.value
             _isPlaying.value = true
             _isTransitioning.value = false
@@ -1251,7 +1256,9 @@ object PlaybackManager {
             loadLyricsForSong(effectiveSong)
             return
         }
+        exoPlayer?.pause()
         _currentSong.value = effectiveSong
+        _currentPositionMs.value = seekToMs
         _isTransitioning.value = true
         updateCurrentMediaMetadata(effectiveSong)
         org.melodist.data.RecentPlaybackManager

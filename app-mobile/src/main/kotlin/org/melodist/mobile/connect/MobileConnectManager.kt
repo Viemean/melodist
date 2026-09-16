@@ -209,13 +209,15 @@ object MobileConnectManager {
                                             isSyncingFromTv = false
                                         }
                                     }
-                                    val localPos = PlaybackManager.currentPositionMs.value
-                                    if (Math.abs(localPos - tvPos) > 2500L) {
-                                        isSyncingFromTv = true
-                                        try {
-                                            PlaybackManager.seekTo(tvPos)
-                                        } finally {
-                                            isSyncingFromTv = false
+                                    if (!PlaybackManager.isTransitioning.value) {
+                                        val localPos = PlaybackManager.currentPositionMs.value
+                                        if (Math.abs(localPos - tvPos) > 2500L) {
+                                            isSyncingFromTv = true
+                                            try {
+                                                PlaybackManager.seekTo(tvPos)
+                                            } finally {
+                                                isSyncingFromTv = false
+                                            }
                                         }
                                     }
                                 }
