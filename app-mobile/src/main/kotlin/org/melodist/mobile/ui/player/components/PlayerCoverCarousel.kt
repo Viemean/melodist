@@ -2,6 +2,7 @@ package org.melodist.mobile.ui.player.components
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -152,11 +153,11 @@ fun PlayerCoverCarousel(
                                             state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
                                             fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
                                             targetFraction = -1f,
-                                            durationMs = 200L,
+                                            durationMs = 180L,
                                         )
                                         dragOffsetX.animateTo(
                                             targetValue = -fullStepPx,
-                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                            animationSpec = tween(durationMillis = 180, easing = LinearEasing),
                                         )
                                         currentOnPlayNext()
                                         dragOffsetX.snapTo(0f)
@@ -165,11 +166,11 @@ fun PlayerCoverCarousel(
                                             state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
                                             fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
                                             targetFraction = 1f,
-                                            durationMs = 200L,
+                                            durationMs = 180L,
                                         )
                                         dragOffsetX.animateTo(
                                             targetValue = fullStepPx,
-                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                            animationSpec = tween(durationMillis = 180, easing = LinearEasing),
                                         )
                                         currentOnPlayPrevious()
                                         dragOffsetX.snapTo(0f)

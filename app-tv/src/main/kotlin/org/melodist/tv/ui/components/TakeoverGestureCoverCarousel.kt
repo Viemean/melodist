@@ -1,7 +1,7 @@
 package org.melodist.tv.ui.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -44,9 +44,9 @@ fun TakeoverGestureCoverCarousel(
     modifier: Modifier = Modifier,
     currentSong: Song? = null,
     coverUrl: String = "",
-    shape: Shape = RoundedCornerShape(6.dp),
-    elevation: Dp = 10.dp,
-    onClick: (() -> Unit)? = null,
+    elevation: Dp = 18.dp,
+    shape: Shape = RoundedCornerShape(12.dp),
+    onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val gesturePayload by TakeoverGestureState.gestureFlow.collectAsState()
@@ -98,7 +98,7 @@ fun TakeoverGestureCoverCarousel(
                 val dur = gesturePayload.durationMs.toInt().coerceIn(120, 350)
                 animFraction.animateTo(
                     targetValue = target,
-                    animationSpec = tween(durationMillis = dur, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = dur, easing = LinearEasing),
                 )
             }
             GestureSwipeState.CANCEL -> {
@@ -123,9 +123,6 @@ fun TakeoverGestureCoverCarousel(
         contentAlignment = Alignment.Center,
     ) {
         val widthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
-        val fraction = animFraction.value
-
-        val isSwiping = abs(fraction) > 0.001f
 
         if (actualCoverUrl.isEmpty() && actualCurrentSong == null) {
             Box(
@@ -144,12 +141,7 @@ fun TakeoverGestureCoverCarousel(
             }
         } else {
             // 下一首卡片 (fraction < 0 时向左推入)
-            if (isSwiping && fraction < 0f && nextSong != null) {
-                val nextOffsetPx = (1f + fraction) * widthPx
-                val absFrac = -fraction
-                val nextScale = (0.88f + 0.12f * absFrac).coerceIn(0.88f, 1f)
-                val nextAlpha = (0.60f + 0.40f * absFrac).coerceIn(0.60f, 1f)
-
+            if (nextSong != null) {
                 MelodistElevatedCover(
                     coverUrl = nextSong.coverUrl,
                     albumMid = nextSong.albumMid,
@@ -161,20 +153,23 @@ fun TakeoverGestureCoverCarousel(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            translationX = nextOffsetPx
-                            scaleX = nextScale
-                            scaleY = nextScale
-                            alpha = nextAlpha
+                            val f = animFraction.value
+                            if (f < -0.001f) {
+                                val absFrac = -f
+                                translationX = (1f + f) * widthPx
+                                scaleX = (0.88f + 0.12f * absFrac).coerceIn(0.88f, 1f)
+                                scaleY = scaleX
+                                alpha = (0.60f + 0.40f * absFrac).coerceIn(0.60f, 1f)
+                            } else {
+                                alpha = 0f
+                                translationX = widthPx * 2
+                            }
                         },
                 )
             }
 
             // 上一首卡片 (fraction > 0 时向右推入)
-            if (isSwiping && fraction > 0f && prevSong != null) {
-                val prevOffsetPx = (-1f + fraction) * widthPx
-                val prevScale = (0.88f + 0.12f * fraction).coerceIn(0.88f, 1f)
-                val prevAlpha = (0.60f + 0.40f * fraction).coerceIn(0.60f, 1f)
-
+            if (prevSong != null) {
                 MelodistElevatedCover(
                     coverUrl = prevSong.coverUrl,
                     albumMid = prevSong.albumMid,
@@ -186,19 +181,21 @@ fun TakeoverGestureCoverCarousel(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            translationX = prevOffsetPx
-                            scaleX = prevScale
-                            scaleY = prevScale
-                            alpha = prevAlpha
+                            val f = animFraction.value
+                            if (f > 0.001f) {
+                                translationX = (-1f + f) * widthPx
+                                scaleX = (0.88f + 0.12f * f).coerceIn(0.88f, 1f)
+                                scaleY = scaleX
+                                alpha = (0.60f + 0.40f * f).coerceIn(0.60f, 1f)
+                            } else {
+                                alpha = 0f
+                                translationX = -widthPx * 2
+                            }
                         },
                 )
             }
 
             // 当前歌曲卡片
-            val curOffsetPx = fraction * widthPx
-            val curScale = (1f - 0.12f * abs(fraction)).coerceIn(0.88f, 1f)
-            val curAlpha = (1f - 0.35f * abs(fraction)).coerceIn(0.65f, 1f)
-
             MelodistElevatedCover(
                 coverUrl = actualCoverUrl,
                 albumMid = actualCurrentSong?.albumMid.orEmpty(),
@@ -211,10 +208,12 @@ fun TakeoverGestureCoverCarousel(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        translationX = curOffsetPx
-                        scaleX = curScale
-                        scaleY = curScale
-                        alpha = curAlpha
+                        val f = animFraction.value
+                        val absF = abs(f)
+                        translationX = f * widthPx
+                        scaleX = (1f - 0.12f * absF).coerceIn(0.88f, 1f)
+                        scaleY = scaleX
+                        alpha = (1f - 0.35f * absF).coerceIn(0.65f, 1f)
                     },
             )
         }
