@@ -702,6 +702,7 @@ object PlaybackManager {
         }
         if (exoPlayer == null) {
             exoPlayer = buildExoPlayer(context)
+            _isPlaying.value = false
             startProgressLoop()
         } else {
             updateUsbExclusiveRouting()
@@ -1866,6 +1867,9 @@ object PlaybackManager {
         playJob?.cancel()
         exoPlayer?.release()
         exoPlayer = null
+        _isPlaying.value = false
+        _isLoading.value = false
+        _isSwitchingQuality.value = false
     }
 }
 

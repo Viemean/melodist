@@ -44,7 +44,7 @@ fun NowPlayingHeroCard(
     song: Song?,
     cardHeight: Dp = 250.dp,
     surfaceColor: Color = MelodistColors.SurfaceDark,
-    isPlaying: Boolean = true,
+    isPlaying: Boolean = false,
     isFavorite: Boolean = false,
     currentTier: AudioQualityTier = AudioQualityTier.Standard,
     progressMs: Long = 155000L,
