@@ -1,7 +1,14 @@
 package org.melodist.tv.ui.settings
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -17,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -45,6 +53,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.data.AppSettingsManager
+import org.melodist.data.ScreenSaverBrightness
 import org.melodist.data.ScreenSaverTimeout
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
@@ -157,7 +166,85 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
             }
         }
 
-        // 2. OLED 防烧屏像素微移开关
+        // 2. 屏保显示亮度调节
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "屏保显示亮度",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ScreenSaverBrightness.entries.forEachIndexed { index, brightness ->
+                    val isSelected = (settings.screenSaverBrightness == brightness)
+                    val btnModifier =
+                        Modifier
+                            .weight(1f)
+                            .then(if (index == 0) Modifier.focusProperties { left = menuRequester } else Modifier)
+
+                    Button(
+                        onClick = { AppSettingsManager.updateScreenSaverBrightness(brightness) },
+                        modifier = btnModifier,
+                        shape =
+                            ButtonDefaults.shape(
+                                shape = MelodistShapes.ButtonCorner,
+                                focusedShape = MelodistShapes.ButtonCorner,
+                            ),
+                        colors =
+                            ButtonDefaults.colors(
+                                containerColor =
+                                    if (isSelected) {
+                                        MelodistColors.AccentGreen.copy(
+                                            alpha = 0.22f,
+                                        )
+                                    } else {
+                                        Color.White.copy(alpha = 0.05f)
+                                    },
+                                focusedContainerColor = Color.White,
+                                contentColor = if (isSelected) MelodistColors.AccentGreen else Color.White,
+                                focusedContentColor = Color.Black,
+                            ),
+                        border =
+                            ButtonDefaults.border(
+                                border =
+                                    Border(
+                                        border =
+                                            if (isSelected) {
+                                                BorderStroke(1.5.dp, MelodistColors.AccentGreen)
+                                            } else {
+                                                BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                            },
+                                        shape = MelodistShapes.ButtonCorner,
+                                    ),
+                                focusedBorder =
+                                    Border(
+                                        border = BorderStroke(2.dp, MelodistColors.FocusTeal),
+                                        shape = MelodistShapes.ButtonCorner,
+                                    ),
+                            ),
+                        scale = ButtonDefaults.scale(focusedScale = 1.04f),
+                        contentPadding = PaddingValues(vertical = 10.dp),
+                    ) {
+                        Text(
+                            text = brightness.label,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. OLED 防烧屏像素微移开关
         SettingSwitchCard(
             title = "OLED 防烧屏像素微移",
             checked = settings.enablePixelShift,
@@ -224,6 +311,14 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
                 )
             }
         }
+
+        Text(
+            text = "提示：自动亮度支持根据电视环境光传感器在暗室与亮室间自适应切换（无光感机型保持标准亮度）；若电视系统级屏保仍覆盖了应用屏保，可在电视系统设置的“显示”或“屏保”中关闭系统屏保。",
+            fontSize = 12.sp,
+            color = Color.White.copy(alpha = 0.5f),
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
     }
 }
 
@@ -232,6 +327,72 @@ fun ScreenSaverOverlay(
     enablePixelShift: Boolean,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val settings by AppSettingsManager.settings.collectAsState()
+
+    DisposableEffect(Unit) {
+        val window = context.findActivity()?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    // 环境光传感器自适应与迟滞防抖
+    var isAmbientDark by remember { mutableStateOf(false) }
+    var hasLightSensor by remember { mutableStateOf(false) }
+    DisposableEffect(settings.screenSaverBrightness) {
+        if (settings.screenSaverBrightness == ScreenSaverBrightness.Auto) {
+            val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+            val lightSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LIGHT)
+            hasLightSensor = (lightSensor != null)
+
+            if (lightSensor != null) {
+                val listener =
+                    object : SensorEventListener {
+                        override fun onSensorChanged(event: SensorEvent?) {
+                            val lux = event?.values?.getOrNull(0) ?: return
+                            // 迟滞门限：低于 40 lux 判定为暗室/拉窗帘，高于 70 lux 判定为开灯/白天
+                            if (lux < 40f) {
+                                isAmbientDark = true
+                            } else if (lux > 70f) {
+                                isAmbientDark = false
+                            }
+                        }
+
+                        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+                    }
+                sensorManager.registerListener(listener, lightSensor, SensorManager.SENSOR_DELAY_NORMAL)
+                onDispose {
+                    sensorManager.unregisterListener(listener)
+                }
+            } else {
+                onDispose {}
+            }
+        } else {
+            onDispose {}
+        }
+    }
+
+    val targetBrightnessAlpha =
+        when (settings.screenSaverBrightness) {
+            ScreenSaverBrightness.Auto -> {
+                if (hasLightSensor && isAmbientDark) {
+                    ScreenSaverBrightness.Soft.alpha
+                } else {
+                    ScreenSaverBrightness.Standard.alpha
+                }
+            }
+            ScreenSaverBrightness.Soft -> ScreenSaverBrightness.Soft.alpha
+            ScreenSaverBrightness.Standard -> ScreenSaverBrightness.Standard.alpha
+            ScreenSaverBrightness.Bright -> ScreenSaverBrightness.Bright.alpha
+        }
+    val animatedBrightnessAlpha by animateFloatAsState(
+        targetValue = targetBrightnessAlpha,
+        animationSpec = tween(durationMillis = 600),
+        label = "screenSaverBrightnessAlpha",
+    )
+
     BackHandler {
         onDismiss()
     }
@@ -303,7 +464,6 @@ fun ScreenSaverOverlay(
     val currentTime = if (hourStr.isNotBlank() && minuteStr.isNotBlank()) "$hourStr:$minuteStr" else "--:--"
 
     // 提取专辑主色与辅色
-    val context = LocalContext.current
     val effectiveCoverUrl =
         remember(currentSong) {
             currentSong?.coverUrl?.ifBlank { null }
@@ -369,7 +529,8 @@ fun ScreenSaverOverlay(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .offset { animatedPixelOffset },
+                        .offset { animatedPixelOffset }
+                        .alpha(animatedBrightnessAlpha),
                 contentAlignment = Alignment.Center,
             ) {
                 val song = currentSong
@@ -620,3 +781,11 @@ internal object ScreenSaverColorExtractor {
         return Pair(primaryColor, secondaryColor)
     }
 }
+
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
+
