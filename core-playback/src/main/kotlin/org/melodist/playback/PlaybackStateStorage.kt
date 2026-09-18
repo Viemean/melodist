@@ -61,14 +61,33 @@ object PlaybackStateStorage {
     ) {
         val prefs = getPrefs(context) ?: return
         try {
+            val safePlaylist =
+                if (playlist.size > 50 && currentIndex in playlist.indices) {
+                    val start = (currentIndex - 20).coerceAtLeast(0)
+                    val end = (currentIndex + 30).coerceAtMost(playlist.size)
+                    playlist.subList(start, end)
+                } else if (playlist.size > 50) {
+                    playlist.take(50)
+                } else {
+                    playlist
+                }
+            val safeCurrentIndex =
+                if (playlist.size > 50 && currentIndex in playlist.indices) {
+                    currentIndex - (currentIndex - 20).coerceAtLeast(0)
+                } else {
+                    currentIndex
+                }
+
             prefs.edit().apply {
                 if (currentSong != null) {
                     putString("current_song", jsonHelper.encodeToString(currentSong))
                 }
-                if (playlist.isNotEmpty()) {
-                    putString("playback_queue", jsonHelper.encodeToString(playlist))
+                if (safePlaylist.isNotEmpty()) {
+                    putString("playback_queue", jsonHelper.encodeToString(safePlaylist))
+                } else {
+                    remove("playback_queue")
                 }
-                putInt("current_index", currentIndex)
+                putInt("current_index", safeCurrentIndex)
                 putLong("current_position_ms", currentPositionMs)
                 putLong("duration_ms", durationMs)
                 putString("preferred_tier", preferredTier.name)
