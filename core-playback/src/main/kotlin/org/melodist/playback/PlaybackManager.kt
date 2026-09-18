@@ -1400,10 +1400,8 @@ object PlaybackManager {
     fun pause() {
         if (playbackInterceptor?.onInterceptPause() == true) return
         val player = exoPlayer ?: return
-        if (player.isPlaying) {
-            player.pause()
-            savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
-        }
+        player.pause()
+        savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
     }
 
     fun play() {
