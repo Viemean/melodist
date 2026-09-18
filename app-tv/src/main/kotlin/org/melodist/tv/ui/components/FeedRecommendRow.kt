@@ -45,17 +45,6 @@ import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.MonetColorExtractor
 
-object FeedRecommendCache {
-    var cachedShelf: RecommendShelf? = null
-    var lastFetchTimeMs: Long = 0L
-    const val TTL_MS = 10 * 60 * 1000L // 10 分钟自动换一批
-
-    fun isValid(): Boolean =
-        cachedShelf != null &&
-            (System.currentTimeMillis() - lastFetchTimeMs < TTL_MS) &&
-            cachedShelf!!.songs.isNotEmpty()
-}
-
 @Composable
 fun FeedRecommendRow(
     cardWidth: Dp = 260.dp,
@@ -69,58 +58,22 @@ fun FeedRecommendRow(
     val userProfile by UserSession.profileFlow.collectAsState()
     val apiService = remember { MusicApiService() }
 
-    var shelf by remember { mutableStateOf<RecommendShelf?>(FeedRecommendCache.cachedShelf) }
-    var isLoading by remember { mutableStateOf(false) }
-
-    // 拉取推荐货架数据（首次与每10分钟换批）
-    suspend fun fetchFeedShelf(force: Boolean = false) {
-        if (!UserSession.isLoggedIn) {
-            shelf = null
-            FeedRecommendCache.cachedShelf = null
-            FeedRecommendCache.lastFetchTimeMs = 0L
-            return
-        }
-
-        if (!force && FeedRecommendCache.isValid()) {
-            shelf = FeedRecommendCache.cachedShelf
-            return
-        }
-
-        isLoading = true
-        try {
-            val shelves = apiService.getRecommendFeed()
+    val shelves by org.melodist.data.RecommendFeedManager.shelvesFlow.collectAsState()
+    val currentShelf =
+        remember(shelves) {
             val targetShelf = shelves.firstOrNull()
             if (targetShelf != null && targetShelf.songs.isNotEmpty()) {
-                val validSongs = targetShelf.songs.take(35)
-                val trimmedShelf = targetShelf.copy(songs = validSongs)
-                shelf = trimmedShelf
-                FeedRecommendCache.cachedShelf = trimmedShelf
-                FeedRecommendCache.lastFetchTimeMs = System.currentTimeMillis()
+                targetShelf.copy(songs = targetShelf.songs.take(35))
+            } else {
+                null
             }
-        } catch (_: Exception) {
-        } finally {
-            isLoading = false
         }
-    }
 
     LaunchedEffect(userProfile) {
-        fetchFeedShelf()
-    }
-
-    // 10 分钟定时换批循环
-    LaunchedEffect(userProfile) {
-        if (!UserSession.isLoggedIn) return@LaunchedEffect
-        while (isActive) {
-            val now = System.currentTimeMillis()
-            val elapsed = now - FeedRecommendCache.lastFetchTimeMs
-            if (FeedRecommendCache.lastFetchTimeMs > 0L && elapsed >= FeedRecommendCache.TTL_MS) {
-                fetchFeedShelf(force = true)
-            }
-            delay(15_000L)
+        if (UserSession.isLoggedIn) {
+            org.melodist.data.RecommendFeedManager.refresh(apiService, forceRefresh = false)
         }
     }
-
-    val currentShelf = shelf
     val songs = currentShelf?.songs.orEmpty()
     if (!UserSession.isLoggedIn || songs.isEmpty()) {
         return

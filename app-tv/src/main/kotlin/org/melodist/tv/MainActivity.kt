@@ -109,6 +109,7 @@ class MainActivity : ComponentActivity() {
         org.melodist.data.AppSettingsManager.init(this)
         org.melodist.data.DailyRecommendCacheManager.init(this)
         org.melodist.data.UserLibraryCacheManager.init(this)
+        org.melodist.data.RecommendFeedManager.init(this)
         ScreenSaverManager.init()
         TvConnectManager.init(this)
         checkAndRequestStoragePermissions()
