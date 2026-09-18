@@ -208,10 +208,7 @@ fun HomeCoreTracksRow(
         }
     }
 
-    var isRowFocused by remember { mutableStateOf(false) }
-    val isRowFocusedState = rememberUpdatedState(isRowFocused)
-
-    // 10 秒固定轮换定时器：各个卡片从自身的候选池中随机换到下一张（仅当池大小 > 1 时触发，无网/单项静止，获焦时挂起）
+    // 10 秒固定轮换定时器：各个卡片从自身的候选池中随机换到下一张（仅当池大小 > 1 时触发，无网/单项静止）
     LaunchedEffect(favSongs.size, dailySongs.size, radarSongs.size, playlistItems.size, albumItems.size) {
         fun pickNextRandom(current: Int, size: Int): Int {
             if (size <= 1) return 0
@@ -224,7 +221,6 @@ fun HomeCoreTracksRow(
 
         while (isActive) {
             delay(15_000L)
-            if (isRowFocusedState.value) continue
             if (!isPlayingRadar && radarSongs.size > 1) {
                 radarIndex = pickNextRandom(radarIndex, radarSongs.size)
             }
@@ -363,12 +359,7 @@ fun HomeCoreTracksRow(
                     onFocusChanged = { focused ->
                         if (focused) {
                             focusedCardIndex = index
-                            isRowFocused = true
                             onCardFocused?.invoke(index)
-                        } else {
-                            if (focusedCardIndex == index) {
-                                isRowFocused = false
-                            }
                         }
                     },
                     onClick = {
