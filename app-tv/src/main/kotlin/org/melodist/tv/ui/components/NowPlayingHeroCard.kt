@@ -243,6 +243,32 @@ fun NowPlayingHeroCard(
                                             if (downFocusRequester != null) down = downFocusRequester
                                             left = actualCardRequester
                                             right = if (canFavorite) favoriteRequester else actualCardRequester
+                                        }.onPreviewKeyEvent { event ->
+                                            if (event.type == KeyEventType.KeyDown) {
+                                                when (event.nativeKeyEvent.keyCode) {
+                                                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                                        if (downFocusRequester != null) {
+                                                            try {
+                                                                downFocusRequester.requestFocus()
+                                                                true
+                                                            } catch (_: Exception) {
+                                                                false
+                                                            }
+                                                        } else false
+                                                    }
+                                                    KeyEvent.KEYCODE_DPAD_UP -> {
+                                                        if (upFocusRequester != null) {
+                                                            try {
+                                                                upFocusRequester.requestFocus()
+                                                                true
+                                                            } catch (_: Exception) {
+                                                                false
+                                                            }
+                                                        } else false
+                                                    }
+                                                    else -> false
+                                                }
+                                            } else false
                                         },
                                 onClick = onPlayPauseClick,
                             )
@@ -261,6 +287,32 @@ fun NowPlayingHeroCard(
                                                 if (downFocusRequester != null) down = downFocusRequester
                                                 left = playPauseRequester
                                                 right = actualCardRequester
+                                            }.onPreviewKeyEvent { event ->
+                                                if (event.type == KeyEventType.KeyDown) {
+                                                    when (event.nativeKeyEvent.keyCode) {
+                                                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                                            if (downFocusRequester != null) {
+                                                                try {
+                                                                    downFocusRequester.requestFocus()
+                                                                    true
+                                                                } catch (_: Exception) {
+                                                                    false
+                                                                }
+                                                            } else false
+                                                        }
+                                                        KeyEvent.KEYCODE_DPAD_UP -> {
+                                                            if (upFocusRequester != null) {
+                                                                try {
+                                                                    upFocusRequester.requestFocus()
+                                                                    true
+                                                                } catch (_: Exception) {
+                                                                    false
+                                                                }
+                                                            } else false
+                                                        }
+                                                        else -> false
+                                                    }
+                                                } else false
                                             },
                                     onClick = onFavoriteClick,
                                 )

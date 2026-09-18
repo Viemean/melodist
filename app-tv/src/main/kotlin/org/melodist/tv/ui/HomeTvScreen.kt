@@ -177,7 +177,7 @@ fun HomeTvScreen(
                 durationMs = durationMs,
                 cardFocusRequester = heroCardRequester,
                 upFocusRequester = navTabRequesters.getOrNull(selectedNavIndex) ?: navTabRequesters.firstOrNull(),
-                downFocusRequester = coreRowRequester,
+                downFocusRequester = coreCardRequesters.firstOrNull() ?: coreRowRequester,
                 buttonsFocusRequester = heroButtonsRequester,
                 onFocusChangedCallback = {
                     HomeFocusMemory.lastTarget = HomeFocusTarget.HeroCard
@@ -199,7 +199,7 @@ fun HomeTvScreen(
                 favoriteCount = favoriteCount,
                 trackFocusRequester = coreRowRequester,
                 upFocusRequester = heroCardRequester,
-                downFocusRequester = feedRowRequester,
+                downFocusRequester = feedCardRequesters.firstOrNull() ?: feedRowRequester,
                 cardRequesters = coreCardRequesters,
                 initialFocusedIndex = initialCoreIndex,
                 onCardFocused = { index ->
@@ -241,7 +241,7 @@ fun HomeTvScreen(
             org.melodist.tv.ui.components.FeedRecommendRow(
                 cardWidth = metrics.trackCardWidth,
                 rowFocusRequester = feedRowRequester,
-                upFocusRequester = coreRowRequester,
+                upFocusRequester = coreCardRequesters.firstOrNull() ?: coreRowRequester,
                 cardRequesters = feedCardRequesters,
                 initialFocusedIndex = initialFeedIndex,
                 onCardFocused = { index ->
