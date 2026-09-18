@@ -190,6 +190,7 @@ object PlaybackManager {
     private var prefetchJob: Job? = null
     private var currentSongRetryCount = 0
     private var consecutiveErrorCount = 0
+    private var audioTrackRetryCount = 0
     private var lastCustomStreamArgs: Triple<Song, String, Map<String, String>>? = null
 
     private fun handlePlaybackFailure(errorMsg: String, allowCurrentSongRetry: Boolean = true) {
@@ -218,6 +219,7 @@ object PlaybackManager {
         }
 
         currentSongRetryCount = 0
+        audioTrackRetryCount = 0
         consecutiveErrorCount++
         if (consecutiveErrorCount >= 3) {
             Log.w("MelodistPlayback", "Continuous playback failure reached limit (3), stopping playback.")
@@ -282,6 +284,7 @@ object PlaybackManager {
                 if (playing) {
                     currentSongRetryCount = 0
                     consecutiveErrorCount = 0
+                    audioTrackRetryCount = 0
                 } else {
                     savePlaybackProgress(exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L)
                 }
@@ -295,6 +298,7 @@ object PlaybackManager {
                         if (exoPlayer?.isPlaying == true) {
                             currentSongRetryCount = 0
                             consecutiveErrorCount = 0
+                            audioTrackRetryCount = 0
                         }
                         if (_isSwitchingQuality.value) {
                             _isSwitchingQuality.value = false
@@ -322,6 +326,31 @@ object PlaybackManager {
                 val current = _currentSong.value
                 val curTier = _currentTier.value
                 val fallback = getFallbackTier(curTier)
+
+                val isAudioTrackError =
+                    error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED ||
+                    error.cause is AudioSink.InitializationException ||
+                    error.cause is AudioSink.WriteException
+
+                if (isAudioTrackError && audioTrackRetryCount < 1) {
+                    audioTrackRetryCount++
+                    Log.w("MelodistPlayback", "AudioTrack/AudioSink error encountered (${error.errorCodeName}). Resetting audio pipeline and retrying...")
+                    _errorMessage.value = "音频驱动重置中，正在重试播放..."
+                    scope.launch {
+                        delay(300L)
+                        resetPlayerPipeline(restoreMediaItem = false)
+                        if (current != null) {
+                            val custom = lastCustomStreamArgs
+                            if (custom != null && custom.first.songMid == current.songMid) {
+                                playCustomStream(custom.first, custom.second, custom.third, seekToMs = _currentPositionMs.value)
+                            } else {
+                                playSong(current, forceTier = curTier, seekToMs = _currentPositionMs.value)
+                            }
+                        }
+                    }
+                    return
+                }
 
                 if (current != null && fallback != null && !isLocalOrWebDavSong(current)) {
                     Log.w("MelodistPlayback", "Playback failed at tier $curTier, falling back to $fallback")
@@ -703,7 +732,7 @@ object PlaybackManager {
         Log.i("MelodistPlayback", "Applied audio offload preferences: enabled=$enabled")
     }
 
-    fun resetPlayerPipeline() {
+    fun resetPlayerPipeline(restoreMediaItem: Boolean = true) {
         val context = appContext ?: return
         val player = exoPlayer
         val pos = player?.currentPosition ?: 0L
@@ -713,7 +742,7 @@ object PlaybackManager {
         player?.release()
         exoPlayer =
             buildExoPlayer(context).apply {
-                if (item != null) {
+                if (restoreMediaItem && item != null) {
                     setMediaItem(item, pos)
                     prepare()
                     if (wasPlaying) {
@@ -722,7 +751,7 @@ object PlaybackManager {
                 }
             }
         updateUsbExclusiveRouting()
-        Log.i("MelodistPlayback", "Player pipeline reset with updated audio configuration")
+        Log.i("MelodistPlayback", "Player pipeline reset with updated audio configuration (restoreMediaItem=$restoreMediaItem)")
     }
 
     fun reloadAudioPipeline() {
@@ -915,6 +944,7 @@ object PlaybackManager {
         MelodistCacheManager.onNewSongStarted(song.songMid)
         if (_currentSong.value?.songMid != song.songMid) {
             currentSongRetryCount = 0
+            audioTrackRetryCount = 0
         }
         playJob?.cancel()
         switchQualityJob?.cancel()
@@ -1355,7 +1385,7 @@ object PlaybackManager {
             savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
         } else {
             if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
-                if (player.currentMediaItem == null && currSong != null) {
+                if (currSong != null) {
                     playSong(currSong, seekToMs = _currentPositionMs.value)
                     return
                 }
@@ -1380,12 +1410,11 @@ object PlaybackManager {
         val player = exoPlayer ?: return
         if (!player.isPlaying) {
             val currSong = _currentSong.value
-            if (player.currentMediaItem == null && currSong != null) {
+            if (player.playbackState == androidx.media3.common.Player.STATE_IDLE && currSong != null) {
+                playSong(currSong, seekToMs = _currentPositionMs.value)
+            } else if (player.currentMediaItem == null && currSong != null) {
                 playSong(currSong, seekToMs = _currentPositionMs.value)
             } else {
-                if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
-                    player.prepare()
-                }
                 player.play()
                 appContext?.let { startPlaybackService(it) }
             }
@@ -1410,6 +1439,7 @@ object PlaybackManager {
         MelodistCacheManager.onNewSongStarted(song.songMid)
         if (_currentSong.value?.songMid != song.songMid) {
             currentSongRetryCount = 0
+            audioTrackRetryCount = 0
         }
         consecutiveErrorCount = 0
         playJob?.cancel()
