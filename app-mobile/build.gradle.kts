@@ -31,8 +31,8 @@ android {
         applicationId = "org.melodist.mobile"
         minSdk = 28
         targetSdk = 36
-        versionCode = 133
-        versionName = "1.3.3"
+        versionCode = 134
+        versionName = "1.3.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
