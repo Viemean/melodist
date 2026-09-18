@@ -139,6 +139,7 @@ object PlaybackManager {
     val currentIndex: StateFlow<Int> = queueManager.currentIndex
     val loopMode: StateFlow<PlaybackLoopMode> = queueManager.loopMode
     val isRadioMode: StateFlow<Boolean> = queueManager.isRadioMode
+    val queueTag: StateFlow<String?> = queueManager.queueTag
     val paginationSource: StateFlow<QueuePaginationSource?> = queueManager.paginationSource
     val isLoadingMoreForQueue: StateFlow<Boolean> = queueManager.isLoadingMoreForQueue
 
@@ -882,6 +883,7 @@ object PlaybackManager {
         startMuted: Boolean = false,
         forceTier: AudioQualityTier? = null,
         paginationSource: QueuePaginationSource? = null,
+        queueTag: String? = null,
     ) {
         setMuted(startMuted)
         queueManager.setPlaylist(
@@ -891,12 +893,13 @@ object PlaybackManager {
             initialSeekToMs = initialSeekToMs,
             forceTier = forceTier,
             paginationSource = paginationSource,
+            queueTag = queueTag,
         )
     }
 
     fun setPaginationSource(source: QueuePaginationSource?) = queueManager.setPaginationSource(source)
     suspend fun loadMoreForQueue(): Boolean = queueManager.loadMoreForQueue()
-    fun appendPlaylist(newSongs: List<Song>) = queueManager.appendPlaylist(newSongs)
+    fun appendPlaylist(newSongs: List<Song>, targetTag: String? = null) = queueManager.appendPlaylist(newSongs, targetTag)
     fun insertNextPlay(song: Song) = queueManager.insertNextPlay(song)
     fun insertAndPlay(song: Song, seekToMs: Long = 0L) = queueManager.insertAndPlay(song, seekToMs)
     fun removeFromPlaylist(index: Int) = queueManager.removeFromPlaylist(index)

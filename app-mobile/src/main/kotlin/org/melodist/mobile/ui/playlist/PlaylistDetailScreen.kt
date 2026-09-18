@@ -156,6 +156,11 @@ fun PlaylistDetailScreen(
         }
     }
 
+    val playlistTag =
+        remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite) {
+            if (playlist.isMyFavorite) "favorites" else "playlist_${playlist.dirId}_${playlist.tid}"
+        }
+
     val playlistPaginationSource =
         remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite) {
             if (!playlist.isMyFavorite) {
@@ -224,6 +229,7 @@ fun PlaylistDetailScreen(
                 var p = currentPage + 1
                 var more = true
                 while (more && isActive) {
+                    if (PlaybackManager.queueTag.value != playlistTag) return@launch
                     val nextSongs =
                         try {
                             val res =
@@ -246,7 +252,7 @@ fun PlaylistDetailScreen(
                             val toAdd = nextSongs.filter { it.songMid.isNotBlank() && !existingMids.contains(it.songMid) }
                             if (toAdd.isNotEmpty()) {
                                 songs = songs + toAdd
-                                PlaybackManager.appendPlaylist(toAdd)
+                                PlaybackManager.appendPlaylist(toAdd, targetTag = playlistTag)
                             }
                             currentPage = p
                             hasMore = more
@@ -363,6 +369,7 @@ fun PlaylistDetailScreen(
                             list,
                             startIndex = index,
                             paginationSource = playlistPaginationSource,
+                            queueTag = playlistTag,
                         )
                         startBackgroundSyncRemaining()
                     },
@@ -446,6 +453,7 @@ fun PlaylistDetailScreen(
                                                     songs,
                                                     startIndex = 0,
                                                     paginationSource = playlistPaginationSource,
+                                                    queueTag = playlistTag,
                                                 )
                                                 startBackgroundSyncRemaining()
                                             }
@@ -468,6 +476,7 @@ fun PlaylistDetailScreen(
                                                     songs.shuffled(),
                                                     startIndex = 0,
                                                     paginationSource = playlistPaginationSource,
+                                                    queueTag = playlistTag,
                                                 )
                                                 startBackgroundSyncRemaining()
                                             }

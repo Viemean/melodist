@@ -358,13 +358,14 @@ fun PlaylistTvScreen(
                                         saveToCache(playlistSongs, totalCount, hasMore)
 
                                         val curQueue = PlaybackManager.playlist.value
-                                        if (curQueue.isNotEmpty() &&
+                                        if (PlaybackManager.queueTag.value == cacheKey &&
+                                            curQueue.isNotEmpty() &&
                                             playlistSongs.any {
                                                 it.songMid == curQueue.firstOrNull()?.songMid ||
                                                     it.songMid == PlaybackManager.currentSong.value?.songMid
                                             }
                                         ) {
-                                            PlaybackManager.appendPlaylist(res.songs)
+                                            PlaybackManager.appendPlaylist(res.songs, targetTag = cacheKey)
                                         }
                                         PlaybackManager.addFavoriteSongMids(res.songs.map { it.songMid })
                                     }
@@ -977,11 +978,12 @@ fun PlaylistTvScreen(
                         Button(
                             onClick = {
                                 if (playlistSongs.isNotEmpty()) {
+                                    val isSamePlaylist = (PlaybackManager.queueTag.value == cacheKey)
                                     val curQueue = PlaybackManager.playlist.value
-                                    if (curQueue.size > playlistSongs.size && curQueue.firstOrNull()?.songMid == playlistSongs.first().songMid) {
+                                    if (isSamePlaylist && curQueue.size > playlistSongs.size && curQueue.firstOrNull()?.songMid == playlistSongs.first().songMid) {
                                         PlaybackManager.playSong(playlistSongs.first())
                                     } else {
-                                        PlaybackManager.setPlaylist(playlistSongs, 0, isRadio = (categoryId == "radar"))
+                                        PlaybackManager.setPlaylist(playlistSongs, 0, isRadio = (categoryId == "radar"), queueTag = cacheKey)
                                     }
                                     syncFullPlaylistToPlayback()
                                     screenMode = PlaylistScreenMode.Player
@@ -1389,11 +1391,12 @@ fun PlaylistTvScreen(
                                 modifier = itemModifier,
                                 onClick = {
                                     PlaylistScreenCache.lastPlayedIndex = index
+                                    val isSamePlaylist = (PlaybackManager.queueTag.value == cacheKey)
                                     val curQueue = PlaybackManager.playlist.value
-                                    if (curQueue.size > playlistSongs.size && curQueue.any { it.songMid == song.songMid }) {
+                                    if (isSamePlaylist && curQueue.size > playlistSongs.size && curQueue.any { it.songMid == song.songMid }) {
                                         PlaybackManager.playSong(song)
                                     } else {
-                                        PlaybackManager.setPlaylist(playlistSongs, index, isRadio = (categoryId == "radar"))
+                                        PlaybackManager.setPlaylist(playlistSongs, index, isRadio = (categoryId == "radar"), queueTag = cacheKey)
                                     }
                                     syncFullPlaylistToPlayback()
                                     screenMode = PlaylistScreenMode.Player

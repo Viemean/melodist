@@ -37,6 +37,9 @@ class PlaybackQueueManager(
     private val _isLoadingMoreForQueue = MutableStateFlow(false)
     val isLoadingMoreForQueue: StateFlow<Boolean> = _isLoadingMoreForQueue.asStateFlow()
 
+    private val _queueTag = MutableStateFlow<String?>(null)
+    val queueTag: StateFlow<String?> = _queueTag.asStateFlow()
+
     val shuffleQueue = ShuffleQueueManager()
 
     @Volatile
@@ -90,9 +93,11 @@ class PlaybackQueueManager(
         initialSeekToMs: Long = 0L,
         forceTier: AudioQualityTier? = null,
         paginationSource: QueuePaginationSource? = null,
+        queueTag: String? = null,
     ) {
         _isRadioMode.value = isRadio
         _paginationSource.value = paginationSource
+        _queueTag.value = queueTag
         _playlist.value = songs
         if (songs.isNotEmpty() && startIndex in songs.indices) {
             _currentIndex.value = startIndex
@@ -125,8 +130,9 @@ class PlaybackQueueManager(
         }
     }
 
-    fun appendPlaylist(newSongs: List<Song>) {
+    fun appendPlaylist(newSongs: List<Song>, targetTag: String? = null) {
         if (newSongs.isEmpty()) return
+        if (targetTag != null && _queueTag.value != targetTag) return
         val current = _playlist.value
         val existingMids = current.map { it.songMid }.toSet()
         val toAdd = newSongs.filter { it.songMid.isNotBlank() && !existingMids.contains(it.songMid) }
@@ -234,6 +240,7 @@ class PlaybackQueueManager(
 
     fun clearPlaylist() {
         _paginationSource.value = null
+        _queueTag.value = null
         _playlist.value = emptyList()
         _currentIndex.value = -1
         onStopPlaybackRequest()
