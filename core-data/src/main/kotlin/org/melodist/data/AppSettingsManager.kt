@@ -80,6 +80,16 @@ enum class ScreenSaverTimeout(
     val millis: Long get() = minutes * 60 * 1000L
 }
 
+enum class ScreenSaverBrightness(
+    val label: String,
+    val alpha: Float,
+) {
+    Auto("自动", 0.70f),
+    Soft("柔和", 0.45f),
+    Standard("标准", 0.70f),
+    Bright("明亮", 0.85f),
+}
+
 data class AppSettings(
     // 1. 音频与音质
     val preferredQualityTier: AudioQualityTier = AudioQualityTier.SQ,
@@ -94,6 +104,7 @@ data class AppSettings(
     val lyricFontSize: LyricFontSize = LyricFontSize.Normal,
     // 3. OLED 屏保与显示保护
     val screenSaverTimeout: ScreenSaverTimeout = ScreenSaverTimeout.Minutes5,
+    val screenSaverBrightness: ScreenSaverBrightness = ScreenSaverBrightness.Auto,
     val enablePixelShift: Boolean = true,
     val enableScreenSaverDuringPlayback: Boolean = true,
     // 4. 下载与存储
@@ -118,6 +129,7 @@ object AppSettingsManager {
     private const val KEY_WORD_ANIM = "word_animation"
     private const val KEY_LYRIC_FONT_SIZE = "lyric_font_size"
     private const val KEY_SCREENSAVER_TIMEOUT = "screensaver_timeout"
+    private const val KEY_SCREENSAVER_BRIGHTNESS = "screensaver_brightness"
     private const val KEY_SCREENSAVER_PIXEL_SHIFT = "screensaver_pixel_shift"
     private const val KEY_SCREENSAVER_DURING_PLAYBACK = "screensaver_during_playback"
     private const val KEY_DOWNLOAD_DIRECTORY = "download_directory"
@@ -201,6 +213,14 @@ object AppSettingsManager {
                 ScreenSaverTimeout.Minutes5
             }
 
+        val brightnessName = p.getString(KEY_SCREENSAVER_BRIGHTNESS, ScreenSaverBrightness.Auto.name) ?: ScreenSaverBrightness.Auto.name
+        val brightness =
+            try {
+                ScreenSaverBrightness.valueOf(brightnessName)
+            } catch (_: Exception) {
+                ScreenSaverBrightness.Auto
+            }
+
         val pixelShift = p.getBoolean(KEY_SCREENSAVER_PIXEL_SHIFT, true)
         val duringPlayback = p.getBoolean(KEY_SCREENSAVER_DURING_PLAYBACK, true)
         val downloadDir = p.getString(KEY_DOWNLOAD_DIRECTORY, "") ?: ""
@@ -217,6 +237,7 @@ object AppSettingsManager {
                 enableWordByWordAnim = wordAnim,
                 lyricFontSize = font,
                 screenSaverTimeout = timeout,
+                screenSaverBrightness = brightness,
                 enablePixelShift = pixelShift,
                 enableScreenSaverDuringPlayback = duringPlayback,
                 downloadDirectory = downloadDir,
@@ -328,6 +349,13 @@ object AppSettingsManager {
 
     fun updateScreenSaverTimeout(timeout: ScreenSaverTimeout) = setScreenSaverTimeout(timeout)
 
+    fun setScreenSaverBrightness(brightness: ScreenSaverBrightness) {
+        _settings.value = _settings.value.copy(screenSaverBrightness = brightness)
+        prefs?.edit()?.putString(KEY_SCREENSAVER_BRIGHTNESS, brightness.name)?.apply()
+    }
+
+    fun updateScreenSaverBrightness(brightness: ScreenSaverBrightness) = setScreenSaverBrightness(brightness)
+
     fun setEnablePixelShift(enable: Boolean) {
         _settings.value = _settings.value.copy(enablePixelShift = enable)
         prefs?.edit()?.putBoolean(KEY_SCREENSAVER_PIXEL_SHIFT, enable)?.apply()
@@ -387,12 +415,15 @@ object AppSettingsManager {
                             "image_cache", "coil_cache", "local_covers", "covers" -> {
                                 imgBytes += calculateDirSize(file)
                             }
+
                             "matched_lyrics", "lyrics" -> {
                                 lyricsBytes += calculateDirSize(file)
                             }
+
                             "media_cache" -> {
                                 // 已经通过 maxOf 统计
                             }
+
                             else -> {
                                 if (file.isDirectory) {
                                     otherBytes += calculateDirSize(file)
