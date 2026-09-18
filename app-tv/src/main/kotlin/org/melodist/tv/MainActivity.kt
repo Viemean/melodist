@@ -1,11 +1,15 @@
 package org.melodist.tv
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -93,8 +97,21 @@ sealed interface TvScreenDestination {
 }
 
 class MainActivity : ComponentActivity() {
+    private val screenPowerReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                    // 电视机休眠息屏：主动暂停并保存播放进度，防止开机继续播放惊吓用户
+                    PlaybackManager.pause()
+                    PlaybackManager.savePlaybackState()
+                }
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        registerReceiver(screenPowerReceiver, filter)
         DeviceAudioCapability.init(this)
         UserSessionManager.init(this)
         PlaybackManager.init(this)
@@ -535,11 +552,21 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val isInteractive = powerManager?.isInteractive ?: true
+        if (!isInteractive) {
+            // 电视屏幕已熄灭（处于休眠待机状态），强制暂停播放
+            PlaybackManager.pause()
+        }
         PlaybackManager.savePlaybackState()
         super.onStop()
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(screenPowerReceiver)
+        } catch (_: Exception) {
+        }
         PlaybackManager.release()
         super.onDestroy()
     }
