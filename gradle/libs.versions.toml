@@ -20,8 +20,8 @@ detekt = "1.23.8"
 detekt-rules-compose = "0.6.6"
 ktlint = "14.2.0"
 java-websocket = "1.6.0"
-zxing = "3.5.3"
-camerax = "1.4.1"
+zxing = "3.5.4"
+camerax = "1.6.2"
 
 [libraries]
 camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
