@@ -109,7 +109,7 @@ fun HomeTvScreen(
                             ?: navTabRequesters.firstOrNull()?.requestFocus()
                     }
                     is HomeFocusTarget.HeroCard -> {
-                        heroCardRequester.requestFocus()
+                        heroButtonsRequester.requestFocus()
                     }
                     is HomeFocusTarget.CoreCard -> {
                         coreCardRequesters.getOrNull(target.index)?.requestFocus()
@@ -176,7 +176,7 @@ fun HomeTvScreen(
                 progressMsProvider = { PlaybackManager.currentPositionMs.value },
                 durationMs = durationMs,
                 cardFocusRequester = heroCardRequester,
-                upFocusRequester = navTabRequesters.firstOrNull(),
+                upFocusRequester = navTabRequesters.getOrNull(selectedNavIndex) ?: navTabRequesters.firstOrNull(),
                 downFocusRequester = coreRowRequester,
                 buttonsFocusRequester = heroButtonsRequester,
                 onFocusChangedCallback = {

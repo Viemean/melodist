@@ -102,11 +102,36 @@ fun NowPlayingHeroCard(
                             }
                             true
                         } else if (event.type == KeyEventType.KeyDown) {
-                            if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                                playPauseRequester.requestFocus()
-                                true
-                            } else {
-                                false
+                            when (keyCode) {
+                                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                    playPauseRequester.requestFocus()
+                                    true
+                                }
+                                KeyEvent.KEYCODE_DPAD_UP -> {
+                                    if (upFocusRequester != null) {
+                                        try {
+                                            upFocusRequester.requestFocus()
+                                            true
+                                        } catch (_: Exception) {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                    if (downFocusRequester != null) {
+                                        try {
+                                            downFocusRequester.requestFocus()
+                                            true
+                                        } catch (_: Exception) {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                else -> false
                             }
                         } else {
                             false
@@ -214,7 +239,7 @@ fun NowPlayingHeroCard(
                                     Modifier
                                         .focusRequester(playPauseRequester)
                                         .focusProperties {
-                                            up = actualCardRequester
+                                            up = upFocusRequester ?: actualCardRequester
                                             if (downFocusRequester != null) down = downFocusRequester
                                             left = actualCardRequester
                                             right = if (canFavorite) favoriteRequester else actualCardRequester
@@ -232,7 +257,7 @@ fun NowPlayingHeroCard(
                                         Modifier
                                             .focusRequester(favoriteRequester)
                                             .focusProperties {
-                                                up = actualCardRequester
+                                                up = upFocusRequester ?: actualCardRequester
                                                 if (downFocusRequester != null) down = downFocusRequester
                                                 left = playPauseRequester
                                                 right = actualCardRequester
