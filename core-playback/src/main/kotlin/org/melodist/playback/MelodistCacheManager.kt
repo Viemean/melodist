@@ -19,6 +19,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 @OptIn(UnstableApi::class)
@@ -295,7 +297,8 @@ object MelodistCacheManager {
         var digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
         if (digitGroups >= units.size) digitGroups = units.size - 1
         val value = bytes / Math.pow(1024.0, digitGroups.toDouble())
-        return DecimalFormat("#,##0.#").format(value) + " " + units[digitGroups]
+        val symbols = DecimalFormatSymbols(Locale.US)
+        return DecimalFormat("#,##0.#", symbols).format(value) + " " + units[digitGroups]
     }
 }
 

@@ -889,7 +889,7 @@ object AudioQualityAuditor {
         )
     }
 
-    private fun Double.format(digits: Int) = "%.${digits}f".format(this)
+    private fun Double.format(digits: Int) = String.format(java.util.Locale.US, "%.${digits}f", this)
 
     private fun applyHanningWindow(data: FloatArray) {
         val n = data.size

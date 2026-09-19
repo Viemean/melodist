@@ -17,7 +17,7 @@ object AudioQualityFormatter {
                 if (sampleRateHz % 1000 == 0) {
                     "${sampleRateHz / 1000}kHz"
                 } else {
-                    "%.1fkHz".format(sampleRateHz / 1000f)
+                    String.format(java.util.Locale.US, "%.1fkHz", sampleRateHz / 1000f)
                 }
             specParts.add(khz)
         }
@@ -49,9 +49,9 @@ object AudioQualityFormatter {
         val mb = kb / 1024.0
         val gb = mb / 1024.0
         return when {
-            gb >= 1.0 -> "%.2f GB".format(gb)
-            mb >= 1.0 -> "%.1f MB".format(mb)
-            kb >= 1.0 -> "%.1f KB".format(kb)
+            gb >= 1.0 -> String.format(java.util.Locale.US, "%.2f GB", gb)
+            mb >= 1.0 -> String.format(java.util.Locale.US, "%.1f MB", mb)
+            kb >= 1.0 -> String.format(java.util.Locale.US, "%.1f KB", kb)
             else -> "$bytes B"
         }
     }

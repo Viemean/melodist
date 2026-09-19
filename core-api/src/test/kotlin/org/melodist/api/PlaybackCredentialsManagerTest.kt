@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -8,6 +9,12 @@ import org.junit.jupiter.api.assertThrows
 class PlaybackCredentialsManagerTest {
     @BeforeEach
     fun setUp() {
+        PlaybackCredentialsManager.clearCredentials()
+        UserSession.clear()
+    }
+
+    @AfterEach
+    fun tearDown() {
         PlaybackCredentialsManager.clearCredentials()
         UserSession.clear()
     }

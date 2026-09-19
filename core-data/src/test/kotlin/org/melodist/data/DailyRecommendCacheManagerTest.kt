@@ -12,7 +12,7 @@ class DailyRecommendCacheManagerTest {
         val now = System.currentTimeMillis()
 
         val cycleStart =
-            Calendar.getInstance().apply {
+            Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT+8")).apply {
                 timeInMillis = now
                 set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
