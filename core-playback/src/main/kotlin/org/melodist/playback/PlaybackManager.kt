@@ -1019,7 +1019,7 @@ object PlaybackManager {
         _lyrics.value = emptyList()
         _currentPositionMs.value = seekToMs
         probeJob?.cancel()
-        val isLocalOrWebDav = song.songMid.startsWith("webdav_") || !song.localFilePath.isNullOrBlank()
+        val isLocalOrWebDav = PlaybackSourceResolver.isLocalOrWebDavSong(song)
         if (isLocalOrWebDav) {
             val actualTier = song.currentTier
             _availableTiers.value = setOf(actualTier)
@@ -1109,6 +1109,42 @@ object PlaybackManager {
 
                         return@launch
                     }
+                }
+
+                // 本地音乐远程流式播放（局域网代理中转，mediaMid 携带 http:// 或 https:// 直链）
+                val isLocalStream = (song.isLocal || song.songMid.startsWith("local_")) &&
+                    (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://"))
+                if (isLocalStream) {
+                    val player = exoPlayer ?: return@launch
+                    _currentTier.value = song.currentTier
+                    _isCurrentTrackFromCache.value = false
+                    val baseHttpFactory = DefaultHttpDataSource.Factory()
+                        .setUserAgent("MelodistTV/1.0 ConnectStream")
+                        .setAllowCrossProtocolRedirects(true)
+                        .setConnectTimeoutMs(30_000)
+                        .setReadTimeoutMs(30_000)
+                    val ctx = appContext ?: return@launch
+                    val dataSourceFactory = DefaultDataSource.Factory(ctx, baseHttpFactory)
+                    val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
+                        .createMediaSource(buildMediaItem(android.net.Uri.parse(song.mediaMid), song))
+                    if (seekToMs > 0L) {
+                        player.setMediaSource(mediaSource, seekToMs)
+                    } else {
+                        player.setMediaSource(mediaSource)
+                    }
+                    player.prepare()
+                    player.play()
+                    savePlaybackState()
+                    loadLyricsForSong(song)
+                    return@launch
+                }
+
+                // 本地歌曲既无本地文件也无可用流代理，直接上报失败，严禁调用在线接口或触发 3 秒网络重试
+                if (song.isLocal || song.songMid.startsWith("local_")) {
+                    Log.w("MelodistPlayback", "Local song not found on device and no stream proxy available: ${song.name}, path=${song.localFilePath}")
+                    handlePlaybackFailure("无法找到本地音频文件", allowCurrentSongRetry = false)
+                    return@launch
                 }
 
                 if (song.songMid.startsWith("webdav_")) {
