@@ -640,7 +640,8 @@ fun PlaylistTvScreen(
                     if (isLoading) {
                         "正在拉取今日推荐..."
                     } else {
-                        "今日 30 首专属推荐 · 每日 6:00 更新"
+                        val updateTimeStr = org.melodist.data.DailyRecommendCacheManager.getFormattedLocalDailyRecommendUpdateTime()
+                        "今日 30 首专属推荐 · 每日 $updateTimeStr 更新"
                     }
                 } else {
                     "未登录账号 · 前往设置扫码可获取个性化推荐"
