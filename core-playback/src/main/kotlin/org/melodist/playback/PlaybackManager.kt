@@ -1282,6 +1282,8 @@ object PlaybackManager {
                             }
                         } catch (e: Exception) {
                             Log.w("MelodistPlayback", "Error extracting WebDAV song metadata", e)
+                        } finally {
+                            prefetchAdjacentWebDavCovers()
                         }
                     }
 
@@ -1475,6 +1477,9 @@ object PlaybackManager {
         _errorMessage.value = null
         _lyrics.value = emptyList()
         _currentPositionMs.value = seekToMs
+        if (song.isWebDav || song.songMid.startsWith("webdav_")) {
+            prefetchAdjacentWebDavCovers()
+        }
 
         val player = exoPlayer ?: return
         val baseHttpFactory = DefaultHttpDataSource.Factory()
@@ -1934,6 +1939,60 @@ object PlaybackManager {
             return
         }
         queueManager.cycleLoopMode()
+        prefetchAdjacentWebDavCovers()
+    }
+
+    private val prefetchingWebDavMids = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    fun prefetchAdjacentWebDavCovers() {
+        val server = org.melodist.data.WebDavManager.getActiveServer() ?: return
+        val next = getNextSong()
+        val prev = getPreviousSong()
+        val targets = listOfNotNull(next, prev).distinctBy { it.songMid }.filter { it.isWebDav || it.songMid.startsWith("webdav_") }
+        if (targets.isEmpty()) return
+
+        scope.launch(Dispatchers.IO) {
+            for (target in targets) {
+                val currentCover = target.coverUrl
+                val hasValidCoverFile = if (currentCover.startsWith("file://")) {
+                    val f = java.io.File(currentCover.removePrefix("file://").substringBefore('?'))
+                    f.exists() && f.length() > 0L
+                } else if (currentCover.startsWith("http://") || currentCover.startsWith("https://")) {
+                    true
+                } else {
+                    false
+                }
+
+                if (hasValidCoverFile) continue
+                if (!prefetchingWebDavMids.add(target.songMid)) continue
+
+                try {
+                    val relativeHref = target.mediaMid.ifBlank { target.localFilePath ?: "" }
+                    if (relativeHref.isBlank()) continue
+
+                    val existingCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
+                    if (!existingCover.isNullOrBlank()) {
+                        withContext(Dispatchers.Main) {
+                            queueManager.updateSongInPlaylist(target.copy(coverUrl = existingCover))
+                        }
+                        continue
+                    }
+
+                    val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, target)
+                    val newCover = meta.coverUrl
+                    if (!newCover.isNullOrBlank()) {
+                        val versioned = "${newCover.substringBefore('?')}?t=${System.currentTimeMillis()}"
+                        withContext(Dispatchers.Main) {
+                            queueManager.updateSongInPlaylist(target.copy(coverUrl = versioned))
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("MelodistPlayback", "Error prefetching WebDAV cover for ${target.name}", e)
+                } finally {
+                    prefetchingWebDavMids.remove(target.songMid)
+                }
+            }
+        }
     }
 
     private fun handleSongEnded() {

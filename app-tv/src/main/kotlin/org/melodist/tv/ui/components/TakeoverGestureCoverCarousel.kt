@@ -68,8 +68,14 @@ fun TakeoverGestureCoverCarousel(
         PlaybackManager.getNextSong()
     }
 
-    // 后台预加载前后歌曲封面
-    LaunchedEffect(prevSong?.coverUrl, nextSong?.coverUrl) {
+    // 后台预加载前后歌曲封面并在缺少封面时触发 WebDAV 预提取
+    LaunchedEffect(prevSong?.songMid, nextSong?.songMid, prevSong?.coverUrl, nextSong?.coverUrl) {
+        val prevNeedPrefetch = prevSong != null && (prevSong.isWebDav || prevSong.songMid.startsWith("webdav_")) && prevSong.coverUrl.isBlank()
+        val nextNeedPrefetch = nextSong != null && (nextSong.isWebDav || nextSong.songMid.startsWith("webdav_")) && nextSong.coverUrl.isBlank()
+        if (prevNeedPrefetch || nextNeedPrefetch) {
+            PlaybackManager.prefetchAdjacentWebDavCovers()
+        }
+
         val imageLoader = SingletonImageLoader.get(context)
         prevSong?.coverUrl?.takeIf { it.isNotBlank() }?.let { url ->
             val req = ImageRequest.Builder(context).data(url).build()
