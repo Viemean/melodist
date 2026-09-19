@@ -21,6 +21,7 @@ import java.io.File
 import java.util.UUID
 
 object WebDavManager {
+    private const val TAG = "WebDavManager"
     private const val PREF_NAME = "melodist_webdav_config"
     private const val KEY_CONFIG = "config_json"
 
@@ -185,6 +186,36 @@ object WebDavManager {
         val cleanName = (serverId + relativeHref).hashCode().toString().replace("-", "n")
         return File(dir, "$cleanName.$ext")
     }
+
+    /**
+     * 获取 WebDAV 音频文件的局部切片样本（优先使用完整本地缓存，缺失时通过 HTTP Range 拉取前 1.5MB 样本文件）
+     */
+    suspend fun fetchAudioSliceSample(
+        server: WebDavServer,
+        relativeHref: String,
+    ): File? =
+        withContext(Dispatchers.IO) {
+            val local = getLocalCacheFile(server.id, relativeHref)
+            if (local.exists() && local.length() > 64 * 1024L) return@withContext local
+
+            val ext = relativeHref.substringAfterLast('.', "mp3")
+            val cleanName = (server.id + relativeHref).hashCode().toString().replace("-", "n")
+            val sliceFile = File(getSafeCacheDir(), "slice_$cleanName.$ext")
+            if (sliceFile.exists() && sliceFile.length() > 64 * 1024L) return@withContext sliceFile
+
+            try {
+                val bytes = webDavService.fetchRangeBytes(server, relativeHref, 0L, 1_572_863L)
+                if (bytes != null && bytes.size > 32 * 1024) {
+                    sliceFile.writeBytes(bytes)
+                    sliceFile
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to fetch audio slice sample for $relativeHref", e)
+                null
+            }
+        }
 
     /**
      * 获取 WebDAV 音频可供播放的 Uri（若有完整缓存返回本地文件，否则返回流式秒播 URI）

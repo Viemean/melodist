@@ -1602,8 +1602,17 @@ object PlaybackManager {
                             _lyricsLoadedFlow.tryEmit(song to baseLyrics)
                         }
                     }
+                    val server = org.melodist.data.WebDavManager.getActiveServer()
+                    val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
+                    val validFile =
+                        if (server != null && relativeHref.isNotBlank()) {
+                            org.melodist.data.WebDavManager.fetchAudioSliceSample(server, relativeHref)
+                        } else {
+                            null
+                        }
+
                     // 智能匹配官方逐行歌词与双语翻译
-                    val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, null, baseLyrics)
+                    val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, validFile, baseLyrics)
                     if (matched != null && matched.isNotEmpty() && _currentSong.value?.songMid == song.songMid) {
                         Log.i("MelodistPlayback", "Applied auto-matched lyrics for WebDAV song: ${song.name}")
                         if (org.melodist.data.LyricCacheManager.isBetterQuality(matched, _lyrics.value)) {
@@ -1612,9 +1621,9 @@ object PlaybackManager {
                             _lyricsLoadedFlow.tryEmit(song to matched)
                         }
                     }
-                    // 后台异步检查并校准时间轴偏移量 (如已下载缓存文件)
+                    // 后台异步检查并校准时间轴偏移量 (涵盖流式与完整缓存的 WebDAV 歌曲)
                     if (!org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
-                        val calibratedOffset = LocalLyricAutoMatcher.calibrateOffsetAsync(song, null)
+                        val calibratedOffset = LocalLyricAutoMatcher.calibrateOffsetAsync(song, validFile)
                         if (_currentSong.value?.songMid == song.songMid) {
                             _currentLyricOffsetMs.value = calibratedOffset
                         }
