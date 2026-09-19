@@ -12,6 +12,11 @@ import java.io.File
 import java.nio.ByteOrder
 import kotlin.math.min
 
+data class AudioSliceResult(
+    val feature: AcousticFeature,
+    val startSeconds: Double,
+)
+
 /**
  * 高性能本地/缓存音频切片声学指纹提取器
  * 使用 Android 原生 MediaExtractor + MediaCodec 精准 seek 到歌曲高潮/主歌切片 (15s ~ 23s)，
@@ -25,9 +30,15 @@ object AudioSliceExtractor {
     private const val FALLBACK_START_SECONDS = 5L
 
     /**
-     * 对给定的本地音频文件进行快速局部切片解码并提取声学指纹
+     * 对给定的本地音频文件进行快速局部切片解码并提取声学指纹 (包含起始秒数)
      */
     suspend fun extractSliceFeature(audioFile: File): AcousticFeature? =
+        extractSliceWithTime(audioFile)?.feature
+
+    /**
+     * 提取音频切片特征与精确起始秒数
+     */
+    suspend fun extractSliceWithTime(audioFile: File): AudioSliceResult? =
         withContext(Dispatchers.IO) {
             if (!audioFile.exists() || !audioFile.canRead() || audioFile.length() < 32 * 1024L) {
                 return@withContext null
@@ -89,6 +100,12 @@ object AudioSliceExtractor {
 
                 // Seek 到目标切片起点
                 extractor.seekTo(startSec * 1_000_000L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+                val actualStartSec =
+                    if (extractor.sampleTime >= 0L) {
+                        extractor.sampleTime / 1_000_000.0
+                    } else {
+                        startSec.toDouble()
+                    }
 
                 codec = MediaCodec.createDecoderByType(mime)
                 codec.configure(format, null, null, 0)
@@ -169,12 +186,13 @@ object AudioSliceExtractor {
                 if (feature != null) {
                     Log.i(
                         TAG,
-                        "Successfully extracted slice feature for ${audioFile.name}, duration=${feature.duration}s, data=${feature.data.size} bytes",
+                        "Successfully extracted slice feature for ${audioFile.name}, duration=${feature.duration}s, data=${feature.data.size} bytes, startSec=$actualStartSec",
                     )
+                    AudioSliceResult(feature, actualStartSec)
                 } else {
                     Log.w(TAG, "Feature extraction returned null for ${audioFile.name}, sampleCount=${resampled8k.size}")
+                    null
                 }
-                feature
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to decode and extract slice feature for ${audioFile.name}", e)
                 null

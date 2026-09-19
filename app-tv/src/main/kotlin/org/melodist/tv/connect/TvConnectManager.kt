@@ -186,6 +186,7 @@ object TvConnectManager {
                                 availableTiers = PlaybackManager.availableTiers.value,
                                 isFavorite = isFav,
                                 isRadioMode = isRadio,
+                                lyricOffsetMs = PlaybackManager.currentLyricOffsetMs.value,
                             ),
                         )
                     }
@@ -382,6 +383,7 @@ object TvConnectManager {
                 availableTiers = PlaybackManager.availableTiers.value,
                 isFavorite = PlaybackManager.isSongFavorite(curSong?.songMid),
                 isRadioMode = PlaybackManager.isRadioMode.value,
+                lyricOffsetMs = PlaybackManager.currentLyricOffsetMs.value,
             ),
         )
     }

@@ -183,6 +183,9 @@ object PlaybackManager {
     private val _lyrics = MutableStateFlow<List<LyricLine>>(emptyList())
     val lyrics: StateFlow<List<LyricLine>> = _lyrics.asStateFlow()
 
+    private val _currentLyricOffsetMs = MutableStateFlow(0L)
+    val currentLyricOffsetMs: StateFlow<Long> = _currentLyricOffsetMs.asStateFlow()
+
     private val _isCurrentTrackFromCache = MutableStateFlow(false)
     val isCurrentTrackFromCache: StateFlow<Boolean> = _isCurrentTrackFromCache.asStateFlow()
 
@@ -1521,10 +1524,16 @@ object PlaybackManager {
         currentTier: AudioQualityTier? = null,
         availableTiers: Set<AudioQualityTier> = emptySet(),
         isRadioMode: Boolean = false,
+        lyricOffsetMs: Long = 0L,
     ) {
         val prevLocalSong = _currentSong.value
         if (song != null) {
             _currentSong.value = song
+            if (lyricOffsetMs != 0L) {
+                _currentLyricOffsetMs.value = lyricOffsetMs
+            } else if (org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
+                _currentLyricOffsetMs.value = org.melodist.data.LyricCacheManager.getLyricOffsetMs(song.songMid)
+            }
             if (prevLocalSong?.songMid != song.songMid) {
                 loadLyricsForSong(song)
             }
@@ -1574,6 +1583,9 @@ object PlaybackManager {
         } else {
             _lyrics.value = emptyList()
         }
+        val cachedOffset = org.melodist.data.LyricCacheManager.getLyricOffsetMs(song.songMid)
+        _currentLyricOffsetMs.value = cachedOffset
+
         lyricLoadJob = scope.launch(Dispatchers.IO) {
             try {
                 if (song.songMid.startsWith("webdav_")) {
@@ -1600,6 +1612,13 @@ object PlaybackManager {
                             _lyricsLoadedFlow.tryEmit(song to matched)
                         }
                     }
+                    // 后台异步检查并校准时间轴偏移量 (如已下载缓存文件)
+                    if (!org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
+                        val calibratedOffset = LocalLyricAutoMatcher.calibrateOffsetAsync(song, null)
+                        if (_currentSong.value?.songMid == song.songMid) {
+                            _currentLyricOffsetMs.value = calibratedOffset
+                        }
+                    }
                 } else if (!song.localFilePath.isNullOrBlank() || song.isLocal) {
                     val lrcText = org.melodist.data.LocalMusicManager.getSongLyrics(song)
                     val baseLyrics = if (!lrcText.isNullOrBlank()) {
@@ -1624,6 +1643,13 @@ object PlaybackManager {
                             _lyrics.value = matched
                             org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, matched)
                             _lyricsLoadedFlow.tryEmit(song to matched)
+                        }
+                    }
+                    // 后台异步检查并校准时间轴偏移量 (覆盖已有缓存歌词但时间轴不齐的历史歌曲)
+                    if (!org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
+                        val calibratedOffset = LocalLyricAutoMatcher.calibrateOffsetAsync(song, validFile)
+                        if (_currentSong.value?.songMid == song.songMid) {
+                            _currentLyricOffsetMs.value = calibratedOffset
                         }
                     }
                 } else {

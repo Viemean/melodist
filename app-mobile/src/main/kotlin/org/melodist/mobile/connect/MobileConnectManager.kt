@@ -182,6 +182,7 @@ object MobileConnectManager {
                                 currentTier = resolvedState.currentTier,
                                 availableTiers = resolvedState.availableTiers,
                                 isRadioMode = resolvedState.isRadioMode,
+                                lyricOffsetMs = resolvedState.lyricOffsetMs,
                             )
 
                             if (localMute.value) {
@@ -557,6 +558,7 @@ object MobileConnectManager {
                     currentTier = state.currentTier,
                     availableTiers = state.availableTiers,
                     isRadioMode = state.isRadioMode,
+                    lyricOffsetMs = state.lyricOffsetMs,
                 )
             }
         }

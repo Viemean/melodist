@@ -16,21 +16,27 @@ import java.util.concurrent.ConcurrentHashMap
 object LyricCacheManager {
     private const val TAG = "LyricCacheManager"
     private const val LYRIC_SUBDIR = "cached_lyrics"
+    private const val OFFSET_FILE_NAME = "lyric_offsets.json"
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val json = Json { ignoreUnknownKeys = true }
 
     private var lyricsDir: File? = null
+    private var baseCacheDir: File? = null
     private val memoryCache = ConcurrentHashMap<String, List<LyricLine>>()
     private val remotelySyncedMids = ConcurrentHashMap.newKeySet<String>()
+    private val offsetMap = ConcurrentHashMap<String, Long>()
 
     fun init(context: Context) {
         if (lyricsDir != null) return
-        val dir = File(context.applicationContext.cacheDir, LYRIC_SUBDIR)
+        val appCache = context.applicationContext.cacheDir
+        baseCacheDir = appCache
+        val dir = File(appCache, LYRIC_SUBDIR)
         if (!dir.exists()) {
             dir.mkdirs()
         }
         lyricsDir = dir
+        loadOffsetMap(appCache)
     }
 
     /**
@@ -105,6 +111,61 @@ object LyricCacheManager {
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to save cached lyric for $songMid", e)
             }
+        }
+    }
+
+    fun hasLyricOffsetRecord(songKey: String): Boolean {
+        if (songKey.isBlank()) return false
+        return offsetMap.containsKey(songKey)
+    }
+
+    fun getLyricOffsetMs(songKey: String): Long {
+        if (songKey.isBlank()) return 0L
+        return offsetMap[songKey] ?: 0L
+    }
+
+    fun saveLyricOffsetMs(songKey: String, offsetMs: Long) {
+        if (songKey.isBlank()) return
+        offsetMap[songKey] = offsetMs
+        scope.launch {
+            val cacheDir = baseCacheDir ?: return@launch
+            try {
+                val file = File(cacheDir, OFFSET_FILE_NAME)
+                val snapshot = HashMap(offsetMap)
+                val text = json.encodeToString(snapshot)
+                file.writeText(text)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist lyric offset for $songKey", e)
+            }
+        }
+    }
+
+    fun clearLyricOffset(songKey: String) {
+        if (songKey.isBlank()) return
+        offsetMap.remove(songKey)
+        scope.launch {
+            val cacheDir = baseCacheDir ?: return@launch
+            try {
+                val file = File(cacheDir, OFFSET_FILE_NAME)
+                val snapshot = HashMap(offsetMap)
+                val text = json.encodeToString(snapshot)
+                file.writeText(text)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist lyric offset removal for $songKey", e)
+            }
+        }
+    }
+
+    private fun loadOffsetMap(cacheDir: File) {
+        try {
+            val file = File(cacheDir, OFFSET_FILE_NAME)
+            if (file.exists() && file.length() > 0L) {
+                val text = file.readText()
+                val loaded = json.decodeFromString<Map<String, Long>>(text)
+                offsetMap.putAll(loaded)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load lyric offset map", e)
         }
     }
 

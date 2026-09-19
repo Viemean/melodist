@@ -144,15 +144,20 @@ object LocalLyricAutoMatcher {
             if (matchedSongMid.isNullOrBlank() && audioFile != null && audioFile.exists() && audioFile.length() > 64 * 1024L) {
                 try {
                     Log.i(TAG, "Invoking audio slice ACR for: ${audioFile.name}")
-                    val feature = AudioSliceExtractor.extractSliceFeature(audioFile)
-                    if (feature != null) {
-                        val acrResult = acrClient.search(feature)
+                    val sliceResult = AudioSliceExtractor.extractSliceWithTime(audioFile)
+                    if (sliceResult != null) {
+                        val acrResult = acrClient.search(sliceResult.feature)
                         if (acrResult.success && !acrResult.song?.songMid.isNullOrBlank()) {
                             val acrSong = acrResult.song!!
                             matchedSongMid = acrSong.songMid
                             matchedTitle = acrSong.name
                             matchedArtist = acrSong.singer
                             Log.i(TAG, "ACR successfully identified: ${acrSong.name} - ${acrSong.singer} (mid=${acrSong.songMid})")
+
+                            val calculatedOffset = Math.round((acrResult.offsetSeconds - sliceResult.startSeconds) * 1000.0)
+                            val finalOffset = if (kotlin.math.abs(calculatedOffset) < 150L) 0L else calculatedOffset
+                            org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, finalOffset)
+                            Log.i(TAG, "ACR auto-calibrated lyric offset for ${song.name}: ${finalOffset}ms")
                         } else {
                             Log.w(TAG, "ACR returned no match: ${acrResult.errorMessage}")
                         }
@@ -184,6 +189,62 @@ object LocalLyricAutoMatcher {
             }
 
             return@withContext null
+        }
+
+    /**
+     * 为本地或 WebDAV 歌曲自动校准官方歌词时间轴偏移量 (Offset in milliseconds)
+     * 针对本地音频存在片头静音削减/母带版本差异的情况 (如 5:08 本地文件 vs 5:11 官方数字版)
+     * 计算规则：
+     * 1. 若已有校准记录则直接返回 (0 网络开销)
+     * 2. 若本地音频文件存在，提取切片声学指纹与精确起始秒数送入 ACR
+     * 3. 毫秒级差分计算: offsetMs = ((acrOffset - sliceStart) * 1000).toLong()
+     * 4. 误差小于 150ms 视为精准对齐，保存 0ms；反之持久化 offsetMs，供播放与歌词组件动态平移
+     */
+    suspend fun calibrateOffsetAsync(
+        song: Song,
+        audioFile: File?,
+    ): Long =
+        withContext(Dispatchers.IO) {
+            if (!song.isLocal && song.localFilePath.isNullOrBlank() && !song.songMid.startsWith("webdav_")) {
+                return@withContext 0L
+            }
+
+            if (org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
+                return@withContext org.melodist.data.LyricCacheManager.getLyricOffsetMs(song.songMid)
+            }
+
+            if (audioFile == null || !audioFile.exists() || !audioFile.canRead() || audioFile.length() < 32 * 1024L) {
+                return@withContext 0L
+            }
+
+            try {
+                Log.i(TAG, "Starting automatic lyric offset calibration for: ${song.name}")
+                val sliceResult = AudioSliceExtractor.extractSliceWithTime(audioFile)
+                if (sliceResult == null) {
+                    org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, 0L)
+                    return@withContext 0L
+                }
+
+                val acrResult = acrClient.search(sliceResult.feature)
+                if (acrResult.success && acrResult.song != null) {
+                    val calculatedOffset = Math.round((acrResult.offsetSeconds - sliceResult.startSeconds) * 1000.0)
+                    val finalOffset = if (kotlin.math.abs(calculatedOffset) < 150L) 0L else calculatedOffset
+                    org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, finalOffset)
+                    Log.i(
+                        TAG,
+                        "Successfully calibrated lyric offset for ${song.name}: ${finalOffset}ms (officialOffset=${acrResult.offsetSeconds}s, localStart=${sliceResult.startSeconds}s)",
+                    )
+                    return@withContext finalOffset
+                } else {
+                    Log.w(TAG, "ACR offset calibration returned no match for: ${song.name}, recording 0ms")
+                    org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, 0L)
+                    return@withContext 0L
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to calibrate lyric offset for ${song.name}", e)
+                org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, 0L)
+                return@withContext 0L
+            }
         }
 
     private fun getCacheKey(song: Song): String {

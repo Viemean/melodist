@@ -196,6 +196,7 @@ data class PlayerStateEvent(
     val availableTiers: Set<AudioQualityTier> = emptySet(),
     val isFavorite: Boolean = false,
     val isRadioMode: Boolean = false,
+    val lyricOffsetMs: Long = 0L,
 )
 
 @Serializable
@@ -247,4 +248,5 @@ data class LyricsSyncPayload(
     val lyrics: List<LyricLine> = emptyList(),
     val sourceDeviceId: String = "",
     val timestamp: Long = System.currentTimeMillis(),
+    val lyricOffsetMs: Long = 0L,
 )

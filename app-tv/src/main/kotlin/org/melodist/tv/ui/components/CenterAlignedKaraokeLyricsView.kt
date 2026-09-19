@@ -30,6 +30,7 @@ fun CenterAlignedKaraokeLyricsView(
     lyrics: List<LyricLine>,
     currentPositionMs: Long,
     modifier: Modifier = Modifier,
+    lyricOffsetMs: Long = org.melodist.playback.PlaybackManager.currentLyricOffsetMs.collectAsState().value,
     highlightColor: Color = MelodistColors.AccentGreen,
 ) {
     val settings by AppSettingsManager.settings.collectAsState()
@@ -52,10 +53,12 @@ fun CenterAlignedKaraokeLyricsView(
         return
     }
 
-    // 定位当前正在演唱的歌词行索引
+    val effectivePositionMs = currentPositionMs + lyricOffsetMs
+
+    // 定位当前正在演唱的歌词行索引 (结合毫秒校准偏移量)
     val activeIndex =
-        remember(lyrics, currentPositionMs) {
-            val index = lyrics.indexOfLast { it.timestampMs <= currentPositionMs }
+        remember(lyrics, effectivePositionMs) {
+            val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
             if (index == -1) 0 else index
         }
 
@@ -109,7 +112,7 @@ fun CenterAlignedKaraokeLyricsView(
                 line = line,
                 isCurrent = isCurrent,
                 alphaVal = alpha,
-                currentPositionMs = if (isCurrent) currentPositionMs else 0L,
+                currentPositionMs = if (isCurrent) effectivePositionMs else 0L,
                 baseFontSize = baseFontSize,
                 enableWordAnim = enableWordAnim,
                 showBilingual = showBilingual,
