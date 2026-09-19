@@ -47,6 +47,9 @@ sealed interface TvIncomingCommand {
     data class GestureSwipe(val payload: org.melodist.core.connect.model.GestureSwipePayload) : TvIncomingCommand
     data class ToggleFavorite(val command: org.melodist.core.connect.model.ToggleFavoriteCommand) : TvIncomingCommand
     data class SyncLyricsScroll(val payload: org.melodist.core.connect.model.LyricsScrollPayload) : TvIncomingCommand
+    data object RequestGetPlayerState : TvIncomingCommand
+    data object RequestGetQueueState : TvIncomingCommand
+    data class SyncLyrics(val payload: org.melodist.core.connect.model.LyricsSyncPayload) : TvIncomingCommand
 }
 
 data class PendingPairRequest(
@@ -60,6 +63,8 @@ class TvConnectServer(
     private val storageManager: ConnectStorageManager,
     private val port: Int = 8765,
 ) {
+    var actualPort: Int = port
+        private set
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val json = Json {
         ignoreUnknownKeys = true
@@ -80,10 +85,22 @@ class TvConnectServer(
     private val activeClients = ConcurrentHashMap<WebSocket, ConnectDevice>()
     private val pendingRequests = ConcurrentHashMap<String, PendingPairRequest>()
 
+    private fun findAvailablePort(startPort: Int): Int {
+        for (candidate in startPort..(startPort + 10)) {
+            try {
+                java.net.ServerSocket(candidate).use {
+                    return candidate
+                }
+            } catch (_: Exception) {}
+        }
+        return startPort
+    }
+
     fun start() {
         if (server != null) return
-        val localDevice = storageManager.getOrCreateLocalDevice()
-        val wsServer = InternalWebSocketServer(InetSocketAddress(port))
+        val bindPort = findAvailablePort(port)
+        actualPort = bindPort
+        val wsServer = InternalWebSocketServer(InetSocketAddress(bindPort))
         server = wsServer
         wsServer.isReuseAddr = true
         wsServer.start()
@@ -106,59 +123,67 @@ class TvConnectServer(
         _connectedDeviceFlow.value = request.device
 
         val localDevice = storageManager.getOrCreateLocalDevice()
-        val payload = json.encodeToString(
+        sendData(
+            request.socket,
+            ConnectActions.PAIR_RESPONSE,
             PairResponsePayload(
                 accepted = true,
                 message = "Paired successfully",
                 device = localDevice,
             ),
         )
-        sendMessage(request.socket, ConnectActions.PAIR_RESPONSE, payload)
+        scope.launch {
+            _commandsFlow.emit(TvIncomingCommand.RequestGetPlayerState)
+            _commandsFlow.emit(TvIncomingCommand.RequestGetQueueState)
+        }
     }
 
     fun rejectPairRequest(requestId: String) {
         val request = pendingRequests.remove(requestId) ?: return
-        val payload = json.encodeToString(
+        sendData(
+            request.socket,
+            ConnectActions.PAIR_RESPONSE,
             PairResponsePayload(
                 accepted = false,
                 message = "Pairing rejected by TV user",
                 device = null,
             ),
         )
-        sendMessage(request.socket, ConnectActions.PAIR_RESPONSE, payload)
         try {
             request.socket.close()
         } catch (_: Exception) {}
     }
 
     fun broadcastPlayerState(event: PlayerStateEvent) {
-        val payload = json.encodeToString(event)
-        broadcast(ConnectActions.EVENT_PLAY_STATE, payload)
+        broadcastData(ConnectActions.EVENT_PLAY_STATE, event)
     }
 
     fun broadcastQueueState(event: QueueStateEvent) {
-        val payload = json.encodeToString(event)
-        broadcast(ConnectActions.EVENT_QUEUE_STATE, payload)
+        broadcastData(ConnectActions.EVENT_QUEUE_STATE, event)
+    }
+
+    fun broadcastLyrics(payload: org.melodist.core.connect.model.LyricsSyncPayload) {
+        broadcastData(ConnectActions.EVENT_SYNC_LYRICS, payload)
     }
 
     fun broadcastNext() {
-        broadcast(ConnectActions.CMD_NEXT, "")
+        broadcastAction(ConnectActions.CMD_NEXT)
     }
 
     fun broadcastPrevious() {
-        broadcast(ConnectActions.CMD_PREVIOUS, "")
+        broadcastAction(ConnectActions.CMD_PREVIOUS)
     }
 
     fun broadcastPlaySong(song: org.melodist.model.Song) {
-        broadcast(ConnectActions.CMD_PLAY_SONG, json.encodeToString(song))
+        broadcastData(ConnectActions.CMD_PLAY_SONG, song)
     }
 
     fun broadcastCycleLoopMode() {
-        broadcast(ConnectActions.CMD_CYCLE_LOOP_MODE, "")
+        broadcastAction(ConnectActions.CMD_CYCLE_LOOP_MODE)
     }
 
-    private fun broadcast(action: String, payload: String) {
-        val message = json.encodeToString(ConnectMessage(action = action, payload = payload))
+    private inline fun <reified T> broadcastData(action: String, data: T) {
+        val message = json.encodeToString(ConnectMessage.create(action, data, json))
         activeClients.keys.forEach { ws ->
             if (ws.isOpen) {
                 try {
@@ -168,9 +193,28 @@ class TvConnectServer(
         }
     }
 
-    private fun sendMessage(socket: WebSocket, action: String, payload: String) {
+    private fun broadcastAction(action: String) {
+        val message = json.encodeToString(ConnectMessage(action = action))
+        activeClients.keys.forEach { ws ->
+            if (ws.isOpen) {
+                try {
+                    ws.send(message)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    private inline fun <reified T> sendData(socket: WebSocket, action: String, data: T) {
         if (!socket.isOpen) return
-        val message = json.encodeToString(ConnectMessage(action = action, payload = payload))
+        val message = json.encodeToString(ConnectMessage.create(action, data, json))
+        try {
+            socket.send(message)
+        } catch (_: Exception) {}
+    }
+
+    private fun sendAction(socket: WebSocket, action: String) {
+        if (!socket.isOpen) return
+        val message = json.encodeToString(ConnectMessage(action = action))
         try {
             socket.send(message)
         } catch (_: Exception) {}
@@ -199,7 +243,7 @@ class TvConnectServer(
         }
 
         override fun onStart() {
-            android.util.Log.i("MelodistConnectServer", "TvConnectServer started on port $port")
+            android.util.Log.i("MelodistConnectServer", "TvConnectServer started on port $actualPort")
         }
     }
 
@@ -212,14 +256,16 @@ class TvConnectServer(
 
         when (msg.action) {
             ConnectActions.PING -> {
-                sendMessage(conn, ConnectActions.PONG, "")
+                sendAction(conn, ConnectActions.PONG)
+            }
+            ConnectActions.REQ_GET_PLAYER_STATE -> {
+                scope.launch { _commandsFlow.emit(TvIncomingCommand.RequestGetPlayerState) }
+            }
+            ConnectActions.REQ_GET_QUEUE_STATE -> {
+                scope.launch { _commandsFlow.emit(TvIncomingCommand.RequestGetQueueState) }
             }
             ConnectActions.PAIR_REQUEST -> {
-                val req = try {
-                    json.decodeFromString<PairRequestPayload>(msg.payload)
-                } catch (_: Exception) {
-                    return
-                }
+                val req = msg.decodeData<PairRequestPayload>(json) ?: return
                 val isTrusted = storageManager.isDevicePaired(req.device.id) &&
                     storageManager.isTokenTrusted(req.device.token)
 
@@ -227,14 +273,19 @@ class TvConnectServer(
                     activeClients[conn] = req.device
                     _connectedDeviceFlow.value = req.device
                     val local = storageManager.getOrCreateLocalDevice()
-                    val payload = json.encodeToString(
+                    sendData(
+                        conn,
+                        ConnectActions.PAIR_RESPONSE,
                         PairResponsePayload(
                             accepted = true,
                             message = "Auto paired",
                             device = local,
                         ),
                     )
-                    sendMessage(conn, ConnectActions.PAIR_RESPONSE, payload)
+                    scope.launch {
+                        _commandsFlow.emit(TvIncomingCommand.RequestGetPlayerState)
+                        _commandsFlow.emit(TvIncomingCommand.RequestGetQueueState)
+                    }
                 } else {
                     val pending = PendingPairRequest(
                         requestId = msg.id,
@@ -258,16 +309,16 @@ class TvConnectServer(
                 } catch (_: Exception) {}
             }
             ConnectActions.CMD_PLAY_SONG -> {
-                try {
-                    val cmd = json.decodeFromString<PlaySongCommand>(msg.payload)
+                val cmd = msg.decodeData<PlaySongCommand>(json)
+                if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.PlaySong(cmd)) }
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.CMD_ENQUEUE_NEXT -> {
-                try {
-                    val cmd = json.decodeFromString<EnqueueNextCommand>(msg.payload)
+                val cmd = msg.decodeData<EnqueueNextCommand>(json)
+                if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.EnqueueNext(cmd)) }
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.CMD_PAUSE -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.Pause) }
@@ -282,22 +333,22 @@ class TvConnectServer(
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.Next) }
             }
             ConnectActions.CMD_SEEK -> {
-                try {
-                    val cmd = json.decodeFromString<SeekCommand>(msg.payload)
+                val cmd = msg.decodeData<SeekCommand>(json)
+                if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.Seek(cmd.positionMs)) }
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.CMD_SET_VOLUME -> {
-                try {
-                    val cmd = json.decodeFromString<SetVolumeCommand>(msg.payload)
+                val cmd = msg.decodeData<SetVolumeCommand>(json)
+                if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SetVolume(cmd.volume)) }
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.CMD_SWITCH_TIER -> {
-                try {
-                    val cmd = json.decodeFromString<org.melodist.core.connect.model.SwitchTierCommand>(msg.payload)
+                val cmd = msg.decodeData<org.melodist.core.connect.model.SwitchTierCommand>(json)
+                if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SwitchTier(cmd)) }
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.CMD_TRIGGER_AOD -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.TriggerAod) }
@@ -309,22 +360,28 @@ class TvConnectServer(
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.OpenPlayer) }
             }
             ConnectActions.CMD_GESTURE_SWIPE -> {
-                try {
-                    val payload = json.decodeFromString<org.melodist.core.connect.model.GestureSwipePayload>(msg.payload)
+                val payload = msg.decodeData<org.melodist.core.connect.model.GestureSwipePayload>(json)
+                if (payload != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.GestureSwipe(payload)) }
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.CMD_TOGGLE_FAVORITE -> {
-                try {
-                    val cmd = json.decodeFromString<org.melodist.core.connect.model.ToggleFavoriteCommand>(msg.payload)
+                val cmd = msg.decodeData<org.melodist.core.connect.model.ToggleFavoriteCommand>(json)
+                if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.ToggleFavorite(cmd)) }
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.CMD_SYNC_LYRICS_SCROLL -> {
-                try {
-                    val payload = json.decodeFromString<org.melodist.core.connect.model.LyricsScrollPayload>(msg.payload)
+                val payload = msg.decodeData<org.melodist.core.connect.model.LyricsScrollPayload>(json)
+                if (payload != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SyncLyricsScroll(payload)) }
-                } catch (_: Exception) {}
+                }
+            }
+            ConnectActions.CMD_SYNC_LYRICS -> {
+                val payload = msg.decodeData<org.melodist.core.connect.model.LyricsSyncPayload>(json)
+                if (payload != null) {
+                    scope.launch { _commandsFlow.emit(TvIncomingCommand.SyncLyrics(payload)) }
+                }
             }
         }
     }

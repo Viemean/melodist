@@ -74,8 +74,11 @@ class MobileConnectClient(
     private val _queueState = MutableStateFlow<QueueStateEvent?>(null)
     val queueState: StateFlow<QueueStateEvent?> = _queueState.asStateFlow()
 
-    private val _commandsFlow = kotlinx.coroutines.flow.MutableSharedFlow<MobileIncomingCommand>(extraBufferCapacity = 32)
-    val commandsFlow: kotlinx.coroutines.flow.SharedFlow<MobileIncomingCommand> = _commandsFlow.asSharedFlow()
+    private val _commandsFlow = MutableSharedFlow<MobileIncomingCommand>(extraBufferCapacity = 32)
+    val commandsFlow: SharedFlow<MobileIncomingCommand> = _commandsFlow.asSharedFlow()
+
+    private val _lyricsSyncFlow = MutableSharedFlow<org.melodist.core.connect.model.LyricsSyncPayload>(extraBufferCapacity = 16)
+    val lyricsSyncFlow: SharedFlow<org.melodist.core.connect.model.LyricsSyncPayload> = _lyricsSyncFlow.asSharedFlow()
 
     fun connect(targetDevice: ConnectDevice, pinCode: String = "") {
         disconnect()
@@ -93,13 +96,13 @@ class MobileConnectClient(
                     android.util.Log.i("MelodistConnectClient", "Connected to $url successfully")
                     _connectionState.value = MobileConnectionState.Connected
                     val local = storageManager.getOrCreateLocalDevice()
-                    val pairPayload = json.encodeToString(
+                    sendData(
+                        ConnectActions.PAIR_REQUEST,
                         PairRequestPayload(
                             device = local,
                             pinCode = pinCode,
                         ),
                     )
-                    sendMessage(ConnectActions.PAIR_REQUEST, pairPayload)
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
@@ -145,6 +148,18 @@ class MobileConnectClient(
         _queueState.value = null
     }
 
+    fun requestPlayerState() {
+        sendAction(ConnectActions.REQ_GET_PLAYER_STATE)
+    }
+
+    fun requestQueueState() {
+        sendAction(ConnectActions.REQ_GET_QUEUE_STATE)
+    }
+
+    fun sendLyricsSync(payload: org.melodist.core.connect.model.LyricsSyncPayload) {
+        sendData(ConnectActions.CMD_SYNC_LYRICS, payload)
+    }
+
     fun playSong(
         song: Song,
         queue: List<Song> = emptyList(),
@@ -161,55 +176,55 @@ class MobileConnectClient(
             audioSource = audioSource,
             qualityTier = qualityTier,
         )
-        sendMessage(ConnectActions.CMD_PLAY_SONG, json.encodeToString(cmd))
+        sendData(ConnectActions.CMD_PLAY_SONG, cmd)
     }
 
     fun enqueueNext(song: Song, audioSource: AudioSourceDescriptor? = null) {
         val cmd = EnqueueNextCommand(song = song, audioSource = audioSource)
-        sendMessage(ConnectActions.CMD_ENQUEUE_NEXT, json.encodeToString(cmd))
+        sendData(ConnectActions.CMD_ENQUEUE_NEXT, cmd)
     }
 
     fun switchTier(tier: org.melodist.model.AudioQualityTier) {
         val cmd = org.melodist.core.connect.model.SwitchTierCommand(tier = tier)
-        sendMessage(ConnectActions.CMD_SWITCH_TIER, json.encodeToString(cmd))
+        sendData(ConnectActions.CMD_SWITCH_TIER, cmd)
     }
 
     fun pause() {
-        sendMessage(ConnectActions.CMD_PAUSE, "")
+        sendAction(ConnectActions.CMD_PAUSE)
     }
 
     fun resume() {
-        sendMessage(ConnectActions.CMD_RESUME, "")
+        sendAction(ConnectActions.CMD_RESUME)
     }
 
     fun previous() {
-        sendMessage(ConnectActions.CMD_PREVIOUS, "")
+        sendAction(ConnectActions.CMD_PREVIOUS)
     }
 
     fun next() {
-        sendMessage(ConnectActions.CMD_NEXT, "")
+        sendAction(ConnectActions.CMD_NEXT)
     }
 
     fun seekTo(positionMs: Long) {
         val cmd = SeekCommand(positionMs = positionMs)
-        sendMessage(ConnectActions.CMD_SEEK, json.encodeToString(cmd))
+        sendData(ConnectActions.CMD_SEEK, cmd)
     }
 
     fun setVolume(volume: Float) {
         val cmd = SetVolumeCommand(volume = volume.coerceIn(0f, 1f))
-        sendMessage(ConnectActions.CMD_SET_VOLUME, json.encodeToString(cmd))
+        sendData(ConnectActions.CMD_SET_VOLUME, cmd)
     }
 
     fun triggerAod() {
-        sendMessage(ConnectActions.CMD_TRIGGER_AOD, "")
+        sendAction(ConnectActions.CMD_TRIGGER_AOD)
     }
 
     fun cycleLoopMode() {
-        sendMessage(ConnectActions.CMD_CYCLE_LOOP_MODE, "")
+        sendAction(ConnectActions.CMD_CYCLE_LOOP_MODE)
     }
 
     fun openPlayer() {
-        sendMessage(ConnectActions.CMD_OPEN_PLAYER, "")
+        sendAction(ConnectActions.CMD_OPEN_PLAYER)
     }
 
     fun sendGestureSwipe(
@@ -224,7 +239,7 @@ class MobileConnectClient(
             targetFraction = targetFraction,
             durationMs = durationMs,
         )
-        sendMessage(ConnectActions.CMD_GESTURE_SWIPE, json.encodeToString(payload))
+        sendData(ConnectActions.CMD_GESTURE_SWIPE, payload)
     }
 
     fun toggleFavorite(
@@ -238,7 +253,7 @@ class MobileConnectClient(
             songMid = effectiveMid,
             isFavorite = isFavorite,
         )
-        sendMessage(ConnectActions.CMD_TOGGLE_FAVORITE, json.encodeToString(cmd))
+        sendData(ConnectActions.CMD_TOGGLE_FAVORITE, cmd)
     }
 
     fun syncLyricsScroll(lineIndex: Int, isUserScrolling: Boolean) {
@@ -246,12 +261,20 @@ class MobileConnectClient(
             lineIndex = lineIndex,
             isUserScrolling = isUserScrolling,
         )
-        sendMessage(ConnectActions.CMD_SYNC_LYRICS_SCROLL, json.encodeToString(payload))
+        sendData(ConnectActions.CMD_SYNC_LYRICS_SCROLL, payload)
     }
 
-    private fun sendMessage(action: String, payload: String) {
+    private inline fun <reified T> sendData(action: String, data: T) {
         val socket = activeSocket ?: return
-        val message = json.encodeToString(ConnectMessage(action = action, payload = payload))
+        val message = json.encodeToString(ConnectMessage.create(action, data, json))
+        try {
+            socket.send(message)
+        } catch (_: Exception) {}
+    }
+
+    private fun sendAction(action: String) {
+        val socket = activeSocket ?: return
+        val message = json.encodeToString(ConnectMessage(action = action))
         try {
             socket.send(message)
         } catch (_: Exception) {}
@@ -266,32 +289,36 @@ class MobileConnectClient(
 
         when (msg.action) {
             ConnectActions.PAIR_RESPONSE -> {
-                val resp = try {
-                    json.decodeFromString<PairResponsePayload>(msg.payload)
-                } catch (_: Exception) {
-                    return
-                }
+                val resp = msg.decodeData<PairResponsePayload>(json) ?: return
                 if (resp.accepted && resp.device != null) {
                     val target = currentTarget ?: resp.device
                     val updated = target.copy(token = resp.device.token)
                     storageManager.savePairedDevice(updated)
                     storageManager.setLastConnectedDevice(updated)
                     _connectionState.value = MobileConnectionState.Paired(updated)
+                    requestPlayerState()
+                    requestQueueState()
                 } else {
                     _connectionState.value = MobileConnectionState.Error(resp.message.ifBlank { "Pairing rejected" })
                 }
             }
             ConnectActions.EVENT_PLAY_STATE -> {
-                try {
-                    val state = json.decodeFromString<PlayerStateEvent>(msg.payload)
+                val state = msg.decodeData<PlayerStateEvent>(json)
+                if (state != null) {
                     _playerState.value = state
-                } catch (_: Exception) {}
+                }
             }
             ConnectActions.EVENT_QUEUE_STATE -> {
-                try {
-                    val queue = json.decodeFromString<QueueStateEvent>(msg.payload)
+                val queue = msg.decodeData<QueueStateEvent>(json)
+                if (queue != null) {
                     _queueState.value = queue
-                } catch (_: Exception) {}
+                }
+            }
+            ConnectActions.EVENT_SYNC_LYRICS -> {
+                val payload = msg.decodeData<org.melodist.core.connect.model.LyricsSyncPayload>(json)
+                if (payload != null) {
+                    _lyricsSyncFlow.tryEmit(payload)
+                }
             }
             ConnectActions.CMD_NEXT -> {
                 _commandsFlow.tryEmit(MobileIncomingCommand.Next)
@@ -300,13 +327,7 @@ class MobileConnectClient(
                 _commandsFlow.tryEmit(MobileIncomingCommand.Previous)
             }
             ConnectActions.CMD_PLAY_SONG -> {
-                val song = if (msg.payload.isNotBlank()) {
-                    try {
-                        json.decodeFromString<Song>(msg.payload)
-                    } catch (_: Exception) {
-                        null
-                    }
-                } else null
+                val song = msg.decodeData<Song>(json)
                 _commandsFlow.tryEmit(MobileIncomingCommand.PlaySong(song))
             }
             ConnectActions.CMD_CYCLE_LOOP_MODE -> {
