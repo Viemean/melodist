@@ -406,7 +406,7 @@ object WebDavManager {
 
             val cachedSong = server.cachedSongs.find { it.href.equals(relativeHref, ignoreCase = true) }
             if (!cachedSong?.embeddedLyrics.isNullOrBlank()) {
-                return@withContext cachedSong?.embeddedLyrics
+                return@withContext cachedSong.embeddedLyrics
             }
 
             // 尝试从 WebDAV 嗅探同名 .lrc

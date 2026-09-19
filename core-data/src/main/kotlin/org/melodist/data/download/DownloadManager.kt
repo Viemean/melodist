@@ -272,7 +272,7 @@ object DownloadManager {
         try {
             // 1. 获取直链播放/下载地址
             val urlInfo = apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = task.tier)
-            val downloadUrl = urlInfo?.url
+            val downloadUrl = urlInfo.url
             if (downloadUrl.isNullOrBlank()) {
                 throw IllegalStateException("获取下载直链失败 (可能需要 VIP 或版权受限)")
             }
@@ -308,7 +308,7 @@ object DownloadManager {
                     val coverReq = Request.Builder().url(coverCandidateUrl).build()
                     val coverResp = httpClient.newCall(coverReq).execute()
                     if (coverResp.isSuccessful) {
-                        coverBytes = coverResp.body?.bytes()
+                        coverBytes = coverResp.body.bytes()
                     }
                 }
             } catch (e: Exception) {
@@ -342,7 +342,7 @@ object DownloadManager {
                 throw IllegalStateException("HTTP 错误: ${response.code}")
             }
 
-            val body = response.body ?: throw IllegalStateException("响应体为空")
+            val body = response.body
             val totalBytes = body.contentLength()
 
             updateActiveTask(task.id) { it.copy(totalBytes = totalBytes) }
