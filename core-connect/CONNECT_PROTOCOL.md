@@ -21,12 +21,12 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 ```json
 {
   "version": 1,
-  "deviceId": "tv-device-uuid",
-  "deviceName": "客厅 TV",
-  "host": "192.168.1.100",
+  "deviceId": "<tv_device_id>",
+  "deviceName": "<tv_device_name>",
+  "host": "<tv_ip>",
   "port": 8765,
-  "token": "allocated_or_empty_token",
-  "pinCode": "123456"
+  "token": "<allocated_or_empty_token>",
+  "pinCode": "<pin_code>"
 }
 ```
 
@@ -40,11 +40,11 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 所有 WebSocket 数据帧均遵循统一的 JSON 消息封套：
 ```json
 {
-  "id": "uuid-string",
-  "action": "action_name",
+  "id": "<message_uuid>",
+  "action": "<action_name>",
   "data": { ... },
-  "payload": "{\"deprecated\":\"for_v1_compatibility\"}",
-  "timestamp": 1726700000000
+  "payload": "<optional_fallback_json_string>",
+  "timestamp": <timestamp_ms>
 }
 ```
 > [!NOTE]
@@ -61,14 +61,14 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
   "action": "pair_request",
   "data": {
     "device": {
-      "id": "client-device-uuid",
-      "name": "我的手机",
+      "id": "<client_device_id>",
+      "name": "<client_device_name>",
       "type": "MOBILE",
-      "host": "192.168.1.101",
+      "host": "<client_ip>",
       "port": 8765,
-      "token": "saved_token_or_empty"
+      "token": "<saved_token_or_empty>"
     },
-    "pinCode": "123456"
+    "pinCode": "<pin_code>"
   }
 }
 ```
@@ -80,12 +80,12 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
   "action": "pair_response",
   "data": {
     "accepted": true,
-    "message": "Auto paired",
+    "message": "<status_message>",
     "device": {
-      "id": "tv-device-uuid",
-      "name": "客厅 TV",
+      "id": "<tv_device_id>",
+      "name": "<tv_device_name>",
       "type": "TV",
-      "token": "granted_session_token"
+      "token": "<granted_session_token>"
     }
   }
 }
@@ -123,17 +123,17 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 | `cmd_resume` | 无参数 | 继续播放 |
 | `cmd_next` | 无参数 | 切至下一曲 |
 | `cmd_prev` | 无参数 | 切至上一曲 |
-| `cmd_seek` | `{"positionMs": 45000}` | 播放进度跳转 |
-| `cmd_set_volume` | `{"volume": 0.8}` | 设置音量（0.0 ~ 1.0） |
+| `cmd_seek` | `{"positionMs": <position_ms>}` | 播放进度跳转 |
+| `cmd_set_volume` | `{"volume": <float_volume>}` | 设置音量（0.0 ~ 1.0） |
 | `cmd_cycle_loop_mode` | 无参数 | 轮换循环模式（`ListRepeat` / `SingleRepeat` / `Shuffle`） |
-| `cmd_switch_tier` | `{"tier": "SQ"}` | 切换音质档位（`Standard` / `HQ` / `SQ` / `HiRes` / `Master` 等） |
+| `cmd_switch_tier` | `{"tier": "<tier_name>"}` | 切换音质档位（`Standard` / `HQ` / `SQ` / `HiRes` / `Master` 等） |
 | `cmd_trigger_aod` | 无参数 | 触发或退出 TV 息屏 AOD 时钟模式 |
 | `cmd_open_player` | 无参数 | 在 TV 端展开大屏全屏播放界面 |
-| `cmd_toggle_favorite` | `{"songMid": "...", "isFavorite": true}` | 切换歌曲收藏状态 |
-| `cmd_enqueue_next` | `{"song": {...}, "audioSource": {...}}` | 将指定曲目插入下一首优先播放 |
+| `cmd_toggle_favorite` | `{"song": <optional_song_object>, "songMid": "<song_mid>", "isFavorite": <boolean>}` | 切换歌曲收藏状态 |
+| `cmd_enqueue_next` | `{"song": <song_object>, "audioSource": <optional_audio_source>}` | 将指定曲目插入下一首优先播放 |
 | `cmd_play_song` | 见下方详细模型 | 点播曲目、接力播放并重置/同步队列 |
 | `cmd_gesture_swipe` | 见下方详细模型 | 接管模式下的实时跟手滑动卡片手势联动 |
-| `cmd_sync_lyrics_scroll` | `{"lineIndex": 5, "isUserScrolling": true}` | 同步歌词手动滚动行偏移与跟手状态 |
+| `cmd_sync_lyrics_scroll` | `{"lineIndex": <line_index>, "isUserScrolling": <boolean>, "timestamp": <timestamp_ms>}` | 同步歌词手动滚动行偏移与跟手状态 |
 | `cmd_sync_lyrics` | 见下方详细模型 | 同步单曲歌词及声学校准偏移量至对端缓存池 |
 
 ### 5.1 点播曲目指令详情 (`cmd_play_song`)
@@ -142,20 +142,22 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
   "action": "cmd_play_song",
   "data": {
     "song": {
-      "songId": 123456,
-      "songMid": "0039MnYb0qxYhV",
-      "name": "晴天",
-      "singer": "周杰伦",
-      "album": "叶惠美",
-      "coverUrl": "http://192.168.1.101:8766/cover/local?path=..."
+      "songId": <song_id>,
+      "songMid": "<song_mid>",
+      "name": "<song_name>",
+      "singer": "<singer_name>",
+      "album": "<album_name>",
+      "coverUrl": "<cover_url>",
+      "mediaMid": "<stream_url_or_media_mid>",
+      "localFilePath": "<local_file_path_or_null>"
     },
     "queue": [ /* Song 列表 */ ],
-    "index": 0,
-    "startPositionMs": 0,
-    "qualityTier": "SQ",
+    "index": <queue_index>,
+    "startPositionMs": <start_position_ms>,
+    "qualityTier": "<quality_tier>",
     "audioSource": {
       "sourceType": "STREAM_PROXY",
-      "streamUrl": "http://192.168.1.101:8766/stream/local?path=...",
+      "streamUrl": "http://<stream_host>:<stream_port>/stream/local?path=<encoded_path>",
       "headers": {}
     }
   }
@@ -174,10 +176,10 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
   "action": "cmd_gesture_swipe",
   "data": {
     "state": "DRAGGING",
-    "fraction": -0.45,
-    "targetFraction": -1.0,
-    "durationMs": 200,
-    "timestamp": 1726700000000
+    "fraction": <float_fraction>,
+    "targetFraction": <float_target_fraction>,
+    "durationMs": <duration_ms>,
+    "timestamp": <timestamp_ms>
   }
 }
 ```
@@ -197,26 +199,26 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
   "action": "event_play_state",
   "data": {
     "currentSong": {
-      "songMid": "0039MnYb0qxYhV",
-      "name": "晴天",
-      "singer": "周杰伦",
-      "coverUrl": "..."
+      "songMid": "<song_mid>",
+      "name": "<song_name>",
+      "singer": "<singer_name>",
+      "coverUrl": "<cover_url>"
     },
-    "isPlaying": true,
-    "positionMs": 35200,
-    "durationMs": 240000,
-    "volume": 1.0,
-    "queueSize": 30,
-    "currentIndex": 2,
+    "isPlaying": <boolean>,
+    "positionMs": <position_ms>,
+    "durationMs": <duration_ms>,
+    "volume": <float_volume>,
+    "queueSize": <queue_size>,
+    "currentIndex": <current_index>,
     "loopMode": "ListRepeat",
-    "isAodActive": false,
-    "prevSong": { "songMid": "...", "name": "...", "coverUrl": "..." },
-    "nextSong": { "songMid": "...", "name": "...", "coverUrl": "..." },
+    "isAodActive": <boolean>,
+    "prevSong": { "songMid": "<prev_mid>", "name": "<prev_name>", "coverUrl": "<prev_cover>" },
+    "nextSong": { "songMid": "<next_mid>", "name": "<next_name>", "coverUrl": "<next_cover>" },
     "currentTier": "SQ",
-    "availableTiers": ["Standard", "HQ", "SQ", "HiRes"],
-    "isFavorite": true,
-    "isRadioMode": false,
-    "lyricOffsetMs": 150
+    "availableTiers": ["Standard", "HQ", "SQ", "HiRes", "Master"],
+    "isFavorite": <boolean>,
+    "isRadioMode": <boolean>,
+    "lyricOffsetMs": <offset_ms>
   }
 }
 ```
@@ -228,14 +230,14 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
   "data": {
     "queue": [
       {
-        "songId": 101,
-        "songMid": "webdav_server1_hash1",
-        "name": "曲目 1",
-        "singer": "歌手",
-        "coverUrl": "file:///data/user/0/org.melodist.tv/cache/covers/webdav_hash1.webp"
+        "songId": <song_id>,
+        "songMid": "<song_mid>",
+        "name": "<song_name>",
+        "singer": "<singer_name>",
+        "coverUrl": "<cover_url>"
       }
     ],
-    "currentIndex": 0
+    "currentIndex": <current_index>
   }
 }
 ```
@@ -245,19 +247,19 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 {
   "action": "event_sync_lyrics",
   "data": {
-    "songMid": "0039MnYb0qxYhV",
-    "title": "晴天",
-    "singer": "周杰伦",
+    "songMid": "<song_mid>",
+    "title": "<song_title>",
+    "singer": "<singer_name>",
     "lyrics": [
       {
-        "timestampMs": 14200,
-        "text": "故事的小黄花",
-        "transText": ""
+        "timestampMs": <line_timestamp_ms>,
+        "text": "<lyric_line_text>",
+        "transText": "<optional_translation_text>"
       }
     ],
-    "sourceDeviceId": "client-uuid",
-    "lyricOffsetMs": 150,
-    "timestamp": 1726700000000
+    "sourceDeviceId": "<source_device_id>",
+    "lyricOffsetMs": <offset_ms>,
+    "timestamp": <timestamp_ms>
   }
 }
 ```
@@ -272,14 +274,15 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 
 | 端点路径 | 请求方法 | 典型参数 | 功能描述 |
 | :--- | :--- | :--- | :--- |
-| `/stream/local` | `GET` | `path=/storage/emulated/0/Music/...` | 本地音频流式输出（支持 HTTP Range 断点续传与 Seek） |
-| `/cover/local` | `GET` | `path=/data/user/0/.../cover.webp` | 本地与 WebDAV 专辑封面图片代理输出 |
-| `/stream/webdav` | `GET` | `server=server_id&href=/Music/...` | 手机代为拉取 WebDAV 音频分片并转发至 TV |
-| `/stream/proxy` | `GET` | `url=https%3A%2F%2F...` | TV 离线模式下，由手机代理请求公网 CDN 音频流 |
+| `/stream/local` | `GET`, `HEAD` | `path=<url_encoded_file_path>` | 本地音频流式输出（支持 HTTP Range 断点续传与毫秒级 Seek） |
+| `/cover/local` | `GET`, `HEAD` | `path=<url_encoded_cover_path>` | 本地与 WebDAV 专辑封面图片代理输出 |
+| `/stream/webdav` | `GET`, `HEAD` | `server=<server_id>&href=<url_encoded_href>` | 手机代为拉取 WebDAV 音频分片并转发至 TV |
+| `/stream/proxy` | `GET`, `HEAD` | `url=<url_encoded_target_url>` | TV 离线模式下，由手机代理请求公网 CDN 音频流 |
 
 ### 7.2 特性支持
-- **HTTP Range 规范**：全量实现 `Range: bytes=start-end` 请求响应（HTTP 206 Partial Content），支持大文件任意微秒精确 Seek。
-- **MIME Type 映射**：依据文件扩展名自动输出标准 `Content-Type`（如 `audio/flac`、`audio/mpeg`、`image/webp` 等）。
+- **HTTP Range 规范**：全量实现 `Range: bytes=start-end`、`Range: bytes=start-` 及 `Range: bytes=-suffix`（尾部切片）请求响应（HTTP 206 Partial Content），支持任意格式音频元数据探测与精确 Seek。
+- **HEAD 预检支持**：原生支持 `HEAD` 请求返回头信息（`Content-Length`、`Accept-Ranges`、`Content-Type` 等），加速播放器媒体类型预检。
+- **MIME Type 映射**：依据文件扩展名自动输出标准 `Content-Type`（如 `audio/flac`、`audio/mpeg`、`audio/wav`、`audio/ogg`、`audio/mp4`、`image/webp`、`image/jpeg` 等）。
 
 ---
 
@@ -297,5 +300,5 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 ### 8.2 双向对称控制 (Bidirectional Commands)
 Connect 协议具备对等双向性：
 - 常规场景：手机作为控制端向 TV 下发 `cmd_*` 指令；
-- 反向接力场景：当 TV 界面通过遥控器触发了一首仅存在于手机本地文件系统的曲目时，TV 端通过 [TvConnectServer.kt](file:///home/yuzuki/CodeSpace/melodist-tv/core-connect/src/main/kotlin/org/melodist/core/connect/server/TvConnectServer.kt) 反向向手机广播 `cmd_play_song` / `cmd_next` / `cmd_prev`，手机捕获后自动建立 HTTP Stream Server 代理并把流回传给 TV 播放。
+- 反向接力场景：当 TV 界面通过遥控器触发了一首仅存在于手机本地文件系统的曲目时，TV 端通过 [TvConnectServer.kt](src/main/kotlin/org/melodist/core/connect/server/TvConnectServer.kt) 反向向手机广播 `cmd_play_song` / `cmd_next` / `cmd_prev`，手机捕获后自动建立 HTTP Stream Server 代理并把流回传给 TV 播放。
 
