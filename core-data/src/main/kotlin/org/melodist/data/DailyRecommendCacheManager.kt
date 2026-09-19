@@ -133,7 +133,9 @@ object DailyRecommendCacheManager {
                         triggerPreload(data.songs)
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("DailyRecommendCache", "Failed to load cache from disk", e)
+            }
         }
     }
 
@@ -145,7 +147,9 @@ object DailyRecommendCacheManager {
                 val file = getTodayCacheFile() ?: return@launch
                 val content = json.encodeToString(DailyRecommendData.serializer(), data)
                 file.writeText(content)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("DailyRecommendCache", "Failed to save cache to disk", e)
+            }
         }
     }
 

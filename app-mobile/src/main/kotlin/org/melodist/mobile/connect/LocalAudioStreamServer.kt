@@ -58,7 +58,9 @@ class LocalAudioStreamServer(
                         handleClient(client)
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.e("LocalAudioStreamServer", "Failed to start or run local audio stream server on port $port", e)
+            }
         }
     }
 

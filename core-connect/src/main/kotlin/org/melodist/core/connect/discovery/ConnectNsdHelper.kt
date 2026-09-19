@@ -151,7 +151,9 @@ class ConnectNsdHelper(private val context: Context) {
                     }
                 },
             )
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("MelodistNsd", "Failed to start service discovery", e)
+        }
     }
 
     fun stopDiscovery() {

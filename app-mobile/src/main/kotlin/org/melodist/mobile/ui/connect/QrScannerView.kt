@@ -259,7 +259,9 @@ private fun CameraPreviewView(
                         preview,
                         imageAnalysis,
                     )
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    android.util.Log.e("QrScannerView", "Failed to bind camera preview lifecycle", e)
+                }
             }, ContextCompat.getMainExecutor(ctx))
 
             previewView

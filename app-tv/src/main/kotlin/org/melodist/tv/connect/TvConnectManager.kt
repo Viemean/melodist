@@ -84,17 +84,24 @@ object TvConnectManager {
         val localDevice = storage.getOrCreateLocalDevice()
 
         scope.launch(Dispatchers.IO) {
-            try {
-                server.start()
-            } catch (_: Exception) {}
+            val started =
+                try {
+                    server.start()
+                    true
+                } catch (e: Exception) {
+                    android.util.Log.e("TvConnectManager", "Failed to start TV connect server", e)
+                    false
+                }
 
-            val actualPort = server.actualPort
-            nsd.registerTvService(
-                port = actualPort,
-                device = localDevice,
-                pinCode = _currentPinCode.value,
-            )
-            refreshNetworkAndQr()
+            if (started) {
+                val actualPort = server.actualPort
+                nsd.registerTvService(
+                    port = actualPort,
+                    device = localDevice,
+                    pinCode = _currentPinCode.value,
+                )
+                refreshNetworkAndQr()
+            }
         }
 
         scope.launch {
