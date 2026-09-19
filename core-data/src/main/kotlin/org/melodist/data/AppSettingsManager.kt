@@ -162,24 +162,10 @@ object AppSettingsManager {
     private fun loadSettings() {
         val p = prefs ?: return
         val tierName = p.getString(KEY_PREFERRED_TIER, AudioQualityTier.SQ.name) ?: AudioQualityTier.SQ.name
-        val tier =
-            try {
-                AudioQualityTier.valueOf(tierName)
-            } catch (_: Exception) {
-                AudioQualityTier.SQ
-            }
+        val tier = AudioQualityTier.fromTierName(tierName) ?: AudioQualityTier.SQ
 
         val cellTierName = p.getString(KEY_CELLULAR_TIER, null)
-        val cellTier =
-            if (cellTierName != null) {
-                try {
-                    AudioQualityTier.valueOf(cellTierName)
-                } catch (_: Exception) {
-                    AudioQualityTier.HQ
-                }
-            } else {
-                AudioQualityTier.HQ
-            }
+        val cellTier = cellTierName?.let { AudioQualityTier.fromTierName(it) } ?: AudioQualityTier.HQ
 
         val passthrough =
             if (p.contains(KEY_AUDIO_PASSTHROUGH)) {

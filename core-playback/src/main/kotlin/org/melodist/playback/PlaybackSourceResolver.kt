@@ -61,7 +61,6 @@ object PlaybackSourceResolver {
         val stereo = AudioQualityTier.getStereoRank(tier)
         if (stereo > 0) return stereo
         return when (AudioQualityTier.getSpatialRank(tier)) {
-            3 -> 4
             2 -> 3
             1 -> 2
             else -> 1
@@ -103,8 +102,7 @@ object PlaybackSourceResolver {
         when (current) {
             AudioQualityTier.Master -> AudioQualityTier.HiRes
             AudioQualityTier.HiRes -> AudioQualityTier.SQ
-            AudioQualityTier.Atmos71 -> AudioQualityTier.Atmos51
-            AudioQualityTier.Atmos51 -> AudioQualityTier.Dolby
+            AudioQualityTier.Atmos -> AudioQualityTier.Dolby
             AudioQualityTier.Dolby -> AudioQualityTier.SQ
             AudioQualityTier.Premium -> AudioQualityTier.SQ
             AudioQualityTier.SQ -> AudioQualityTier.HQ

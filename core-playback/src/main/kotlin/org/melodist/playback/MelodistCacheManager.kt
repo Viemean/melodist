@@ -127,7 +127,9 @@ object MelodistCacheManager {
                 cachedSongTiers.clear()
                 map.forEach { (mid, tierName) ->
                     try {
-                        cachedSongTiers[mid] = org.melodist.model.AudioQualityTier.valueOf(tierName)
+                        org.melodist.model.AudioQualityTier.fromTierName(tierName)?.let {
+                            cachedSongTiers[mid] = it
+                        }
                     } catch (_: Exception) {}
                 }
             } catch (e: Exception) {

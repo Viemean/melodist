@@ -10,8 +10,7 @@ enum class AudioQualityTier {
     Standard,
     Master,
     Premium,
-    Atmos51,
-    Atmos71,
+    Atmos,
     Dolby,
     ;
 
@@ -28,8 +27,7 @@ enum class AudioQualityTier {
 
         fun getSpatialRank(tier: AudioQualityTier): Int =
             when (tier) {
-                Atmos71 -> 3
-                Atmos51 -> 2
+                Atmos -> 2
                 Dolby -> 2
                 Premium -> 1
                 else -> 0
@@ -38,7 +36,7 @@ enum class AudioQualityTier {
         /**
          * 双轨制跨音质收敛判定：
          * - 立体声轨道：Master > HiRes > SQ > HQ > Standard
-         * - 全景声轨道：Atmos71 > Atmos51 / Dolby > Premium
+         * - 全景声轨道：Atmos / Dolby > Premium
          * 跨轨道互不淘汰。
          */
         fun shouldPrune(
@@ -66,14 +64,28 @@ enum class AudioQualityTier {
             when (tier) {
                 Master -> "母带"
                 Premium -> "臻品"
-                Atmos51 -> "5.1"
-                Atmos71 -> "7.1"
+                Atmos -> "全景声"
                 Dolby -> "杜比"
                 HiRes -> "Hi-Res"
                 SQ -> "SQ"
                 HQ -> "HQ"
                 Standard -> "标准"
             }
+
+        fun fromTierName(name: String?): AudioQualityTier? {
+            if (name.isNullOrBlank()) return null
+            return when (name.trim().uppercase()) {
+                "MASTER" -> Master
+                "PREMIUM" -> Premium
+                "ATMOS", "ATMOS71", "ATMOS51", "5.1", "7.1" -> Atmos
+                "DOLBY" -> Dolby
+                "HIRES", "HI-RES" -> HiRes
+                "SQ" -> SQ
+                "HQ" -> HQ
+                "STANDARD" -> Standard
+                else -> entries.firstOrNull { it.name.equals(name.trim(), ignoreCase = true) }
+            }
+        }
 
         /**
          * 根据实际音频编码参数自动推导最匹配的音质级别
@@ -88,16 +100,15 @@ enum class AudioQualityTier {
             val mime = mimeType?.lowercase().orEmpty()
             val isDolbyAtmos = mime.contains("eac3-joc") || mime.contains("atmos")
 
-            if (channelCount >= 8 || (isDolbyAtmos && channelCount >= 8)) {
-                return Atmos71
+            if (isDolbyAtmos) {
+                return Dolby
             }
-            if (channelCount in 5..7 ||
-                (isDolbyAtmos && channelCount in 5..7) ||
+            if (channelCount >= 5 ||
                 mime.contains("ac3") ||
                 mime.contains("eac3") ||
                 mime.contains("dts")
             ) {
-                return Atmos51
+                return Atmos
             }
 
             if (sampleRate >= 192000) {

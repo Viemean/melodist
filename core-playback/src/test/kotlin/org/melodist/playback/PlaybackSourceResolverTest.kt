@@ -45,14 +45,12 @@ class PlaybackSourceResolverTest {
         assertTrue(sqRank > hqRank)
         assertTrue(hqRank > standardRank)
 
-        val atmos71Rank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Atmos71)
-        val atmos51Rank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Atmos51)
+        val atmosRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Atmos)
         val dolbyRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Dolby)
         val premiumRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Premium)
 
-        assertTrue(atmos71Rank > atmos51Rank)
-        assertEquals(atmos51Rank, dolbyRank)
-        assertTrue(atmos51Rank > premiumRank)
+        assertEquals(atmosRank, dolbyRank)
+        assertTrue(atmosRank > premiumRank)
     }
 
     @Test
@@ -63,8 +61,7 @@ class PlaybackSourceResolverTest {
         assertEquals(AudioQualityTier.Standard, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.HQ))
         assertNull(PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Standard))
 
-        assertEquals(AudioQualityTier.Atmos51, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Atmos71))
-        assertEquals(AudioQualityTier.Dolby, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Atmos51))
+        assertEquals(AudioQualityTier.Dolby, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Atmos))
         assertEquals(AudioQualityTier.SQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Dolby))
         assertEquals(AudioQualityTier.SQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Premium))
     }

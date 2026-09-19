@@ -160,8 +160,7 @@ object DownloadManager {
             AudioQualityTier.SQ -> "SQ"
             AudioQualityTier.HQ -> "HQ"
             AudioQualityTier.Standard -> "Standard"
-            AudioQualityTier.Atmos51 -> "Atmos5.1"
-            AudioQualityTier.Atmos71 -> "Atmos7.1"
+            AudioQualityTier.Atmos -> "Atmos"
             AudioQualityTier.Dolby -> "Dolby"
             AudioQualityTier.Premium -> "Premium"
         }
