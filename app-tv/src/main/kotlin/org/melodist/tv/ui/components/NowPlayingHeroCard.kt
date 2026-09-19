@@ -87,7 +87,6 @@ fun NowPlayingHeroCard(
                 }
                 .focusProperties {
                     if (upFocusRequester != null) up = upFocusRequester
-                    if (downFocusRequester != null) down = downFocusRequester
                     right = playPauseRequester
                 }.onPreviewKeyEvent { event ->
                     if (isCardFocused) {
@@ -240,7 +239,6 @@ fun NowPlayingHeroCard(
                                         .focusRequester(playPauseRequester)
                                         .focusProperties {
                                             up = upFocusRequester ?: actualCardRequester
-                                            if (downFocusRequester != null) down = downFocusRequester
                                             left = actualCardRequester
                                             right = if (canFavorite) favoriteRequester else actualCardRequester
                                         }.onPreviewKeyEvent { event ->
@@ -284,7 +282,6 @@ fun NowPlayingHeroCard(
                                             .focusRequester(favoriteRequester)
                                             .focusProperties {
                                                 up = upFocusRequester ?: actualCardRequester
-                                                if (downFocusRequester != null) down = downFocusRequester
                                                 left = playPauseRequester
                                                 right = actualCardRequester
                                             }.onPreviewKeyEvent { event ->
