@@ -614,6 +614,7 @@ fun AcrTvScreen(
                     animationSpec = tween(durationMillis = 300),
                 ) + fadeOut(animationSpec = tween(durationMillis = 300)),
         ) {
+            val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activeSong)
             BottomPlayerBar(
                 modifier = Modifier.fillMaxWidth(),
                 surfaceColor = surfaceColor,
@@ -626,6 +627,7 @@ fun AcrTvScreen(
                 canFavorite = canFavorite,
                 loopMode = loopMode.label,
                 qualityLabel = AudioQualityTier.getBadge(selectedTier),
+                canChangeQuality = canChangeQuality,
                 onFavoriteClick = {
                     activeSong?.let { PlaybackManager.toggleSongFavorite(it) }
                 },
@@ -633,7 +635,11 @@ fun AcrTvScreen(
                 onPlayPauseClick = { PlaybackManager.togglePlayPause() },
                 onNextClick = { PlaybackManager.playNext() },
                 onLoopClick = { PlaybackManager.cycleLoopMode() },
-                onQualityClick = { showQualityDialog = true },
+                onQualityClick = {
+                    if (canChangeQuality) {
+                        showQualityDialog = true
+                    }
+                },
                 onFullscreenClick = { hasUnmutedToPlayer = false },
                 onSeekBy = { deltaMs ->
                     val currentPos = PlaybackManager.currentPositionMs.value

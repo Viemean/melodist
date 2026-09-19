@@ -186,11 +186,11 @@ object PlaybackManager {
     private val _isCurrentTrackFromCache = MutableStateFlow(false)
     val isCurrentTrackFromCache: StateFlow<Boolean> = _isCurrentTrackFromCache.asStateFlow()
 
-    private val _isTransitioning = MutableStateFlow(false)
-    val isTransitioning: StateFlow<Boolean> = _isTransitioning.asStateFlow()
-
     private val _lyricsLoadedFlow = MutableSharedFlow<Pair<Song, List<LyricLine>>>(extraBufferCapacity = 8)
     val lyricsLoadedFlow: SharedFlow<Pair<Song, List<LyricLine>>> = _lyricsLoadedFlow.asSharedFlow()
+
+    private val _isTransitioning = MutableStateFlow(false)
+    val isTransitioning: StateFlow<Boolean> = _isTransitioning.asStateFlow()
 
     private var prefetchedUrlInfo: Pair<String, QualityResult>? = null
     private var prefetchJob: Job? = null
@@ -1661,7 +1661,13 @@ object PlaybackManager {
 
     fun isCellularNetwork(): Boolean = PlaybackSourceResolver.isCellularNetwork(appContext)
 
-    fun isLocalOrWebDavSong(song: Song?): Boolean = PlaybackSourceResolver.isLocalOrWebDavSong(song)
+    fun isLocalOrWebDavSong(song: Song?): Boolean {
+        if (song == null) return false
+        if (lastCustomStreamArgs != null && _currentSong.value?.songMid == song.songMid) {
+            return true
+        }
+        return PlaybackSourceResolver.isLocalOrWebDavSong(song)
+    }
 
     fun getAudioQualityRank(tier: AudioQualityTier): Int = PlaybackSourceResolver.getAudioQualityRank(tier)
 

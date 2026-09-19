@@ -59,6 +59,7 @@ fun BottomPlayerBar(
     canFavorite: Boolean = true,
     loopMode: String = "列表循环",
     qualityLabel: String = "SQ 无损",
+    canChangeQuality: Boolean = true,
     queueCount: Int = 333,
     horizontalPadding: Dp = 48.dp,
     onFavoriteClick: () -> Unit = {},
@@ -237,7 +238,7 @@ fun BottomPlayerBar(
                             .focusProperties {
                                 up = progressRequester
                                 left = nextRequester
-                                right = qualityRequester
+                                right = if (canChangeQuality) qualityRequester else queueRequester
                             },
                     onClick = onFullscreenClick,
                 )
@@ -245,14 +246,19 @@ fun BottomPlayerBar(
                 TvQualityButton(
                     label = qualityLabel,
                     containerBg = btnContainer,
+                    canChangeQuality = canChangeQuality,
                     modifier =
-                        Modifier
-                            .focusRequester(qualityRequester)
-                            .focusProperties {
-                                up = progressRequester
-                                left = fullscreenRequester
-                                right = queueRequester
-                            },
+                        if (canChangeQuality) {
+                            Modifier
+                                .focusRequester(qualityRequester)
+                                .focusProperties {
+                                    up = progressRequester
+                                    left = fullscreenRequester
+                                    right = queueRequester
+                                }
+                        } else {
+                            Modifier
+                        },
                     onClick = onQualityClick,
                 )
                 Spacer(modifier = Modifier.width(14.dp))
@@ -264,7 +270,7 @@ fun BottomPlayerBar(
                             .focusRequester(queueRequester)
                             .focusProperties {
                                 up = progressRequester
-                                left = qualityRequester
+                                left = if (canChangeQuality) qualityRequester else fullscreenRequester
                             },
                     onClick = onQueueClick,
                 )
@@ -420,55 +426,67 @@ private fun TvQualityButton(
     label: String,
     modifier: Modifier = Modifier,
     containerBg: Color = MelodistColors.QualityGoldBg,
+    canChangeQuality: Boolean = true,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Button(
-        onClick = onClick,
-        modifier =
-            modifier
-                .height(40.dp)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                ) { onClick() },
-        interactionSource = interactionSource,
-        shape =
-            ButtonDefaults.shape(
-                shape = MelodistShapes.ButtonCorner,
-                focusedShape = MelodistShapes.ButtonCorner,
-            ),
-        colors =
-            ButtonDefaults.colors(
-                containerColor = containerBg,
-                focusedContainerColor = Color.White,
-                contentColor = MelodistColors.QualityGoldText,
-                focusedContentColor = Color.Black,
-            ),
-        border =
-            ButtonDefaults.border(
-                border =
-                    Border(
-                        border = BorderStroke(1.dp, MelodistColors.QualityGoldBorder),
-                        shape = MelodistShapes.ButtonCorner,
-                    ),
-                focusedBorder =
-                    Border(
-                        border = BorderStroke(2.5.dp, MelodistColors.FocusTeal),
-                        shape = MelodistShapes.ButtonCorner,
-                    ),
-            ),
-        scale =
-            ButtonDefaults.scale(
-                focusedScale = 1.06f,
-            ),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-        )
+    if (!canChangeQuality) {
+        Box(
+            modifier =
+                modifier
+                    .height(40.dp)
+                    .background(containerBg, MelodistShapes.ButtonCorner)
+                    .border(BorderStroke(1.dp, MelodistColors.QualityGoldBorder), MelodistShapes.ButtonCorner)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MelodistColors.QualityGoldText,
+            )
+        }
+    } else {
+        Button(
+            onClick = onClick,
+            modifier = modifier.height(40.dp),
+            shape =
+                ButtonDefaults.shape(
+                    shape = MelodistShapes.ButtonCorner,
+                    focusedShape = MelodistShapes.ButtonCorner,
+                ),
+            colors =
+                ButtonDefaults.colors(
+                    containerColor = containerBg,
+                    focusedContainerColor = Color.White,
+                    contentColor = MelodistColors.QualityGoldText,
+                    focusedContentColor = Color.Black,
+                ),
+            border =
+                ButtonDefaults.border(
+                    border =
+                        Border(
+                            border = BorderStroke(1.dp, MelodistColors.QualityGoldBorder),
+                            shape = MelodistShapes.ButtonCorner,
+                        ),
+                    focusedBorder =
+                        Border(
+                            border = BorderStroke(2.5.dp, MelodistColors.FocusTeal),
+                            shape = MelodistShapes.ButtonCorner,
+                        ),
+                ),
+            scale =
+                ButtonDefaults.scale(
+                    focusedScale = 1.06f,
+                ),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
     }
 }
 

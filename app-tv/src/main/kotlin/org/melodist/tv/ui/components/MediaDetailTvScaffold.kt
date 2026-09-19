@@ -674,6 +674,7 @@ fun MediaDetailTvScaffold(
                         activePlayingSong?.durationSeconds?.toLong()?.times(1000L) ?: 240000L
                     }
 
+                val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activePlayingSong)
                 BottomPlayerBar(
                     modifier = Modifier.fillMaxWidth(),
                     surfaceColor = surfaceColor,
@@ -686,6 +687,7 @@ fun MediaDetailTvScaffold(
                     canFavorite = canFavorite,
                     loopMode = loopMode.label,
                     qualityLabel = AudioQualityTier.getBadge(selectedTier),
+                    canChangeQuality = canChangeQuality,
                     onFavoriteClick = {
                         PlaybackManager.toggleCurrentSongFavorite()
                     },
@@ -693,7 +695,11 @@ fun MediaDetailTvScaffold(
                     onPlayPauseClick = { PlaybackManager.togglePlayPause() },
                     onNextClick = { PlaybackManager.playNext() },
                     onLoopClick = { PlaybackManager.cycleLoopMode() },
-                    onQualityClick = { showQualityDialog = true },
+                    onQualityClick = {
+                        if (canChangeQuality) {
+                            showQualityDialog = true
+                        }
+                    },
                     onFullscreenClick = { isControlsHidden = true },
                     onSeekBy = { deltaMs ->
                         val currentPos = PlaybackManager.currentPositionMs.value

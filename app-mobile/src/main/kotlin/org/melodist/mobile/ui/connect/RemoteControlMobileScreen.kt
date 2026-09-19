@@ -108,6 +108,9 @@ fun RemoteControlMobileScreen(
 
     // 手动输入配对码弹窗
     if (showManualInputDialog) {
+        val trimmedHost = manualHost.trim()
+        val isManualPinValid = manualPin.isBlank() || manualPin.length == 6
+        val isManualHostValid = trimmedHost.isNotBlank()
         AlertDialog(
             onDismissRequest = { showManualInputDialog = false },
             title = { Text("手动连接电视") },
@@ -116,29 +119,39 @@ fun RemoteControlMobileScreen(
                     OutlinedTextField(
                         value = manualHost,
                         onValueChange = { manualHost = it },
-                        label = { Text("电视 IP 地址 (例如 192.168.1.100)") },
+                        label = { Text("电视 IP 地址 (例如 192.168.1.100 或 192.168.1.100:8765)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = manualPin,
-                        onValueChange = { manualPin = it },
+                        onValueChange = { input ->
+                            val digits = input.filter { it.isDigit() }
+                            if (digits.length <= 6) manualPin = digits
+                        },
                         label = { Text("6位配对码 (选填)") },
                         singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
             },
             confirmButton = {
                 TextButton(
+                    enabled = isManualHostValid && isManualPinValid,
                     onClick = {
-                        if (manualHost.isNotBlank()) {
+                        if (isManualHostValid && isManualPinValid) {
+                            val hostParts = trimmedHost.split(":")
+                            val actualHost = hostParts.getOrNull(0)?.trim() ?: ""
+                            val actualPort = hostParts.getOrNull(1)?.trim()?.toIntOrNull() ?: 8765
                             val dev = ConnectDevice(
-                                id = "manual_${manualHost.replace(".", "_")}",
-                                name = "Melodist TV ($manualHost)",
+                                id = "manual_${actualHost.replace(".", "_")}_$actualPort",
+                                name = "Melodist TV ($actualHost)",
                                 type = org.melodist.core.connect.model.DeviceType.TV,
-                                host = manualHost.trim(),
-                                port = 8765,
+                                host = actualHost,
+                                port = actualPort,
                             )
                             MobileConnectManager.connectTo(dev, manualPin.trim())
                             showManualInputDialog = false
@@ -528,21 +541,39 @@ fun RemoteControlMobileScreen(
                                 )
                             }
 
-                            // 右侧：音质切换按钮（点击弹出音质选择弹窗）
+                            // 右侧：音质切换按钮（点击弹出音质选择弹窗，本地与 WebDAV 音乐禁用）
                             val currentTvTier = curSong.currentTier
-                            Surface(
-                                onClick = { showTvQualitySheet = true },
-                                shape = CircleShape,
-                                color = auxButtonBgColor,
-                                modifier = Modifier.size(46.dp),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = org.melodist.mobile.ui.components.getQualityBadgeLabel(currentTvTier),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
+                            val isTvLocalOrWebDav = curSong.isLocal || curSong.isWebDav || !curSong.localFilePath.isNullOrBlank()
+                            if (isTvLocalOrWebDav) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = auxButtonBgColor,
+                                    modifier = Modifier.size(46.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = org.melodist.mobile.ui.components.getQualityBadgeLabel(currentTvTier),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            } else {
+                                Surface(
+                                    onClick = { showTvQualitySheet = true },
+                                    shape = CircleShape,
+                                    color = auxButtonBgColor,
+                                    modifier = Modifier.size(46.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = org.melodist.mobile.ui.components.getQualityBadgeLabel(currentTvTier),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
                                 }
                             }
                         }

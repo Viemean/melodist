@@ -19,7 +19,9 @@ object PlaybackSourceResolver {
         if (song == null) return false
         return song.songMid.startsWith("webdav_") ||
             song.songMid.startsWith("local_") ||
-            !song.localFilePath.isNullOrBlank()
+            !song.localFilePath.isNullOrBlank() ||
+            song.isWebDav ||
+            song.isLocal
     }
 
     fun getAudioQualityRank(tier: AudioQualityTier): Int {

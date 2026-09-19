@@ -207,6 +207,7 @@ fun PlayerTvScreen(
                         animationSpec = tween(durationMillis = 300),
                     ) + fadeOut(animationSpec = tween(durationMillis = 300)),
             ) {
+                val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activeSong)
                 BottomPlayerBar(
                     modifier = Modifier.fillMaxWidth(),
                     surfaceColor = surfaceColor,
@@ -219,6 +220,7 @@ fun PlayerTvScreen(
                     canFavorite = canFavorite,
                     loopMode = loopMode.label,
                     qualityLabel = AudioQualityTier.getBadge(selectedTier),
+                    canChangeQuality = canChangeQuality,
                     onFavoriteClick = {
                         PlaybackManager.toggleCurrentSongFavorite()
                     },
@@ -226,7 +228,11 @@ fun PlayerTvScreen(
                     onPlayPauseClick = { PlaybackManager.togglePlayPause() },
                     onNextClick = { PlaybackManager.playNext() },
                     onLoopClick = { PlaybackManager.cycleLoopMode() },
-                    onQualityClick = { showQualityDialog = true },
+                    onQualityClick = {
+                        if (canChangeQuality) {
+                            showQualityDialog = true
+                        }
+                    },
                     onFullscreenClick = { isControlsHidden = true },
                     onSeekBy = { deltaMs ->
                         val currentPos = PlaybackManager.currentPositionMs.value
