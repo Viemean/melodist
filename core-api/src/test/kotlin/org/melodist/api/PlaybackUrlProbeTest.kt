@@ -10,7 +10,7 @@ class PlaybackUrlProbeTest {
     fun `audioQualityTier getBadge returns correct UI labels`() {
         assertEquals("母带", AudioQualityTier.getBadge(AudioQualityTier.Master))
         assertEquals("Hi-Res", AudioQualityTier.getBadge(AudioQualityTier.HiRes))
-        assertEquals("7.1", AudioQualityTier.getBadge(AudioQualityTier.Atmos71))
+        assertEquals("全景声", AudioQualityTier.getBadge(AudioQualityTier.Atmos))
         assertEquals("SQ", AudioQualityTier.getBadge(AudioQualityTier.SQ))
         assertEquals("HQ", AudioQualityTier.getBadge(AudioQualityTier.HQ))
         assertEquals("标准", AudioQualityTier.getBadge(AudioQualityTier.Standard))

@@ -30,10 +30,9 @@ suspend fun MusicApiService.probeSongQualities(
         val requests =
             listOf(
                 Triple("req_master", AudioQualityTier.Master, Pair("AI00", ".flac")),
-                Triple("req_atmos71", AudioQualityTier.Atmos71, Pair("Q001", ".flac")),
-                Triple("req_atmos51", AudioQualityTier.Atmos51, Pair("Q001", ".flac")),
+                Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
+                Triple("req_atmos", AudioQualityTier.Atmos, Pair("Q001", ".flac")),
                 Triple("req_dolby", AudioQualityTier.Dolby, Pair("Q000", ".flac")),
-                Triple("req_premium", AudioQualityTier.Premium, Pair("AI00", ".flac")),
                 Triple("req_hires", AudioQualityTier.HiRes, Pair("RS01", ".flac")),
                 Triple("req_sq", AudioQualityTier.SQ, Pair("F000", ".flac")),
                 Triple("req_320", AudioQualityTier.HQ, Pair("M800", ".mp3")),
@@ -58,30 +57,31 @@ suspend fun MusicApiService.probeSongQualities(
             val respJson = postGateway(sb.toString(), customCookieHeader = cookieHeader)
             val root = Json.parseToJsonElement(respJson).jsonObject
 
-            val fileObj =
+            val trackInfo =
                 root["songinfo"]
                     ?.jsonObject
                     ?.get("data")
                     ?.jsonObject
                     ?.get("track_info")
                     ?.jsonObject
-                    ?.get("file")
-                    ?.jsonObject
+            val interval = trackInfo?.get("interval")?.jsonPrimitive?.longOrNull ?: 0L
+            val fileObj = trackInfo?.get("file")?.jsonObject
 
             val sizeMap = mutableMapOf<AudioQualityTier, Long>()
             var hiresSample = 0
             var hiresBitdepth = 0
+            var flacSize = 0L
+            var dolbySize = 0L
             if (fileObj != null) {
                 val sizeNew = fileObj["size_new"]?.jsonArray
                 val masterSize = sizeNew?.getOrNull(0)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Master] = masterSize
-                sizeMap[AudioQualityTier.Atmos51] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
-                sizeMap[AudioQualityTier.Atmos71] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
-                val dolbySize =
-                    (fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L).let {
-                        if (it > 0L) it else sizeNew?.getOrNull(3)?.jsonPrimitive?.longOrNull ?: 0L
-                    }
+                sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
+                sizeMap[AudioQualityTier.Atmos] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
+
+                dolbySize = fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Dolby] = dolbySize
+
                 val hiresRaw =
                     fileObj["size_hires"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
                         ?: fileObj["size_96flac"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
@@ -92,7 +92,7 @@ suspend fun MusicApiService.probeSongQualities(
                             ?.longOrNull
                             ?.takeIf { it > 0L }
                         ?: 0L
-                val flacSize = fileObj["size_flac"]?.jsonPrimitive?.longOrNull ?: 0L
+                flacSize = fileObj["size_flac"]?.jsonPrimitive?.longOrNull ?: 0L
                 hiresSample = fileObj["hires_sample"]?.jsonPrimitive?.intOrNull ?: 0
                 hiresBitdepth = fileObj["hires_bitdepth"]?.jsonPrimitive?.intOrNull ?: 0
 
@@ -104,7 +104,6 @@ suspend fun MusicApiService.probeSongQualities(
                         0L
                     }
                 sizeMap[AudioQualityTier.SQ] = flacSize
-                sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(4)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.HQ] = fileObj["size_320mp3"]?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Standard] = fileObj["size_128mp3"]?.jsonPrimitive?.longOrNull ?: 0L
             }
@@ -140,8 +139,14 @@ suspend fun MusicApiService.probeSongQualities(
                 val fileSize = sizeMap[tier] ?: 0L
                 val hasValidUrl = purl.length > 5 && sip.isNotEmpty() && result == 0 && purl.contains(prefix, ignoreCase = true)
                 val isAvailable =
-                    if (fileObj != null) {
-                        fileSize > 0L && hasValidUrl
+                    if (tier == AudioQualityTier.Dolby) {
+                        dolbySize > 0L && hasValidUrl
+                    } else if (fileObj != null) {
+                        if (tier == AudioQualityTier.HiRes) {
+                            (fileSize > 0L || hiresSample > 48000 || hiresBitdepth > 16) && hasValidUrl
+                        } else {
+                            fileSize > 0L && hasValidUrl
+                        }
                     } else {
                         hasValidUrl
                     }
@@ -173,29 +178,39 @@ suspend fun MusicApiService.probeSongQualities(
                     } else {
                         0
                     }
+
+                var resolvedSize = sizeMap[tier] ?: 0L
+                val needsCorrection =
+                    isAvailable && playUrl != null && (
+                        (tier == AudioQualityTier.HiRes && (resolvedSize <= 0L || (flacSize > 0L && resolvedSize <= flacSize))) ||
+                            resolvedSize <= 0L
+                    )
+
+                if (needsCorrection && playUrl != null) {
+                    try {
+                        val conn = java.net.URL(playUrl).openConnection() as java.net.HttpURLConnection
+                        conn.requestMethod = "HEAD"
+                        conn.setRequestProperty("Referer", "https://y.qq.com/")
+                        conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                        conn.connectTimeout = 3000
+                        conn.readTimeout = 3000
+                        conn.connect()
+                        val len = conn.contentLengthLong
+                        conn.disconnect()
+                        if (len > 0L) {
+                            resolvedSize = len
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+
                 val bitrate =
                     if (sampleRateHz > 0 && bitDepth > 0) {
                         "${sampleRateHz / 1000}kHz/${bitDepth}bit"
+                    } else if (resolvedSize > 0L && interval > 0L) {
+                        "${Math.round((resolvedSize * 8.0) / interval / 1000.0)}kbps"
                     } else {
                         ""
-                    }
-
-                val resolvedSize =
-                    if (tier == AudioQualityTier.HiRes && (sizeMap[tier] ?: 0L) == 0L && playUrl != null) {
-                        try {
-                            val conn = java.net.URL(playUrl).openConnection() as java.net.HttpURLConnection
-                            conn.requestMethod = "HEAD"
-                            conn.connectTimeout = 4000
-                            conn.readTimeout = 4000
-                            conn.connect()
-                            val len = conn.contentLengthLong
-                            conn.disconnect()
-                            if (len > 0L) len else 0L
-                        } catch (_: Exception) {
-                            0L
-                        }
-                    } else {
-                        sizeMap[tier] ?: 0L
                     }
 
                 resultList.add(

@@ -645,10 +645,9 @@ class MusicApiService(
             val requests =
                 listOf(
                     Triple("req_master", AudioQualityTier.Master, Pair("AI00", ".flac")),
-                    Triple("req_atmos71", AudioQualityTier.Atmos71, Pair("Q001", ".flac")),
-                    Triple("req_atmos51", AudioQualityTier.Atmos51, Pair("Q001", ".flac")),
+                    Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
+                    Triple("req_atmos", AudioQualityTier.Atmos, Pair("Q001", ".flac")),
                     Triple("req_dolby", AudioQualityTier.Dolby, Pair("Q000", ".flac")),
-                    Triple("req_premium", AudioQualityTier.Premium, Pair("AI00", ".flac")),
                     Triple("req_hires", AudioQualityTier.HiRes, Pair("RS01", ".flac")),
                     Triple("req_sq", AudioQualityTier.SQ, Pair("F000", ".flac")),
                     Triple("req_hq", AudioQualityTier.HQ, Pair("M800", ".mp3")),
@@ -685,16 +684,14 @@ class MusicApiService(
                         ?.jsonObject
 
                 val sizeMap = mutableMapOf<AudioQualityTier, Long>()
+                var dolbySize = 0L
                 if (fileObj != null) {
                     val sizeNew = fileObj["size_new"]?.jsonArray
                     val masterSize = sizeNew?.getOrNull(0)?.jsonPrimitive?.longOrNull ?: 0L
                     sizeMap[AudioQualityTier.Master] = masterSize
-                    sizeMap[AudioQualityTier.Atmos51] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
-                    sizeMap[AudioQualityTier.Atmos71] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
-                    val dolbySize =
-                        (fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L).let {
-                            if (it > 0L) it else sizeNew?.getOrNull(3)?.jsonPrimitive?.longOrNull ?: 0L
-                        }
+                    sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
+                    sizeMap[AudioQualityTier.Atmos] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
+                    dolbySize = fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L
                     sizeMap[AudioQualityTier.Dolby] = dolbySize
                     val hiresRaw =
                         fileObj["size_hires"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
@@ -718,7 +715,6 @@ class MusicApiService(
                             0L
                         }
                     sizeMap[AudioQualityTier.SQ] = flacSize
-                    sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(4)?.jsonPrimitive?.longOrNull ?: 0L
                     sizeMap[AudioQualityTier.HQ] = fileObj["size_320mp3"]?.jsonPrimitive?.longOrNull ?: 0L
                     sizeMap[AudioQualityTier.Standard] = fileObj["size_128mp3"]?.jsonPrimitive?.longOrNull ?: 0L
                 }
@@ -737,7 +733,9 @@ class MusicApiService(
                     val fileSize = sizeMap[tier] ?: 0L
                     val hasValidUrl = !purl.isNullOrBlank() && purl.length > 5 && result == 0 && purl.contains(prefix, ignoreCase = true)
                     val isAvailable =
-                        if (fileObj != null) {
+                        if (tier == AudioQualityTier.Dolby) {
+                            dolbySize > 0L && hasValidUrl
+                        } else if (fileObj != null) {
                             fileSize > 0L && hasValidUrl
                         } else {
                             hasValidUrl
@@ -775,7 +773,14 @@ class MusicApiService(
                                 val result = midInfo?.get("result")?.jsonPrimitive?.intOrNull ?: 0
                                 val fileSize = sizeMap[tier] ?: 0L
                                 val hasValidUrl = !purl.isNullOrBlank() && purl.length > 5 && result == 0 && purl.contains(prefix, ignoreCase = true)
-                                val isAvailable = if (fileObj != null) fileSize > 0L && hasValidUrl else hasValidUrl
+                                val isAvailable =
+                                    if (tier == AudioQualityTier.Dolby) {
+                                        dolbySize > 0L && hasValidUrl
+                                    } else if (fileObj != null) {
+                                        fileSize > 0L && hasValidUrl
+                                    } else {
+                                        hasValidUrl
+                                    }
                                 if (isAvailable && purl != null) {
                                     if (purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) continue
                                     availableMap[tier] = sip + purl
@@ -816,18 +821,7 @@ class MusicApiService(
                                 AudioQualityTier.Standard,
                             )
                         AudioQualityTier.Standard -> emptyList()
-                        AudioQualityTier.Atmos71 ->
-                            listOf(
-                                AudioQualityTier.Atmos51,
-                                AudioQualityTier.Dolby,
-                                AudioQualityTier.Premium,
-                                AudioQualityTier.Master,
-                                AudioQualityTier.HiRes,
-                                AudioQualityTier.SQ,
-                                AudioQualityTier.HQ,
-                                AudioQualityTier.Standard,
-                            )
-                        AudioQualityTier.Atmos51 ->
+                        AudioQualityTier.Atmos ->
                             listOf(
                                 AudioQualityTier.Dolby,
                                 AudioQualityTier.Premium,
