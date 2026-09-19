@@ -42,6 +42,17 @@ object PlaybackSourceResolver {
         if (isLocalOrWebDavSong(song)) {
             return requestedTier
         }
+        val mid = song?.songMid.orEmpty()
+        val cachedTier = if (mid.isNotBlank()) MelodistCacheManager.getCachedSongTier(mid) else null
+        if (cachedTier != null) {
+            val cachedRank = getAudioQualityRank(cachedTier)
+            val reqRank = getAudioQualityRank(requestedTier)
+            if (cachedRank >= reqRank) {
+                return requestedTier
+            } else if (cachedRank > getAudioQualityRank(cellularLimit)) {
+                return cachedTier
+            }
+        }
         if (!isCellularNetwork(context)) {
             return requestedTier
         }

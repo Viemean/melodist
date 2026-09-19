@@ -183,6 +183,9 @@ object PlaybackManager {
     private val _lyrics = MutableStateFlow<List<LyricLine>>(emptyList())
     val lyrics: StateFlow<List<LyricLine>> = _lyrics.asStateFlow()
 
+    private val _isCurrentTrackFromCache = MutableStateFlow(false)
+    val isCurrentTrackFromCache: StateFlow<Boolean> = _isCurrentTrackFromCache.asStateFlow()
+
     private val _isTransitioning = MutableStateFlow(false)
     val isTransitioning: StateFlow<Boolean> = _isTransitioning.asStateFlow()
 
@@ -1068,6 +1071,7 @@ object PlaybackManager {
                             }
 
                         _currentTier.value = song.currentTier
+                        _isCurrentTrackFromCache.value = true
                         val mediaItem = buildMediaItem(android.net.Uri.fromFile(directFile), song)
                         if (seekToMs > 0L) {
                             player.setMediaItem(mediaItem, seekToMs)
@@ -1144,6 +1148,7 @@ object PlaybackManager {
 
                     if (localFile != null && localFile.exists() && localFile.length() > 0L) {
                         Log.i("MelodistPlayback", "Playing WebDAV song from local cache: ${song.name}, file=${localFile.absolutePath}")
+                        _isCurrentTrackFromCache.value = true
                         val mediaItem = buildMediaItem(android.net.Uri.fromFile(localFile), song)
                         if (seekToMs > 0L) {
                             player.setMediaItem(mediaItem, seekToMs)
@@ -1327,7 +1332,9 @@ object PlaybackManager {
                     val ctx = appContext ?: return@launch
                     val isFav = isSongFavorite(song.songMid)
                     val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav)
-                    val isCached = MelodistCacheManager.isUriCached(rawUrl)
+                    val isCached = MelodistCacheManager.isUriCached(rawUrl) || MelodistCacheManager.getCachedSongTier(song.songMid) != null
+                    _isCurrentTrackFromCache.value = isCached
+                    MelodistCacheManager.recordCachedSongTier(song.songMid, playUrlInfo.tier)
                     Log.i(
                         "MelodistPlayback",
                         "Admission cache check for ${song.name}: shouldCache=$shouldCache (fav=$isFav, plays=${MelodistCacheManager.getPlayCount(song.songMid)}, isCached=$isCached)",

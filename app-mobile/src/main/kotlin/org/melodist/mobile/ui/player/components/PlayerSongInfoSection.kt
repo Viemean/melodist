@@ -48,6 +48,7 @@ fun PlayerSongInfoSection(
     onToggleFavorite: () -> Unit,
     onOpenQualitySheet: () -> Unit,
     modifier: Modifier = Modifier,
+    isFromCache: Boolean = false,
 ) {
     Row(
         modifier =
@@ -122,6 +123,12 @@ fun PlayerSongInfoSection(
                     song?.songMid?.startsWith("local_") == true ||
                     !song?.localFilePath.isNullOrBlank()
 
+            val badgeText = if (!isLocalOrWebDav && isFromCache) {
+                "${AudioQualityTier.getBadge(currentTier)} · 缓存"
+            } else {
+                AudioQualityTier.getBadge(currentTier)
+            }
+
             if (isLocalOrWebDav) {
                 // 本地与 WebDAV 音乐：单一固定音源，显示静态规格标签，禁止呼出音质切换
                 Surface(
@@ -134,7 +141,7 @@ fun PlayerSongInfoSection(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = AudioQualityTier.getBadge(currentTier),
+                            text = badgeText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = animatedAccentColor,
@@ -154,7 +161,7 @@ fun PlayerSongInfoSection(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = AudioQualityTier.getBadge(currentTier),
+                            text = badgeText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = animatedAccentColor,

@@ -206,6 +206,7 @@ fun FullPlayerSheet(
     val controlContainerColor = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
 
     val currentTier by PlaybackManager.currentTier.collectAsState()
+    val isCurrentTrackFromCache by PlaybackManager.isCurrentTrackFromCache.collectAsState()
     val availableTiers by PlaybackManager.availableTiers.collectAsState()
     val currentTrackSpec by PlaybackManager.currentTrackSpec.collectAsState()
     val probedQualityOptions by PlaybackManager.probedQualityOptions.collectAsState()
@@ -528,6 +529,7 @@ fun FullPlayerSheet(
                     isFavorite = isFavorite,
                     isFavSupported = isFavSupported,
                     currentTier = currentTier,
+                    isFromCache = isCurrentTrackFromCache,
                     animatedAccentColor = animatedAccentColor,
                     controlContainerColor = controlContainerColor,
                     contentPrimary = contentPrimary,

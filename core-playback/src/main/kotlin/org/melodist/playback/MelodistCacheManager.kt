@@ -45,7 +45,9 @@ object MelodistCacheManager {
     private var isInitialized = false
 
     private val playCountMap = ConcurrentHashMap<String, Int>()
+    private val cachedSongTiers = ConcurrentHashMap<String, org.melodist.model.AudioQualityTier>()
     private var statsFile: File? = null
+    private var tiersFile: File? = null
 
     @Volatile
     private var currentSessionMarkedSongMid: String? = null
@@ -83,6 +85,7 @@ object MelodistCacheManager {
         }
 
         statsFile = File(appContext.filesDir, STATS_FILE_NAME)
+        tiersFile = File(appContext.filesDir, "media_cache_tiers.json")
         loadStatsFromDisk()
 
         val quotaBytes = calculateAdaptiveCacheQuotaBytes(appContext.cacheDir)
@@ -102,10 +105,10 @@ object MelodistCacheManager {
     }
 
     private fun loadStatsFromDisk() {
-        val file = statsFile ?: return
-        if (file.exists() && file.length() > 0L) {
+        val sFile = statsFile
+        if (sFile != null && sFile.exists() && sFile.length() > 0L) {
             try {
-                val text = file.readText()
+                val text = sFile.readText()
                 val map = json.decodeFromString<Map<String, Int>>(text)
                 playCountMap.clear()
                 playCountMap.putAll(map)
@@ -114,19 +117,55 @@ object MelodistCacheManager {
                 Log.w(TAG, "Failed to read play stats from disk", e)
             }
         }
+        val tFile = tiersFile
+        if (tFile != null && tFile.exists() && tFile.length() > 0L) {
+            try {
+                val text = tFile.readText()
+                val map = json.decodeFromString<Map<String, String>>(text)
+                cachedSongTiers.clear()
+                map.forEach { (mid, tierName) ->
+                    try {
+                        cachedSongTiers[mid] = org.melodist.model.AudioQualityTier.valueOf(tierName)
+                    } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to read cached tiers from disk", e)
+            }
+        }
     }
 
     private fun saveStatsAsync() {
-        val file = statsFile ?: return
+        val sFile = statsFile
+        val tFile = tiersFile
         scope.launch {
-            try {
-                val snapshot = playCountMap.toMap()
-                val text = json.encodeToString(snapshot)
-                file.writeText(text)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to persist play stats to disk", e)
+            if (sFile != null) {
+                try {
+                    val snapshot = playCountMap.toMap()
+                    sFile.writeText(json.encodeToString(snapshot))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to persist play stats to disk", e)
+                }
+            }
+            if (tFile != null) {
+                try {
+                    val snapshot = cachedSongTiers.mapValues { it.value.name }
+                    tFile.writeText(json.encodeToString(snapshot))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to persist cached tiers to disk", e)
+                }
             }
         }
+    }
+
+    fun recordCachedSongTier(songMid: String, tier: org.melodist.model.AudioQualityTier) {
+        if (songMid.isBlank()) return
+        cachedSongTiers[songMid] = tier
+        saveStatsAsync()
+    }
+
+    fun getCachedSongTier(songMid: String): org.melodist.model.AudioQualityTier? {
+        if (songMid.isBlank()) return null
+        return cachedSongTiers[songMid]
     }
 
     /**
