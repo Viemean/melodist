@@ -807,9 +807,9 @@ object MobileConnectManager {
     }
 
     private fun prepareSongForTv(song: Song): Song {
-        val server = streamServer ?: return song
-        var updated = song
-        val coverUrl = song.coverUrl
+        val server = streamServer ?: return resolveWebDavCoverLocally(song)
+        var updated = resolveWebDavCoverLocally(song)
+        val coverUrl = updated.coverUrl
         if (coverUrl.isNotBlank() && (coverUrl.startsWith("file://") || coverUrl.startsWith("/"))) {
             updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
         }
