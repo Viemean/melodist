@@ -158,27 +158,37 @@ fun RemoteControlMobileScreen(
 
     // 针对局域网设备输入 PIN 弹窗
     selectedDeviceForPin?.let { dev ->
+        val isPinComplete = pinInput.length == 6
         AlertDialog(
             onDismissRequest = { selectedDeviceForPin = null },
             title = { Text("输入配对码") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("请输入电视屏幕上显示的 6 位配对码：", style = MaterialTheme.typography.bodyMedium)
+                    Text("请输入电视屏幕上显示的 6 位数字配对码：", style = MaterialTheme.typography.bodyMedium)
                     OutlinedTextField(
                         value = pinInput,
-                        onValueChange = { if (it.length <= 6) pinInput = it },
-                        label = { Text("配对码") },
+                        onValueChange = { input ->
+                            val digits = input.filter { it.isDigit() }
+                            if (digits.length <= 6) pinInput = digits
+                        },
+                        label = { Text("6位数字配对码") },
                         singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
             },
             confirmButton = {
                 TextButton(
+                    enabled = isPinComplete,
                     onClick = {
-                        MobileConnectManager.connectTo(dev, pinInput.trim())
-                        selectedDeviceForPin = null
-                        pinInput = ""
+                        if (isPinComplete) {
+                            MobileConnectManager.connectTo(dev, pinInput.trim())
+                            selectedDeviceForPin = null
+                            pinInput = ""
+                        }
                     },
                 ) {
                     Text("确定连接")

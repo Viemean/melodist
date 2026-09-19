@@ -117,17 +117,29 @@ object MobileConnectManager {
         scope.launch {
             client.connectionState.collect { state ->
                 if (state is MobileConnectionState.Paired) {
-                    // 连接成功时，确保默认连接模式是浏览模式
-                    setRemoteControlMode(RemoteControlMode.BROWSE)
-                    PlaybackManager.setVolume(if (localMute.value) 0f else 1f)
+                    if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
+                        if (PlaybackManager.isPlaying.value && !PlaybackManager.isRemoteActive.value) {
+                            isSyncingFromTv = true
+                            try {
+                                PlaybackManager.pause()
+                            } finally {
+                                isSyncingFromTv = false
+                            }
+                        }
+                        if (localMute.value) {
+                            PlaybackManager.setVolume(0f)
+                        } else {
+                            PlaybackManager.setVolume(1f)
+                        }
+                    } else {
+                        PlaybackManager.setVolume(1f)
+                    }
                 } else {
                     if (PlaybackManager.isRemoteActive.value) {
                         PlaybackManager.setRemoteActive(false, null)
                         PlaybackManager.clearRemotePlayback()
                     }
-                    if (localMute.value) {
-                        setLocalMute(false)
-                    }
+                    PlaybackManager.setVolume(1f)
                 }
             }
         }
@@ -153,82 +165,85 @@ object MobileConnectManager {
                         val isPlaying = resolvedState.isPlaying
                         val tvPos = resolvedState.positionMs
 
-                        val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
-                        appContext?.let { PlaybackManager.startPlaybackService(it) }
-                        PlaybackManager.setRemoteActive(true, pairedName)
-                        PlaybackManager.syncRemotePlaybackState(
-                            song = tvSong,
-                            isPlaying = isPlaying,
-                            positionMs = tvPos,
-                            durationMs = resolvedState.durationMs,
-                            currentIndex = resolvedState.currentIndex,
-                            loopModeName = resolvedState.loopMode,
-                            prevSong = resolvedState.prevSong,
-                            nextSong = resolvedState.nextSong,
-                            currentTier = resolvedState.currentTier,
-                            availableTiers = resolvedState.availableTiers,
-                            isRadioMode = resolvedState.isRadioMode,
-                        )
+                        val shouldSyncToLocalPlayer = isPlaying || PlaybackManager.isRemoteActive.value
+                        if (shouldSyncToLocalPlayer) {
+                            val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
+                            appContext?.let { PlaybackManager.startPlaybackService(it) }
+                            PlaybackManager.setRemoteActive(true, pairedName)
+                            PlaybackManager.syncRemotePlaybackState(
+                                song = tvSong,
+                                isPlaying = isPlaying,
+                                positionMs = tvPos,
+                                durationMs = resolvedState.durationMs,
+                                currentIndex = resolvedState.currentIndex,
+                                loopModeName = resolvedState.loopMode,
+                                prevSong = resolvedState.prevSong,
+                                nextSong = resolvedState.nextSong,
+                                currentTier = resolvedState.currentTier,
+                                availableTiers = resolvedState.availableTiers,
+                                isRadioMode = resolvedState.isRadioMode,
+                            )
 
-                        if (localMute.value) {
-                            // 开启本地静音：手机本地静音且不发声，仅同步 UI 与系统媒体控制通知
-                            if (PlaybackManager.isPlaying.value && !PlaybackManager.isRemoteActive.value) {
-                                isSyncingFromTv = true
-                                try {
-                                    PlaybackManager.pause()
-                                } finally {
-                                    isSyncingFromTv = false
-                                }
-                            }
-                            PlaybackManager.setVolume(0f)
-                        } else {
-                            // 关闭本地静音：手机端跟随 TV 发声
-                            PlaybackManager.setVolume(1f)
-                            if (tvSong != null) {
-                                val localSong = PlaybackManager.currentSong.value
-                                val isSameSong = localSong?.songMid == tvSong.songMid
-                                if (!isSameSong) {
+                            if (localMute.value) {
+                                // 开启本地静音：手机本地静音且不发声，仅同步 UI 与系统媒体控制通知
+                                if (PlaybackManager.isPlaying.value && !PlaybackManager.isRemoteActive.value) {
                                     isSyncingFromTv = true
                                     try {
-                                        PlaybackManager.playSong(tvSong, seekToMs = tvPos)
+                                        PlaybackManager.pause()
                                     } finally {
                                         isSyncingFromTv = false
                                     }
-                                } else {
-                                    if (isPlaying && !PlaybackManager.isPlaying.value) {
+                                }
+                                PlaybackManager.setVolume(0f)
+                            } else {
+                                // 关闭本地静音：手机端跟随 TV 发声
+                                PlaybackManager.setVolume(1f)
+                                if (tvSong != null) {
+                                    val localSong = PlaybackManager.currentSong.value
+                                    val isSameSong = localSong?.songMid == tvSong.songMid
+                                    if (!isSameSong) {
                                         isSyncingFromTv = true
                                         try {
-                                            PlaybackManager.play()
+                                            PlaybackManager.playSong(tvSong, seekToMs = tvPos)
                                         } finally {
                                             isSyncingFromTv = false
                                         }
-                                    } else if (!isPlaying && PlaybackManager.isPlaying.value) {
-                                        isSyncingFromTv = true
-                                        try {
-                                            PlaybackManager.pause()
-                                        } finally {
-                                            isSyncingFromTv = false
-                                        }
-                                    }
-                                    if (!PlaybackManager.isTransitioning.value) {
-                                        val localPos = PlaybackManager.currentPositionMs.value
-                                        if (Math.abs(localPos - tvPos) > 2500L) {
+                                    } else {
+                                        if (isPlaying && !PlaybackManager.isPlaying.value) {
                                             isSyncingFromTv = true
                                             try {
-                                                PlaybackManager.seekTo(tvPos)
+                                                PlaybackManager.play()
                                             } finally {
                                                 isSyncingFromTv = false
+                                            }
+                                        } else if (!isPlaying && PlaybackManager.isPlaying.value) {
+                                            isSyncingFromTv = true
+                                            try {
+                                                PlaybackManager.pause()
+                                            } finally {
+                                                isSyncingFromTv = false
+                                            }
+                                        }
+                                        if (!PlaybackManager.isTransitioning.value) {
+                                            val localPos = PlaybackManager.currentPositionMs.value
+                                            if (Math.abs(localPos - tvPos) > 2500L) {
+                                                isSyncingFromTv = true
+                                                try {
+                                                    PlaybackManager.seekTo(tvPos)
+                                                } finally {
+                                                    isSyncingFromTv = false
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                        val curMid = tvSong?.songMid.orEmpty()
-                        if (curMid.isNotBlank() && !curMid.startsWith("webdav_")) {
-                            val localFav = PlaybackManager.isSongFavorite(curMid)
-                            if (localFav != resolvedState.isFavorite) {
-                                PlaybackManager.setSongFavoriteState(curMid, resolvedState.isFavorite)
+                            val curMid = tvSong?.songMid.orEmpty()
+                            if (curMid.isNotBlank() && !curMid.startsWith("webdav_")) {
+                                val localFav = PlaybackManager.isSongFavorite(curMid)
+                                if (localFav != resolvedState.isFavorite) {
+                                    PlaybackManager.setSongFavoriteState(curMid, resolvedState.isFavorite)
+                                }
                             }
                         }
                     } else {
@@ -244,8 +259,10 @@ object MobileConnectManager {
         scope.launch {
             client.queueState.collect { qState ->
                 if (qState != null && remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
-                    val resolvedQueue = qState.queue.map { resolveWebDavCoverLocally(it) }
-                    PlaybackManager.syncRemoteQueue(resolvedQueue, qState.currentIndex)
+                    if (PlaybackManager.isRemoteActive.value || tvPlayerState.value?.isPlaying == true) {
+                        val resolvedQueue = qState.queue.map { resolveWebDavCoverLocally(it) }
+                        PlaybackManager.syncRemoteQueue(resolvedQueue, qState.currentIndex)
+                    }
                 }
             }
         }
@@ -310,7 +327,7 @@ object MobileConnectManager {
         startAutoConnectLoop()
     }
 
-    private suspend fun isPortReachable(host: String, port: Int, timeoutMs: Int = 800): Boolean =
+    private suspend fun isPortReachable(host: String, port: Int, timeoutMs: Int = 500): Boolean =
         withContext(Dispatchers.IO) {
             if (host.isBlank() || port <= 0) return@withContext false
             try {
@@ -321,6 +338,20 @@ object MobileConnectManager {
             } catch (_: Exception) {
                 false
             }
+        }
+
+    private suspend fun findReachablePort(host: String, basePort: Int = 8765, timeoutMs: Int = 400): Int? =
+        withContext(Dispatchers.IO) {
+            if (host.isBlank()) return@withContext null
+            if (isPortReachable(host, basePort, timeoutMs)) {
+                return@withContext basePort
+            }
+            for (p in (basePort + 1)..(basePort + 10)) {
+                if (isPortReachable(host, p, timeoutMs)) {
+                    return@withContext p
+                }
+            }
+            null
         }
 
     fun resetAndRetryAutoConnect() {
@@ -354,7 +385,7 @@ object MobileConnectManager {
                 }
             }
 
-            // 2. 自适应探测重连：带轻量 TCP 探测、指数退避与失败上限停止
+            // 2. 自适应探测重连：带轻量 TCP 端口多候选探测、指数退避与失败上限停止
             var isFirstCheck = true
             while (isActive) {
                 if (isFirstCheck) {
@@ -384,17 +415,19 @@ object MobileConnectManager {
                     continue
                 }
 
-                // 轻量 TCP 端口探测（超时 800ms），在线才尝试建立 WebSocket 握手
-                val reachable = isPortReachable(lastDevice.host, lastDevice.port, timeoutMs = 800)
-                if (reachable) {
-                    android.util.Log.i("MobileConnectManager", "Device port reachable, auto-connecting: ${lastDevice.name} (${lastDevice.host}:${lastDevice.port})")
-                    connectClient?.connect(lastDevice)
+                // 多端口探测（8765..8775），在线才尝试建立 WebSocket 握手
+                val startPort = if (lastDevice.port in 8765..8775) 8765 else lastDevice.port
+                val reachablePort = findReachablePort(lastDevice.host, startPort, timeoutMs = 400)
+                if (reachablePort != null) {
+                    val target = if (reachablePort != lastDevice.port) lastDevice.copy(port = reachablePort) else lastDevice
+                    android.util.Log.i("MobileConnectManager", "Device port reachable ($reachablePort), auto-connecting: ${target.name}")
+                    connectClient?.connect(target)
                     // 等待连接握手结果
                     delay(4000L)
                 } else {
                     autoConnectFailureCount++
                     val backoff = AUTO_CONNECT_BACKOFF_DELAYS.getOrElse(autoConnectFailureCount - 1) { 60000L }
-                    android.util.Log.d("MobileConnectManager", "Device ${lastDevice.host}:${lastDevice.port} unreachable, probeFailure=$autoConnectFailureCount, nextBackoff=${backoff}ms")
+                    android.util.Log.d("MobileConnectManager", "Device ${lastDevice.host} unreachable on ports $startPort..${startPort + 10}, probeFailure=$autoConnectFailureCount, nextBackoff=${backoff}ms")
                     delay(backoff)
                 }
             }
@@ -414,7 +447,12 @@ object MobileConnectManager {
 
     fun connectTo(device: ConnectDevice, pinCode: String = "") {
         userManuallyDisconnected = false
-        connectClient?.connect(device, pinCode)
+        scope.launch {
+            val startPort = if (device.port in 8765..8775) 8765 else device.port
+            val reachablePort = findReachablePort(device.host, startPort, timeoutMs = 400)
+            val effectiveDevice = if (reachablePort != null) device.copy(port = reachablePort) else device
+            connectClient?.connect(effectiveDevice, pinCode)
+        }
     }
 
     fun connectByQrJson(qrJson: String): Boolean {
@@ -443,15 +481,13 @@ object MobileConnectManager {
             PlaybackManager.setRemoteActive(false, null)
             PlaybackManager.clearRemotePlayback()
         }
-        if (localMute.value) {
-            setLocalMute(false)
-        }
+        PlaybackManager.setVolume(1f)
     }
 
     fun setLocalMute(enabled: Boolean) {
         storageManager?.setLocalMute(enabled)
-        PlaybackManager.setVolume(if (enabled) 0f else 1f)
         if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
+            PlaybackManager.setVolume(if (enabled) 0f else 1f)
             if (enabled) {
                 // 开启静音：暂停本地音频发声，但绝不影响 TV
                 isSyncingFromTv = true
@@ -461,10 +497,10 @@ object MobileConnectManager {
                     isSyncingFromTv = false
                 }
             } else {
-                // 关闭静音：若 TV 正在播放，立即驱动本地播放发声
+                // 关闭静音：仅在处于远端接管且 TV 正在播放时，驱动本地发声
                 val state = tvPlayerState.value
                 val tvSong = state?.currentSong
-                if (state?.isPlaying == true && tvSong != null) {
+                if (PlaybackManager.isRemoteActive.value && state?.isPlaying == true && tvSong != null) {
                     isSyncingFromTv = true
                     try {
                         PlaybackManager.playSong(tvSong, seekToMs = state.positionMs)
@@ -487,11 +523,28 @@ object MobileConnectManager {
                 PlaybackManager.setRemoteActive(false, null)
                 PlaybackManager.clearRemotePlayback()
             }
+            PlaybackManager.setVolume(1f)
         } else if (isTvOnline) {
-            val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
-            appContext?.let { PlaybackManager.startPlaybackService(it) }
-            PlaybackManager.setRemoteActive(true, pairedName)
-            tvPlayerState.value?.let { state ->
+            // 用户切换至接管模式：若手机端正在播放，暂停本地播放进度，保留当前播放位置
+            if (PlaybackManager.isPlaying.value && !PlaybackManager.isRemoteActive.value) {
+                isSyncingFromTv = true
+                try {
+                    PlaybackManager.pause()
+                } finally {
+                    isSyncingFromTv = false
+                }
+            }
+            if (localMute.value) {
+                PlaybackManager.setVolume(0f)
+            } else {
+                PlaybackManager.setVolume(1f)
+            }
+            val state = tvPlayerState.value
+            // 仅在 TV 正在播放时，进入接管模式才立即接管本地播放器；若 TV 处于暂停，保留手机本地当前曲目
+            if (state?.isPlaying == true) {
+                val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
+                appContext?.let { PlaybackManager.startPlaybackService(it) }
+                PlaybackManager.setRemoteActive(true, pairedName)
                 PlaybackManager.syncRemotePlaybackState(
                     song = state.currentSong,
                     isPlaying = state.isPlaying,
@@ -537,8 +590,17 @@ object MobileConnectManager {
                 audioSource = audioSource,
                 qualityTier = effectiveTier,
             )
-            // 仅在浏览模式开启本地静音时，接力到 TV 暂停本地音频
-            if (localMute.value && remoteControlMode.value == RemoteControlMode.BROWSE) {
+            if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
+                val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
+                appContext?.let { PlaybackManager.startPlaybackService(it) }
+                PlaybackManager.setRemoteActive(true, pairedName)
+                isSyncingFromTv = true
+                try {
+                    PlaybackManager.pause()
+                } finally {
+                    isSyncingFromTv = false
+                }
+            } else if (localMute.value && remoteControlMode.value == RemoteControlMode.BROWSE) {
                 PlaybackManager.pause()
             }
         }
@@ -553,41 +615,36 @@ object MobileConnectManager {
     }
 
     fun tvPause() = connectClient?.pause()
+
     fun tvResume() = connectClient?.resume()
-    fun tvNext() {
-        if (isTvOnline) {
-            val nextSong = if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
-                PlaybackManager.getNextSong()
-            } else {
-                tvPlayerState.value?.nextSong ?: PlaybackManager.getNextSong()
-            }
-            if (nextSong != null) {
-                playOnTv(nextSong)
-                return
-            }
+
+    fun tvTogglePlayPause() {
+        if (tvPlayerState.value?.isPlaying == true) {
+            tvPause()
+        } else {
+            tvResume()
         }
-        connectClient?.next()
     }
-    fun tvPrev() {
-        if (isTvOnline) {
-            val prevSong = if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
-                PlaybackManager.getPreviousSong()
-            } else {
-                tvPlayerState.value?.prevSong ?: PlaybackManager.getPreviousSong()
-            }
-            if (prevSong != null) {
-                playOnTv(prevSong)
-                return
-            }
-        }
-        connectClient?.previous()
-    }
-    fun tvSeekTo(posMs: Long) = connectClient?.seekTo(posMs)
-    fun tvSetVolume(vol: Float) = connectClient?.setVolume(vol)
-    fun tvSwitchTier(tier: AudioQualityTier) = connectClient?.switchTier(tier)
-    fun triggerTvAod() = connectClient?.triggerAod()
+
+    fun tvNext() = connectClient?.next()
+
+    fun tvPrev() = connectClient?.previous()
+
+    fun tvPlayPrevious() = tvPrev()
+
+    fun tvPlayNext() = tvNext()
+
+    fun tvSeekTo(positionMs: Long) = connectClient?.seekTo(positionMs)
+
+    fun tvSetVolume(volume: Float) = connectClient?.setVolume(volume)
+
     fun tvCycleLoopMode() = connectClient?.cycleLoopMode()
+
+    fun tvSwitchTier(tier: AudioQualityTier) = connectClient?.switchTier(tier)
+
     fun tvOpenPlayer() = connectClient?.openPlayer()
+
+    fun triggerTvAod() = connectClient?.triggerAod()
 
     private var lastGestureSendTime = 0L
 
@@ -633,7 +690,15 @@ object MobileConnectManager {
                 if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
                     return false
                 }
-                playOnTv(song, startPositionMs = seekToMs, forceTier = forceTier)
+                val localSong = PlaybackManager.currentSong.value
+                val effectiveSeekMs = if (seekToMs > 0L) {
+                    seekToMs
+                } else if (!PlaybackManager.isRemoteActive.value && localSong?.songMid == song.songMid) {
+                    PlaybackManager.currentPositionMs.value
+                } else {
+                    0L
+                }
+                playOnTv(song, startPositionMs = effectiveSeekMs, forceTier = forceTier)
                 return true
             }
 
@@ -651,11 +716,24 @@ object MobileConnectManager {
                 if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
                     return false
                 }
-                val isPlaying = tvPlayerState.value?.isPlaying == true
-                if (isPlaying) {
-                    tvPause()
+                if (PlaybackManager.isRemoteActive.value) {
+                    val isPlaying = tvPlayerState.value?.isPlaying == true
+                    if (isPlaying) {
+                        tvPause()
+                    } else {
+                        tvResume()
+                    }
                 } else {
-                    tvResume()
+                    val localSong = PlaybackManager.currentSong.value
+                    if (localSong != null) {
+                        val localPos = PlaybackManager.currentPositionMs.value
+                        playOnTv(localSong, startPositionMs = localPos)
+                    } else {
+                        val tvSong = tvPlayerState.value?.currentSong
+                        if (tvSong != null) {
+                            tvResume()
+                        }
+                    }
                 }
                 return true
             }
@@ -674,7 +752,17 @@ object MobileConnectManager {
                 if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
                     return false
                 }
-                tvResume()
+                if (PlaybackManager.isRemoteActive.value) {
+                    tvResume()
+                } else {
+                    val localSong = PlaybackManager.currentSong.value
+                    if (localSong != null) {
+                        val localPos = PlaybackManager.currentPositionMs.value
+                        playOnTv(localSong, startPositionMs = localPos)
+                    } else {
+                        tvResume()
+                    }
+                }
                 return true
             }
 

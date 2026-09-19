@@ -1551,10 +1551,12 @@ object PlaybackManager {
                 queueManager.setLoopMode(PlaybackLoopMode.valueOf(loopModeName))
             } catch (_: Throwable) {}
         }
-        _isPlaying.value = isPlaying
-        _currentPositionMs.value = positionMs
-        if (durationMs > 0L) {
-            _durationMs.value = durationMs
+        if (song != null) {
+            _isPlaying.value = isPlaying
+            _currentPositionMs.value = positionMs
+            if (durationMs > 0L) {
+                _durationMs.value = durationMs
+            }
         }
     }
 

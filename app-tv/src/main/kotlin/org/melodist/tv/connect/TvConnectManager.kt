@@ -88,8 +88,9 @@ object TvConnectManager {
                 server.start()
             } catch (_: Exception) {}
 
+            val actualPort = server.actualPort
             nsd.registerTvService(
-                port = SERVER_PORT,
+                port = actualPort,
                 device = localDevice,
                 pinCode = _currentPinCode.value,
             )
@@ -199,8 +200,9 @@ object TvConnectManager {
         scope.launch(Dispatchers.IO) {
             val storage = storageManager ?: return@launch
             val localDevice = storage.getOrCreateLocalDevice()
+            val actualPort = connectServer?.actualPort ?: SERVER_PORT
             nsdHelper?.registerTvService(
-                port = SERVER_PORT,
+                port = actualPort,
                 device = localDevice,
                 pinCode = _currentPinCode.value,
             )
@@ -220,12 +222,13 @@ object TvConnectManager {
         val ip = storage.customTvIp ?: NetworkUtils.getLocalIpv4Address() ?: "127.0.0.1"
         _localIpFlow.value = ip
         val localDevice = storage.getOrCreateLocalDevice(fallbackHost = ip)
+        val actualPort = connectServer?.actualPort ?: SERVER_PORT
 
         val qrData = QrPairData(
             deviceId = localDevice.id,
             deviceName = localDevice.name,
             host = ip,
-            port = SERVER_PORT,
+            port = actualPort,
             token = localDevice.token,
             pinCode = _currentPinCode.value,
         )
@@ -276,7 +279,12 @@ object TvConnectManager {
                         )
                     } else {
                         if (cmd.queue.isNotEmpty()) {
-                            PlaybackManager.setPlaylist(cmd.queue, startIndex = cmd.index, forceTier = cmd.qualityTier)
+                            PlaybackManager.setPlaylist(
+                                songs = cmd.queue,
+                                startIndex = cmd.index,
+                                forceTier = cmd.qualityTier,
+                                initialSeekToMs = cmd.startPositionMs,
+                            )
                         } else {
                             PlaybackManager.playSong(cmd.song, forceTier = cmd.qualityTier, seekToMs = cmd.startPositionMs)
                         }
@@ -338,6 +346,12 @@ object TvConnectManager {
                 }
                 is TvIncomingCommand.SyncLyricsScroll -> {
                     TakeoverLyricsState.update(command.payload)
+                }
+                is TvIncomingCommand.RequestGetPlayerState -> {
+                    broadcastPlayerStateNow()
+                }
+                is TvIncomingCommand.RequestGetQueueState -> {
+                    broadcastQueueNow()
                 }
                 is TvIncomingCommand.SyncLyrics -> {
                     val payload = command.payload

@@ -169,14 +169,7 @@ fun QrScannerDialog(
                     fontSize = 16.sp,
                 )
 
-                IconButton(
-                    onClick = { pickImageLauncher.launch("image/*") },
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape),
-                ) {
-                    Icon(Icons.Filled.Image, contentDescription = "相册识别", tint = Color.White)
-                }
+                Spacer(modifier = Modifier.size(42.dp))
             }
 
             // 底部提示与相册入口

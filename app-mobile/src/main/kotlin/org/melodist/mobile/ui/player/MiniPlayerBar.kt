@@ -363,10 +363,16 @@ fun MiniPlayerBar(
                 if (connectState is MobileConnectionState.Paired) {
                     val localCtx = androidx.compose.ui.platform.LocalContext.current
                     val isTakeover = MobileConnectManager.remoteControlMode.collectAsState().value == org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
+                    val isRemoteActive = PlaybackManager.isRemoteActive.collectAsState().value
                     androidx.compose.material3.IconButton(
                         onClick = {
                             if (isTakeover) {
-                                android.widget.Toast.makeText(localCtx, "全面接管模式生效中：播放直通 TV", android.widget.Toast.LENGTH_SHORT).show()
+                                if (!isRemoteActive) {
+                                    MobileConnectManager.relayCurrentPlaybackToTv()
+                                    android.widget.Toast.makeText(localCtx, "已将当前播放接力至 TV", android.widget.Toast.LENGTH_SHORT).show()
+                                } else {
+                                    android.widget.Toast.makeText(localCtx, "全面接管模式生效中：播放直通 TV", android.widget.Toast.LENGTH_SHORT).show()
+                                }
                             } else {
                                 MobileConnectManager.relayCurrentPlaybackToTv()
                                 android.widget.Toast.makeText(localCtx, "正在接力至 TV 播放", android.widget.Toast.LENGTH_SHORT).show()
