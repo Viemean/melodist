@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -155,7 +157,7 @@ fun LocalMusicTvScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     LocalMusicNavButton(
-                        icon = Icons.Filled.ArrowBack,
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
                         text = "返回",
                         onClick = {
                             if (viewMode == LocalMusicViewMode.Directory && pathHistory.size > 1) {
@@ -277,6 +279,7 @@ fun LocalMusicTvScreen(
                 val currentFile = File(currentPath)
                 val parentFile = currentFile.parentFile
                 val canGoUp = parentFile != null && parentFile.exists() && parentFile.canRead()
+                val safeParent = parentFile
 
                 val hasStoragePermission =
                     remember {
@@ -344,12 +347,12 @@ fun LocalMusicTvScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         // 顶部第一项：返回上一级
-                        if (canGoUp) {
+                        if (safeParent != null && canGoUp) {
                             item(key = "go_up") {
                                 LocalMusicParentFolderRow(
-                                    parentName = parentFile?.name.orEmpty().ifBlank { "上一级目录" },
+                                    parentName = safeParent.name.ifBlank { "上一级目录" },
                                     onClick = {
-                                        val pPath = parentFile!!.absolutePath
+                                        val pPath = safeParent.absolutePath
                                         pathHistory = if (pathHistory.size > 1) pathHistory.dropLast(1) else listOf(pPath)
                                         currentPath = pPath
                                         loadDirectory(pPath)
@@ -629,7 +632,7 @@ private fun LocalMusicParentFolderRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Filled.DriveFileMove,
+            imageVector = Icons.AutoMirrored.Filled.DriveFileMove,
             contentDescription = null,
             tint = if (isFocused) Color.Black else MelodistColors.FocusTeal,
             modifier = Modifier.size(24.dp),

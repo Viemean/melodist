@@ -827,17 +827,15 @@ private fun RenderAppScreen(
                                 onInteractionStateChange = onAcrCardInteractionChange,
                                 onPrepareSong = {
                                     val data = acrSuccessData
-                                    if (data != null) {
-                                        val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
-                                        val prepLatencyMs = 850L
-                                        val seekMs =
-                                            ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
-                                                .coerceAtLeast(0L)
-                                        PlaybackManager.insertAndPlay(
-                                            song = data.song,
-                                            seekToMs = seekMs,
-                                        )
-                                    }
+                                    val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
+                                    val prepLatencyMs = 850L
+                                    val seekMs =
+                                        ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
+                                            .coerceAtLeast(0L)
+                                    PlaybackManager.insertAndPlay(
+                                        song = data.song,
+                                        seekToMs = seekMs,
+                                    )
                                 },
                                 modifier = Modifier.padding(bottom = 6.dp),
                             )

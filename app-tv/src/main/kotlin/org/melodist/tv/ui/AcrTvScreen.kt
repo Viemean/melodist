@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -377,7 +378,7 @@ fun AcrTvScreen(
                                 // 2. 静音按钮（温和 Monet 质感，绝不使用刺眼红底，显示图标与“静音中”，点击过渡隐藏）
                                 AcrTvButton(
                                     text = "静音中",
-                                    icon = Icons.Default.VolumeOff,
+                                    icon = Icons.AutoMirrored.Filled.VolumeOff,
                                     containerBg = btnContainer,
                                     focusRequester = muteButtonFocusRequester,
                                     onClick = {

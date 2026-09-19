@@ -699,7 +699,7 @@ fun PlaylistTvScreen(
         when {
             activeCoverSong != null && activeCoverSong.albumMid.isNotBlank() -> activeCoverSong.albumMid
             lockedAlbumMid.isNotBlank() -> lockedAlbumMid
-            categoryId in listOf("collections", "album_detail") && !activeAlbum?.mid.isNullOrEmpty() -> activeAlbum!!.mid
+            categoryId in listOf("collections", "album_detail") && !activeAlbum?.mid.isNullOrEmpty() -> activeAlbum.mid
             playlistSongs.firstOrNull()?.albumMid?.isNotBlank() == true -> playlistSongs.first().albumMid
             else -> ""
         }
@@ -709,8 +709,8 @@ fun PlaylistTvScreen(
             activeCoverSong != null && activeCoverSong.coverUrl.isNotBlank() -> activeCoverSong.coverUrl
             activeCoverSong != null && displayAlbumMid.isNotBlank() -> MusicApiService.getAlbumCoverUrl(displayAlbumMid)
             lockedCoverUrl.isNotBlank() -> lockedCoverUrl
-            categoryId in listOf("playlists", "playlist_detail") && !activePlaylist?.picUrl.isNullOrEmpty() -> activePlaylist!!.picUrl
-            categoryId in listOf("collections", "album_detail") && !activeAlbum?.coverUrl.isNullOrEmpty() -> activeAlbum!!.coverUrl
+            categoryId in listOf("playlists", "playlist_detail") && !activePlaylist?.picUrl.isNullOrEmpty() -> activePlaylist.picUrl
+            categoryId in listOf("collections", "album_detail") && !activeAlbum?.coverUrl.isNullOrEmpty() -> activeAlbum.coverUrl
             playlistSongs.firstOrNull()?.coverUrl?.isNotBlank() == true -> playlistSongs.first().coverUrl
             displayAlbumMid.isNotBlank() -> MusicApiService.getAlbumCoverUrl(displayAlbumMid)
             else -> ""
