@@ -813,11 +813,16 @@ object MobileConnectManager {
         if (coverUrl.isNotBlank() && (coverUrl.startsWith("file://") || coverUrl.startsWith("/"))) {
             updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
         }
-        if ((updated.isLocal || updated.songMid.startsWith("local_")) && updated.localFilePath.isNullOrBlank()) {
-            val localPath = org.melodist.data.LocalMusicManager.getScannedSongs()
-                .find { it.songMid == song.songMid }?.localFilePath
+        if (updated.isLocal || updated.songMid.startsWith("local_")) {
+            val localPath = updated.localFilePath.takeIf { !it.isNullOrBlank() }
+                ?: org.melodist.data.LocalMusicManager.getScannedSongs()
+                    .find { it.songMid == song.songMid }?.localFilePath
             if (!localPath.isNullOrBlank()) {
-                updated = updated.copy(localFilePath = localPath)
+                val streamUrl = server.buildLocalAudioStreamUrl(localPath)
+                updated = updated.copy(
+                    localFilePath = localPath,
+                    mediaMid = streamUrl,
+                )
             }
         }
         return updated
