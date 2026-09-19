@@ -259,6 +259,29 @@ object MobileConnectManager {
         }
 
         scope.launch {
+            client.lyricsSyncFlow.collect { payload ->
+                PlaybackManager.setExternalLyrics(payload.songMid, payload.lyrics)
+            }
+        }
+
+        scope.launch {
+            PlaybackManager.lyricsLoadedFlow.collect { (song, lyrics) ->
+                val c = connectClient ?: return@collect
+                if (!org.melodist.data.LyricCacheManager.isRemoteSynced(song.songMid) && isTvOnline) {
+                    c.sendLyricsSync(
+                        org.melodist.core.connect.model.LyricsSyncPayload(
+                            songMid = song.songMid,
+                            title = song.name,
+                            singer = song.singer,
+                            lyrics = lyrics,
+                            sourceDeviceId = storageManager?.getOrCreateLocalDevice()?.id.orEmpty(),
+                        ),
+                    )
+                }
+            }
+        }
+
+        scope.launch {
             client.commandsFlow.collect { cmd ->
                 when (cmd) {
                     is org.melodist.core.connect.client.MobileIncomingCommand.Next -> {

@@ -109,6 +109,23 @@ object TvConnectManager {
         }
 
         scope.launch {
+            PlaybackManager.lyricsLoadedFlow.collect { (song, lyrics) ->
+                val s = connectServer ?: return@collect
+                if (!org.melodist.data.LyricCacheManager.isRemoteSynced(song.songMid) && s.connectedDeviceFlow.value != null) {
+                    s.broadcastLyrics(
+                        org.melodist.core.connect.model.LyricsSyncPayload(
+                            songMid = song.songMid,
+                            title = song.name,
+                            singer = song.singer,
+                            lyrics = lyrics,
+                            sourceDeviceId = storageManager?.getOrCreateLocalDevice()?.id.orEmpty(),
+                        ),
+                    )
+                }
+            }
+        }
+
+        scope.launch {
             server.connectedDeviceFlow.collect { dev ->
                 if (dev != null) {
                     broadcastPlayerStateNow()
@@ -321,6 +338,10 @@ object TvConnectManager {
                 }
                 is TvIncomingCommand.SyncLyricsScroll -> {
                     TakeoverLyricsState.update(command.payload)
+                }
+                is TvIncomingCommand.SyncLyrics -> {
+                    val payload = command.payload
+                    PlaybackManager.setExternalLyrics(payload.songMid, payload.lyrics)
                 }
             }
         } finally {

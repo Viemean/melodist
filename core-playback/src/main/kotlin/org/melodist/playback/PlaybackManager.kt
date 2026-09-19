@@ -189,6 +189,9 @@ object PlaybackManager {
     private val _isTransitioning = MutableStateFlow(false)
     val isTransitioning: StateFlow<Boolean> = _isTransitioning.asStateFlow()
 
+    private val _lyricsLoadedFlow = MutableSharedFlow<Pair<Song, List<LyricLine>>>(extraBufferCapacity = 8)
+    val lyricsLoadedFlow: SharedFlow<Pair<Song, List<LyricLine>>> = _lyricsLoadedFlow.asSharedFlow()
+
     private var prefetchedUrlInfo: Pair<String, QualityResult>? = null
     private var prefetchJob: Job? = null
     private var currentSongRetryCount = 0
@@ -1563,7 +1566,12 @@ object PlaybackManager {
 
     fun loadLyricsForSong(song: Song) {
         lyricLoadJob?.cancel()
-        _lyrics.value = emptyList()
+        val cached = org.melodist.data.LyricCacheManager.getLyrics(song.songMid)
+        if (cached != null && cached.isNotEmpty()) {
+            _lyrics.value = cached
+        } else {
+            _lyrics.value = emptyList()
+        }
         lyricLoadJob = scope.launch(Dispatchers.IO) {
             try {
                 if (song.songMid.startsWith("webdav_")) {
@@ -1574,13 +1582,21 @@ object PlaybackManager {
                         emptyList()
                     }
                     if (_currentSong.value?.songMid == song.songMid && baseLyrics.isNotEmpty()) {
-                        _lyrics.value = baseLyrics
+                        if (org.melodist.data.LyricCacheManager.isBetterQuality(baseLyrics, _lyrics.value)) {
+                            _lyrics.value = baseLyrics
+                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, baseLyrics)
+                            _lyricsLoadedFlow.tryEmit(song to baseLyrics)
+                        }
                     }
                     // 智能匹配官方逐行歌词与双语翻译
                     val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, null, baseLyrics)
                     if (matched != null && matched.isNotEmpty() && _currentSong.value?.songMid == song.songMid) {
                         Log.i("MelodistPlayback", "Applied auto-matched lyrics for WebDAV song: ${song.name}")
-                        _lyrics.value = matched
+                        if (org.melodist.data.LyricCacheManager.isBetterQuality(matched, _lyrics.value)) {
+                            _lyrics.value = matched
+                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, matched)
+                            _lyricsLoadedFlow.tryEmit(song to matched)
+                        }
                     }
                 } else if (!song.localFilePath.isNullOrBlank() || song.isLocal) {
                     val lrcText = org.melodist.data.LocalMusicManager.getSongLyrics(song)
@@ -1590,7 +1606,11 @@ object PlaybackManager {
                         emptyList()
                     }
                     if (_currentSong.value?.songMid == song.songMid && baseLyrics.isNotEmpty()) {
-                        _lyrics.value = baseLyrics
+                        if (org.melodist.data.LyricCacheManager.isBetterQuality(baseLyrics, _lyrics.value)) {
+                            _lyrics.value = baseLyrics
+                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, baseLyrics)
+                            _lyricsLoadedFlow.tryEmit(song to baseLyrics)
+                        }
                     }
                     val path = song.localFilePath
                     val directFile = if (!path.isNullOrBlank()) java.io.File(path) else null
@@ -1598,7 +1618,11 @@ object PlaybackManager {
                     val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, validFile, baseLyrics)
                     if (matched != null && matched.isNotEmpty() && _currentSong.value?.songMid == song.songMid) {
                         Log.i("MelodistPlayback", "Applied auto-matched lyrics for local song: ${song.name}")
-                        _lyrics.value = matched
+                        if (org.melodist.data.LyricCacheManager.isBetterQuality(matched, _lyrics.value)) {
+                            _lyrics.value = matched
+                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, matched)
+                            _lyricsLoadedFlow.tryEmit(song to matched)
+                        }
                     }
                 } else {
                     val onlineLyrics = apiService.getLyrics(
@@ -1607,13 +1631,29 @@ object PlaybackManager {
                         songName = song.name,
                         singer = song.singer,
                     )
-                    if (_currentSong.value?.songMid == song.songMid) {
-                        _lyrics.value = onlineLyrics
+                    if (_currentSong.value?.songMid == song.songMid && onlineLyrics.isNotEmpty()) {
+                        if (org.melodist.data.LyricCacheManager.isBetterQuality(onlineLyrics, _lyrics.value)) {
+                            _lyrics.value = onlineLyrics
+                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, onlineLyrics)
+                            _lyricsLoadedFlow.tryEmit(song to onlineLyrics)
+                        }
                     }
                 }
             } catch (e: Exception) {
                 Log.w("MelodistPlayback", "Error loading lyrics for ${song.name}", e)
             }
+        }
+    }
+
+    fun setExternalLyrics(songMid: String, lyrics: List<LyricLine>) {
+        if (songMid.isBlank() || lyrics.isEmpty()) return
+        val current = _lyrics.value
+        val isCurrent = _currentSong.value?.songMid == songMid
+        if (org.melodist.data.LyricCacheManager.isBetterQuality(lyrics, current)) {
+            if (isCurrent) {
+                _lyrics.value = lyrics
+            }
+            org.melodist.data.LyricCacheManager.saveLyrics(songMid, lyrics, isRemoteSynced = true)
         }
     }
 
