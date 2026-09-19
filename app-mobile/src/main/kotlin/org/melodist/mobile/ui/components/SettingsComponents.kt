@@ -167,8 +167,7 @@ fun getQualityTierDetailedLabel(tier: AudioQualityTier): String =
         AudioQualityTier.SQ -> "无损音质 SQ (FLAC)"
         AudioQualityTier.HQ -> "高质量 HQ (320kbps)"
         AudioQualityTier.Standard -> "标准音质 (128kbps)"
-        AudioQualityTier.Atmos71 -> "杜比全景声 7.1.4 (Dolby Atmos)"
-        AudioQualityTier.Atmos51 -> "杜比全景声 5.1 (Dolby Atmos)"
-        AudioQualityTier.Dolby -> "杜比环绕声 (Dolby Audio)"
+        AudioQualityTier.Atmos -> "臻品全景声 (5.1 环绕声)"
+        AudioQualityTier.Dolby -> "杜比全景声 (Dolby Atmos)"
         AudioQualityTier.Premium -> "臻品空间音效 (Premium)"
     }

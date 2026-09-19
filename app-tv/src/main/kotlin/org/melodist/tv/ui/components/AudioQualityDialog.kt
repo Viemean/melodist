@@ -40,8 +40,7 @@ private val StereoTiers =
 
 private val SpatialTiers =
     listOf(
-        AudioQualityTier.Atmos71,
-        AudioQualityTier.Atmos51,
+        AudioQualityTier.Atmos,
         AudioQualityTier.Dolby,
         AudioQualityTier.Premium,
     )
@@ -165,8 +164,7 @@ private fun getOfficialTierColor(tier: AudioQualityTier): Color =
         AudioQualityTier.HQ -> Color(0xFF68B5FF)
         AudioQualityTier.Standard -> Color(0xFFF1F5F9)
         AudioQualityTier.Dolby -> Color(0xFFFFCF40)
-        AudioQualityTier.Atmos71 -> Color(0xFF5CE1E6)
-        AudioQualityTier.Atmos51 -> Color(0xFF6BE5FF)
+        AudioQualityTier.Atmos -> Color(0xFF5CE1E6)
     }
 
 @Composable

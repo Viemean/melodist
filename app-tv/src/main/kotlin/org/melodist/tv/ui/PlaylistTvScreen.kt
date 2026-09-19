@@ -83,7 +83,7 @@ private val DefaultSampleSongs =
             singer = "周杰伦",
             album = "七里香",
             durationSeconds = 299,
-            currentTier = AudioQualityTier.Atmos71,
+            currentTier = AudioQualityTier.Atmos,
             coverUrl = "https://y.qq.com/music/photo_new/T002R300x300M00000333Ukj2Backend.jpg",
         ),
         Song(
@@ -138,7 +138,7 @@ private val DefaultSampleSongs =
             singer = "周杰伦",
             album = "魔杰座",
             durationSeconds = 223,
-            currentTier = AudioQualityTier.Atmos51,
+            currentTier = AudioQualityTier.Dolby,
         ),
         Song(
             songId = 108L,

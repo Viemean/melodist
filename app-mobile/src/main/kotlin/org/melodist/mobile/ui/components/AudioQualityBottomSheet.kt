@@ -85,9 +85,8 @@ fun AudioQualityBottomSheet(
                         AudioQualityTier.Master -> 100
                         AudioQualityTier.Premium -> 95
                         AudioQualityTier.HiRes -> 90
-                        AudioQualityTier.Atmos71 -> 85
-                        AudioQualityTier.Atmos51 -> 80
-                        AudioQualityTier.Dolby -> 75
+                        AudioQualityTier.Atmos -> 85
+                        AudioQualityTier.Dolby -> 80
                         AudioQualityTier.SQ -> 70
                         AudioQualityTier.HQ -> 60
                         AudioQualityTier.Standard -> 50
@@ -232,8 +231,7 @@ fun getQualityBadgeLabel(tier: AudioQualityTier): String =
         AudioQualityTier.SQ -> "SQ"
         AudioQualityTier.HQ -> "HQ"
         AudioQualityTier.Standard -> "标准"
-        AudioQualityTier.Atmos71 -> "7.1"
-        AudioQualityTier.Atmos51 -> "5.1"
+        AudioQualityTier.Atmos -> "全景声"
         AudioQualityTier.Dolby -> "杜比"
         AudioQualityTier.Premium -> "臻品"
     }
