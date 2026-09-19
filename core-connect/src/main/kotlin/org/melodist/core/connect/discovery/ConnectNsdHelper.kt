@@ -106,6 +106,7 @@ class ConnectNsdHelper(private val context: Context) {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun resolveService(serviceInfo: NsdServiceInfo) {
         try {
             nsdManager?.resolveService(
