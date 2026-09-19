@@ -153,7 +153,7 @@ object PlaybackCredentialsManager {
                 DEFAULT_KEY_SALT
             }
 
-        val secretKey = deriveKey(if (hasPassword) password!! else DEFAULT_PASSPHRASE, salt)
+        val secretKey = deriveKey(if (hasPassword) password else DEFAULT_PASSPHRASE, salt)
         val iv = ByteArray(12).also { random.nextBytes(it) }
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")

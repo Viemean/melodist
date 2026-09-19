@@ -329,7 +329,7 @@ class WebDavService {
                         if (resp.code != 200 && resp.code != 207) {
                             return@withContext emptyList()
                         }
-                        resp.body?.string().orEmpty()
+                        resp.body.string()
                     }
 
                 if (responseBody.isBlank()) return@withContext emptyList()
@@ -529,7 +529,7 @@ class WebDavService {
 
                 client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
                     if (resp.isSuccessful || resp.code == 206) {
-                        resp.body?.bytes()
+                        resp.body.bytes()
                     } else {
                         null
                     }
@@ -564,7 +564,7 @@ class WebDavService {
 
                 client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
                     if (resp.isSuccessful && resp.code == 200) {
-                        resp.body?.string()?.takeIf { it.isNotBlank() }
+                        resp.body.string().takeIf { it.isNotBlank() }
                     } else {
                         null
                     }
@@ -603,8 +603,8 @@ class WebDavService {
                     val candidateBytes =
                         client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
                             if (resp.isSuccessful && resp.code == 200) {
-                                val bytes = resp.body?.bytes()
-                                if (bytes != null && bytes.size > 1024) {
+                                val bytes = resp.body.bytes()
+                                if (bytes.size > 1024) {
                                     bytes
                                 } else {
                                     null
@@ -650,7 +650,7 @@ class WebDavService {
                 val downloadSuccess =
                     client.newCall(requestBuilder.build()).executeWithCancellation { resp ->
                         if (!resp.isSuccessful) return@executeWithCancellation false
-                        val body = resp.body ?: return@executeWithCancellation false
+                        val body = resp.body
                         val totalLength = body.contentLength()
 
                         body.byteStream().use { input ->

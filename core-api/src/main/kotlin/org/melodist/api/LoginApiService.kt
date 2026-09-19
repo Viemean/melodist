@@ -68,7 +68,7 @@ class LoginApiService(
                 val qrsig =
                     extractCookie(response.headers("Set-Cookie"), "qrsig")
                         ?: throw IOException("QQ login response missing qrsig")
-                val bytes = response.body?.bytes() ?: throw IOException("Empty QR code response")
+                val bytes = response.body.bytes()
                 QrCodeInfo(bytes, qrsig, "image/png")
             }
         }
@@ -92,7 +92,7 @@ class LoginApiService(
                     .build()
 
             client.newCall(request).execute().use { response ->
-                val text = response.body?.string().orEmpty()
+                val text = response.body.string()
                 val matcher = SINGLE_QUOTE_PATTERN.matcher(text)
                 val matches = mutableListOf<String>()
                 while (matcher.find()) {
@@ -176,7 +176,7 @@ class LoginApiService(
                 val jumpReq =
                     Request
                         .Builder()
-                        .url(jumpUrl!!)
+                        .url(jumpUrl)
                         .header("Cookie", cookieHeader)
                         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                         .build()
@@ -295,7 +295,7 @@ class LoginApiService(
                         }
                     }
                     if (code.isEmpty()) {
-                        val body = authResp.body?.string().orEmpty()
+                        val body = authResp.body.string()
                         val m = CODE_PATTERN.matcher(body)
                         if (m.find()) {
                             code = m.group(1)
@@ -321,7 +321,7 @@ class LoginApiService(
                         .build()
 
                 client.newCall(loginReq).execute().use { loginResp ->
-                    val json = loginResp.body?.string().orEmpty()
+                    val json = loginResp.body.string()
                     val jsonElement = Json.parseToJsonElement(json).jsonObject
                     val loginObj = jsonElement["login"]?.jsonObject ?: return@withContext false
                     val loginData = loginObj["data"]?.jsonObject ?: return@withContext false
@@ -409,7 +409,7 @@ class LoginApiService(
 
             val uuid =
                 client.newCall(pageReq).execute().use { resp ->
-                    val html = resp.body?.string().orEmpty()
+                    val html = resp.body.string()
                     val matcher = WX_UUID_PATTERN.matcher(html)
                     if (matcher.find()) matcher.group(1) else throw IOException("Failed to extract WeChat uuid")
                 }
@@ -423,7 +423,7 @@ class LoginApiService(
                     .build()
 
             client.newCall(qrReq).execute().use { resp ->
-                val bytes = resp.body?.bytes() ?: throw IOException("Empty WeChat QR bytes")
+                val bytes = resp.body.bytes()
                 QrCodeInfo(bytes, uuid, "image/jpeg")
             }
         }
@@ -442,7 +442,7 @@ class LoginApiService(
                     .build()
 
             client.newCall(request).execute().use { resp ->
-                val text = resp.body?.string().orEmpty()
+                val text = resp.body.string()
                 val matcher = WX_STATUS_PATTERN.matcher(text)
                 if (!matcher.find()) {
                     return@withContext PollResult(QrStatus.Error, "微信扫码状态解析异常")
@@ -483,7 +483,7 @@ class LoginApiService(
                     .build()
 
             client.newCall(request).execute().use { resp ->
-                val json = resp.body?.string().orEmpty()
+                val json = resp.body.string()
                 val jsonElement = Json.parseToJsonElement(json).jsonObject
                 val req0 = jsonElement["req_0"]?.jsonObject ?: return@withContext false
                 if (req0["code"]?.jsonPrimitive?.intOrNull != 0) return@withContext false
@@ -565,7 +565,7 @@ class LoginApiService(
                     .build()
 
             client.newCall(request).execute().use { resp ->
-                val json = resp.body?.string().orEmpty()
+                val json = resp.body.string()
                 val jsonElement = Json.parseToJsonElement(json).jsonObject
                 val data =
                     jsonElement["req_0"]?.jsonObject?.get("data")?.jsonObject

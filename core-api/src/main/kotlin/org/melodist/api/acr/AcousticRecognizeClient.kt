@@ -175,7 +175,7 @@ class AcousticRecognizeClient(
                         )
                     }
 
-                    val bodyStr = response.body?.string() ?: ""
+                    val bodyStr = response.body.string()
                     parseResponse(bodyStr)
                 }
             } catch (e: Exception) {

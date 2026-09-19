@@ -186,9 +186,9 @@ suspend fun MusicApiService.probeSongQualities(
                             resolvedSize <= 0L
                     )
 
-                if (needsCorrection && playUrl != null) {
+                if (needsCorrection) {
                     try {
-                        val conn = java.net.URL(playUrl).openConnection() as java.net.HttpURLConnection
+                        val conn = java.net.URI.create(playUrl).toURL().openConnection() as java.net.HttpURLConnection
                         conn.requestMethod = "HEAD"
                         conn.setRequestProperty("Referer", "https://y.qq.com/")
                         conn.setRequestProperty("User-Agent", "Mozilla/5.0")

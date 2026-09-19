@@ -458,7 +458,7 @@ class MusicApiService(
                 if (!response.isSuccessful) {
                     throw IOException("AG-1 Gateway error: HTTP ${response.code}")
                 }
-                val responseBytes = response.body?.bytes() ?: byteArrayOf()
+                val responseBytes = response.body.bytes()
                 CryptoUtils.decryptAg1Response(responseBytes)
             }
         }
@@ -492,7 +492,7 @@ class MusicApiService(
                 if (!response.isSuccessful) {
                     throw IOException("Gateway error: HTTP ${response.code}")
                 }
-                response.body?.string().orEmpty()
+                response.body.string()
             }
         }
 
@@ -518,7 +518,7 @@ class MusicApiService(
                 if (!response.isSuccessful) {
                     throw IOException("HTTP error: ${response.code}")
                 }
-                response.body?.string().orEmpty()
+                response.body.string()
             }
         }
 
