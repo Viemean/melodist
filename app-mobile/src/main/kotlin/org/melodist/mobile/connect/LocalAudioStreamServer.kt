@@ -99,10 +99,12 @@ class LocalAudioStreamServer(
 
                 val requestLine = readLine(input) ?: return
                 val parts = requestLine.split(" ")
-                if (parts.size < 2 || parts[0] != "GET") {
+                val method = parts.getOrNull(0)?.uppercase() ?: ""
+                if (parts.size < 2 || (method != "GET" && method != "HEAD")) {
                     sendNotFound(output)
                     return
                 }
+                val isHead = method == "HEAD"
 
                 val fullPath = parts[1]
                 val headers = parseHeaders(input)
@@ -121,7 +123,7 @@ class LocalAudioStreamServer(
                             sendNotFound(output)
                             return
                         }
-                        serveFileWithRange(file, rangeHeader, output)
+                        serveFileWithRange(file, rangeHeader, output, isHead)
                     }
                     fullPath.startsWith("/cover/local") -> {
                         val pathParam = extractQueryParam(fullPath, "path")
@@ -135,7 +137,7 @@ class LocalAudioStreamServer(
                             sendNotFound(output)
                             return
                         }
-                        serveCoverImage(file, output)
+                        serveCoverImage(file, output, isHead)
                     }
                     fullPath.startsWith("/stream/webdav") -> {
                         val serverParam = extractQueryParam(fullPath, "server")
@@ -165,15 +167,23 @@ class LocalAudioStreamServer(
         }
     }
 
-    private fun serveFileWithRange(file: File, rangeHeader: String?, output: OutputStream) {
+    private fun serveFileWithRange(file: File, rangeHeader: String?, output: OutputStream, isHead: Boolean = false) {
         val fileLength = file.length()
         var start = 0L
         var end = fileLength - 1
 
         if (!rangeHeader.isNullOrBlank() && rangeHeader.startsWith("bytes=")) {
-            val ranges = rangeHeader.removePrefix("bytes=").split("-")
-            start = ranges.getOrNull(0)?.toLongOrNull() ?: 0L
-            end = ranges.getOrNull(1)?.toLongOrNull() ?: (fileLength - 1)
+            val rangeVal = rangeHeader.removePrefix("bytes=").trim()
+            if (rangeVal.startsWith("-")) {
+                val suffix = rangeVal.removePrefix("-").toLongOrNull() ?: 0L
+                start = (fileLength - suffix).coerceAtLeast(0L)
+                end = fileLength - 1
+            } else {
+                val parts = rangeVal.split("-")
+                start = parts.getOrNull(0)?.toLongOrNull() ?: 0L
+                val endPart = parts.getOrNull(1)?.filter { it.isDigit() }?.toLongOrNull()
+                end = endPart ?: (fileLength - 1)
+            }
         }
 
         if (start > end || start >= fileLength) {
@@ -210,16 +220,18 @@ class LocalAudioStreamServer(
         headerBuilder.append("Connection: close\r\n\r\n")
 
         output.write(headerBuilder.toString().toByteArray())
+        if (isHead) {
+            output.flush()
+            return
+        }
 
-        FileInputStream(file).use { fis ->
-            if (start > 0) {
-                fis.skip(start)
-            }
-            val buffer = ByteArray(32 * 1024)
+        java.io.RandomAccessFile(file, "r").use { raf ->
+            raf.seek(start)
+            val buffer = ByteArray(64 * 1024)
             var remaining = contentLength
             while (remaining > 0) {
                 val toRead = remaining.coerceAtMost(buffer.size.toLong()).toInt()
-                val read = fis.read(buffer, 0, toRead)
+                val read = raf.read(buffer, 0, toRead)
                 if (read == -1) break
                 output.write(buffer, 0, read)
                 remaining -= read
@@ -228,7 +240,7 @@ class LocalAudioStreamServer(
         output.flush()
     }
 
-    private fun serveCoverImage(file: File, output: OutputStream) {
+    private fun serveCoverImage(file: File, output: OutputStream, isHead: Boolean = false) {
         val ext = file.extension.lowercase()
         val mimeType = when (ext) {
             "jpg", "jpeg" -> "image/jpeg"
@@ -242,6 +254,10 @@ class LocalAudioStreamServer(
             "Content-Length: $fileLength\r\n" +
             "Connection: close\r\n\r\n"
         output.write(header.toByteArray())
+        if (isHead) {
+            output.flush()
+            return
+        }
         FileInputStream(file).use { fis ->
             val buf = ByteArray(32 * 1024)
             var bytes: Int
