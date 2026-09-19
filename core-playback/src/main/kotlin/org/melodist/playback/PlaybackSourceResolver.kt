@@ -1,14 +1,47 @@
 package org.melodist.playback
 
+import android.app.UiModeManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 
 object PlaybackSourceResolver {
+    fun isTelevision(context: Context?): Boolean {
+        val ctx = context ?: return false
+        val pkg = ctx.packageName.orEmpty()
+        if (pkg == "org.melodist.tv" || pkg.endsWith(".tv")) {
+            return true
+        }
+        val pm = ctx.packageManager
+        if (pm != null) {
+            try {
+                if (pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+                    pm.hasSystemFeature("android.hardware.type.television")
+                ) {
+                    return true
+                }
+            } catch (_: Throwable) {
+            }
+        }
+        try {
+            val uiModeManager = ctx.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+            if (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) {
+                return true
+            }
+        } catch (_: Throwable) {
+        }
+        return false
+    }
+
     fun isCellularNetwork(context: Context?): Boolean {
         val ctx = context ?: return false
+        if (isTelevision(ctx)) {
+            return false
+        }
         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val net = cm.activeNetwork ?: return false
         val caps = cm.getNetworkCapabilities(net) ?: return false
@@ -41,6 +74,9 @@ object PlaybackSourceResolver {
         context: Context?,
         cellularLimit: AudioQualityTier,
     ): AudioQualityTier {
+        if (isTelevision(context)) {
+            return requestedTier
+        }
         if (isLocalOrWebDavSong(song)) {
             return requestedTier
         }

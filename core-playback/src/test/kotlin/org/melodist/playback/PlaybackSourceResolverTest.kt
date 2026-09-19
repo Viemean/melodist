@@ -68,4 +68,44 @@ class PlaybackSourceResolverTest {
         assertEquals(AudioQualityTier.SQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Dolby))
         assertEquals(AudioQualityTier.SQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Premium))
     }
+
+    private class TestTvContext(private val pkg: String) : android.content.ContextWrapper(null) {
+        override fun getPackageName(): String = pkg
+    }
+
+    @Test
+    fun `isTelevision returns false for null context`() {
+        assertFalse(PlaybackSourceResolver.isTelevision(null))
+    }
+
+    @Test
+    fun `isTelevision identifies tv package`() {
+        val tvContext = TestTvContext("org.melodist.tv")
+        assertTrue(PlaybackSourceResolver.isTelevision(tvContext))
+
+        val mobileContext = TestTvContext("org.melodist.mobile")
+        assertFalse(PlaybackSourceResolver.isTelevision(mobileContext))
+    }
+
+    @Test
+    fun `isCellularNetwork returns false for tv context`() {
+        val tvContext = TestTvContext("org.melodist.tv")
+        assertFalse(PlaybackSourceResolver.isCellularNetwork(tvContext))
+    }
+
+    @Test
+    fun `clampCellularTier does not restrict quality on tv context`() {
+        val tvContext = TestTvContext("org.melodist.tv")
+        val onlineSong = Song(songId = 10, songMid = "003mQIjO4e38e6", name = "Test Online")
+
+        // 即使请求 Master，移动网络限制为 HQ，在 TV 环境下也不应被限制
+        val clamped = PlaybackSourceResolver.clampCellularTier(
+            requestedTier = AudioQualityTier.Master,
+            song = onlineSong,
+            context = tvContext,
+            cellularLimit = AudioQualityTier.HQ,
+        )
+        assertEquals(AudioQualityTier.Master, clamped)
+    }
 }
+
