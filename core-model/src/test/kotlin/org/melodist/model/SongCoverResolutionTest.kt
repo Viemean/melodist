@@ -1,6 +1,7 @@
 package org.melodist.model
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 
 class SongCoverResolutionTest {
@@ -113,5 +114,31 @@ class SongCoverResolutionTest {
             ),
             playlist.thumbnailCandidates,
         )
+    }
+
+    @Test
+    fun testResolvePlayerCoverCandidatesOnCellularAndWifi() {
+        val song =
+            Song(
+                songMid = "003yPnkT3h4fO8",
+                coverUrl = "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg",
+            )
+        val rawUrl = "https://y.qq.com/music/photo_new/T002M000003yPnkT3h4fO8.jpg"
+        val url1200 = "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg"
+        val url800 = "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg"
+
+        // 1. WiFi 环境（非蜂窝）：首选原图
+        val wifiCandidates = song.resolvePlayerCoverCandidates(isCellular = false, hasRawCache = false)
+        assertEquals(rawUrl, wifiCandidates.first())
+
+        // 2. 蜂窝移动网络 + 无原图缓存：最大加载 1200，降级 800
+        val cellularNoCache = song.resolvePlayerCoverCandidates(isCellular = true, hasRawCache = false)
+        assertFalse(cellularNoCache.contains(rawUrl))
+        assertEquals(url1200, cellularNoCache.first())
+        assertEquals(url800, cellularNoCache[1])
+
+        // 3. 蜂窝移动网络 + 已有原图缓存：直接使用原图
+        val cellularWithCache = song.resolvePlayerCoverCandidates(isCellular = true, hasRawCache = true)
+        assertEquals(rawUrl, cellularWithCache.first())
     }
 }

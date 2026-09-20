@@ -99,6 +99,35 @@ data class Song(
             return list
         }
 
+    val rawCoverUrlOnly: String?
+        get() {
+            if (rawCoverUrl.isNotBlank()) return rawCoverUrl
+            if (coverUrl.isNotBlank()) {
+                if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
+                    return findLocalRawCover(coverUrl)
+                }
+                val regex = Regex("R[0-9]+x[0-9]+")
+                if (coverUrl.contains(regex)) {
+                    return coverUrl.replace(regex, "")
+                }
+            }
+            return null
+        }
+
+    fun resolvePlayerCoverCandidates(
+        isCellular: Boolean = false,
+        hasRawCache: Boolean = false,
+    ): List<String> {
+        val candidates = playerCoverCandidates
+        if (isCellular && !hasRawCache) {
+            val raw = rawCoverUrlOnly
+            if (!raw.isNullOrBlank()) {
+                return candidates.filter { it != raw }
+            }
+        }
+        return candidates
+    }
+
     val rawCoverCandidates: List<String>
         get() {
             val list = mutableListOf<String>()
