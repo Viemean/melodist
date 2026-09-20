@@ -57,6 +57,10 @@ object MelodistCacheManager {
     @Volatile
     var currentProfile: PlaybackProfile = PlaybackProfile.TV
 
+    @Volatile
+    var activeCacheQuotaBytes: Long = PlaybackProfile.TV.maxCacheQuotaBytes
+        private set
+
     /**
      * 根据设备环境 Profile 与实际可用 ROM 空间动态计算缓存安全配额
      */
@@ -103,6 +107,7 @@ object MelodistCacheManager {
         loadStatsFromDisk()
 
         val quotaBytes = calculateAdaptiveCacheQuotaBytes(appContext.cacheDir, currentProfile.maxCacheQuotaBytes)
+        activeCacheQuotaBytes = quotaBytes
         Log.i(TAG, "Initializing media cache (${if (currentProfile.isTvDevice) "TV" else "Mobile"}) at ${cacheFolder.absolutePath} with quota: ${formatBytes(quotaBytes)}")
 
         try {

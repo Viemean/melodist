@@ -699,6 +699,8 @@ object PlaybackManager {
             val profile = PlaybackProfile.detect(context)
             MelodistCacheManager.init(context, profile)
             org.melodist.data.AppSettingsManager.mediaCacheSizeProvider = { MelodistCacheManager.getCacheSizeBytes() }
+            org.melodist.data.AppSettingsManager.mediaQuotaProvider = { MelodistCacheManager.activeCacheQuotaBytes }
+            org.melodist.data.AppSettingsManager.cachedTrackCountProvider = { MelodistCacheManager.getCachedKeyCount() }
             org.melodist.data.AppSettingsManager.mediaCacheClearAction = { MelodistCacheManager.clearAllCache() }
             LocalLyricAutoMatcher.init(context)
             restorePlaybackState()

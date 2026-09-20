@@ -108,6 +108,50 @@ fun StoragePanel(menuRequester: FocusRequester) {
                 CacheDetailItem(label = "匹配歌词", value = cacheUsage.matchedLyricsFormatted)
                 CacheDetailItem(label = "临时数据", value = cacheUsage.tempFormatted)
             }
+
+            if (cacheUsage.mediaQuotaBytes > 0L) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "音频配额占用",
+                            fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.7f),
+                        )
+                        val percent = (cacheUsage.mediaUsageFraction * 100).toInt()
+                        val trackDesc = if (cacheUsage.cachedTrackCount > 0) "，已缓存 ${cacheUsage.cachedTrackCount} 首歌曲" else ""
+                        Text(
+                            text = "${cacheUsage.mediaFormatted} / ${cacheUsage.mediaQuotaFormatted} (${percent}%$trackDesc)",
+                            fontSize = 13.sp,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Color.White.copy(alpha = 0.12f)),
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth(fraction = cacheUsage.mediaUsageFraction)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(MelodistColors.FocusTeal),
+                        )
+                    }
+                }
+            }
         }
 
         // 操作按钮行

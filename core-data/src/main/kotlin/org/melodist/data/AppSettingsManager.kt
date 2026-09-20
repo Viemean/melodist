@@ -33,6 +33,8 @@ data class CacheUsageDetail(
     val mediaCacheBytes: Long = 0L,
     val lyricsCacheBytes: Long = 0L,
     val otherCacheBytes: Long = 0L,
+    val mediaQuotaBytes: Long = 0L,
+    val cachedTrackCount: Int = 0,
 ) {
     val totalBytes: Long get() = imageCacheBytes + mediaCacheBytes + lyricsCacheBytes + otherCacheBytes
 
@@ -41,6 +43,14 @@ data class CacheUsageDetail(
     val mediaFormatted: String get() = formattedMedia()
     val matchedLyricsFormatted: String get() = formattedLyrics()
     val tempFormatted: String get() = formattedOther()
+    val mediaQuotaFormatted: String get() = formatBytes(mediaQuotaBytes)
+
+    val mediaUsageFraction: Float
+        get() = if (mediaQuotaBytes > 0L) {
+            (mediaCacheBytes.toFloat() / mediaQuotaBytes.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
 
     fun formattedTotal(): String = formatBytes(totalBytes)
 
@@ -53,7 +63,7 @@ data class CacheUsageDetail(
     fun formattedOther(): String = formatBytes(otherCacheBytes)
 
     companion object {
-        private fun formatBytes(bytes: Long): String {
+        fun formatBytes(bytes: Long): String {
             if (bytes <= 0L) return "0 MB"
             val mb = bytes.toDouble() / (1024.0 * 1024.0)
             return if (mb < 0.1) {
@@ -357,6 +367,8 @@ object AppSettingsManager {
     fun updateEnableScreenSaverDuringPlayback(enable: Boolean) = setEnableScreenSaverDuringPlayback(enable)
 
     var mediaCacheSizeProvider: (() -> Long)? = null
+    var mediaQuotaProvider: (() -> Long)? = null
+    var cachedTrackCountProvider: (() -> Int)? = null
     var mediaCacheClearAction: (suspend () -> Boolean)? = null
     var imageCacheClearAction: (suspend () -> Boolean)? = null
 
@@ -421,12 +433,17 @@ object AppSettingsManager {
                     }
                 }
 
+                val mediaQuota = mediaQuotaProvider?.invoke() ?: 0L
+                val trackCount = cachedTrackCountProvider?.invoke() ?: 0
+
                 _cacheUsage.value =
                     CacheUsageDetail(
                         imageCacheBytes = imgBytes,
                         mediaCacheBytes = mediaBytes,
                         lyricsCacheBytes = lyricsBytes,
                         otherCacheBytes = otherBytes,
+                        mediaQuotaBytes = mediaQuota,
+                        cachedTrackCount = trackCount,
                     )
             } catch (e: Exception) {
                 Log.w(TAG, "Error calculating cache usage", e)

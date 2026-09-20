@@ -19,6 +19,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -94,6 +95,24 @@ fun SettingsStorageSection(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (cacheUsage.mediaQuotaBytes > 0L) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val percent = (cacheUsage.mediaUsageFraction * 100).toInt()
+                        val trackDesc = if (cacheUsage.cachedTrackCount > 0) "，已缓存 ${cacheUsage.cachedTrackCount} 首歌曲" else ""
+                        Text(
+                            text = "音频配额: ${cacheUsage.mediaFormatted} / ${cacheUsage.mediaQuotaFormatted} (${percent}%$trackDesc)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { cacheUsage.mediaUsageFraction },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp),
+                        )
+                    }
                 }
                 FilledTonalButton(
                     onClick = {
