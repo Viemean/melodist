@@ -37,6 +37,15 @@ class MelodistMobileApp :
                 false
             }
         }
+        try {
+            if (packageName == "com.tencent.qqmusic") {
+                val serviceIntent = android.content.Intent().apply {
+                    setComponent(android.content.ComponentName("com.tencent.qqmusic", "com.tencent.qqmusic.third.api.QQMusicApiService"))
+                }
+                startService(serviceIntent)
+            }
+        } catch (_: Exception) {
+        }
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

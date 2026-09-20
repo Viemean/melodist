@@ -16,6 +16,8 @@ scripts/
 /push.sh
 /run-avd-tv
 /deploy_tv.sh
+/deploy_mobile.sh
+/deploy_originos.sh
 app-mobile/PROJECT_PLAN.md
 docs/qqmusic_singer_concern_api.md
 bin/

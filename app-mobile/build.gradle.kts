@@ -36,9 +36,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    flavorDimensions += "channel"
+    productFlavors {
+        create("standard") {
+            dimension = "channel"
+        }
+        create("originOs") {
+            dimension = "channel"
+            applicationId = "com.tencent.qqmusic"
+            versionName = "20.1.3.7"
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
+        aidl = true
     }
 
     compileOptions {
