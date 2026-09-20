@@ -429,6 +429,17 @@ fun PlaylistDetailScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
 
+                                        if (playlist.description.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = playlist.description,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+
                                         if (playlist.isCreated) {
                                             Text(
                                                 text = "自建歌单",

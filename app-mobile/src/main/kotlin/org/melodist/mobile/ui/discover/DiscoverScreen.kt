@@ -35,6 +35,7 @@ import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.data.DailyRecommendCacheManager
 import org.melodist.data.GuessRecommendManager
+import org.melodist.data.MillionRecommendManager
 import org.melodist.data.RecommendFeedManager
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.playback.PlaybackManager
@@ -70,6 +71,7 @@ fun DiscoverScreen(
                     DailyRecommendCacheManager.loadRecommendSongs(apiService, forceRefresh = true)
                     GuessRecommendManager.refresh(apiService, forceRefresh = true)
                     RecommendFeedManager.refresh(apiService, forceRefresh = true)
+                    MillionRecommendManager.refresh(apiService, forceRefresh = true)
                 } finally {
                     isRefreshing = false
                 }
@@ -79,6 +81,7 @@ fun DiscoverScreen(
     LaunchedEffect(userProfile.uin, isLoggedIn) {
         DailyRecommendCacheManager.loadRecommendSongs(apiService, forceRefresh = false)
         RecommendFeedManager.refresh(apiService, forceRefresh = false)
+        MillionRecommendManager.refresh(apiService, forceRefresh = false)
     }
 
     PullToRefreshBox(
@@ -102,10 +105,30 @@ fun DiscoverScreen(
                         bottom = contentPadding.calculateBottomPadding() + 16.dp,
                     ),
                 headerItems = {
-                    item(key = "discover_guess_card") {
-                        GuessRecommendCard(
-                            onOpenPlayer = onOpenPlayer,
-                        )
+                    item(key = "discover_hero_carousel") {
+                        val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+                        val cardWidth = (screenWidth - 44.dp).coerceIn(280.dp, 360.dp)
+
+                        androidx.compose.foundation.lazy.LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            item(key = "hero_guess_card") {
+                                GuessRecommendCard(
+                                    onOpenPlayer = onOpenPlayer,
+                                    modifier = Modifier.width(cardWidth),
+                                )
+                            }
+
+                            item(key = "hero_million_card") {
+                                MillionRecommendCard(
+                                    onRequireLogin = onRequireLogin,
+                                    onOpenPlayer = onOpenPlayer,
+                                    modifier = Modifier.width(cardWidth),
+                                )
+                            }
+                        }
                     }
 
                     if (shelves.isNotEmpty()) {

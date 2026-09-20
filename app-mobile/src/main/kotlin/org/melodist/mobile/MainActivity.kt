@@ -92,6 +92,8 @@ class MainActivity : ComponentActivity() {
         org.melodist.data.GuessRecommendManager.isPlayingPredicate = { PlaybackManager.isRadioMode.value }
         org.melodist.data.RecommendFeedManager
             .init(this)
+        org.melodist.data.MillionRecommendManager
+            .init(this)
         org.melodist.data.RecentPlaybackManager
             .init(this)
         org.melodist.data.SearchKeywordHistoryManager
