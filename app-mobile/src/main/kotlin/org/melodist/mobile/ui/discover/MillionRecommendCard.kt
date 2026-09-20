@@ -17,7 +17,7 @@ import org.melodist.playback.PlaybackManager
 @Composable
 fun MillionRecommendCard(
     onRequireLogin: () -> Unit,
-    onOpenPlayer: () -> Unit,
+    onOpenPlayer: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val navController = LocalAppNavigation.current
@@ -47,20 +47,28 @@ fun MillionRecommendCard(
         }
     }
 
-    val triggerPlayAll: () -> Unit = {
+    val displaySong by MillionRecommendManager.displaySongFlow.collectAsState()
+    val activeSong = displaySong ?: songs.firstOrNull()
+    val activeCoverUrl = activeSong?.coverUrl?.takeIf { it.isNotBlank() } ?: coverUrl
+
+    val triggerPlay: () -> Unit = {
         if (!UserSession.isLoggedIn) {
             onRequireLogin()
         } else if (songs.isNotEmpty()) {
-            PlaybackManager.setPlaylist(songs = songs, startIndex = 0, isRadio = false)
-            onOpenPlayer()
+            val startIndex =
+                if (activeSong != null) {
+                    songs.indexOfFirst {
+                        (it.songId > 0 && it.songId == activeSong.songId) ||
+                            (it.songMid.isNotBlank() && it.songMid == activeSong.songMid)
+                    }.coerceAtLeast(0)
+                } else {
+                    0
+                }
+            PlaybackManager.setPlaylist(songs = songs, startIndex = startIndex, isRadio = false)
         } else {
             openPlaylistDetail()
         }
     }
-
-    val displaySong by MillionRecommendManager.displaySongFlow.collectAsState()
-    val activeSong = displaySong ?: songs.firstOrNull()
-    val activeCoverUrl = activeSong?.coverUrl?.takeIf { it.isNotBlank() } ?: coverUrl
 
     HeroRecommendCard(
         badgeText = "百万收藏",
@@ -80,7 +88,7 @@ fun MillionRecommendCard(
         playIcon = Icons.Default.PlayArrow,
         playContentDescription = "播放百万收藏",
         onCardClick = openPlaylistDetail,
-        onPlayClick = triggerPlayAll,
+        onPlayClick = triggerPlay,
         modifier = modifier,
     )
 }

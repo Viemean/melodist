@@ -16,7 +16,7 @@ import org.melodist.playback.PlaybackManager
 
 @Composable
 fun GuessRecommendCard(
-    onOpenPlayer: () -> Unit,
+    onOpenPlayer: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -32,23 +32,18 @@ fun GuessRecommendCard(
     val primaryContainer = MaterialTheme.colorScheme.primaryContainer
 
     val triggerPlay: () -> Unit = {
-        if (isRadioMode && isPlaying) {
-            onOpenPlayer()
-        } else if (isRadioMode && !isPlaying) {
+        if (isRadioMode) {
             PlaybackManager.togglePlayPause()
-            onOpenPlayer()
         } else {
             val listToPlay = guessSongs
             if (listToPlay.isNotEmpty()) {
                 PlaybackManager.setPlaylist(songs = listToPlay, startIndex = 0, isRadio = true)
-                onOpenPlayer()
             } else {
                 scope.launch {
                     GuessRecommendManager.refresh(forceRefresh = true)
                     val freshList = GuessRecommendManager.songsFlow.value
                     if (freshList.isNotEmpty()) {
                         PlaybackManager.setPlaylist(songs = freshList, startIndex = 0, isRadio = true)
-                        onOpenPlayer()
                     }
                 }
             }
@@ -77,8 +72,8 @@ fun GuessRecommendCard(
         onAccentContainerColor = MaterialTheme.colorScheme.onPrimaryContainer,
         playIcon = if (isCurrentRadioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
         playContentDescription = if (isCurrentRadioPlaying) "暂停" else "播放",
-        onCardClick = triggerPlay,
         onPlayClick = triggerPlay,
+        onCardClick = null,
         modifier = modifier,
     )
 }
