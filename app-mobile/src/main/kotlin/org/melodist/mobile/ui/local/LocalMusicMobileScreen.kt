@@ -20,10 +20,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -220,7 +220,7 @@ fun LocalMusicMobileScreen(
                     modifier = Modifier.padding(24.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Lock,
+                        imageVector = Icons.Rounded.Lock,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(64.dp),
@@ -266,7 +266,7 @@ fun LocalMusicMobileScreen(
                             },
                             label = { Text("音乐库 (${scannedSongs.size})") },
                             leadingIcon = {
-                                Icon(Icons.Default.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
                             },
                             shape = RoundedCornerShape(8.dp),
                         )
@@ -278,7 +278,7 @@ fun LocalMusicMobileScreen(
                             },
                             label = { Text("文件目录") },
                             leadingIcon = {
-                                Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
                             },
                             shape = RoundedCornerShape(8.dp),
                         )
@@ -291,7 +291,7 @@ fun LocalMusicMobileScreen(
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier.height(32.dp),
                     ) {
-                        Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("扫描", style = MaterialTheme.typography.labelSmall)
                     }
@@ -323,7 +323,7 @@ fun LocalMusicMobileScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
-                                        imageVector = Icons.Default.LibraryMusic,
+                                        imageVector = Icons.Rounded.LibraryMusic,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.outlineVariant,
                                         modifier = Modifier.size(56.dp),
@@ -337,7 +337,7 @@ fun LocalMusicMobileScreen(
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                         Button(onClick = { startSystemScan() }) {
-                                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text("扫描系统音乐")
                                         }
@@ -345,7 +345,7 @@ fun LocalMusicMobileScreen(
                                             viewMode = LocalMusicViewMode.Directory
                                             loadDirectory(currentDrive?.path ?: "/storage/emulated/0")
                                         }) {
-                                            Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text("浏览文件夹")
                                         }
@@ -424,7 +424,7 @@ fun LocalMusicMobileScreen(
                                     onClick = { startScan(currentPath) },
                                     enabled = !isScanning,
                                 ) {
-                                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("扫描此目录到音乐库", style = MaterialTheme.typography.labelSmall)
                                 }

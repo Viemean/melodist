@@ -20,12 +20,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.AudioFile
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -100,7 +100,7 @@ fun StoragePathBreadcrumbs(
                     modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "返回上一级",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp),
@@ -137,7 +137,7 @@ fun StoragePathBreadcrumbs(
 
                     if (!isLast) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.outlineVariant,
                             modifier = Modifier.size(14.dp),
@@ -241,7 +241,7 @@ fun StorageDirectoryListView(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
-                    imageVector = Icons.Default.FolderOpen,
+                    imageVector = Icons.Rounded.FolderOpen,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.size(56.dp),
@@ -285,9 +285,9 @@ fun StorageDirectoryListView(
                         Icon(
                             imageVector =
                                 if (item.isDirectory) {
-                                    Icons.Default.Folder
+                                    Icons.Rounded.Folder
                                 } else {
-                                    Icons.Default.AudioFile
+                                    Icons.Rounded.AudioFile
                                 },
                             contentDescription = null,
                             tint =
@@ -323,7 +323,7 @@ fun StorageDirectoryListView(
 
                     if (!item.isDirectory) {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
+                            imageVector = Icons.Rounded.PlayArrow,
                             contentDescription = "播放",
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                             modifier = Modifier.size(20.dp),

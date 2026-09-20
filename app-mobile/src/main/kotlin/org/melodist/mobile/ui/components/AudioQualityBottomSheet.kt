@@ -16,7 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -210,7 +210,7 @@ fun AudioQualityBottomSheet(
                     }
                     if (isSelected) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = Icons.Rounded.Check,
                             contentDescription = "已选择",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp),

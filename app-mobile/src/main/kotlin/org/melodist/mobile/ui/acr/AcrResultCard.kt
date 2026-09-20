@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -250,7 +250,7 @@ fun AcrResultCard(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Default.MusicNote,
+                            imageVector = Icons.Rounded.MusicNote,
                             contentDescription = null,
                             tint = primaryColor,
                             modifier = Modifier.size(24.dp),
@@ -329,7 +329,7 @@ fun AcrResultCard(
                         ),
                 ) {
                     Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = if (isPlaying) "暂停" else "播放",
                         modifier = Modifier.size(24.dp),
                     )

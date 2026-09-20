@@ -20,9 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -159,7 +159,7 @@ private fun ListeningPillContent(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(
-            imageVector = Icons.Default.GraphicEq,
+            imageVector = Icons.Rounded.GraphicEq,
             contentDescription = "正在识别",
             tint = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.size(18.dp),
@@ -199,7 +199,7 @@ private fun ListeningPillContent(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Rounded.Close,
                 contentDescription = "取消识别",
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(14.dp),
@@ -284,7 +284,7 @@ private fun SuccessPillContent(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Rounded.Close,
                 contentDescription = "关闭识别结果",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(14.dp),
@@ -315,7 +315,7 @@ private fun BriefSuccessPillContent(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Check,
+                imageVector = Icons.Rounded.Check,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(13.dp),
@@ -353,7 +353,7 @@ private fun BriefSuccessPillContent(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Rounded.Close,
                 contentDescription = "关闭识别结果",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(14.dp),

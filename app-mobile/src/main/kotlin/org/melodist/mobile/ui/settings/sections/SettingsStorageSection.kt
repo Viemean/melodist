@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -61,7 +61,7 @@ fun SettingsStorageSection(
         SettingsGroupTitle(title = "下载与存储")
         SettingsGroupCard {
             SettingsClickableRow(
-                icon = Icons.Default.Download,
+                icon = Icons.Rounded.Download,
                 title = "歌曲下载目录",
                 subtitle = AppSettingsManager.getEffectiveDownloadDirectory().absolutePath,
                 onClick = { showDownloadDirDialog = true },
@@ -77,7 +77,7 @@ fun SettingsStorageSection(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Storage,
+                    imageVector = Icons.Rounded.Storage,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp),

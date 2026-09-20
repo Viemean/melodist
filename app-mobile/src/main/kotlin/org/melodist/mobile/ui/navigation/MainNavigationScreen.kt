@@ -41,9 +41,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -682,7 +682,7 @@ private fun RenderAppScreen(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            imageVector = Icons.Default.Search,
+                                            imageVector = Icons.Rounded.Search,
                                             contentDescription = "搜索",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(20.dp),
@@ -713,7 +713,7 @@ private fun RenderAppScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Search,
+                                            imageVector = Icons.Rounded.Search,
                                             contentDescription = "搜索",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(20.dp),
@@ -766,7 +766,7 @@ private fun RenderAppScreen(
                                         ),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.GraphicEq,
+                                        imageVector = Icons.Rounded.GraphicEq,
                                         contentDescription = "听歌识曲",
                                         modifier = Modifier.size(22.dp),
                                     )
@@ -784,7 +784,7 @@ private fun RenderAppScreen(
                                 ),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Settings,
+                                imageVector = Icons.Rounded.Settings,
                                 contentDescription = "设置",
                                 modifier = Modifier.size(22.dp),
                             )

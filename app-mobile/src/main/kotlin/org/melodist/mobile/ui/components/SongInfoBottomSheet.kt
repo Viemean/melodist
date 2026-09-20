@@ -22,12 +22,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -323,7 +323,7 @@ fun SongInfoBottomSheet(
                     ),
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentCopy,
+                    imageVector = Icons.Rounded.ContentCopy,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
@@ -354,21 +354,21 @@ private fun AudioAuditCard(
             isAuditing -> {
                 Triple(
                     MaterialTheme.colorScheme.primary,
-                    Icons.Default.GraphicEq,
+                    Icons.Rounded.GraphicEq,
                     "正在分析音频频谱...",
                 )
             }
             auditResult?.verdict == AudioQualityVerdict.FAKE_LOSSLESS || auditResult?.verdict == AudioQualityVerdict.UPSAMPLED_HIRES -> {
                 Triple(
                     AmberWarningText,
-                    Icons.Default.WarningAmber,
+                    Icons.Rounded.WarningAmber,
                     if (auditResult.verdict == AudioQualityVerdict.UPSAMPLED_HIRES) "疑似升频" else "疑似假无损",
                 )
             }
             auditResult?.verdict == AudioQualityVerdict.AUTHENTIC -> {
                 Triple(
                     GreenSuccessText,
-                    Icons.Default.CheckCircle,
+                    Icons.Rounded.CheckCircle,
                     auditResult.description.takeIf { it.isNotBlank() }
                         ?: (if (currentTier == AudioQualityTier.HiRes || currentTier == AudioQualityTier.Master) "真高解析度" else "真无损"),
                 )
@@ -376,21 +376,21 @@ private fun AudioAuditCard(
             auditResult?.verdict == AudioQualityVerdict.BANDWIDTH_LIMITED -> {
                 Triple(
                     BlueInfoText,
-                    Icons.Default.Info,
+                    Icons.Rounded.Info,
                     "频宽受限",
                 )
             }
             isLossyTier || auditResult?.verdict == AudioQualityVerdict.LOSSY -> {
                 Triple(
                     BlueInfoText,
-                    Icons.Default.Info,
+                    Icons.Rounded.Info,
                     "标准有损",
                 )
             }
             else -> {
                 Triple(
                     MaterialTheme.colorScheme.onSurfaceVariant,
-                    Icons.Default.Info,
+                    Icons.Rounded.Info,
                     "未检测",
                 )
             }
@@ -458,7 +458,7 @@ private fun AudioAuditCard(
                         enabled = !isAuditing,
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
+                            imageVector = Icons.Rounded.Refresh,
                             contentDescription = "重新检测",
                             tint = accentColor,
                             modifier = Modifier.size(16.dp),
@@ -639,7 +639,7 @@ private fun MetadataItem(
         Spacer(modifier = Modifier.width(8.dp))
 
         Icon(
-            imageVector = Icons.Default.ContentCopy,
+            imageVector = Icons.Rounded.ContentCopy,
             contentDescription = "复制",
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.size(16.dp),

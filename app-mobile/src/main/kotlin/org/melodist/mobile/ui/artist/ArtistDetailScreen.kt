@@ -20,11 +20,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -309,7 +309,7 @@ fun ArtistDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "返回",
                         )
                     }
@@ -580,7 +580,7 @@ private fun ArtistHeader(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Person,
+                        imageVector = Icons.Rounded.Person,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(40.dp),
@@ -652,7 +652,7 @@ private fun ArtistHeader(
                     label = { Text(if (isHotOrder) "热门" else "最新") },
                     trailingIcon = {
                         Icon(
-                            imageVector = Icons.Default.SwapVert,
+                            imageVector = Icons.Rounded.SwapVert,
                             contentDescription = "切换排序",
                             modifier = Modifier.size(16.dp),
                         )
@@ -677,7 +677,7 @@ private fun ArtistHeader(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Favorite,
+                        imageVector = Icons.Rounded.Favorite,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp),
@@ -691,7 +691,7 @@ private fun ArtistHeader(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
+                        imageVector = Icons.Rounded.FavoriteBorder,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                     )

@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -109,7 +109,7 @@ fun MobileLoginDialog(
                     )
                     IconButton(onClick = onDismissRequest) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Rounded.Close,
                             contentDescription = "关闭",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -138,7 +138,7 @@ fun MobileLoginDialog(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Default.Person,
+                                imageVector = Icons.Rounded.Person,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(48.dp),
@@ -399,7 +399,7 @@ fun MobileLoginDialog(
                             modifier = Modifier.size(28.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Rounded.Refresh,
                                 contentDescription = "刷新二维码",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp),

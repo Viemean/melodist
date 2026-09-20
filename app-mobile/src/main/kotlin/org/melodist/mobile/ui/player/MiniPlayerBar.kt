@@ -31,9 +31,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.mobile.connect.MobileConnectManager
 import androidx.compose.material3.FilledIconButton
@@ -381,7 +381,7 @@ fun MiniPlayerBar(
                         modifier = Modifier.size(36.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Computer,
+                            imageVector = Icons.Rounded.Computer,
                             contentDescription = "已连接电脑/电视",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
@@ -418,7 +418,7 @@ fun MiniPlayerBar(
                         label = "MiniPlayPauseIconAnim",
                     ) { targetPlaying ->
                         Icon(
-                            imageVector = if (targetPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            imageVector = if (targetPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = if (targetPlaying) "暂停" else "播放",
                             modifier = Modifier.size(24.dp),
                         )

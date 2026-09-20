@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -115,7 +115,7 @@ fun SongItemRow(
                 ) {
                     if (isSelected) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = Icons.Rounded.Check,
                             contentDescription = "已选中",
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(24.dp),
@@ -139,7 +139,7 @@ fun SongItemRow(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Equalizer,
+                        imageVector = Icons.Rounded.Equalizer,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(20.dp),
@@ -260,7 +260,7 @@ fun SongItemRow(
         if (!isMultiSelectMode && onMoreClick != null) {
             IconButton(onClick = onMoreClick) {
                 Icon(
-                    imageVector = Icons.Default.MoreVert,
+                    imageVector = Icons.Rounded.MoreVert,
                     contentDescription = "更多操作",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

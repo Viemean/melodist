@@ -1,9 +1,9 @@
 package org.melodist.mobile.ui.discover
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -66,11 +66,11 @@ fun GuessRecommendCard(
                 "根据听歌习惯与历史偏好生成"
             },
         coverUrl = activeSong?.coverUrl.orEmpty(),
-        badgeIcon = Icons.Default.Radio,
+        badgeIcon = Icons.Rounded.Radio,
         accentColor = primaryColor,
         accentContainerColor = primaryContainer,
         onAccentContainerColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        playIcon = if (isCurrentRadioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+        playIcon = if (isCurrentRadioPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
         playContentDescription = if (isCurrentRadioPlaying) "暂停" else "播放",
         onPlayClick = triggerPlay,
         onCardClick = null,

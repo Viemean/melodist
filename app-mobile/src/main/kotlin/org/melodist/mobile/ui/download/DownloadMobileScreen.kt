@@ -18,12 +18,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.Downloading
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.Downloading
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -103,7 +103,7 @@ fun DownloadMobileScreen(
                     onClick = { selectedTab = DownloadTab.Completed },
                     label = { Text("已下载 (${completedTasks.size})") },
                     leadingIcon = {
-                        Icon(Icons.Default.DownloadDone, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Rounded.DownloadDone, contentDescription = null, modifier = Modifier.size(16.dp))
                     },
                     shape = RoundedCornerShape(8.dp),
                 )
@@ -113,7 +113,7 @@ fun DownloadMobileScreen(
                     onClick = { selectedTab = DownloadTab.Active },
                     label = { Text("正在下载 (${activeTasks.size})") },
                     leadingIcon = {
-                        Icon(Icons.Default.Downloading, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Rounded.Downloading, contentDescription = null, modifier = Modifier.size(16.dp))
                     },
                     shape = RoundedCornerShape(8.dp),
                 )
@@ -133,7 +133,7 @@ fun DownloadMobileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.Folder,
+                        Icons.Rounded.Folder,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp),
@@ -166,7 +166,7 @@ fun DownloadMobileScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    imageVector = Icons.Default.DownloadDone,
+                                    imageVector = Icons.Rounded.DownloadDone,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.outlineVariant,
                                     modifier = Modifier.size(56.dp),
@@ -244,7 +244,7 @@ fun DownloadMobileScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    imageVector = Icons.Default.Downloading,
+                                    imageVector = Icons.Rounded.Downloading,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.outlineVariant,
                                     modifier = Modifier.size(56.dp),
@@ -342,12 +342,12 @@ private fun ActiveDownloadTaskCard(
                 when (task.status) {
                     DownloadStatus.Downloading -> {
                         IconButton(onClick = onPause) {
-                            Icon(Icons.Default.Pause, contentDescription = "暂停", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.Pause, contentDescription = "暂停", modifier = Modifier.size(20.dp))
                         }
                     }
                     DownloadStatus.Paused, DownloadStatus.Failed -> {
                         IconButton(onClick = onResume) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = "继续", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "继续", modifier = Modifier.size(20.dp))
                         }
                     }
                     else -> {}
@@ -355,7 +355,7 @@ private fun ActiveDownloadTaskCard(
 
                 IconButton(onClick = onCancel) {
                     Icon(
-                        Icons.Default.Close,
+                        Icons.Rounded.Close,
                         contentDescription = "取消",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),

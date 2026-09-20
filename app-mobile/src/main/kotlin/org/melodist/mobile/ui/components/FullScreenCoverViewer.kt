@@ -28,8 +28,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -230,7 +230,7 @@ fun FullScreenCoverViewer(
                         .background(Color.Black.copy(alpha = 0.35f), CircleShape),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        imageVector = Icons.Rounded.Close,
                         contentDescription = "关闭",
                         tint = Color.White,
                     )
@@ -305,7 +305,7 @@ fun FullScreenCoverViewer(
             },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Download,
+                    imageVector = Icons.Rounded.Download,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )

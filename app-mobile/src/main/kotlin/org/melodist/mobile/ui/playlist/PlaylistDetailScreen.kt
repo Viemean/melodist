@@ -19,11 +19,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -275,7 +275,7 @@ fun PlaylistDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "返回",
                         )
                     }
@@ -395,7 +395,7 @@ fun PlaylistDetailScreen(
                                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
                                         placeholderIconSize = 48.dp,
                                         placeholderContent = {
-                                            val icon = if (playlist.isMyFavorite) Icons.Default.Favorite else Icons.Default.MusicNote
+                                            val icon = if (playlist.isMyFavorite) Icons.Rounded.Favorite else Icons.Rounded.MusicNote
                                             val tint =
                                                 if (playlist.isMyFavorite) {
                                                     MaterialTheme.colorScheme.error
@@ -475,7 +475,7 @@ fun PlaylistDetailScreen(
                                         modifier = Modifier.weight(1f),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.PlayArrow,
+                                            imageVector = Icons.Rounded.PlayArrow,
                                             contentDescription = null,
                                             modifier = Modifier.size(20.dp),
                                         )
@@ -498,7 +498,7 @@ fun PlaylistDetailScreen(
                                         modifier = Modifier.weight(1f),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Shuffle,
+                                            imageVector = Icons.Rounded.Shuffle,
                                             contentDescription = null,
                                             modifier = Modifier.size(18.dp),
                                         )

@@ -1,8 +1,8 @@
 package org.melodist.mobile.ui.discover
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -81,11 +81,11 @@ fun MillionRecommendCard(
                 millionResult.description.ifBlank { "每一首歌曲都超过百万收藏 · 每日更新" }
             },
         coverUrl = activeCoverUrl,
-        badgeIcon = Icons.Default.Whatshot,
+        badgeIcon = Icons.Rounded.Whatshot,
         accentColor = tertiaryColor,
         accentContainerColor = tertiaryContainer,
         onAccentContainerColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        playIcon = Icons.Default.PlayArrow,
+        playIcon = Icons.Rounded.PlayArrow,
         playContentDescription = "播放百万收藏",
         onCardClick = openPlaylistDetail,
         onPlayClick = triggerPlay,

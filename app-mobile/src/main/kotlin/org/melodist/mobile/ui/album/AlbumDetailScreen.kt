@@ -22,12 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -171,7 +171,7 @@ fun AlbumDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "返回",
                         )
                     }
@@ -193,7 +193,7 @@ fun AlbumDetailScreen(
                         },
                     ) {
                         Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                             contentDescription = if (isFavorite) "取消收藏" else "收藏专辑",
                             tint = if (isFavorite) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurface,
                         )
@@ -387,7 +387,7 @@ fun AlbumDetailScreen(
                                         modifier = Modifier.weight(1f),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.PlayArrow,
+                                            imageVector = Icons.Rounded.PlayArrow,
                                             contentDescription = null,
                                             modifier = Modifier.size(20.dp),
                                         )
@@ -404,7 +404,7 @@ fun AlbumDetailScreen(
                                         modifier = Modifier.weight(1f),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Shuffle,
+                                            imageVector = Icons.Rounded.Shuffle,
                                             contentDescription = null,
                                             modifier = Modifier.size(18.dp),
                                         )
@@ -457,7 +457,7 @@ fun AlbumDetailScreen(
                         modifier = Modifier.size(32.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Rounded.Close,
                             contentDescription = "关闭",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

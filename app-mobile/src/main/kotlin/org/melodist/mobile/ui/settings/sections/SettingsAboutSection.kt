@@ -18,10 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.SystemUpdateAlt
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.OpenInBrowser
+import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -100,7 +100,7 @@ fun SettingsAboutSection(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Info,
+                    imageVector = Icons.Rounded.Info,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp),
@@ -180,7 +180,7 @@ fun SettingsAboutSection(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Default.SystemUpdateAlt,
+                    imageVector = Icons.Rounded.SystemUpdateAlt,
                     contentDescription = "检查更新",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp),
@@ -209,7 +209,7 @@ fun SettingsAboutSection(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
@@ -238,7 +238,7 @@ fun SettingsAboutSection(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = Icons.Default.OpenInBrowser,
+                    imageVector = Icons.Rounded.OpenInBrowser,
                     contentDescription = "开源仓库",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp),
@@ -257,7 +257,7 @@ fun SettingsAboutSection(
                     )
                 }
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
@@ -273,7 +273,7 @@ fun SettingsAboutSection(
             onDismissRequest = { newVersionDialogResult = null },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.SystemUpdateAlt,
+                    imageVector = Icons.Rounded.SystemUpdateAlt,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )

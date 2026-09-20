@@ -22,9 +22,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -105,7 +105,7 @@ fun FavoriteAlbumsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = "返回",
                         )
                     }
@@ -140,7 +140,7 @@ fun FavoriteAlbumsScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Default.Album,
+                                imageVector = Icons.Rounded.Album,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
                                 tint = MaterialTheme.colorScheme.outlineVariant,
@@ -190,7 +190,7 @@ fun FavoriteAlbumsScreen(
                                         placeholderIconSize = 48.dp,
                                         placeholderContent = {
                                             Icon(
-                                                imageVector = Icons.Default.Album,
+                                                imageVector = Icons.Rounded.Album,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(48.dp),
@@ -358,7 +358,7 @@ fun FavoriteAlbumsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FavoriteBorder,
+                            imageVector = Icons.Rounded.FavoriteBorder,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp),

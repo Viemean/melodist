@@ -13,10 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -81,7 +81,7 @@ fun RecentPlaybackScreen(
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.DeleteOutline,
+                                        imageVector = Icons.Rounded.DeleteOutline,
                                         contentDescription = "清空历史",
                                         modifier = Modifier.size(16.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -111,7 +111,7 @@ fun RecentPlaybackScreen(
                                     modifier = Modifier.weight(1f),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.PlayArrow,
+                                        imageVector = Icons.Rounded.PlayArrow,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp),
                                     )
@@ -128,7 +128,7 @@ fun RecentPlaybackScreen(
                                     modifier = Modifier.weight(1f),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Shuffle,
+                                        imageVector = Icons.Rounded.Shuffle,
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp),
                                     )
@@ -150,7 +150,7 @@ fun RecentPlaybackScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            imageVector = Icons.Default.History,
+                            imageVector = Icons.Rounded.History,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                             modifier = Modifier.size(64.dp),

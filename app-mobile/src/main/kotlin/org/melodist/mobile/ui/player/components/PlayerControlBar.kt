@@ -21,14 +21,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.HeartBroken
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Radio
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.HeartBroken
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -139,12 +139,12 @@ fun PlayerControlBar(
                 Icon(
                     imageVector =
                         if (mode == null) {
-                            Icons.Default.HeartBroken
+                            Icons.Rounded.HeartBroken
                         } else {
                             when (mode) {
-                                PlaybackLoopMode.ListRepeat -> Icons.Default.Repeat
-                                PlaybackLoopMode.SingleRepeat -> Icons.Default.RepeatOne
-                                PlaybackLoopMode.Shuffle -> Icons.Default.Shuffle
+                                PlaybackLoopMode.ListRepeat -> Icons.Rounded.Repeat
+                                PlaybackLoopMode.SingleRepeat -> Icons.Rounded.RepeatOne
+                                PlaybackLoopMode.Shuffle -> Icons.Rounded.Shuffle
                             }
                         },
                     contentDescription = if (isRadioMode) "不喜欢" else loopMode.label,
@@ -187,7 +187,7 @@ fun PlayerControlBar(
                 label = "PlayPauseIconTransition",
             ) { playing ->
                 Icon(
-                    imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (playing) "暂停" else "播放",
                     modifier = Modifier.size(38.dp),
                 )
@@ -212,7 +212,7 @@ fun PlayerControlBar(
                     ),
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                 contentDescription = if (isRadioMode) "猜你喜欢队列" else "播放队列",
                 tint = contentPrimary,
                 modifier = Modifier.size(24.dp),

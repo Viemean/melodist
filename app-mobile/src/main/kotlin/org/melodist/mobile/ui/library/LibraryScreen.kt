@@ -20,11 +20,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -194,7 +194,7 @@ fun LibraryScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Favorite,
+                                imageVector = Icons.Rounded.Favorite,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(28.dp),
@@ -218,7 +218,7 @@ fun LibraryScreen(
                         }
 
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp),
@@ -260,7 +260,7 @@ fun LibraryScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Album,
+                                imageVector = Icons.Rounded.Album,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(28.dp),
@@ -284,7 +284,7 @@ fun LibraryScreen(
                         }
 
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp),
@@ -314,7 +314,7 @@ fun LibraryScreen(
                             onClick = { showCreatePlaylistDialog = true },
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Rounded.Add,
                                 contentDescription = "新建歌单",
                                 tint = MaterialTheme.colorScheme.primary,
                             )
@@ -368,7 +368,7 @@ fun LibraryScreen(
                         }
 
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(14.dp),
@@ -440,7 +440,7 @@ fun LibraryScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DeleteOutline,
+                        imageVector = Icons.Rounded.DeleteOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(24.dp),
@@ -464,7 +464,7 @@ fun LibraryScreen(
             onDismissRequest = { playlistToDelete = null },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.DeleteOutline,
+                    imageVector = Icons.Rounded.DeleteOutline,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                 )

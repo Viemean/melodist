@@ -37,21 +37,21 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Deselect
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Deselect
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -358,7 +358,7 @@ fun CommonSongList(
                                 modifier = Modifier.padding(horizontal = 8.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Search,
+                                    imageVector = Icons.Rounded.Search,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp),
@@ -406,7 +406,7 @@ fun CommonSongList(
                                         modifier = Modifier.size(24.dp),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Close,
+                                            imageVector = Icons.Rounded.Close,
                                             contentDescription = "清空过滤",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(15.dp),
@@ -422,7 +422,7 @@ fun CommonSongList(
                                     modifier = Modifier.size(24.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                        imageVector = Icons.Rounded.KeyboardArrowDown,
                                         contentDescription = "收起过滤",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp),
@@ -456,7 +456,7 @@ fun CommonSongList(
                             modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.FilterList,
+                                imageVector = Icons.Rounded.FilterList,
                                 contentDescription = "过滤歌曲",
                                 modifier = Modifier.size(20.dp),
                             )
@@ -485,7 +485,7 @@ fun CommonSongList(
                         modifier = Modifier.size(40.dp),
                     ) {
                         Icon(
-                            imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                            imageVector = if (isAllSelected) Icons.Rounded.Deselect else Icons.Rounded.SelectAll,
                             contentDescription = if (isAllSelected) "取消全选" else "全选",
                             modifier = Modifier.size(20.dp),
                         )
@@ -512,7 +512,7 @@ fun CommonSongList(
                             modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Download,
+                                imageVector = Icons.Rounded.Download,
                                 contentDescription = "批量下载",
                                 modifier = Modifier.size(20.dp),
                             )
@@ -540,7 +540,7 @@ fun CommonSongList(
                             modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Icons.Rounded.Delete,
                                 contentDescription = "批量删除",
                                 modifier = Modifier.size(20.dp),
                             )
@@ -567,7 +567,7 @@ fun CommonSongList(
                         modifier = Modifier.size(40.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                            imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
                             contentDescription = "批量添加",
                             modifier = Modifier.size(20.dp),
                         )
@@ -588,7 +588,7 @@ fun CommonSongList(
                         modifier = Modifier.size(40.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
+                            imageVector = Icons.Rounded.Close,
                             contentDescription = "退出多选",
                             modifier = Modifier.size(20.dp),
                         )
@@ -612,7 +612,7 @@ fun CommonSongList(
                         modifier = Modifier.size(40.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.KeyboardArrowUp,
+                            imageVector = Icons.Rounded.KeyboardArrowUp,
                             contentDescription = "返回顶部",
                             modifier = Modifier.size(20.dp),
                         )
@@ -655,7 +655,7 @@ fun CommonSongList(
                         modifier = Modifier.size(40.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.MyLocation,
+                            imageVector = Icons.Rounded.MyLocation,
                             contentDescription = "定位当前在播",
                             modifier = Modifier.size(18.dp),
                         )
@@ -833,7 +833,7 @@ fun CommonSongList(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                         )
@@ -860,7 +860,7 @@ fun CommonSongList(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                            imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
                             contentDescription = null,
                             tint =
                                 if (onlineSongs.isNotEmpty()) {

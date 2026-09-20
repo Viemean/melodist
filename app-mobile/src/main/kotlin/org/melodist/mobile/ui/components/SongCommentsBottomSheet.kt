@@ -32,9 +32,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.ThumbUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -242,7 +242,7 @@ fun SongCommentsBottomSheet(
                         Spacer(modifier = Modifier.height(12.dp))
                         TextButton(onClick = { loadComments(page = 0, isInitial = true) }) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Rounded.Refresh,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
@@ -435,7 +435,7 @@ private fun SongCommentItem(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
+                    imageVector = Icons.Rounded.Person,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
@@ -487,7 +487,7 @@ private fun SongCommentItem(
                         modifier = Modifier.padding(start = 8.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ThumbUp,
+                            imageVector = Icons.Rounded.ThumbUp,
                             contentDescription = "点赞",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             modifier = Modifier.size(13.dp),

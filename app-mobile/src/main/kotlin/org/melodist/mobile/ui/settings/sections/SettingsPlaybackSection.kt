@@ -9,14 +9,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.HighQuality
-import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.SignalCellularAlt
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.Usb
+import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.HighQuality
+import androidx.compose.material.icons.rounded.Lyrics
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.SignalCellularAlt
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -70,7 +70,7 @@ fun SettingsPlaybackSection(
         SettingsGroupTitle(title = "播放与音质")
         SettingsGroupCard {
             SettingsClickableRow(
-                icon = Icons.Default.HighQuality,
+                icon = Icons.Rounded.HighQuality,
                 title = "默认优先音质",
                 subtitle = getQualityTierDetailedLabel(settings.preferredQualityTier),
                 onClick = { showQualityDialog = true },
@@ -79,7 +79,7 @@ fun SettingsPlaybackSection(
             SettingsDivider()
 
             SettingsClickableRow(
-                icon = Icons.Default.SignalCellularAlt,
+                icon = Icons.Rounded.SignalCellularAlt,
                 title = "移动网络音质",
                 subtitle = getQualityTierDetailedLabel(settings.cellularQualityTier),
                 onClick = { showCellularQualityDialog = true },
@@ -88,7 +88,7 @@ fun SettingsPlaybackSection(
             SettingsDivider()
 
             SettingsSwitchRow(
-                icon = Icons.Default.Usb,
+                icon = Icons.Rounded.Usb,
                 title = "高解析度音频输出",
                 subtitle = usbSubtitle,
                 checked = settings.enableUsbExclusive,
@@ -98,7 +98,7 @@ fun SettingsPlaybackSection(
             SettingsDivider()
 
             SettingsSwitchRow(
-                icon = Icons.Default.Memory,
+                icon = Icons.Rounded.Memory,
                 title = "音频硬件卸载",
                 subtitle =
                     if (settings.enableAudioOffload) {
@@ -118,7 +118,7 @@ fun SettingsPlaybackSection(
                 mutableStateOf(pm?.isIgnoringBatteryOptimizations(context.packageName) == true)
             }
             SettingsClickableRow(
-                icon = Icons.Default.BatteryChargingFull,
+                icon = Icons.Rounded.BatteryChargingFull,
                 title = "后台优化",
                 subtitle =
                     if (isBatteryWhitelisted) {
@@ -157,7 +157,7 @@ fun SettingsPlaybackSection(
         SettingsGroupTitle(title = "歌词与显示")
         SettingsGroupCard {
             SettingsSwitchRow(
-                icon = Icons.Default.Translate,
+                icon = Icons.Rounded.Translate,
                 title = "双语歌词翻译",
                 subtitle = "在外文歌曲播放界面显示中文对照翻译",
                 checked = settings.showBilingualLyrics,
@@ -167,7 +167,7 @@ fun SettingsPlaybackSection(
             SettingsDivider()
 
             SettingsSwitchRow(
-                icon = Icons.Default.Lyrics,
+                icon = Icons.Rounded.Lyrics,
                 title = "逐字卡拉OK动效",
                 subtitle = "支持词级别时间戳时平滑渲染字级变色动效",
                 checked = settings.enableWordByWordAnim,
@@ -177,7 +177,7 @@ fun SettingsPlaybackSection(
             SettingsDivider()
 
             SettingsClickableRow(
-                icon = Icons.Default.Palette,
+                icon = Icons.Rounded.Palette,
                 title = "播放器歌词字号",
                 subtitle = settings.lyricFontSize.label,
                 onClick = { showFontSizeDialog = true },

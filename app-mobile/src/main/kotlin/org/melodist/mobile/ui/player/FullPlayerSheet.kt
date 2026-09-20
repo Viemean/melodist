@@ -33,9 +33,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CastConnected
-import androidx.compose.material.icons.filled.Computer
-import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.rounded.CastConnected
+import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -336,7 +336,7 @@ fun FullPlayerSheet(
                             modifier = Modifier.size(32.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Computer,
+                                imageVector = Icons.Rounded.Computer,
                                 contentDescription = "已连接 ${pairedDevice.name}",
                                 tint = animatedAccentColor,
                                 modifier = Modifier.size(20.dp),
@@ -351,7 +351,7 @@ fun FullPlayerSheet(
                                 MobileConnectManager.remoteControlMode.collectAsState().value == org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
                             DropdownMenuItem(
                                 text = { Text(if (isTakeover) "全面接管中 (${pairedDevice.name})" else "一键接力到 ${pairedDevice.name}") },
-                                leadingIcon = { Icon(Icons.Filled.CastConnected, contentDescription = null) },
+                                leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
                                 onClick = {
                                     showTvMenu = false
                                     if (isTakeover) {

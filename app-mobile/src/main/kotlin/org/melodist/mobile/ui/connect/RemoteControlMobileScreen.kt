@@ -12,7 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -269,7 +269,7 @@ fun RemoteControlMobileScreen(
                             modifier = Modifier.weight(1f, fill = false),
                         ) {
                             Icon(
-                                imageVector = if (connectionState is MobileConnectionState.Paired) Icons.Filled.Tv else Icons.Filled.TvOff,
+                                imageVector = if (connectionState is MobileConnectionState.Paired) Icons.Rounded.Tv else Icons.Rounded.TvOff,
                                 contentDescription = null,
                                 tint = if (connectionState is MobileConnectionState.Paired) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(22.dp),
@@ -305,7 +305,7 @@ fun RemoteControlMobileScreen(
                                     modifier = Modifier.height(30.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.DarkMode,
+                                        imageVector = Icons.Rounded.DarkMode,
                                         contentDescription = null,
                                         modifier = Modifier.size(13.dp),
                                     )
@@ -319,7 +319,7 @@ fun RemoteControlMobileScreen(
                                     modifier = Modifier.size(30.dp),
                                 ) {
                                     Icon(
-                                        Icons.Filled.Close,
+                                        Icons.Rounded.Close,
                                         contentDescription = if (connectionState is MobileConnectionState.Reconnecting) "取消重连" else "断开连接",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp),
@@ -332,7 +332,7 @@ fun RemoteControlMobileScreen(
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.height(30.dp),
                                 ) {
-                                    Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(13.dp))
+                                    Icon(Icons.Rounded.QrCodeScanner, contentDescription = null, modifier = Modifier.size(13.dp))
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text("扫码", fontSize = 11.sp)
                                 }
@@ -461,9 +461,9 @@ fun RemoteControlMobileScreen(
                             // 左侧辅助按键：TV 播放循环模式
                             val tvLoopMode = tvPlayerState?.loopMode.orEmpty()
                             val loopIcon = when (tvLoopMode) {
-                                "SingleRepeat" -> Icons.Filled.RepeatOne
-                                "Shuffle" -> Icons.Filled.Shuffle
-                                else -> Icons.Filled.Repeat
+                                "SingleRepeat" -> Icons.Rounded.RepeatOne
+                                "Shuffle" -> Icons.Rounded.Shuffle
+                                else -> Icons.Rounded.Repeat
                             }
                             val loopDesc = when (tvLoopMode) {
                                 "SingleRepeat" -> "单曲循环"
@@ -492,7 +492,7 @@ fun RemoteControlMobileScreen(
                                     .background(auxButtonBgColor, CircleShape),
                             ) {
                                 Icon(
-                                    Icons.Filled.SkipPrevious,
+                                    Icons.Rounded.SkipPrevious,
                                     contentDescription = "上一首",
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(24.dp),
@@ -523,7 +523,7 @@ fun RemoteControlMobileScreen(
                                 ),
                             ) {
                                 Icon(
-                                    imageVector = if (tvPlayerState?.isPlaying == true) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    imageVector = if (tvPlayerState?.isPlaying == true) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                     contentDescription = if (tvPlayerState?.isPlaying == true) "暂停" else "播放",
                                     modifier = Modifier.size(34.dp),
                                 )
@@ -537,7 +537,7 @@ fun RemoteControlMobileScreen(
                                     .background(auxButtonBgColor, CircleShape),
                             ) {
                                 Icon(
-                                    Icons.Filled.SkipNext,
+                                    Icons.Rounded.SkipNext,
                                     contentDescription = "下一首",
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(24.dp),
@@ -610,7 +610,7 @@ fun RemoteControlMobileScreen(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(10.dp),
                                 ) {
-                                    Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("扫码配对")
                                 }
@@ -619,7 +619,7 @@ fun RemoteControlMobileScreen(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(10.dp),
                                 ) {
-                                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("手动连接")
                                 }
@@ -804,7 +804,7 @@ fun RemoteControlMobileScreen(
                         onClick = { showQrScanner = true },
                         contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
                     ) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Rounded.QrCodeScanner, contentDescription = null, modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(2.dp))
                         Text("扫码", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
@@ -812,7 +812,7 @@ fun RemoteControlMobileScreen(
                         onClick = { MobileConnectManager.startDiscovery() },
                         contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
                     ) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(2.dp))
                         Text("刷新", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
@@ -820,7 +820,7 @@ fun RemoteControlMobileScreen(
                         onClick = { showManualInputDialog = true },
                         contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
                     ) {
-                        Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(2.dp))
                         Text("手动", fontSize = 12.sp, maxLines = 1, softWrap = false)
                     }
@@ -875,7 +875,7 @@ fun RemoteControlMobileScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Icon(Icons.Filled.Tv, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Rounded.Tv, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Column {
                                 Text(device.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 Text(
@@ -938,7 +938,7 @@ fun RemoteControlMobileScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             Icon(
-                                imageVector = if (isConnected) Icons.Filled.Tv else Icons.Filled.History,
+                                imageVector = if (isConnected) Icons.Rounded.Tv else Icons.Rounded.History,
                                 contentDescription = null,
                                 tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -972,7 +972,7 @@ fun RemoteControlMobileScreen(
                                 onClick = { MobileConnectManager.removePairedDevice(device.id) },
                                 modifier = Modifier.size(32.dp),
                             ) {
-                                Icon(Icons.Filled.Close, contentDescription = "删除记录", modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Close, contentDescription = "删除记录", modifier = Modifier.size(16.dp))
                             }
                         }
                     }

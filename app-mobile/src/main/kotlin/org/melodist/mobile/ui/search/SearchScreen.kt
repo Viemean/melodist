@@ -24,10 +24,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -376,7 +376,7 @@ fun SearchScreen(
                                 modifier = Modifier.size(36.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                     contentDescription = "返回",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),
@@ -385,7 +385,7 @@ fun SearchScreen(
                         } else {
                             Spacer(modifier = Modifier.width(10.dp))
                             Icon(
-                                imageVector = Icons.Default.Search,
+                                imageVector = Icons.Rounded.Search,
                                 contentDescription = "搜索",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -434,7 +434,7 @@ fun SearchScreen(
                                 modifier = Modifier.size(36.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Clear,
+                                    imageVector = Icons.Rounded.Clear,
                                     contentDescription = "清除",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp),
@@ -475,7 +475,7 @@ fun SearchScreen(
                                 modifier = Modifier.size(36.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
+                                    imageVector = Icons.Rounded.DeleteOutline,
                                     contentDescription = "清除搜索记录",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp),

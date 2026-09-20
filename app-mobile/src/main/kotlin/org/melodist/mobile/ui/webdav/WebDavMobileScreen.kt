@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -206,7 +206,7 @@ fun WebDavMobileScreen(
                     modifier = Modifier.padding(24.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Cloud,
+                        imageVector = Icons.Rounded.Cloud,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(64.dp),
@@ -228,7 +228,7 @@ fun WebDavMobileScreen(
                         editingServer = null
                         showConfigDialog = true
                     }) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("添加 WebDAV 服务器")
                     }
@@ -260,7 +260,7 @@ fun WebDavMobileScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Dns,
+                                    imageVector = Icons.Rounded.Dns,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp),
@@ -275,7 +275,7 @@ fun WebDavMobileScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
+                                    imageVector = Icons.Rounded.ArrowDropDown,
                                     contentDescription = "切换服务器",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp),
@@ -314,7 +314,7 @@ fun WebDavMobileScreen(
                                 },
                                 label = { Text("音乐库 (${cachedSongs.size})") },
                                 leadingIcon = {
-                                    Icon(Icons.Default.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
                                 },
                                 shape = RoundedCornerShape(8.dp),
                             )
@@ -326,7 +326,7 @@ fun WebDavMobileScreen(
                                 },
                                 label = { Text("文件目录") },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
                                 },
                                 shape = RoundedCornerShape(8.dp),
                             )
@@ -346,7 +346,7 @@ fun WebDavMobileScreen(
                             modifier = Modifier.height(32.dp),
                             enabled = currentServer != null && !isScanning && !isScanningMetadata,
                         ) {
-                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 if (isScanning || isScanningMetadata) "扫描中" else "扫描",
@@ -383,7 +383,7 @@ fun WebDavMobileScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
-                                        imageVector = Icons.Default.LibraryMusic,
+                                        imageVector = Icons.Rounded.LibraryMusic,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.outlineVariant,
                                         modifier = Modifier.size(56.dp),
@@ -399,7 +399,7 @@ fun WebDavMobileScreen(
                                         viewMode = WebDavViewMode.Directory
                                         loadPath(currentServer?.rootPath?.ifBlank { "/" } ?: "/")
                                     }) {
-                                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text("浏览目录并扫描")
                                     }
@@ -481,7 +481,7 @@ fun WebDavMobileScreen(
                                     onClick = { startScan(currentPath) },
                                     enabled = !isScanning,
                                 ) {
-                                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("扫描此目录到音乐库", style = MaterialTheme.typography.labelSmall)
                                 }
