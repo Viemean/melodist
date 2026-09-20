@@ -65,40 +65,13 @@ data class Playlist(
     val songNum: Int get() = songCount
 
     val thumbnailPicUrl: String
-        get() {
-            if (picUrl.isBlank()) return ""
-            val regex = Regex("R[0-9]+x[0-9]+")
-            return if (picUrl.contains(regex)) {
-                picUrl.replace(regex, "R500x500")
-            } else {
-                picUrl
-            }
-        }
+        get() = CoverUrlResolver.getThumbnailUrl(picUrl)
 
     val thumbnailCandidates: List<String>
-        get() {
-            if (picUrl.isBlank()) return emptyList()
-            val regex = Regex("R[0-9]+x[0-9]+")
-            if (picUrl.contains(regex)) {
-                val url500 = picUrl.replace(regex, "R500x500")
-                val url800 = picUrl.replace(regex, "R800x800")
-                return listOf(url500, url800)
-            }
-            return listOf(picUrl)
-        }
+        get() = CoverUrlResolver.getCandidates(picUrl, CoverScenario.THUMBNAIL)
 
     val detailCoverCandidates: List<String>
-        get() {
-            if (picUrl.isBlank()) return emptyList()
-            val regex = Regex("R[0-9]+x[0-9]+")
-            if (picUrl.contains(regex)) {
-                val url1200 = picUrl.replace(regex, "R1200x1200")
-                val url800 = picUrl.replace(regex, "R800x800")
-                val url500 = picUrl.replace(regex, "R500x500")
-                return listOf(url1200, url800, url500).distinct()
-            }
-            return listOf(picUrl)
-        }
+        get() = CoverUrlResolver.getCandidates(picUrl, CoverScenario.DETAIL)
 }
 
 

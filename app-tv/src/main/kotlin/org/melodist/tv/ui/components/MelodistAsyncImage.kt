@@ -8,9 +8,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import org.melodist.api.MusicApiService
-
-private val T002_CDN_REGEX = Regex("T002R\\d+x\\d+M000")
-private val T062_CDN_REGEX = Regex("T062R\\d+x\\d+M000")
+import org.melodist.model.CoverUrlResolver
 
 /**
  * 支持多分辨率降级与边缘安全裁切的封面组件
@@ -64,14 +62,8 @@ fun MelodistAsyncImage(
             } else {
                 // QQ 音乐 CDN 超高清 1200x1200 与 800x800 优先强升
                 if (coverUrl.isNotBlank()) {
-                    val upgraded1200 =
-                        coverUrl
-                            .replace(T002_CDN_REGEX, "T002R1200x1200M000")
-                            .replace(T062_CDN_REGEX, "T062R1200x1200M000")
-                    val upgraded800 =
-                        coverUrl
-                            .replace(T002_CDN_REGEX, "T002R800x800M000")
-                            .replace(T062_CDN_REGEX, "T062R800x800M000")
+                    val upgraded1200 = CoverUrlResolver.upgradeTvCoverUrl(coverUrl, 1200)
+                    val upgraded800 = CoverUrlResolver.upgradeTvCoverUrl(coverUrl, 800)
                     if (upgraded1200 != coverUrl) {
                         list.add(upgraded1200)
                     }

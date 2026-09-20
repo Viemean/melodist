@@ -72,6 +72,8 @@ import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
+import org.melodist.model.CoverScenario
+import org.melodist.model.CoverUrlResolver
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 import org.melodist.playback.CoverMemoryManager
@@ -494,15 +496,7 @@ fun PlaylistDetailScreen(
 
                                     val detailCandidates =
                                         remember(effectiveCoverUrl) {
-                                            val regex = Regex("R[0-9]+x[0-9]+")
-                                            if (effectiveCoverUrl.contains(regex)) {
-                                                val url1200 = effectiveCoverUrl.replace(regex, "R1200x1200")
-                                                val url800 = effectiveCoverUrl.replace(regex, "R800x800")
-                                                val url500 = effectiveCoverUrl.replace(regex, "R500x500")
-                                                listOf(url1200, url800, url500).distinct()
-                                            } else {
-                                                listOf(effectiveCoverUrl)
-                                            }
+                                            CoverUrlResolver.getCandidates(effectiveCoverUrl, CoverScenario.DETAIL)
                                         }
 
                                     Box(modifier = Modifier.size(110.dp)) {
