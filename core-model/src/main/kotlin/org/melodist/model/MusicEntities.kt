@@ -107,3 +107,22 @@ data class RecommendShelf(
     val moreId: String = "",
     val songs: List<Song> = emptyList(),
 )
+
+@Serializable
+data class SongComment(
+    val commentId: String,
+    val nick: String,
+    val avatarUrl: String = "",
+    val content: String,
+    val timeSec: Long = 0L,
+    val praiseNum: Int = 0,
+    val isHot: Boolean = false,
+)
+
+@Serializable
+data class CommentPage(
+    val totalCount: Int,
+    val hotComments: List<SongComment> = emptyList(),
+    val comments: List<SongComment> = emptyList(),
+    val hasMore: Boolean = false,
+)
