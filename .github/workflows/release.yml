@@ -98,13 +98,20 @@ jobs:
             fi
           fi
 
-          # Mobile 全架构 APK
+          # Mobile 全架构 APK (标准版与 OriginOS 增强版)
           if [ "${{ steps.targets.outputs.build_mobile }}" = "true" ]; then
-            MOBILE_SRC="app-mobile/build/outputs/apk/release/app-mobile-release.apk"
+            MOBILE_SRC="app-mobile/build/outputs/apk/standard/release/app-mobile-standard-release.apk"
             MOBILE_DST="release-assets/melodist-mobile-${CLEAN_VERSION}-${VERSION_CODE}.apk"
             if [ -f "$MOBILE_SRC" ]; then
               cp "$MOBILE_SRC" "$MOBILE_DST"
               (cd release-assets && sha256sum "melodist-mobile-${CLEAN_VERSION}-${VERSION_CODE}.apk" > "melodist-mobile-${CLEAN_VERSION}-${VERSION_CODE}.apk.sha256")
+            fi
+
+            ORIGINOS_SRC="app-mobile/build/outputs/apk/originOs/release/app-mobile-originOs-release.apk"
+            ORIGINOS_DST="release-assets/melodist-mobile-originos-${CLEAN_VERSION}-${VERSION_CODE}.apk"
+            if [ -f "$ORIGINOS_SRC" ]; then
+              cp "$ORIGINOS_SRC" "$ORIGINOS_DST"
+              (cd release-assets && sha256sum "melodist-mobile-originos-${CLEAN_VERSION}-${VERSION_CODE}.apk" > "melodist-mobile-originos-${CLEAN_VERSION}-${VERSION_CODE}.apk.sha256")
             fi
           fi
           
