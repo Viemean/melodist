@@ -50,7 +50,7 @@ fun FeedRecommendRow(
     cardWidth: Dp = 260.dp,
     rowFocusRequester: FocusRequester? = null,
     upFocusRequester: FocusRequester? = null,
-    cardRequesters: List<FocusRequester> = remember { List(5) { FocusRequester() } },
+    cardRequesters: List<FocusRequester> = remember { List(6) { FocusRequester() } },
     initialFocusedIndex: Int = 0,
     onCardFocused: ((Int) -> Unit)? = null,
     onPlaySong: (List<Song>, Int) -> Unit = { _, _ -> },
@@ -63,7 +63,7 @@ fun FeedRecommendRow(
         remember(shelves) {
             val targetShelf = shelves.firstOrNull()
             if (targetShelf != null && targetShelf.songs.isNotEmpty()) {
-                targetShelf.copy(songs = targetShelf.songs.take(35))
+                targetShelf.copy(songs = targetShelf.songs.take(36))
             } else {
                 null
             }
@@ -79,15 +79,15 @@ fun FeedRecommendRow(
         return
     }
 
-    // 轮换槽位控制：0..6（每卡片分配 7 首歌）
+    // 轮换槽位控制：0..5（每轮 6 张卡片，6 轮完整轮播 36 首）
     var rotationIndex by remember { mutableIntStateOf(0) }
 
     // 15 秒固定轮换定时器：持续平滑更新
     LaunchedEffect(songs.size) {
-        if (songs.size < 5) return@LaunchedEffect
+        if (songs.size < 6) return@LaunchedEffect
         while (isActive) {
             delay(15_000L)
-            rotationIndex = (rotationIndex + 1) % 7
+            rotationIndex = (rotationIndex + 1) % 6
         }
     }
 
@@ -113,9 +113,9 @@ fun FeedRecommendRow(
                     .padding(start = 14.dp, end = 32.dp, top = 14.dp, bottom = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(22.dp),
         ) {
-            (0 until 5).forEach { slotIndex ->
+            (0 until 6).forEach { slotIndex ->
                 // 计算当前卡片展示的全局歌曲索引
-                val songGlobalIndex = ((rotationIndex * 5 + slotIndex) % songs.size).coerceIn(0, songs.size - 1)
+                val songGlobalIndex = ((rotationIndex * 6 + slotIndex) % songs.size).coerceIn(0, songs.size - 1)
                 val song = songs[songGlobalIndex]
 
                 val item =
@@ -155,7 +155,7 @@ fun FeedRecommendRow(
                                     up = upFocusRequester
                                 }
                                 left = if (slotIndex > 0) cardRequesters[slotIndex - 1] else cardRequesters.last()
-                                right = if (slotIndex < 4) cardRequesters[slotIndex + 1] else cardRequesters.first()
+                                right = if (slotIndex < 5) cardRequesters[slotIndex + 1] else cardRequesters.first()
                             },
                     onFocusChanged = { focused ->
                         if (focused) {
