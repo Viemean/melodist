@@ -31,12 +31,18 @@ data class LocalSongCache(
     val album: String,
     val durationSeconds: Int = 0,
     val coverPath: String = "",
+    val rawCoverPath: String = "",
     val hasLrc: Boolean = false,
     val lrcPath: String = "",
     val lastModified: Long = 0L,
 ) {
     fun toSong(): Song {
         val tier = AudioFileFilter.inferQualityTierByExtension(path)
+        val resolvedCover = LocalMusicManager.resolveCoverUrl(path, coverPath)
+        val resolvedRaw =
+            LocalMusicManager.resolveRawCoverUrl(path, rawCoverPath).ifBlank {
+                RawCoverHelper.findMatchingRawCoverUrl(resolvedCover) ?: ""
+            }
         return Song(
             songId = id.hashCode().toLong(),
             songMid = "local_$id",
@@ -45,7 +51,8 @@ data class LocalSongCache(
             album = album,
             durationSeconds = durationSeconds,
             currentTier = tier,
-            coverUrl = LocalMusicManager.resolveCoverUrl(path, coverPath),
+            coverUrl = resolvedCover,
+            rawCoverUrl = resolvedRaw,
             localFilePath = path,
         )
     }
@@ -131,6 +138,55 @@ object LocalMusicManager {
         return ""
     }
 
+    fun resolveRawCoverUrl(
+        path: String,
+        rawCoverPath: String,
+    ): String {
+        if (rawCoverPath.isNotBlank()) {
+            val f = File(rawCoverPath)
+            if (f.exists() && f.length() > 512L) return "file://$rawCoverPath"
+        }
+        val folder = getSafeCoversDir()
+        val hash = md5(path)
+        val candidateExtensions = listOf("jpg", "png", "webp", "jpeg")
+        for (ext in candidateExtensions) {
+            val f = File(folder, "cover_raw_$hash.$ext")
+            if (f.exists() && f.length() > 512L) return "file://${f.absolutePath}"
+        }
+        return ""
+    }
+
+    /**
+     * 实时按需确保本地歌曲具有原画大图（本地存在直接返回，缺失则实时从音频文件内嵌提取）
+     */
+    suspend fun ensureRawCover(song: Song): String? =
+        withContext(Dispatchers.IO) {
+            val path = song.localFilePath ?: return@withContext null
+            val existing = resolveRawCoverUrl(path, "").ifBlank {
+                RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl) ?: ""
+            }
+            if (existing.isNotBlank()) return@withContext existing
+
+            val folder = getSafeCoversDir()
+            val hash = md5(path)
+            val rawFile = RawCoverHelper.extractRawCoverFromAudio(path, folder, hash)
+            if (rawFile != null && rawFile.exists() && rawFile.length() > 512L) {
+                val rawUrl = "file://${rawFile.absolutePath}"
+                val updatedSongs =
+                    inMemoryConfig.scannedSongs.map { s ->
+                        if (s.path == path) s.copy(rawCoverPath = rawFile.absolutePath) else s
+                    }
+                if (updatedSongs != inMemoryConfig.scannedSongs) {
+                    inMemoryConfig = inMemoryConfig.copy(scannedSongs = updatedSongs)
+                    saveConfig()
+                    _scannedSongsFlow.value = getScannedSongs()
+                }
+                rawUrl
+            } else {
+                null
+            }
+        }
+
     fun onCacheCleared() {
         val updatedSongs =
             inMemoryConfig.scannedSongs.map { song ->
@@ -189,6 +245,7 @@ object LocalMusicManager {
             }
         }
     }
+
 
     private fun loadConfig() {
         val raw = prefs?.getString(KEY_CONFIG, null)
@@ -558,6 +615,7 @@ object LocalMusicManager {
         var album = file.parentFile?.name ?: "本地音乐"
         var durationSec = 0
         var coverPath = ""
+        var rawCoverPath = ""
 
         try {
             retriever.setDataSource(file.absolutePath)
@@ -573,7 +631,7 @@ object LocalMusicManager {
                 durationSec = (metaDur.toLongOrNull() ?: 0L).toInt() / 1000
             }
 
-            // 提取内置封面并持久化至 cache/local_covers（统一 500x500 WebP）
+            // 扫描阶段仅保存 500x500 WebP 缩略图（原画大图由播放/全屏查看大图时按需加载）
             val picBytes = retriever.embeddedPicture
             if (picBytes != null && picBytes.isNotEmpty()) {
                 val hash = md5(file.absolutePath)
@@ -591,6 +649,7 @@ object LocalMusicManager {
                     }
                 }
             }
+
         } catch (e: Exception) {
             Log.w(TAG, "Error extracting metadata for ${file.name}", e)
         }
@@ -608,6 +667,7 @@ object LocalMusicManager {
             album = album,
             durationSeconds = durationSec,
             coverPath = coverPath,
+            rawCoverPath = rawCoverPath,
             hasLrc = hasLrc,
             lrcPath = if (hasLrc) lrcFile.absolutePath else "",
             lastModified = file.lastModified(),
