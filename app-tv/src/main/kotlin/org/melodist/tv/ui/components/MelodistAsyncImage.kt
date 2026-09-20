@@ -27,6 +27,7 @@ fun MelodistAsyncImage(
     shape: Shape? = null,
     bleedCrop: Boolean = true,
     contentScale: ContentScale = ContentScale.Crop,
+    preferRawCover: Boolean = false,
 ) {
     var dynamicVisualMid by remember(songMid) { mutableStateOf("") }
 
@@ -48,14 +49,16 @@ fun MelodistAsyncImage(
     val effectiveVisualMid = visualMid.ifBlank { dynamicVisualMid }
 
     val candidates =
-        remember(coverUrl, albumMid, artistMid, effectiveVisualMid) {
+        remember(coverUrl, albumMid, artistMid, effectiveVisualMid, preferRawCover) {
             val list = mutableListOf<String>()
             val isLocalFile = coverUrl.startsWith("/") || coverUrl.startsWith("file://")
             if (isLocalFile && coverUrl.isNotBlank()) {
                 val normalized = if (coverUrl.startsWith("/")) "file://$coverUrl" else coverUrl
-                val rawCandidate = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(normalized)
-                if (!rawCandidate.isNullOrBlank() && rawCandidate != normalized) {
-                    list.add(rawCandidate)
+                if (preferRawCover) {
+                    val rawCandidate = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(normalized)
+                    if (!rawCandidate.isNullOrBlank() && rawCandidate != normalized) {
+                        list.add(rawCandidate)
+                    }
                 }
                 list.add(normalized)
             } else {

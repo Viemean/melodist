@@ -181,6 +181,7 @@ fun TakeoverGestureCoverCarousel(
                     artistMid = nextSong.singerList.firstOrNull()?.mid.orEmpty(),
                     shape = shape,
                     elevation = elevation,
+                    preferRawCover = true,
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
@@ -209,6 +210,7 @@ fun TakeoverGestureCoverCarousel(
                     artistMid = prevSong.singerList.firstOrNull()?.mid.orEmpty(),
                     shape = shape,
                     elevation = elevation,
+                    preferRawCover = true,
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
@@ -235,6 +237,7 @@ fun TakeoverGestureCoverCarousel(
                 artistMid = actualCurrentSong?.singerList?.firstOrNull()?.mid.orEmpty(),
                 shape = shape,
                 elevation = elevation,
+                preferRawCover = true,
                 onClick = onClick,
                 modifier = Modifier
                     .fillMaxSize()
