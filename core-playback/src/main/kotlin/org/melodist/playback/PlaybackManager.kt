@@ -86,8 +86,7 @@ object PlaybackManager {
             encodeDefaults = true
         }
 
-    private var exoPlayer: ExoPlayer? = null
-    private var progressJob: Job? = null
+    private val exoPlayer: ExoPlayer? get() = playerPipeline.player
     private var playJob: Job? = null
     private var lyricLoadJob: Job? = null
 
@@ -549,98 +548,54 @@ object PlaybackManager {
             }
         }
 
-    private fun buildExoPlayer(context: Context): ExoPlayer {
-        return PlaybackEngineFactory.buildExoPlayer(
-            context = context,
-            listener = playerListener,
-            analyticsListener = object : androidx.media3.exoplayer.analytics.AnalyticsListener {
-                override fun onAudioTrackInitialized(
-                    eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
-                    audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
-                ) {
-                    Log.i(
-                        "MelodistPlayback",
-                        "AudioTrack initialized: rate=${audioTrackConfig.sampleRate}, enc=${audioTrackConfig.encoding}, ch=${audioTrackConfig.channelConfig}, offload=${audioTrackConfig.offload}",
-                    )
-                }
+    private val playerPipeline: PlaybackExoPlayerPipeline =
+        PlaybackExoPlayerPipeline(
+            getContext = { appContext },
+            usbRouter = usbRouter,
+            playerListener = playerListener,
+            onPlayerCreated = {
+                progressTracker.start()
             },
-        ).also {
-            updateUsbExclusiveRouting()
-        }
-    }
+        )
+
+    private val progressTracker: PlaybackProgressTracker =
+        PlaybackProgressTracker(
+            scope = scope,
+            getPlayer = { exoPlayer },
+            isRemoteActive = { remoteStateHolder.isRemoteActive.value },
+            getEstimatedRemotePositionMs = { dur -> remoteStateHolder.getEstimatedPositionMs(dur) },
+            getCurrentSong = { _currentSong.value },
+            getCurrentTier = { _currentTier.value },
+            isCurrentTrackFromCache = { _isCurrentTrackFromCache.value },
+            getDurationMs = { _durationMs.value },
+            isSongFavorite = { mid -> isSongFavorite(mid) },
+            onPositionUpdated = { pos -> _currentPositionMs.value = pos },
+            onDurationUpdated = { dur -> _durationMs.value = dur },
+            onBufferedPositionUpdated = { buf -> _bufferedPositionMs.value = maxOf(_bufferedPositionMs.value, buf) },
+            onFileCacheFractionUpdated = { frac -> _fileCacheFraction.value = frac },
+            onTrackFromCacheConfirmed = { _isCurrentTrackFromCache.value = true },
+            onSavePlaybackProgressRequest = { pos -> savePlaybackProgress(pos) },
+            onTriggerPrefetchNextSongRequest = { triggerPrefetchNextSong() },
+        )
+
+    private fun buildExoPlayer(context: Context): ExoPlayer = playerPipeline.buildExoPlayer(context)
 
     fun getOrCreatePlayer(context: Context): ExoPlayer {
         init(context)
-        return exoPlayer ?: synchronized(this) {
-            exoPlayer ?: buildExoPlayer(context).also {
-                exoPlayer = it
-                startProgressLoop()
-            }
-        }
+        return playerPipeline.getOrCreatePlayer(context)
     }
 
-    fun buildMediaMetadata(song: Song, remoteDeviceName: String? = null): MediaMetadata {
-        val albumDesc = if (!remoteDeviceName.isNullOrBlank()) {
-            val base = if (song.album.isNotBlank()) song.album else "单曲"
-            "$base · 正在 $remoteDeviceName 播放"
-        } else {
-            song.album
-        }
-
-        val builder =
-            MediaMetadata
-                .Builder()
-                .setTitle(song.name)
-                .setArtist(song.singer)
-                .setDisplayTitle(song.name)
-                .setAlbumTitle(albumDesc)
-
-        val coverUrl = song.coverUrl
-        if (coverUrl.isNotBlank()) {
-            builder.setArtworkUri(android.net.Uri.parse(coverUrl))
-            if (coverUrl.startsWith("file://")) {
-                try {
-                    val file = java.io.File(coverUrl.removePrefix("file://").substringBefore('?'))
-                    if (file.exists() && file.length() in 1..(2 * 1024 * 1024)) {
-                        builder.setArtworkData(file.readBytes(), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
-                    }
-                } catch (_: Exception) {
-                }
-            }
-        }
-        return builder.build()
-    }
+    fun buildMediaMetadata(song: Song, remoteDeviceName: String? = null): MediaMetadata =
+        PlaybackMediaItemFactory.buildMediaMetadata(song, remoteDeviceName)
 
     private fun buildMediaItem(
         uri: android.net.Uri,
         song: Song,
         tier: AudioQualityTier? = null,
-    ): MediaItem =
-        MediaItem
-            .Builder()
-            .setUri(uri)
-            .setMediaId(song.songMid)
-            .setCustomCacheKey(MelodistCacheManager.getCacheKey(song.songMid, tier))
-            .setMediaMetadata(buildMediaMetadata(song))
-            .build()
+    ): MediaItem = PlaybackMediaItemFactory.buildMediaItem(uri, song, tier)
 
-    fun buildMediaItemForSong(song: Song, remoteDeviceName: String? = null): MediaItem {
-        val uri = if (song.coverUrl.isNotBlank()) {
-            try {
-                android.net.Uri.parse(song.coverUrl)
-            } catch (_: Exception) {
-                android.net.Uri.EMPTY
-            }
-        } else {
-            android.net.Uri.EMPTY
-        }
-        return MediaItem
-            .Builder()
-            .setUri(uri)
-            .setMediaId(song.songMid)
-            .setMediaMetadata(buildMediaMetadata(song, remoteDeviceName))
-            .build()
-    }
+    fun buildMediaItemForSong(song: Song, remoteDeviceName: String? = null): MediaItem =
+        PlaybackMediaItemFactory.buildMediaItemForSong(song, remoteDeviceName)
 
     private fun updateCurrentMediaMetadata(song: Song) {
         val player = exoPlayer ?: return
@@ -683,87 +638,26 @@ object PlaybackManager {
             applyAudioOffloadPreferences(enabled)
         }
         if (exoPlayer == null) {
-            exoPlayer = buildExoPlayer(context)
+            playerPipeline.buildExoPlayer(context)
             _isPlaying.value = false
-            startProgressLoop()
+            progressTracker.start()
         } else {
             updateUsbExclusiveRouting()
         }
         startPlaybackService(context)
     }
 
-    fun applyAudioOffloadPreferences(enabled: Boolean) {
-        val player = exoPlayer ?: return
-        val offloadMode =
-            if (enabled) {
-                androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
-            } else {
-                androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
-            }
-        val offloadPreferences =
-            androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
-                .Builder()
-                .setAudioOffloadMode(offloadMode)
-                .setIsGaplessSupportRequired(false)
-                .setIsSpeedChangeSupportRequired(false)
-                .build()
-        player.trackSelectionParameters =
-            player.trackSelectionParameters
-                .buildUpon()
-                .setAudioOffloadPreferences(offloadPreferences)
-                .build()
-        Log.i("MelodistPlayback", "Applied audio offload preferences: enabled=$enabled")
-    }
+    fun applyAudioOffloadPreferences(enabled: Boolean) = playerPipeline.applyAudioOffloadPreferences(enabled)
 
-    fun resetPlayerPipeline(restoreMediaItem: Boolean = true) {
-        val context = appContext ?: return
-        val player = exoPlayer
-        val pos = player?.currentPosition ?: 0L
-        val wasPlaying = player?.isPlaying == true
-        val item = player?.currentMediaItem
+    fun resetPlayerPipeline(restoreMediaItem: Boolean = true) = playerPipeline.resetPlayerPipeline(restoreMediaItem)
 
-        player?.release()
-        exoPlayer =
-            buildExoPlayer(context).apply {
-                if (restoreMediaItem && item != null) {
-                    setMediaItem(item, pos)
-                    prepare()
-                    if (wasPlaying) {
-                        play()
-                    }
-                }
-            }
-        updateUsbExclusiveRouting()
-        Log.i("MelodistPlayback", "Player pipeline reset with updated audio configuration (restoreMediaItem=$restoreMediaItem)")
-    }
-
-    fun reloadAudioPipeline() {
-        val player = exoPlayer ?: return
-        val pos = player.currentPosition
-        val wasPlaying = player.isPlaying
-        val item = player.currentMediaItem ?: return
-        player.setMediaItem(item, pos)
-        player.prepare()
-        if (wasPlaying) {
-            player.play()
-        }
-        Log.i("MelodistPlayback", "Audio pipeline reloaded at position: $pos ms (playing: $wasPlaying)")
-    }
+    fun reloadAudioPipeline() = playerPipeline.reloadAudioPipeline()
 
     fun updateUsbExclusiveRouting(
         targetRate: Int = 0,
         channelCount: Int = 0,
         pcmEncoding: Int = 0,
-    ) {
-        usbRouter.updateUsbExclusiveRouting(
-            context = appContext,
-            player = exoPlayer,
-            isUsbExclusive = org.melodist.data.AppSettingsManager.settings.value.enableUsbExclusive,
-            targetRate = targetRate,
-            channelCount = channelCount,
-            pcmEncoding = pcmEncoding,
-        )
-    }
+    ) = playerPipeline.updateUsbExclusiveRouting(targetRate, channelCount, pcmEncoding)
 
     @Suppress("UnusedParameter")
     fun onAudioPassthroughChanged(enabled: Boolean) {
@@ -824,92 +718,7 @@ object PlaybackManager {
             }
     }
 
-    private fun startProgressLoop() {
-        progressJob?.cancel()
-        progressJob =
-            scope.launch {
-                var saveCounter = 0
-                var prefetchCounter = 0
-                while (isActive) {
-                    if (remoteStateHolder.isRemoteActive.value) {
-                        val estimated = remoteStateHolder.getEstimatedPositionMs(_durationMs.value)
-                        if (estimated != null) {
-                            _currentPositionMs.value = estimated
-                        }
-                        delay(50L)
-                        continue
-                    }
-                    exoPlayer?.let { player ->
-                        val currentBuf = player.bufferedPosition.coerceAtLeast(0L)
-                        _bufferedPositionMs.value = maxOf(_bufferedPositionMs.value, currentBuf)
-
-                        val currSong = _currentSong.value
-                        val mid = currSong?.songMid
-                        if (!mid.isNullOrBlank()) {
-                            val curTier = _currentTier.value
-                            val isLocal = currSong.isLocal || mid.startsWith("local_") || !currSong.localFilePath.isNullOrBlank()
-                            if (isLocal || _isCurrentTrackFromCache.value) {
-                                _fileCacheFraction.value = 1f
-                            } else if (mid.startsWith("webdav_") || currSong.isWebDav) {
-                                val dur = player.duration.takeIf { it > 0L } ?: _durationMs.value
-                                val streamBufFraction = if (dur > 0L) (currentBuf.toFloat() / dur).coerceIn(0f, 1f) else 0f
-                                _fileCacheFraction.value = streamBufFraction
-                            } else {
-                                val dur = player.duration.takeIf { it > 0L } ?: _durationMs.value
-                                val streamBufFraction = if (dur > 0L) (currentBuf.toFloat() / dur).coerceIn(0f, 1f) else 0f
-                                val fileProgress = MelodistCacheManager.getSongFileCacheProgress(mid, curTier)
-                                val combinedFraction = maxOf(fileProgress.fraction, streamBufFraction)
-                                _fileCacheFraction.value = maxOf(_fileCacheFraction.value, combinedFraction)
-                                if (fileProgress.isFullyCached || _fileCacheFraction.value >= 1f) {
-                                    _fileCacheFraction.value = 1f
-                                    _isCurrentTrackFromCache.value = true
-                                    MelodistCacheManager.confirmCacheRetention(mid, curTier)
-                                }
-                            }
-                        }
-
-                        if (player.isPlaying) {
-                            val pos = player.currentPosition.coerceAtLeast(0L)
-                            val dur = player.duration
-                            _currentPositionMs.value = pos
-                            if (dur > 0L) {
-                                _durationMs.value = dur
-                                if (!mid.isNullOrBlank()) {
-                                    MelodistCacheManager.recordPlayProgress(mid, pos, dur)
-                                    val curTier = _currentTier.value
-                                    if (!_isCurrentTrackFromCache.value) {
-                                        val isFav = isSongFavorite(mid)
-                                        if (MelodistCacheManager.shouldCacheSong(mid, isFav, curTier)) {
-                                            val thresholdMs = MelodistCacheManager.currentProfile.getTrialThresholdMs(dur)
-                                            if (pos >= thresholdMs) {
-                                                MelodistCacheManager.confirmCacheRetention(mid, curTier)
-                                                if (MelodistCacheManager.isSongTierFullyCached(mid, curTier)) {
-                                                    _isCurrentTrackFromCache.value = true
-                                                    _fileCacheFraction.value = 1f
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            saveCounter++
-                            if (saveCounter >= 250) {
-                                saveCounter = 0
-                                savePlaybackProgress(_currentPositionMs.value)
-                            }
-                            prefetchCounter++
-                            if (prefetchCounter >= 16) {
-                                prefetchCounter = 0
-                                if (PlaybackSourceResolver.shouldTriggerPrefetch(dur, pos)) {
-                                    triggerPrefetchNextSong()
-                                }
-                            }
-                        }
-                    }
-                    delay(60L)
-                }
-            }
-    }
+    private fun startProgressLoop() = progressTracker.start()
 
     fun savePlaybackState() {
         PlaybackStateStorage.savePlaybackState(
@@ -1832,13 +1641,12 @@ object PlaybackManager {
     fun release() {
         appContext?.let { usbRouter.unregister(it) }
         savePlaybackState()
-        progressJob?.cancel()
+        progressTracker.stop()
         playJob?.cancel()
         prefetchJob?.cancel()
         prefetchedSongMid = null
         prefetchedUrlInfo = null
-        exoPlayer?.release()
-        exoPlayer = null
+        playerPipeline.release()
         _isPlaying.value = false
         _isLoading.value = false
         _isSwitchingQuality.value = false
