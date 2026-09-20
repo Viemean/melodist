@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,13 +35,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.melodist.mobile.ui.components.AlbumArtImage
+import org.melodist.mobile.util.MobileCoverCacheResolver
 import org.melodist.model.Song
+import org.melodist.playback.PlaybackManager
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -262,6 +266,25 @@ private fun CoverCard(
     scale: Float,
     alpha: Float,
 ) {
+    val context = LocalContext.current
+    var hasRawCache by remember(song?.songMid, song?.coverUrl) {
+        mutableStateOf(MobileCoverCacheResolver.hasRawCoverCache(context, song))
+    }
+
+    LaunchedEffect(song?.songMid, song?.coverUrl) {
+        val isCellular = PlaybackManager.isCellularNetwork()
+        if (!isCellular && !hasRawCache) {
+            MobileCoverCacheResolver.upgradeRawCoverOnWifiAsync(context, song) {
+                hasRawCache = true
+            }
+        }
+    }
+
+    val candidates =
+        remember(song, hasRawCache) {
+            MobileCoverCacheResolver.resolveCandidates(context, song)
+        }
+
     Box(
         modifier =
             Modifier
@@ -282,7 +305,7 @@ private fun CoverCard(
     ) {
         AlbumArtImage(
             coverUrl = song?.coverUrl,
-            candidates = song?.playerCoverCandidates,
+            candidates = candidates,
             contentDescription = song?.name ?: "封面",
             modifier = Modifier.fillMaxSize(),
         )
