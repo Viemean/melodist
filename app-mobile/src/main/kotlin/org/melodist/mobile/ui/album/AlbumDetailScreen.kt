@@ -64,10 +64,12 @@ import org.melodist.api.UserSession
 import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
+import org.melodist.mobile.ui.components.ArtistSelectDialog
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
 import org.melodist.model.AlbumDetail
+import org.melodist.model.Artist
 import org.melodist.playback.PlaybackManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,12 +88,40 @@ fun AlbumDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
+    var showArtistSelectDialog by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
 
     val displayName = albumDetail?.name ?: albumName.ifBlank { "专辑详情" }
     val artistName = albumDetail?.artist.orEmpty()
     val songs = albumDetail?.songs.orEmpty()
+    val albumArtists =
+        remember(songs, artistName) {
+            val artistsInSongs = songs.flatMap { it.singerList }.distinctBy { if (it.mid.isNotBlank()) it.mid else it.name }
+            val artistNameParts = artistName.split("/", "、", "&", ",").map { it.trim() }.filter { it.isNotBlank() }
+
+            if (artistNameParts.size > 1) {
+                artistNameParts.map { partName ->
+                    artistsInSongs.find {
+                        it.name.equals(partName, ignoreCase = true) ||
+                            it.name.contains(partName, ignoreCase = true) ||
+                            partName.contains(it.name, ignoreCase = true)
+                    } ?: Artist(id = 0L, mid = "", name = partName)
+                }
+            } else {
+                val firstSongArtists = songs.firstOrNull()?.singerList.orEmpty()
+                if (firstSongArtists.size > 1) {
+                    firstSongArtists
+                } else if (firstSongArtists.isNotEmpty()) {
+                    firstSongArtists
+                } else if (artistName.isNotBlank()) {
+                    val matched = artistsInSongs.find { it.name.equals(artistName, ignoreCase = true) }
+                    listOf(matched ?: Artist(id = 0L, mid = "", name = artistName))
+                } else {
+                    emptyList()
+                }
+            }
+        }
     val coverUrl =
         remember(albumMid) {
             if (albumMid.isNotBlank()) MusicApiService.getAlbumCoverUrl(albumMid) else ""
@@ -250,11 +280,17 @@ fun AlbumDetailScreen(
                                                 overflow = TextOverflow.Ellipsis,
                                                 modifier =
                                                     Modifier.clickable {
-                                                        // 若歌曲含有歌手 mid，跳转到第一位歌手
-                                                        val firstSong = songs.firstOrNull()
-                                                        val firstArtist = firstSong?.singerList?.firstOrNull()
-                                                        if (firstArtist != null && firstArtist.mid.isNotBlank()) {
-                                                            navController.navigateToArtist(firstArtist.mid, firstArtist.name)
+                                                        if (albumArtists.size > 1) {
+                                                            showArtistSelectDialog = true
+                                                        } else {
+                                                            val targetArtist = albumArtists.firstOrNull()
+                                                            val targetMid = targetArtist?.mid.orEmpty()
+                                                            val targetName = targetArtist?.name?.ifBlank { artistName } ?: artistName
+                                                            if (targetMid.isNotBlank()) {
+                                                                navController.navigateToArtist(targetMid, targetName)
+                                                            } else if (targetArtist != null) {
+                                                                Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
+                                                            }
                                                         }
                                                     },
                                             )
@@ -651,5 +687,20 @@ fun AlbumDetailScreen(
                 }
             }
         }
+    }
+
+    if (showArtistSelectDialog) {
+        ArtistSelectDialog(
+            artists = albumArtists,
+            onDismissRequest = { showArtistSelectDialog = false },
+            onArtistSelect = { artist ->
+                showArtistSelectDialog = false
+                if (artist.mid.isNotBlank()) {
+                    navController.navigateToArtist(artist.mid, artist.name)
+                } else {
+                    Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
+                }
+            },
+        )
     }
 }
