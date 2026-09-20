@@ -15,10 +15,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
@@ -30,10 +35,13 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
@@ -76,6 +85,7 @@ fun AlbumDetailScreen(
     var albumDetail by remember { mutableStateOf<AlbumDetail?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var showDescriptionSheet by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
 
@@ -249,12 +259,80 @@ fun AlbumDetailScreen(
                                                     },
                                             )
                                         }
+                                        val publishDate = albumDetail?.publishDate.orEmpty()
+                                        val company = albumDetail?.company.orEmpty()
+                                        val metaLine =
+                                            listOfNotNull(
+                                                publishDate.takeIf { it.isNotBlank() }?.let { "发行: $it" },
+                                                company.takeIf { it.isNotBlank() },
+                                                "共 ${songs.size} 首歌",
+                                            ).joinToString(" · ")
+
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "共收录 ${songs.size} 首单曲",
+                                            text = metaLine,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
+                                    }
+                                }
+
+                                val currentDetail = albumDetail
+                                if (currentDetail != null) {
+                                    val hasDesc = !currentDetail.description.isNullOrBlank()
+                                    val summaryText =
+                                        if (hasDesc) {
+                                            currentDetail.description.trim()
+                                        } else {
+                                            listOfNotNull(
+                                                currentDetail.language.takeIf { it.isNotBlank() }?.let { "语种: $it" },
+                                                currentDetail.albumType.takeIf { it.isNotBlank() }?.let { "类型: $it" },
+                                                currentDetail.company.takeIf { it.isNotBlank() }?.let { "厂牌: $it" },
+                                            ).joinToString(" · ").ifBlank { "点击查看完整唱片与发行信息" }
+                                        }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .clickable { showDescriptionSheet = true },
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            ) {
+                                                Text(
+                                                    text = if (hasDesc) "专辑简介" else "专辑信息",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                                Text(
+                                                    text = "详情 >",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = summaryText,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                lineHeight = 18.sp,
+                                            )
+                                        }
                                     }
                                 }
 
@@ -303,6 +381,274 @@ fun AlbumDetailScreen(
                     },
                 )
             }
+            }
+        }
+    }
+
+    val activeAlbumDetail = albumDetail
+    if (showDescriptionSheet && activeAlbumDetail != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showDescriptionSheet = false },
+            sheetState = sheetState,
+        ) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+            ) {
+                // 顶部标题与关闭按钮
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "专辑详情",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                sheetState.hide()
+                                showDescriptionSheet = false
+                            }
+                        },
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "关闭",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // 两列整齐键值对内容区
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    val labelWidth = 84.dp
+
+                    // 专辑：
+                    if (activeAlbumDetail.name.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "专辑：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            Text(
+                                text = activeAlbumDetail.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                                lineHeight = 22.sp,
+                            )
+                        }
+                    }
+
+                    // 歌手：多位歌手各占一行
+                    if (activeAlbumDetail.singerList.isNotEmpty()) {
+                        activeAlbumDetail.singerList.forEach { singerItem ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                Text(
+                                    text = "歌手：",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.width(labelWidth),
+                                    lineHeight = 22.sp,
+                                )
+                                Text(
+                                    text = singerItem,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f),
+                                    lineHeight = 22.sp,
+                                )
+                            }
+                        }
+                    } else if (activeAlbumDetail.artist.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "歌手：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            Text(
+                                text = activeAlbumDetail.artist,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                                lineHeight = 22.sp,
+                            )
+                        }
+                    }
+
+                    // 语言：
+                    if (activeAlbumDetail.language.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "语言：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            Text(
+                                text = activeAlbumDetail.language,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                                lineHeight = 22.sp,
+                            )
+                        }
+                    }
+
+                    // 唱片公司：
+                    if (activeAlbumDetail.company.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "唱片公司：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            Text(
+                                text = activeAlbumDetail.company,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                                lineHeight = 22.sp,
+                            )
+                        }
+                    }
+
+                    // 唱片类型：
+                    if (activeAlbumDetail.albumType.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "唱片类型：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            Text(
+                                text = activeAlbumDetail.albumType,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                                lineHeight = 22.sp,
+                            )
+                        }
+                    }
+
+                    // 发行时间：
+                    if (activeAlbumDetail.publishDate.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "发行时间：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            Text(
+                                text = activeAlbumDetail.publishDate,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f),
+                                lineHeight = 22.sp,
+                            )
+                        }
+                    }
+
+                    // 专辑简介：
+                    if (activeAlbumDetail.description.isNotBlank()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "专辑简介：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            SelectionContainer(
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(
+                                    text = activeAlbumDetail.description.trim(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = 22.sp,
+                                )
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                text = "专辑简介：",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(labelWidth),
+                                lineHeight = 22.sp,
+                            )
+                            Text(
+                                text = "暂无官方简介",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.weight(1f),
+                                lineHeight = 22.sp,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     }
