@@ -206,7 +206,7 @@ object LocalMusicManager {
             val songsToHeal =
                 inMemoryConfig.scannedSongs.filter { s ->
                     val f = if (s.coverPath.isNotBlank()) File(s.coverPath) else null
-                    (f == null || !f.exists() || f.length() == 0L) && File(s.path).exists()
+                    (f == null || !f.exists() || f.length() == 0L || CoverCompressor.isLowResolution(f, 800)) && File(s.path).exists()
                 }
             if (songsToHeal.isEmpty()) return@launch
 
@@ -221,13 +221,14 @@ object LocalMusicManager {
                     if (picBytes != null && picBytes.isNotEmpty()) {
                         val hash = md5(s.path)
                         val webpFile = File(folder, "cover_$hash.webp")
-                        if (CoverCompressor.compressToWebp(picBytes, webpFile)) {
+                        if (CoverCompressor.compressToWebp(picBytes, webpFile, 800)) {
                             healedMap[s.path] = webpFile.absolutePath
                         }
                     }
                 } catch (_: Exception) {
                 }
             }
+
             try {
                 retriever.release()
             } catch (_: Exception) {
@@ -576,7 +577,8 @@ object LocalMusicManager {
                 val existing = existingMap[path]
                 val isCoverValid =
                     existing?.coverPath?.let { cp ->
-                        cp.isNotBlank() && File(cp).exists() && File(cp).length() > 0L
+                        val f = File(cp)
+                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f, 800)
                     } ?: false
 
                 if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
@@ -631,14 +633,14 @@ object LocalMusicManager {
                 durationSec = (metaDur.toLongOrNull() ?: 0L).toInt() / 1000
             }
 
-            // 扫描阶段仅保存 500x500 WebP 缩略图（原画大图由播放/全屏查看大图时按需加载）
+            // 扫描阶段仅保存 800x800 WebP 缩略图（原画大图由播放/全屏查看大图时按需加载），覆盖旧低分辨率图
             val picBytes = retriever.embeddedPicture
             if (picBytes != null && picBytes.isNotEmpty()) {
                 val hash = md5(file.absolutePath)
                 val folder = getSafeCoversDir()
                 val coverWebp = File(folder, "cover_$hash.webp")
-                if (!coverWebp.exists() || coverWebp.length() == 0L) {
-                    CoverCompressor.compressToWebp(picBytes, coverWebp)
+                if (!coverWebp.exists() || coverWebp.length() == 0L || CoverCompressor.isLowResolution(coverWebp, 800)) {
+                    CoverCompressor.compressToWebp(picBytes, coverWebp, 800)
                 }
                 if (coverWebp.exists() && coverWebp.length() > 0L) {
                     coverPath = coverWebp.absolutePath
@@ -649,6 +651,7 @@ object LocalMusicManager {
                     }
                 }
             }
+
 
         } catch (e: Exception) {
             Log.w(TAG, "Error extracting metadata for ${file.name}", e)

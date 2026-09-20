@@ -9,8 +9,21 @@ import java.io.FileOutputStream
 
 object CoverCompressor {
     private const val TAG = "CoverCompressor"
-    const val TARGET_DIMENSION = 500
+    const val TARGET_DIMENSION = 800
     private const val COMPRESS_QUALITY = 85
+
+    fun isLowResolution(file: File, minDimension: Int = TARGET_DIMENSION): Boolean {
+        if (!file.exists() || file.length() == 0L) return true
+        return try {
+            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, boundsOpts)
+            val w = boundsOpts.outWidth
+            val h = boundsOpts.outHeight
+            w > 0 && h > 0 && (w < minDimension || h < minDimension)
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     fun compressToWebp(
         bytes: ByteArray,

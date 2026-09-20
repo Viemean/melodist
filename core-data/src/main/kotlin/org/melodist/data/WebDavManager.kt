@@ -263,12 +263,14 @@ object WebDavManager {
                     var coverPath = rawCache.coverPath
                     var rawCoverPath = rawCache.rawCoverPath
 
-                    // 封面处理：扫描阶段仅压缩 500x500 WebP 供列表流畅滚动（原画大图由播放/查看大图时按需加载）
+                    // 封面处理：扫描阶段仅压缩 800x800 WebP 供列表流畅滚动（原画大图由播放/查看大图时按需加载），覆盖旧低分辨率图
                     val coversFolder = getSafeCoversDir()
                     val targetWebp = File(coversFolder, "webdav_$hash.webp")
 
                     fun saveWebDavThumbnail(bytes: ByteArray) {
-                        CoverCompressor.compressToWebp(bytes, targetWebp)
+                        if (!targetWebp.exists() || targetWebp.length() == 0L || CoverCompressor.isLowResolution(targetWebp, 800)) {
+                            CoverCompressor.compressToWebp(bytes, targetWebp, 800)
+                        }
                         if (targetWebp.exists() && targetWebp.length() > 0L) {
                             coverPath = targetWebp.absolutePath
                         }
@@ -455,7 +457,8 @@ object WebDavManager {
                 val existing = existingMap[song.href]
                 val isCoverValid =
                     existing?.coverPath?.let { cp ->
-                        cp.isNotBlank() && File(cp).exists() && File(cp).length() > 0L
+                        val f = File(cp)
+                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f, 800)
                     } ?: false
                 if (existing != null && existing.duration > 0 && isCoverValid) {
                     // 已具有完整元数据，保留
