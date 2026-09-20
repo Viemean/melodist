@@ -106,8 +106,15 @@ object UpdateChecker {
         val localClean = localVersion.removePrefix("v").trim()
         if (remoteClean.isBlank() || remoteClean == localClean) return false
 
+        val localEffective = if (localClean.startsWith("20.") && localClean.count { it == '.' } >= 3) {
+            localClean.removePrefix("20.")
+        } else {
+            localClean
+        }
+        if (remoteClean == localEffective) return false
+
         val remoteParts = remoteClean.split(".").mapNotNull { it.toIntOrNull() }
-        val localParts = localClean.split(".").mapNotNull { it.toIntOrNull() }
+        val localParts = localEffective.split(".").mapNotNull { it.toIntOrNull() }
 
         val maxLen = maxOf(remoteParts.size, localParts.size)
         for (i in 0 until maxLen) {
@@ -128,20 +135,35 @@ object UpdateChecker {
             return apkAssets.firstOrNull()?.second ?: fallbackHtmlUrl
         }
         val keywordLower = targetKeyword.lowercase()
-        // 1. 优先匹配明确包含当前平台标识的安装包 (如 "mobile" 或 "tv")
+
+        if (keywordLower.contains("originos")) {
+            val originOsMatch = apkAssets.firstOrNull { it.first.lowercase().contains("originos") }
+            if (originOsMatch != null) {
+                return originOsMatch.second
+            }
+        }
+
+        if (keywordLower == "mobile") {
+            val standardMobileMatch = apkAssets.firstOrNull {
+                val lower = it.first.lowercase()
+                lower.contains("mobile") && !lower.contains("originos")
+            }
+            if (standardMobileMatch != null) {
+                return standardMobileMatch.second
+            }
+        }
+
         val directMatch = apkAssets.firstOrNull { it.first.lowercase().contains(keywordLower) }
         if (directMatch != null) {
             return directMatch.second
         }
 
-        // 2. 检查是否存在未打其他平台标签的中立通用安装包
-        val otherPlatformKeywords = listOf("tv", "mobile").filter { it != keywordLower }
+        val otherPlatformKeywords = listOf("tv", "mobile", "originos").filter { it != keywordLower }
         val universalApk =
             apkAssets.firstOrNull { (name, _) ->
                 val lowerName = name.lowercase()
                 otherPlatformKeywords.none { other -> lowerName.contains(other) }
             }
-        // 若全部都是对立平台的专用包（如当前全是 tv 包而请求 mobile），则当前平台不匹配
         return universalApk?.second
     }
 }

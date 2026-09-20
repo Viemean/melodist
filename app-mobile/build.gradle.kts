@@ -33,6 +33,7 @@ android {
         targetSdk = 36
         versionCode = 137
         versionName = "1.3.7"
+        buildConfigField("String", "MELODIST_VERSION_NAME", "\"$versionName\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

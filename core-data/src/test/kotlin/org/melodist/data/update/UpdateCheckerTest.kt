@@ -68,6 +68,31 @@ class UpdateCheckerTest {
             "https://github.com/melodist/universal.apk",
             UpdateChecker.resolveDownloadUrl(universalAssets, "mobile", "https://fallback.com"),
         )
+
+        val fullMixedAssets =
+            listOf(
+                "melodist-tv-1.3.8.apk" to "https://github.com/melodist/tv.apk",
+                "melodist-mobile-originos-1.3.8.apk" to "https://github.com/melodist/mobile-originos.apk",
+                "melodist-mobile-1.3.8.apk" to "https://github.com/melodist/mobile-standard.apk",
+            )
+        // 普通 mobile 请求必须排除 originos 包，即使 originos 包排在前面
+        org.junit.jupiter.api.Assertions.assertEquals(
+            "https://github.com/melodist/mobile-standard.apk",
+            UpdateChecker.resolveDownloadUrl(fullMixedAssets, "mobile", "https://fallback.com"),
+        )
+        // originos 请求必须精准匹配 originos 包
+        org.junit.jupiter.api.Assertions.assertEquals(
+            "https://github.com/melodist/mobile-originos.apk",
+            UpdateChecker.resolveDownloadUrl(fullMixedAssets, "originos", "https://fallback.com"),
+        )
+    }
+
+    @Test
+    fun testOriginOsVersionNormalization() {
+        // OriginOS 伪装版本 20.1.3.7，还原为 1.3.7 参与比对
+        assertTrue(UpdateChecker.isNewerVersion("v1.3.8", "20.1.3.7"))
+        assertFalse(UpdateChecker.isNewerVersion("v1.3.7", "20.1.3.7"))
+        assertFalse(UpdateChecker.isNewerVersion("v1.3.6", "20.1.3.7"))
     }
 }
 

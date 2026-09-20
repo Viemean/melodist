@@ -144,10 +144,11 @@ fun SettingsAboutSection(
                             isCheckingUpdate = true
                             updateStatusText = "正在检查更新..."
                             coroutineScope.launch {
+                                val targetKw = if (context.packageName == "com.tencent.qqmusic") "originos" else "mobile"
                                 val result =
                                     UpdateChecker.checkUpdate(
-                                        currentVersion = BuildConfig.VERSION_NAME,
-                                        targetKeyword = "mobile",
+                                        currentVersion = BuildConfig.MELODIST_VERSION_NAME,
+                                        targetKeyword = targetKw,
                                     )
                                 isCheckingUpdate = false
                                 when (result) {
