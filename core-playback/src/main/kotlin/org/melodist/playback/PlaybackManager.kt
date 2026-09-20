@@ -902,9 +902,13 @@ object PlaybackManager {
                         val mid = currSong?.songMid
                         if (!mid.isNullOrBlank()) {
                             val curTier = _currentTier.value
-                            val isLocal = currSong.isLocal || mid.startsWith("local_") || mid.startsWith("webdav_") || !currSong.localFilePath.isNullOrBlank()
+                            val isLocal = currSong.isLocal || mid.startsWith("local_") || !currSong.localFilePath.isNullOrBlank()
                             if (isLocal || _isCurrentTrackFromCache.value) {
                                 _fileCacheFraction.value = 1f
+                            } else if (mid.startsWith("webdav_") || currSong.isWebDav) {
+                                val dur = player.duration.takeIf { it > 0L } ?: _durationMs.value
+                                val streamBufFraction = if (dur > 0L) (currentBuf.toFloat() / dur).coerceIn(0f, 1f) else 0f
+                                _fileCacheFraction.value = streamBufFraction
                             } else {
                                 val dur = player.duration.takeIf { it > 0L } ?: _durationMs.value
                                 val streamBufFraction = if (dur > 0L) (currentBuf.toFloat() / dur).coerceIn(0f, 1f) else 0f
