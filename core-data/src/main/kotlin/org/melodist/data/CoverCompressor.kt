@@ -9,7 +9,7 @@ import java.io.FileOutputStream
 
 object CoverCompressor {
     private const val TAG = "CoverCompressor"
-    const val TARGET_DIMENSION = 800
+    const val TARGET_DIMENSION = 500
     private const val COMPRESS_QUALITY = 85
 
     fun isLowResolution(file: File, minDimension: Int = TARGET_DIMENSION): Boolean {

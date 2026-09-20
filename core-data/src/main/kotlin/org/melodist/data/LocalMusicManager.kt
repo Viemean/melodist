@@ -206,7 +206,7 @@ object LocalMusicManager {
             val songsToHeal =
                 inMemoryConfig.scannedSongs.filter { s ->
                     val f = if (s.coverPath.isNotBlank()) File(s.coverPath) else null
-                    (f == null || !f.exists() || f.length() == 0L || CoverCompressor.isLowResolution(f, 800)) && File(s.path).exists()
+                    (f == null || !f.exists() || f.length() == 0L || CoverCompressor.isLowResolution(f)) && File(s.path).exists()
                 }
             if (songsToHeal.isEmpty()) return@launch
 
@@ -221,7 +221,7 @@ object LocalMusicManager {
                     if (picBytes != null && picBytes.isNotEmpty()) {
                         val hash = md5(s.path)
                         val webpFile = File(folder, "cover_$hash.webp")
-                        if (CoverCompressor.compressToWebp(picBytes, webpFile, 800)) {
+                        if (CoverCompressor.compressToWebp(picBytes, webpFile)) {
                             healedMap[s.path] = webpFile.absolutePath
                         }
                     }
@@ -578,7 +578,7 @@ object LocalMusicManager {
                 val isCoverValid =
                     existing?.coverPath?.let { cp ->
                         val f = File(cp)
-                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f, 800)
+                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
                     } ?: false
 
                 if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
@@ -639,8 +639,8 @@ object LocalMusicManager {
                 val hash = md5(file.absolutePath)
                 val folder = getSafeCoversDir()
                 val coverWebp = File(folder, "cover_$hash.webp")
-                if (!coverWebp.exists() || coverWebp.length() == 0L || CoverCompressor.isLowResolution(coverWebp, 800)) {
-                    CoverCompressor.compressToWebp(picBytes, coverWebp, 800)
+                if (!coverWebp.exists() || coverWebp.length() == 0L || CoverCompressor.isLowResolution(coverWebp)) {
+                    CoverCompressor.compressToWebp(picBytes, coverWebp)
                 }
                 if (coverWebp.exists() && coverWebp.length() > 0L) {
                     coverPath = coverWebp.absolutePath

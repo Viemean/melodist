@@ -268,8 +268,8 @@ object WebDavManager {
                     val targetWebp = File(coversFolder, "webdav_$hash.webp")
 
                     fun saveWebDavThumbnail(bytes: ByteArray) {
-                        if (!targetWebp.exists() || targetWebp.length() == 0L || CoverCompressor.isLowResolution(targetWebp, 800)) {
-                            CoverCompressor.compressToWebp(bytes, targetWebp, 800)
+                        if (!targetWebp.exists() || targetWebp.length() == 0L || CoverCompressor.isLowResolution(targetWebp)) {
+                            CoverCompressor.compressToWebp(bytes, targetWebp)
                         }
                         if (targetWebp.exists() && targetWebp.length() > 0L) {
                             coverPath = targetWebp.absolutePath
@@ -458,7 +458,7 @@ object WebDavManager {
                 val isCoverValid =
                     existing?.coverPath?.let { cp ->
                         val f = File(cp)
-                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f, 800)
+                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
                     } ?: false
                 if (existing != null && existing.duration > 0 && isCoverValid) {
                     // 已具有完整元数据，保留
