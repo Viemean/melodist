@@ -73,8 +73,8 @@ fun HomeTvScreen(
 
     // 确定性 D-Pad 导航焦点网络
     val navTabRequesters = remember { List(7) { FocusRequester() } }
-    val coreCardRequesters = remember { List(5) { FocusRequester() } }
-    val feedCardRequesters = remember { List(5) { FocusRequester() } }
+    val coreCardRequesters = remember { List(6) { FocusRequester() } }
+    val feedCardRequesters = remember { List(6) { FocusRequester() } }
     val coreRowRequester = remember { FocusRequester() }
     val feedRowRequester = remember { FocusRequester() }
     val heroCardRequester = remember { FocusRequester() }

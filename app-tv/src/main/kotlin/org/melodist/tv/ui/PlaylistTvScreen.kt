@@ -508,6 +508,20 @@ fun PlaylistTvScreen(
                     totalCount = radarSongs.size
                     hasMore = true
                 }
+                "million" -> {
+                    val cachedData = org.melodist.data.MillionRecommendManager.resultFlow.value
+                    val songs =
+                        if (cachedData.songs.isNotEmpty()) {
+                            cachedData.songs
+                        } else {
+                            org.melodist.data.MillionRecommendManager.refresh(apiService, forceRefresh = false)
+                            org.melodist.data.MillionRecommendManager.resultFlow.value.songs
+                        }
+                    playlistSongs = songs
+                    totalCount = songs.size
+                    hasMore = false
+                    saveToCache(songs, songs.size, false)
+                }
                 "playlists", "playlist_detail" -> {
                     val activePlaylist =
                         if (dirId > 0L || tid > 0L) {
@@ -656,6 +670,17 @@ fun PlaylistTvScreen(
                     }
                 } else {
                     "未登录账号 · 前往设置扫码可获取雷达推荐"
+                }
+            }
+            "million" -> {
+                if (UserSession.isLoggedIn) {
+                    if (isLoading) {
+                        "正在拉取百万推荐..."
+                    } else {
+                        "官方精选高赞专栏 · 共 ${playlistSongs.size} 首"
+                    }
+                } else {
+                    "未登录账号 · 前往设置扫码可获取百万推荐"
                 }
             }
             "playlists" -> {

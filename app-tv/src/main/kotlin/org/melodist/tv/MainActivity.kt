@@ -125,6 +125,7 @@ class MainActivity : ComponentActivity() {
             .init(this)
         org.melodist.data.AppSettingsManager.init(this)
         org.melodist.data.DailyRecommendCacheManager.init(this)
+        org.melodist.data.MillionRecommendManager.init(this)
         org.melodist.data.UserLibraryCacheManager.init(this)
         org.melodist.data.RecommendFeedManager.init(this)
         ScreenSaverManager.init()
@@ -271,6 +272,17 @@ class MainActivity : ComponentActivity() {
                                                         isFav = false,
                                                         coverUrl = org.melodist.tv.ui.components.HomeCardsCache.radarCover,
                                                         albumMid = org.melodist.tv.ui.components.HomeCardsCache.radarAlbumMid,
+                                                    ),
+                                                )
+                                            }
+                                            "million" -> {
+                                                navigateTo(
+                                                    TvScreenDestination.Playlist(
+                                                        categoryId = "million",
+                                                        title = "百万推荐",
+                                                        subtitle = "官方高赞好歌专栏",
+                                                        isFav = false,
+                                                        coverUrl = org.melodist.tv.ui.components.HomeCardsCache.millionCover,
                                                     ),
                                                 )
                                             }
