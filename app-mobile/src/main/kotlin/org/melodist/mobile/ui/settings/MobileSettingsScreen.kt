@@ -1,6 +1,5 @@
 package org.melodist.mobile.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -90,48 +89,48 @@ fun MobileSettingsScreen(
                 )
             }
 
-        // 设置列表流
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // 1. 账号资料卡片
-            item {
-                SettingsAccountCard(
-                    userProfile = userProfile,
-                    isLoggedIn = isLoggedIn,
-                    onOpenLogin = onOpenLogin,
-                )
-            }
+            // 设置列表流
+            LazyColumn(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                // 1. 账号资料卡片
+                item {
+                    SettingsAccountCard(
+                        userProfile = userProfile,
+                        isLoggedIn = isLoggedIn,
+                        onOpenLogin = onOpenLogin,
+                    )
+                }
 
-            // 2. 外观与主题
-            item {
-                SettingsAppearanceSection(settings = settings)
-            }
+                // 2. 外观与主题
+                item {
+                    SettingsAppearanceSection(settings = settings)
+                }
 
-            // 3. 播放、音质与歌词显示
-            item {
-                SettingsPlaybackSection(settings = settings)
-            }
+                // 3. 播放、音质与歌词显示
+                item {
+                    SettingsPlaybackSection(settings = settings)
+                }
 
-            // 3. 下载与存储缓存
-            item {
-                SettingsStorageSection(cacheUsage = cacheUsage)
-            }
+                // 3. 下载与存储缓存
+                item {
+                    SettingsStorageSection(cacheUsage = cacheUsage)
+                }
 
-            // 4. 关于应用
-            item {
-                SettingsAboutSection(
-                    playbackCreds = playbackCreds,
-                    onTriggerCredsDialog = { showPlaybackCredsDialog = true },
-                )
+                // 4. 关于应用
+                item {
+                    SettingsAboutSection(
+                        playbackCreds = playbackCreds,
+                        onTriggerCredsDialog = { showPlaybackCredsDialog = true },
+                    )
+                }
             }
         }
-    }
     }
 
     // 凭证管理系列弹窗

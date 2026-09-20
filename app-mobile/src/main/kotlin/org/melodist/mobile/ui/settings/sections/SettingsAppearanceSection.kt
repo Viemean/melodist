@@ -296,8 +296,7 @@ private fun PresetPaletteSelector(
                                     } else {
                                         Modifier
                                     },
-                                )
-                                .padding(if (isSelected) 4.dp else 0.dp)
+                                ).padding(if (isSelected) 4.dp else 0.dp)
                                 .clip(CircleShape)
                                 .background(themeColor),
                         contentAlignment = Alignment.Center,
@@ -345,16 +344,17 @@ private fun CustomColorHexDialog(
     onApply: (String) -> Unit,
 ) {
     var hexInput by remember { mutableStateOf(initialHex) }
-    val parsedColor = remember(hexInput) {
-        val clean = hexInput.trim().removePrefix("#")
-        val colorLong =
-            when (clean.length) {
-                6 -> runCatching { 0xFF000000 or clean.toLong(16) }.getOrNull()
-                8 -> runCatching { clean.toLong(16) }.getOrNull()
-                else -> null
-            }
-        colorLong?.let { Color(it) }
-    }
+    val parsedColor =
+        remember(hexInput) {
+            val clean = hexInput.trim().removePrefix("#")
+            val colorLong =
+                when (clean.length) {
+                    6 -> runCatching { 0xFF000000 or clean.toLong(16) }.getOrNull()
+                    8 -> runCatching { clean.toLong(16) }.getOrNull()
+                    else -> null
+                }
+            colorLong?.let { Color(it) }
+        }
     val isValid = parsedColor != null
 
     val examplePresets =
