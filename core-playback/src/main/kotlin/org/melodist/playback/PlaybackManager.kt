@@ -1145,6 +1145,7 @@ object PlaybackManager {
                         }
                         player.prepare()
                         player.play()
+                        _isTransitioning.value = false
                         savePlaybackState()
                         loadLyricsForSong(song)
 
@@ -1179,6 +1180,7 @@ object PlaybackManager {
                         }
                         player.prepare()
                         player.play()
+                        _isTransitioning.value = false
                         savePlaybackState()
                         loadLyricsForSong(song)
                     }
@@ -1193,6 +1195,7 @@ object PlaybackManager {
                         }
                         player.prepare()
                         player.play()
+                        _isTransitioning.value = false
                         savePlaybackState()
                         loadLyricsForSong(song)
                         triggerWebDavMetadataAndCoverHeal(song)
@@ -1207,6 +1210,7 @@ object PlaybackManager {
                         }
                         player.prepare()
                         player.play()
+                        _isTransitioning.value = false
                         savePlaybackState()
                         loadLyricsForSong(song)
                         triggerWebDavMetadataAndCoverHeal(song)
