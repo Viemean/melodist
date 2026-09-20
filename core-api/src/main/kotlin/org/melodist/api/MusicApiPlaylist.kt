@@ -193,6 +193,7 @@ suspend fun MusicApiService.getPlaylistSongs(
         }
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
+        val authst = UserSession.profile.musicKey
 
         if (!isFav || dirId == 201L) {
             // 自建歌单或默认我喜欢
@@ -228,7 +229,7 @@ suspend fun MusicApiService.getPlaylistSongs(
             val payload =
                 """
                 {
-                  "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "" },
+                  "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 1770, "platform": "wk_v17", "authst": "$authst" },
                   "req_diss": {
                     "module": "music.srfDissInfo.aiDissInfo",
                     "method": "uniform_get_Dissinfo",

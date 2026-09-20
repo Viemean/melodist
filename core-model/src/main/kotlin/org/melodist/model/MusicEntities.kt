@@ -53,6 +53,7 @@ data class Playlist(
     val tid: Long = 0L,
     val isFav: Boolean = false,
     val picUrl: String = "",
+    val description: String = "",
 ) {
     val isMyFavorite: Boolean get() = dirId == 201L || name == "我喜欢" || name == "我的喜欢"
     val isCreated: Boolean get() = !isFav

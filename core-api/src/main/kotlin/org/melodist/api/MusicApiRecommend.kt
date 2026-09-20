@@ -31,11 +31,11 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
             val feedPayload =
                 """
                 {
-                  "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "$authst" },
+                  "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 1770, "platform": "wk_v17", "authst": "$authst" },
                   "feed": {
                     "module": "music.recommend.RecommendFeed",
                     "method": "get_recommend_feed",
-                    "param": { "direction": 0, "page": 1, "s_num": 0, "v_cache": [] }
+                    "param": { "direction": 0, "page": 1, "s_num": 6, "v_cache": [], "v_uniq": [] }
                   }
                 }
                 """.trimIndent()
@@ -43,9 +43,9 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
             var dailyDisstid = 0L
             val feedJson = postGateway(feedPayload)
             val feedRoot = Json.parseToJsonElement(feedJson).jsonObject
+            val feedObj = (feedRoot["feed"] ?: feedRoot["req_0"])?.jsonObject
             val shelves =
-                feedRoot["feed"]
-                    ?.jsonObject
+                feedObj
                     ?.get("data")
                     ?.jsonObject
                     ?.get("v_shelf")
@@ -57,13 +57,18 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
                     for (niche in niches) {
                         val cards = niche.jsonObject["v_card"]?.jsonArray ?: continue
                         for (card in cards) {
+                            val cardObj = card.jsonObject
                             val title =
-                                card.jsonObject["title"]
+                                cardObj["title"]
                                     ?.jsonPrimitive
                                     ?.contentOrNull
                                     .orEmpty()
                             if (title.contains("30首") || title.contains("每日30") || title == "每日30首") {
-                                dailyDisstid = card.jsonObject["id"]?.jsonPrimitive?.longOrNull ?: 0L
+                                val miscellany = cardObj["miscellany"]?.jsonObject
+                                dailyDisstid =
+                                    cardObj["id"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
+                                        ?: miscellany?.get("dirid")?.jsonPrimitive?.longOrNull
+                                        ?: 202L
                                 if (dailyDisstid > 0L) break@shelfLoop
                             }
                         }
@@ -71,17 +76,17 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
                 }
             }
 
-            if (dailyDisstid <= 0L) return@withContext DailyRecommendResult()
+            if (dailyDisstid <= 0L) dailyDisstid = 202L
 
             // 阶段二：通过 uniform_get_Dissinfo 拉取专属推荐歌单全部歌曲与官方描述
             val dissPayload =
                 """
                 {
-                  "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "$authst" },
+                  "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 1770, "platform": "wk_v17", "authst": "$authst" },
                   "req_diss": {
                     "module": "music.srfDissInfo.aiDissInfo",
                     "method": "uniform_get_Dissinfo",
-                    "param": { "disstid": $dailyDisstid, "userinfo": 1, "tag": 1 }
+                    "param": { "disstid": $dailyDisstid, "userinfo": 1, "tag": 1, "song_begin": 0, "song_num": 30 }
                   }
                 }
                 """.trimIndent()
@@ -110,6 +115,138 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
     }
 
 suspend fun MusicApiService.getDailyRecommendSongs(): List<Song> = getDailyRecommendDetail().songs
+
+data class MillionRecommendResult(
+    val disstid: Long = 211111L,
+    val title: String = "百万收藏",
+    val description: String = "",
+    val coverUrl: String = "",
+    val totalSongNum: Int = 0,
+    val songs: List<Song> = emptyList(),
+)
+
+suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn) return@withContext MillionRecommendResult()
+        try {
+            LoginApiService().ensureMusicKey()
+        } catch (_: Exception) {
+        }
+
+        val uin = UserSession.profile.uin.ifBlank { "0" }
+        val authst = UserSession.profile.musicKey
+
+        try {
+            // 阶段一：通过推荐 Feed 获取今日“百万收藏”专属 ID (disstid) 与封面
+            val feedPayload =
+                """
+                {
+                  "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 1770, "platform": "wk_v17", "authst": "$authst" },
+                  "feed": {
+                    "module": "music.recommend.RecommendFeed",
+                    "method": "get_recommend_feed",
+                    "param": { "direction": 0, "page": 1, "s_num": 6, "v_cache": [], "v_uniq": [] }
+                  }
+                }
+                """.trimIndent()
+
+            var millionDisstid = 0L
+            var cardCoverUrl = ""
+            var cardTitle = "百万收藏"
+            val feedJson = postGateway(feedPayload)
+            val feedRoot = Json.parseToJsonElement(feedJson).jsonObject
+            val feedObj = (feedRoot["feed"] ?: feedRoot["req_0"])?.jsonObject
+            val shelves =
+                feedObj
+                    ?.get("data")
+                    ?.jsonObject
+                    ?.get("v_shelf")
+                    ?.jsonArray
+
+            if (shelves != null) {
+                shelfLoop@ for (shelf in shelves) {
+                    val niches = shelf.jsonObject["v_niche"]?.jsonArray ?: continue
+                    for (niche in niches) {
+                        val cards = niche.jsonObject["v_card"]?.jsonArray ?: continue
+                        for (card in cards) {
+                            val cardObj = card.jsonObject
+                            val title =
+                                cardObj["title"]
+                                    ?.jsonPrimitive
+                                    ?.contentOrNull
+                                    .orEmpty()
+                            if (title.contains("百万") || title == "百万收藏") {
+                                millionDisstid = cardObj["id"]?.jsonPrimitive?.longOrNull ?: 211111L
+                                cardCoverUrl = cardObj["cover"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                                if (title.isNotBlank()) cardTitle = title
+                                break@shelfLoop
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (millionDisstid <= 0L) {
+                millionDisstid = 211111L
+            }
+
+            // 阶段二：通过 uniform_get_Dissinfo 拉取专属推荐歌单全部歌曲与官方描述
+            val dissPayload =
+                """
+                {
+                  "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 1770, "platform": "wk_v17", "authst": "$authst" },
+                  "req_diss": {
+                    "module": "music.srfDissInfo.aiDissInfo",
+                    "method": "uniform_get_Dissinfo",
+                    "param": { "disstid": $millionDisstid, "userinfo": 1, "tag": 1, "song_begin": 0, "song_num": 50 }
+                  }
+                }
+                """.trimIndent()
+
+            val dissJson = postGateway(dissPayload)
+            val dissRoot = Json.parseToJsonElement(dissJson).jsonObject
+            val reqDissData = dissRoot["req_diss"]?.jsonObject?.get("data")?.jsonObject
+            val dirinfo = reqDissData?.get("dirinfo")?.jsonObject
+            val description =
+                dirinfo
+                    ?.get("desc")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
+                    .ifBlank { "每一首歌曲都超过百万收藏 · 每日更新" }
+            val coverUrl =
+                dirinfo
+                    ?.get("picurl")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?.takeIf { it.isNotBlank() }
+                    ?: cardCoverUrl
+
+            val totalSongNum =
+                reqDissData
+                    ?.get("total_song_num")
+                    ?.jsonPrimitive
+                    ?.intOrNull
+                    ?: dirinfo?.get("songnum")?.jsonPrimitive?.intOrNull
+                    ?: 50
+
+            val songArray = reqDissData?.get("songlist")?.jsonArray
+            val songs = songArray?.mapNotNull { MusicApiService.parseSongFromElement(it) }.orEmpty()
+
+            MillionRecommendResult(
+                disstid = millionDisstid,
+                title = cardTitle,
+                description = description,
+                coverUrl = coverUrl,
+                totalSongNum = if (songs.isNotEmpty()) songs.size else totalSongNum,
+                songs = songs,
+            )
+        } catch (_: Exception) {
+            MillionRecommendResult()
+        }
+    }
+
+suspend fun MusicApiService.getMillionRecommendSongs(): List<Song> = getMillionRecommendDetail().songs
 
 suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> =
     withContext(Dispatchers.IO) {
