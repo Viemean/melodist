@@ -2,6 +2,7 @@ package org.melodist.mobile.ui.playlist
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -89,6 +90,7 @@ fun PlaylistDetailScreen(
     var totalCount by remember { mutableIntStateOf(playlist.songCount) }
     var syncJob by remember { mutableStateOf<Job?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var isDescriptionExpanded by remember { mutableStateOf(false) }
 
     // Observe cached favorite songs for the isMyFavorite playlist
     val cachedFavSongs by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
@@ -435,8 +437,9 @@ fun PlaylistDetailScreen(
                                                 text = playlist.description,
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                                maxLines = 2,
+                                                maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 2,
                                                 overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.clickable { isDescriptionExpanded = !isDescriptionExpanded },
                                             )
                                         }
 
