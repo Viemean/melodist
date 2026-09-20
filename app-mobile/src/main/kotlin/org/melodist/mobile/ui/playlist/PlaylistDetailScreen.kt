@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +63,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.getPlaylistSongs
+import org.melodist.data.MillionRecommendManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
@@ -82,12 +84,41 @@ fun PlaylistDetailScreen(
     val scope = rememberCoroutineScope()
     val apiService = remember { MusicApiService() }
 
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
+    var songs by remember {
+        mutableStateOf<List<Song>>(
+            if (playlist.isMyFavorite) {
+                UserLibraryCacheManager.favoriteSongsFlow.value
+            } else if (playlist.isMillionRecommend) {
+                MillionRecommendManager.resultFlow.value.songs
+            } else {
+                emptyList()
+            }
+        )
+    }
+    var isLoading by remember {
+        mutableStateOf(
+            if (playlist.isMyFavorite) {
+                UserLibraryCacheManager.favoriteSongsFlow.value.isEmpty()
+            } else if (playlist.isMillionRecommend) {
+                MillionRecommendManager.resultFlow.value.songs.isEmpty()
+            } else {
+                false
+            }
+        )
+    }
     var isLoadingMore by remember { mutableStateOf(false) }
     var currentPage by remember { mutableIntStateOf(1) }
-    var hasMore by remember { mutableStateOf(true) }
-    var totalCount by remember { mutableIntStateOf(playlist.songCount) }
+    var hasMore by remember { mutableStateOf(!playlist.isMyFavorite && !playlist.isMillionRecommend) }
+    var totalCount by remember {
+        mutableIntStateOf(
+            if (playlist.isMillionRecommend && MillionRecommendManager.resultFlow.value.songs.isNotEmpty()) {
+                val num = MillionRecommendManager.resultFlow.value.totalSongNum
+                if (num > 0) num else MillionRecommendManager.resultFlow.value.songs.size
+            } else {
+                playlist.songCount
+            }
+        )
+    }
     var syncJob by remember { mutableStateOf<Job?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
     var isDescriptionExpanded by remember { mutableStateOf(false) }
@@ -95,6 +126,8 @@ fun PlaylistDetailScreen(
     // Observe cached favorite songs for the isMyFavorite playlist
     val cachedFavSongs by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
     val isFavSongsLoading by UserLibraryCacheManager.isFavSongsLoading.collectAsState()
+    val millionResult by MillionRecommendManager.resultFlow.collectAsState()
+    val isMillionLoading by MillionRecommendManager.isLoadingFlow.collectAsState()
 
     val listState = rememberLazyListState()
 
@@ -118,8 +151,27 @@ fun PlaylistDetailScreen(
                 isLoading = false
             }
         }
+    } else if (playlist.isMillionRecommend) {
+        // Million recommend playlist: subscribe to million result flow; load when empty
+        LaunchedEffect(millionResult) {
+            if (millionResult.songs.isNotEmpty()) {
+                songs = millionResult.songs
+                totalCount = if (millionResult.totalSongNum > 0) millionResult.totalSongNum else millionResult.songs.size
+                hasMore = false
+                isLoading = false
+            }
+        }
+        LaunchedEffect(playlist.dirId) {
+            if (millionResult.songs.isEmpty()) {
+                isLoading = true
+                withContext(Dispatchers.IO) {
+                    MillionRecommendManager.refresh(apiService, forceRefresh = false)
+                }
+                isLoading = false
+            }
+        }
     } else {
-        // Non-favorite playlist: regular network load
+        // Non-favorite, non-million playlist: regular network load
         LaunchedEffect(playlist.dirId, playlist.tid) {
             isLoading = true
             currentPage = 1
@@ -159,19 +211,21 @@ fun PlaylistDetailScreen(
     }
 
     val playlistTag =
-        remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite) {
-            if (playlist.isMyFavorite) "favorites" else "playlist_${playlist.dirId}_${playlist.tid}"
+        remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite, playlist.isMillionRecommend) {
+            if (playlist.isMyFavorite) "favorites"
+            else if (playlist.isMillionRecommend) "million_recommend"
+            else "playlist_${playlist.dirId}_${playlist.tid}"
         }
 
     val playlistPaginationSource =
-        remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite) {
-            if (!playlist.isMyFavorite) {
+        remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite, playlist.isMillionRecommend) {
+            if (!playlist.isMyFavorite && !playlist.isMillionRecommend) {
                 object : QueuePaginationSource {
                     override val hasMore: Boolean get() = hasMore
                     override val isLoadingMore: Boolean get() = isLoadingMore
 
                     override suspend fun loadMore(): List<Song> {
-                        if (playlist.isMyFavorite || !hasMore || isLoading || isLoadingMore) return emptyList()
+                        if (playlist.isMyFavorite || playlist.isMillionRecommend || !hasMore || isLoading || isLoadingMore) return emptyList()
                         isLoadingMore = true
                         val nextPage = currentPage + 1
                         val nextSongs =
@@ -212,7 +266,7 @@ fun PlaylistDetailScreen(
         }
 
     LaunchedEffect(shouldLoadMore) {
-        if (playlist.isMyFavorite) return@LaunchedEffect
+        if (playlist.isMyFavorite || playlist.isMillionRecommend) return@LaunchedEffect
         if (shouldLoadMore && hasMore && !isLoading && !isLoadingMore) {
             scope.launch {
                 playlistPaginationSource?.loadMore()
@@ -222,7 +276,7 @@ fun PlaylistDetailScreen(
 
     // Background pipeline to load remaining pages for non-favorite playlists
     fun startBackgroundSyncRemaining() {
-        if (playlist.isMyFavorite) return
+        if (playlist.isMyFavorite || playlist.isMillionRecommend) return
         if (!hasMore) return
         if (syncJob?.isActive == true) return
 
@@ -287,13 +341,23 @@ fun PlaylistDetailScreen(
     ) { scaffoldPadding ->
         val pullRefreshState = rememberPullToRefreshState()
         PullToRefreshBox(
-            isRefreshing = isRefreshing || (playlist.isMyFavorite && isFavSongsLoading && songs.isNotEmpty()),
+            isRefreshing = isRefreshing ||
+                (playlist.isMyFavorite && isFavSongsLoading && songs.isNotEmpty()) ||
+                (playlist.isMillionRecommend && isMillionLoading && songs.isNotEmpty()),
             onRefresh = {
                 if (playlist.isMyFavorite) {
                     scope.launch {
                         isRefreshing = true
                         withContext(Dispatchers.IO) {
                             UserLibraryCacheManager.loadFavoriteSongs(apiService, forceRefresh = true)
+                        }
+                        isRefreshing = false
+                    }
+                } else if (playlist.isMillionRecommend) {
+                    scope.launch {
+                        isRefreshing = true
+                        withContext(Dispatchers.IO) {
+                            MillionRecommendManager.refresh(apiService, forceRefresh = true)
                         }
                         isRefreshing = false
                     }
@@ -388,17 +452,28 @@ fun PlaylistDetailScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     AlbumArtImage(
-                                        coverUrl = playlist.thumbnailPicUrl,
+                                        coverUrl = playlist.thumbnailPicUrl.ifBlank {
+                                            if (playlist.isMillionRecommend) millionResult.coverUrl.ifBlank { songs.firstOrNull()?.coverUrl.orEmpty() } else ""
+                                        },
                                         contentDescription = playlist.name,
                                         shape = RoundedCornerShape(14.dp),
                                         elevation = 8.dp,
                                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
                                         placeholderIconSize = 48.dp,
                                         placeholderContent = {
-                                            val icon = if (playlist.isMyFavorite) Icons.Rounded.Favorite else Icons.Rounded.MusicNote
+                                            val icon =
+                                                if (playlist.isMyFavorite) {
+                                                    Icons.Rounded.Favorite
+                                                } else if (playlist.isMillionRecommend) {
+                                                    Icons.Rounded.Whatshot
+                                                } else {
+                                                    Icons.Rounded.MusicNote
+                                                }
                                             val tint =
                                                 if (playlist.isMyFavorite) {
                                                     MaterialTheme.colorScheme.error
+                                                } else if (playlist.isMillionRecommend) {
+                                                    MaterialTheme.colorScheme.tertiary
                                                 } else {
                                                     MaterialTheme.colorScheme.onSurfaceVariant
                                                 }
@@ -431,10 +506,14 @@ fun PlaylistDetailScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
 
-                                        if (playlist.description.isNotBlank()) {
+                                        val displayDescription =
+                                            playlist.description.ifBlank {
+                                                if (playlist.isMillionRecommend) millionResult.description.ifBlank { "每一首歌曲都超过百万收藏 · 每日更新" } else ""
+                                            }
+                                        if (displayDescription.isNotBlank()) {
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                text = playlist.description,
+                                                text = displayDescription,
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                                 maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 2,

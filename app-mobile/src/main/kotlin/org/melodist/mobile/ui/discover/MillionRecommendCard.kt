@@ -35,9 +35,9 @@ fun MillionRecommendCard(
             val disstid = if (millionResult.disstid > 0L) millionResult.disstid else 211111L
             val playlist =
                 Playlist(
-                    dirId = disstid,
+                    dirId = 211111L,
                     name = millionResult.title.ifBlank { "百万收藏" },
-                    songCount = if (millionResult.totalSongNum > 0) millionResult.totalSongNum else 50,
+                    songCount = if (millionResult.totalSongNum > 0) millionResult.totalSongNum else (if (songs.isNotEmpty()) songs.size else 50),
                     tid = disstid,
                     isFav = true,
                     picUrl = coverUrl,
