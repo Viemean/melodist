@@ -75,8 +75,9 @@ object MobileConnectManager {
 
     fun init(context: Context) {
         if (storageManager != null) return
-        appContext = context.applicationContext
-        val storage = ConnectStorageManager(context, DeviceType.MOBILE)
+        val app = context.applicationContext
+        appContext = app
+        val storage = ConnectStorageManager(app, DeviceType.MOBILE)
         storageManager = storage
 
         // 默认连接模式为浏览模式
@@ -85,11 +86,11 @@ object MobileConnectManager {
         val client = MobileConnectClient(storage)
         connectClient = client
 
-        val nsd = ConnectNsdHelper(context)
+        val nsd = ConnectNsdHelper(app)
         nsdHelper = nsd
         nsd.startDiscovery()
 
-        val server = LocalAudioStreamServer(context)
+        val server = LocalAudioStreamServer(app)
         streamServer = server
         server.start()
 
