@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,16 +16,21 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
@@ -85,6 +91,7 @@ fun SongCommentsBottomSheet(
 
     val hotComments = remember { mutableStateListOf<SongComment>() }
     val normalComments = remember { mutableStateListOf<SongComment>() }
+    var previewImageUrl by remember { mutableStateOf<String?>(null) }
     var totalCommentCount by remember { mutableIntStateOf(0) }
     var currentPage by remember { mutableIntStateOf(0) }
     var hasMore by remember { mutableStateOf(false) }
@@ -317,7 +324,10 @@ fun SongCommentsBottomSheet(
                                 items = hotComments,
                                 key = { "hot_${it.commentId}" },
                             ) { comment ->
-                                SongCommentItem(comment = comment)
+                                SongCommentItem(
+                                    comment = comment,
+                                    onImageClick = { previewImageUrl = it },
+                                )
                             }
                         }
 
@@ -335,7 +345,10 @@ fun SongCommentsBottomSheet(
                                 items = normalComments,
                                 key = { "normal_${it.commentId}" },
                             ) { comment ->
-                                SongCommentItem(comment = comment)
+                                SongCommentItem(
+                                    comment = comment,
+                                    onImageClick = { previewImageUrl = it },
+                                )
                             }
                         }
 
@@ -366,12 +379,38 @@ fun SongCommentsBottomSheet(
             }
         }
     }
+
+    // 评论配图全屏大图预览弹窗
+    previewImageUrl?.let { imgUrl ->
+        Dialog(
+            onDismissRequest = { previewImageUrl = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.92f))
+                    .clickable { previewImageUrl = null },
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = imgUrl,
+                    contentDescription = "评论图片大图预览",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun SongCommentItem(
     comment: SongComment,
     modifier: Modifier = Modifier,
+    onImageClick: ((String) -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -465,10 +504,18 @@ private fun SongCommentItem(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            // 时间
-            if (comment.timeSec > 0L) {
+            // 时间与属地
+            val timeText = if (comment.timeSec > 0L) formatTimestamp(comment.timeSec) else ""
+            val locText = comment.location.ifBlank { "" }
+            val metaText = when {
+                timeText.isNotBlank() && locText.isNotBlank() -> "$timeText · 来自$locText"
+                timeText.isNotBlank() -> timeText
+                locText.isNotBlank() -> "来自$locText"
+                else -> ""
+            }
+            if (metaText.isNotBlank()) {
                 Text(
-                    text = formatTimestamp(comment.timeSec),
+                    text = metaText,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
@@ -483,6 +530,21 @@ private fun SongCommentItem(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 20.sp,
+                )
+            }
+
+            // 评论配图
+            if (comment.picUrl.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AsyncImage(
+                    model = comment.picUrl,
+                    contentDescription = "评论图片",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .widthIn(max = 220.dp)
+                        .heightIn(max = 200.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onImageClick?.invoke(comment.picUrl) },
                 )
             }
         }

@@ -102,4 +102,43 @@ class MusicApiCommentTest {
         assertTrue(page.hotComments.first().isHot)
         assertFalse(page.comments.first().isHot)
     }
+
+    @Test
+    fun `parseModernCommentElement correctly extracts picture, size and location`() {
+        val rawJson =
+            """
+            {
+              "Avatar": "https://thirdwx.qlogo.cn/avatar_pic",
+              "CmId": "mod_cmt_9001",
+              "Nick": "☘️みどりお",
+              "Content": "谁还记得他只是一个16岁的少女？",
+              "PubTime": 1712822400,
+              "PraiseNum": 520,
+              "Pic": "https://music-file.y.qq.com/comment/u/test/5f805198.jpeg",
+              "PicSize": "900x1440",
+              "Location": "广东"
+            }
+            """.trimIndent()
+        val element = Json.parseToJsonElement(rawJson)
+        val comment = parseModernCommentElement(element, isHot = true)
+
+        assertNotNull(comment)
+        assertEquals("mod_cmt_9001", comment?.commentId)
+        assertEquals("☘️みどりお", comment?.nick)
+        assertEquals("https://thirdwx.qlogo.cn/avatar_pic", comment?.avatarUrl)
+        assertEquals("谁还记得他只是一个16岁的少女？", comment?.content)
+        assertEquals(1712822400L, comment?.timeSec)
+        assertEquals(520, comment?.praiseNum)
+        assertTrue(comment?.isHot == true)
+        assertEquals("https://music-file.y.qq.com/comment/u/test/5f805198.jpeg", comment?.picUrl)
+        assertEquals("900x1440", comment?.picSize)
+        assertEquals("广东", comment?.location)
+    }
+
+    @Test
+    fun `decodeHtmlEntities unescapes common HTML entities correctly`() {
+        val raw = "&quot;Hello&quot;&nbsp;&amp;&nbsp;&lt;World&gt;&#13;Line2"
+        val decoded = decodeHtmlEntities(raw)
+        assertEquals("\"Hello\" & <World>\nLine2", decoded)
+    }
 }
