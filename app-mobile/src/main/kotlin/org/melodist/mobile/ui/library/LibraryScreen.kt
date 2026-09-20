@@ -536,13 +536,6 @@ fun LibraryScreen(
                     showCreatePlaylistDialog = false
                 }
             },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            },
             title = {
                 Text(
                     text = "新建歌单",
