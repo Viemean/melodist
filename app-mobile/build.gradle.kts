@@ -30,7 +30,7 @@ android {
     defaultConfig {
         applicationId = "org.melodist.mobile"
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 138
         versionName = "1.3.8"
         buildConfigField("String", "MELODIST_VERSION_NAME", "\"$versionName\"")

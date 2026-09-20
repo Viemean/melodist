@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "org.melodist.tv"
         minSdk = 28
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 138
         versionName = "1.3.8"
 
