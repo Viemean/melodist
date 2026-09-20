@@ -29,6 +29,8 @@ sealed interface HomeFocusTarget {
 
 object HomeFocusMemory {
     var lastTarget: HomeFocusTarget = HomeFocusTarget.TopNav(0)
+    var lastCoreIndex: Int = 0
+    var lastFeedIndex: Int = 0
     var hasUserNavigated: Boolean = false
     var scrollPosition: Int = 0
 }
@@ -80,11 +82,13 @@ fun HomeTvScreen(
 
     val initialCoreIndex =
         remember {
-            (HomeFocusMemory.lastTarget as? HomeFocusTarget.CoreCard)?.index ?: 0
+            (HomeFocusMemory.lastTarget as? HomeFocusTarget.CoreCard)?.index
+                ?: HomeFocusMemory.lastCoreIndex
         }
     val initialFeedIndex =
         remember {
-            (HomeFocusMemory.lastTarget as? HomeFocusTarget.FeedCard)?.index ?: 0
+            (HomeFocusMemory.lastTarget as? HomeFocusTarget.FeedCard)?.index
+                ?: HomeFocusMemory.lastFeedIndex
         }
 
     val scrollState = rememberScrollState(initial = HomeFocusMemory.scrollPosition)
@@ -204,6 +208,7 @@ fun HomeTvScreen(
                 initialFocusedIndex = initialCoreIndex,
                 onCardFocused = { index ->
                     HomeFocusMemory.lastTarget = HomeFocusTarget.CoreCard(index)
+                    HomeFocusMemory.lastCoreIndex = index
                     HomeFocusMemory.hasUserNavigated = true
                 },
                 onCardClick = { category -> onNavigateToDetail(category) },
@@ -246,6 +251,7 @@ fun HomeTvScreen(
                 initialFocusedIndex = initialFeedIndex,
                 onCardFocused = { index ->
                     HomeFocusMemory.lastTarget = HomeFocusTarget.FeedCard(index)
+                    HomeFocusMemory.lastFeedIndex = index
                     HomeFocusMemory.hasUserNavigated = true
                 },
                 onPlaySong = { songs, startIndex ->

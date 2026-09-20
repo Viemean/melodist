@@ -87,6 +87,7 @@ fun NowPlayingHeroCard(
                 }
                 .focusProperties {
                     if (upFocusRequester != null) up = upFocusRequester
+                    if (downFocusRequester != null) down = downFocusRequester
                     right = playPauseRequester
                 }.onPreviewKeyEvent { event ->
                     if (isCardFocused) {
@@ -170,11 +171,7 @@ fun NowPlayingHeroCard(
                 Column(
                     modifier =
                         Modifier
-                            .fillMaxWidth(0.85f)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            ) { onCardClick() },
+                            .fillMaxWidth(0.85f),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
@@ -239,6 +236,7 @@ fun NowPlayingHeroCard(
                                         .focusRequester(playPauseRequester)
                                         .focusProperties {
                                             up = upFocusRequester ?: actualCardRequester
+                                            if (downFocusRequester != null) down = downFocusRequester
                                             left = actualCardRequester
                                             right = if (canFavorite) favoriteRequester else actualCardRequester
                                         }.onPreviewKeyEvent { event ->
@@ -282,6 +280,7 @@ fun NowPlayingHeroCard(
                                             .focusRequester(favoriteRequester)
                                             .focusProperties {
                                                 up = upFocusRequester ?: actualCardRequester
+                                                if (downFocusRequester != null) down = downFocusRequester
                                                 left = playPauseRequester
                                                 right = actualCardRequester
                                             }.onPreviewKeyEvent { event ->
@@ -393,7 +392,6 @@ fun NowPlayingHeroCard(
                         .fillMaxHeight()
                         .padding(vertical = 10.dp, horizontal = 10.dp)
                         .aspectRatio(1f),
-                onClick = onCardClick,
             )
         }
     }

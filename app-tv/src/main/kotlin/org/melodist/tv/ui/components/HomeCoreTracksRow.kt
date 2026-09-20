@@ -6,9 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -323,15 +322,17 @@ fun HomeCoreTracksRow(
         )
 
         var focusedCardIndex by remember { mutableIntStateOf(initialFocusedIndex) }
-        val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialFocusedIndex.coerceIn(0, 4))
+        val scrollState = rememberScrollState()
 
-        LazyRow(
-            state = listState,
-            modifier = Modifier.fillMaxWidth(),
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState)
+                    .padding(start = 14.dp, end = 32.dp, top = 14.dp, bottom = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(22.dp),
-            contentPadding = PaddingValues(start = 14.dp, end = 32.dp, top = 14.dp, bottom = 14.dp),
         ) {
-            itemsIndexed(cardItems, key = { _, item -> item.id }) { index, item ->
+            cardItems.forEachIndexed { index, item ->
                 RotatingTrackCard(
                     item = item,
                     cardWidth = cardWidth,
