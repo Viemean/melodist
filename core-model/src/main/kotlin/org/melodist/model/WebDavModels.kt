@@ -13,6 +13,7 @@ data class WebDavSongCache(
     val quality: String = "标准",
     val localCachedPath: String? = null,
     val coverPath: String? = null,
+    val rawCoverPath: String? = null,
     val fileSize: Long = 0L,
     val lastModified: Long? = null,
     val embeddedLyrics: String? = null,
@@ -35,6 +36,33 @@ data class WebDavSongCache(
             } else {
                 ""
             }
+
+        val validRawCoverUrl =
+            if (!rawCoverPath.isNullOrBlank()) {
+                val f = java.io.File(rawCoverPath)
+                if (f.exists() && f.length() > 0L) {
+                    if (rawCoverPath.startsWith("/")) "file://$rawCoverPath" else rawCoverPath
+                } else {
+                    ""
+                }
+            } else {
+                if (validCoverUrl.isNotBlank()) {
+                    val p = validCoverUrl.removePrefix("file://")
+                    val parent = java.io.File(p).parentFile
+                    val candJpg = java.io.File(parent, "webdav_raw_$hash.jpg")
+                    val candPng = java.io.File(parent, "webdav_raw_$hash.png")
+                    val candWebp = java.io.File(parent, "webdav_raw_$hash.webp")
+                    when {
+                        candJpg.exists() && candJpg.length() > 512L -> "file://${candJpg.absolutePath}"
+                        candPng.exists() && candPng.length() > 512L -> "file://${candPng.absolutePath}"
+                        candWebp.exists() && candWebp.length() > 512L -> "file://${candWebp.absolutePath}"
+                        else -> ""
+                    }
+                } else {
+                    ""
+                }
+            }
+
         return Song(
             songId = (serverId + href).hashCode().toLong() and 0x7FFFFFFFL,
             songMid = "webdav_${serverId}_$hash",
@@ -44,6 +72,7 @@ data class WebDavSongCache(
             durationSeconds = duration,
             currentTier = AudioQualityTier.SQ,
             coverUrl = validCoverUrl,
+            rawCoverUrl = validRawCoverUrl,
             localFilePath = localCachedPath,
             mediaMid = href,
         )

@@ -19,6 +19,7 @@ data class Song(
     val mediaMid: String = "",
     val singerList: List<Artist> = emptyList(),
     val visualMid: String = "",
+    val rawCoverUrl: String = "",
 ) {
     val effectiveMediaMid: String
         get() = mediaMid.ifBlank { songMid }
@@ -51,29 +52,101 @@ data class Song(
 
     val playerCoverCandidates: List<String>
         get() {
-            if (coverUrl.isBlank()) return emptyList()
-            if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) return listOf(coverUrl)
-            val regex = Regex("R[0-9]+x[0-9]+")
-            if (coverUrl.contains(regex)) {
-                val url1200 = coverUrl.replace(regex, "R1200x1200")
-                val url800 = coverUrl.replace(regex, "R800x800")
-                val url500 = coverUrl.replace(regex, "R500x500")
-                return listOf(url1200, url800, url500).distinct()
+            val list = mutableListOf<String>()
+            if (rawCoverUrl.isNotBlank()) {
+                list.add(rawCoverUrl)
             }
-            return listOf(coverUrl)
+            if (coverUrl.isNotBlank()) {
+                if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
+                    val matchingRaw = findLocalRawCover(coverUrl)
+                    if (!matchingRaw.isNullOrBlank() && !list.contains(matchingRaw)) {
+                        list.add(matchingRaw)
+                    }
+                    if (!list.contains(coverUrl)) {
+                        list.add(coverUrl)
+                    }
+                } else {
+                    val regex = Regex("R[0-9]+x[0-9]+")
+                    if (coverUrl.contains(regex)) {
+                        val url1200 = coverUrl.replace(regex, "R1200x1200")
+                        val url800 = coverUrl.replace(regex, "R800x800")
+                        val url500 = coverUrl.replace(regex, "R500x500")
+                        listOf(url1200, url800, url500).forEach { u ->
+                            if (!list.contains(u)) list.add(u)
+                        }
+                    } else {
+                        if (!list.contains(coverUrl)) {
+                            list.add(coverUrl)
+                        }
+                    }
+                }
+            }
+            return list
         }
 
     val rawCoverCandidates: List<String>
         get() {
-            if (coverUrl.isBlank()) return emptyList()
-            if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) return listOf(coverUrl)
-            val regex = Regex("R[0-9]+x[0-9]+")
-            if (coverUrl.contains(regex)) {
-                val rawUrl = coverUrl.replace(regex, "")
-                val url1200 = coverUrl.replace(regex, "R1200x1200")
-                val url800 = coverUrl.replace(regex, "R800x800")
-                return listOf(rawUrl, url1200, url800, coverUrl).distinct()
+            val list = mutableListOf<String>()
+            if (rawCoverUrl.isNotBlank()) {
+                list.add(rawCoverUrl)
             }
-            return listOf(coverUrl)
+            if (coverUrl.isNotBlank()) {
+                if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
+                    val matchingRaw = findLocalRawCover(coverUrl)
+                    if (!matchingRaw.isNullOrBlank() && !list.contains(matchingRaw)) {
+                        list.add(matchingRaw)
+                    }
+                    if (!list.contains(coverUrl)) {
+                        list.add(coverUrl)
+                    }
+                } else {
+                    val regex = Regex("R[0-9]+x[0-9]+")
+                    if (coverUrl.contains(regex)) {
+                        val rawUrl = coverUrl.replace(regex, "")
+                        val url1200 = coverUrl.replace(regex, "R1200x1200")
+                        val url800 = coverUrl.replace(regex, "R800x800")
+                        listOf(rawUrl, url1200, url800, coverUrl).forEach { u ->
+                            if (!list.contains(u)) list.add(u)
+                        }
+                    } else {
+                        if (!list.contains(coverUrl)) {
+                            list.add(coverUrl)
+                        }
+                    }
+                }
+            }
+            return list
         }
 }
+
+private fun findLocalRawCover(url: String): String? {
+    if (!url.startsWith("/") && !url.startsWith("file://")) return null
+    return try {
+        val path = if (url.startsWith("file://")) url.removePrefix("file://") else url
+        val file = java.io.File(path)
+        val parent = file.parentFile ?: return null
+        val name = file.name
+        val (baseHash, prefix) =
+            when {
+                name.startsWith("cover_") && !name.startsWith("cover_raw_") -> {
+                    name.removePrefix("cover_").substringBeforeLast(".") to "cover_raw_"
+                }
+                name.startsWith("webdav_") && !name.startsWith("webdav_raw_") -> {
+                    name.removePrefix("webdav_").substringBeforeLast(".") to "webdav_raw_"
+                }
+                else -> return null
+            }
+        val extensions = listOf("jpg", "png", "webp", "jpeg")
+        for (ext in extensions) {
+            val candidate = java.io.File(parent, "$prefix$baseHash.$ext")
+            if (candidate.exists() && candidate.length() > 512L) {
+                return "file://${candidate.absolutePath}"
+            }
+        }
+        null
+    } catch (_: Exception) {
+        null
+    }
+}
+
+
