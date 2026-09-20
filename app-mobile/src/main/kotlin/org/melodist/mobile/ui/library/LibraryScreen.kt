@@ -69,6 +69,8 @@ import org.melodist.api.createPlaylist
 import org.melodist.api.deletePlaylist
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
+import org.melodist.mobile.ui.library.components.FavoriteAlbumsCard
+import org.melodist.mobile.ui.library.components.FavoriteMusicCard
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Playlist
 import org.melodist.playback.PlaybackManager
@@ -109,6 +111,7 @@ fun LibraryScreen(
                 scope.launch {
                     try {
                         UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = true)
+                        UserLibraryCacheManager.loadFavoriteSongs(apiService, forceRefresh = true)
                     } finally {
                         isRefreshing = false
                     }
@@ -135,6 +138,9 @@ fun LibraryScreen(
     LaunchedEffect(userProfile.uin, isLoggedIn) {
         if (isLoggedIn) {
             UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = false)
+            if (UserLibraryCacheManager.favoriteSongsFlow.value.isEmpty()) {
+                UserLibraryCacheManager.loadFavoriteSongs(apiService, forceRefresh = false)
+            }
         }
     }
 
@@ -154,11 +160,12 @@ fun LibraryScreen(
                     bottom = contentPadding.calculateBottomPadding() + 16.dp,
                 ),
         ) {
-            // “我喜欢的音乐”特色卡片
-            item {
+            // “我喜欢的音乐”特色卡片（复用推荐卡片通用模块）
+            item(key = "library_favorite_music_card") {
                 val effectiveFavCount = if (favoriteCount > 0) favoriteCount else favoriteMids.size
-                Card(
-                    onClick = {
+                FavoriteMusicCard(
+                    totalCount = effectiveFavCount,
+                    onCardClick = {
                         val favPlaylist =
                             Playlist(
                                 dirId = 201L,
@@ -172,125 +179,20 @@ fun LibraryScreen(
                         Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                        ),
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(50.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(MaterialTheme.colorScheme.errorContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Favorite,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(28.dp),
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "我喜欢的音乐",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "共 $effectiveFavCount 首歌曲",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
+                )
             }
 
-            // “收藏的专辑”特色卡片
-            item {
-                val favoriteAlbums = libraryData.favoriteAlbums
-                Card(
-                    onClick = {
+            // “收藏的专辑”特色卡片（复用推荐卡片通用模块）
+            item(key = "library_favorite_albums_card") {
+                FavoriteAlbumsCard(
+                    onCardClick = {
                         navigation.navigateToFavoriteAlbums()
                     },
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                        ),
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(50.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(MaterialTheme.colorScheme.tertiaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Album,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.size(28.dp),
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "收藏的专辑",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = if (favoriteAlbums.isNotEmpty()) "共 ${favoriteAlbums.size} 张专辑" else "查看收藏的专辑",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
+                )
             }
 
             // 歌单标题
