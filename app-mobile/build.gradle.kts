@@ -38,6 +38,7 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
+        resourceConfigurations += listOf("zh", "zh-rCN", "en")
     }
 
     flavorDimensions += "channel"
@@ -84,7 +85,12 @@ android {
 
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += listOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/*.version",
+                "/META-INF/*.kotlin_module",
+                "/META-INF/INDEX.LIST",
+            )
         }
     }
 

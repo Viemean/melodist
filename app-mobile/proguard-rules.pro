@@ -25,3 +25,14 @@
 -dontwarn okio.**
 -keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
 -dontwarn coil3.**
+
+# Strip Debug/Verbose logs in Release
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+}
+
+# Keep line numbers for crash analysis
+-keepattributes LineNumberTable,SourceFile
+-renamesourcefileattribute SourceFile
