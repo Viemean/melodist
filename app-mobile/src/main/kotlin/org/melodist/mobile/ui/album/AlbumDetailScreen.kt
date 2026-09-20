@@ -43,6 +43,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,6 +71,7 @@ import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
 import org.melodist.model.AlbumDetail
 import org.melodist.model.Artist
+import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,6 +129,17 @@ fun AlbumDetailScreen(
             if (albumMid.isNotBlank()) MusicApiService.getAlbumCoverUrl(albumMid) else ""
         }
 
+    val context = LocalContext.current
+    DisposableEffect(coverUrl) {
+        onDispose {
+            if (coverUrl.isNotBlank()) {
+                val rawUrl = coverUrl.replace(Regex("R[0-9]+x[0-9]+"), "")
+                CoverMemoryManager.evictCoverFromMemory(context, rawUrl)
+                CoverMemoryManager.evictCoverFromMemory(context, coverUrl)
+            }
+        }
+    }
+
     suspend fun loadDetail(force: Boolean) {
         if (albumMid.isBlank()) return
         if (force) {
@@ -146,7 +159,6 @@ fun AlbumDetailScreen(
         loadDetail(force = false)
     }
 
-    val context = LocalContext.current
     val libraryData by UserLibraryCacheManager.libraryFlow.collectAsState()
     val isFavorite =
         remember(libraryData.favoriteAlbums, albumMid) {

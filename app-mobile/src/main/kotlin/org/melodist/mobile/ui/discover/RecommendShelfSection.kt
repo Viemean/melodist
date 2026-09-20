@@ -139,6 +139,7 @@ private fun RecommendSongCard(
             ) {
                 AlbumArtImage(
                     coverUrl = song.thumbnailCoverUrl,
+                    candidates = song.thumbnailCandidates,
                     contentDescription = song.name,
                     shape = RoundedCornerShape(8.dp),
                     elevation = 0.dp,

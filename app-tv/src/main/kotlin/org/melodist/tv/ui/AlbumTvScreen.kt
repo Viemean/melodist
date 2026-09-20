@@ -2,12 +2,14 @@ package org.melodist.tv.ui
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.model.AlbumDetail
 import org.melodist.model.Song
+import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.components.MediaDetailTvScaffold
 import org.melodist.tv.ui.components.SongArtistAlbumDialog
@@ -47,6 +49,17 @@ fun AlbumTvScreen(
         remember(albumMid) {
             if (albumMid.isNotBlank()) MusicApiService.getAlbumCoverUrl(albumMid) else ""
         }
+
+    val context = LocalContext.current
+    DisposableEffect(coverUrl) {
+        onDispose {
+            if (coverUrl.isNotBlank()) {
+                val rawUrl = coverUrl.replace(Regex("R[0-9]+x[0-9]+"), "")
+                CoverMemoryManager.evictCoverFromMemory(context, rawUrl)
+                CoverMemoryManager.evictCoverFromMemory(context, coverUrl)
+            }
+        }
+    }
 
     val title = albumDetail?.name ?: albumName.ifBlank { "专辑详情" }
     val subtitle = albumDetail?.artist ?: ""

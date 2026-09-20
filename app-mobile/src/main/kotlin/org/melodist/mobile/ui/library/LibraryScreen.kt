@@ -243,6 +243,7 @@ fun LibraryScreen(
                     ) {
                         AlbumArtImage(
                             coverUrl = playlist.thumbnailPicUrl,
+                            candidates = playlist.thumbnailCandidates,
                             contentDescription = playlist.name,
                             shape = RoundedCornerShape(8.dp),
                             elevation = 2.dp,
@@ -303,6 +304,7 @@ fun LibraryScreen(
                 ) {
                     AlbumArtImage(
                         coverUrl = playlist.thumbnailPicUrl,
+                        candidates = playlist.thumbnailCandidates,
                         contentDescription = playlist.name,
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.size(48.dp),

@@ -42,6 +42,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -73,6 +74,7 @@ import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.model.Playlist
 import org.melodist.model.Song
+import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
 import org.melodist.playback.QueuePaginationSource
 
@@ -137,6 +139,17 @@ fun PlaylistDetailScreen(
     val showTopBarTitle by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 200
+        }
+    }
+
+    DisposableEffect(playlist.picUrl) {
+        onDispose {
+            val url = playlist.picUrl
+            if (url.isNotBlank()) {
+                val rawUrl = url.replace(Regex("R[0-9]+x[0-9]+"), "")
+                CoverMemoryManager.evictCoverFromMemory(context, rawUrl)
+                CoverMemoryManager.evictCoverFromMemory(context, url)
+            }
         }
     }
 
@@ -469,8 +482,8 @@ fun PlaylistDetailScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     val effectiveCoverUrl =
-                                        remember(playlist.thumbnailPicUrl, playlist.isMillionRecommend, playlist.isMyFavorite, millionResult.coverUrl, songs) {
-                                            playlist.thumbnailPicUrl.ifBlank {
+                                        remember(playlist.picUrl, playlist.isMillionRecommend, playlist.isMyFavorite, millionResult.coverUrl, songs) {
+                                            playlist.picUrl.ifBlank {
                                                 if (playlist.isMillionRecommend) {
                                                     millionResult.coverUrl.ifBlank { songs.firstOrNull { it.coverUrl.isNotBlank() }?.coverUrl.orEmpty() }
                                                 } else {
@@ -479,9 +492,23 @@ fun PlaylistDetailScreen(
                                             }
                                         }
 
+                                    val detailCandidates =
+                                        remember(effectiveCoverUrl) {
+                                            val regex = Regex("R[0-9]+x[0-9]+")
+                                            if (effectiveCoverUrl.contains(regex)) {
+                                                val rawUrl = effectiveCoverUrl.replace(regex, "")
+                                                val url1200 = effectiveCoverUrl.replace(regex, "R1200x1200")
+                                                val url800 = effectiveCoverUrl.replace(regex, "R800x800")
+                                                listOf(rawUrl, url1200, url800).distinct()
+                                            } else {
+                                                listOf(effectiveCoverUrl)
+                                            }
+                                        }
+
                                     Box(modifier = Modifier.size(110.dp)) {
                                         AlbumArtImage(
                                             coverUrl = effectiveCoverUrl,
+                                            candidates = detailCandidates,
                                             contentDescription = playlist.name,
                                             shape = RoundedCornerShape(14.dp),
                                             elevation = 8.dp,
