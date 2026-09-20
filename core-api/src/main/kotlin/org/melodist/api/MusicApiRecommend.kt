@@ -2,6 +2,7 @@ package org.melodist.api
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import org.melodist.model.RecommendShelf
 import org.melodist.model.Song
@@ -10,6 +11,7 @@ import org.melodist.model.Song
  * 智能推荐与电台雷达扩展
  */
 
+@Serializable
 data class DailyRecommendResult(
     val description: String = "",
     val songs: List<Song> = emptyList(),
@@ -116,6 +118,7 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
 
 suspend fun MusicApiService.getDailyRecommendSongs(): List<Song> = getDailyRecommendDetail().songs
 
+@Serializable
 data class MillionRecommendResult(
     val disstid: Long = 211111L,
     val title: String = "百万收藏",
