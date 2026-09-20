@@ -49,19 +49,17 @@ fun HeroRecommendCard(
     onAccentContainerColor: Color,
     playIcon: ImageVector,
     playContentDescription: String,
-    onCardClick: () -> Unit,
     onPlayClick: () -> Unit,
+    onCardClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val cardBg = MaterialTheme.colorScheme.surfaceContainerHigh
+    val cardModifier = modifier.defaultMinSize(minHeight = 100.dp)
+    val cardShape = RoundedCornerShape(18.dp)
+    val cardColors = CardDefaults.elevatedCardColors(containerColor = cardBg)
+    val cardElevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
 
-    ElevatedCard(
-        onClick = onCardClick,
-        modifier = modifier.defaultMinSize(minHeight = 100.dp),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = cardBg),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-    ) {
+    val cardContent: @Composable () -> Unit = {
         Box(
             modifier =
                 Modifier
@@ -209,6 +207,27 @@ fun HeroRecommendCard(
                     )
                 }
             }
+        }
+    }
+
+    if (onCardClick != null) {
+        ElevatedCard(
+            onClick = onCardClick,
+            modifier = cardModifier,
+            shape = cardShape,
+            colors = cardColors,
+            elevation = cardElevation,
+        ) {
+            cardContent()
+        }
+    } else {
+        ElevatedCard(
+            modifier = cardModifier,
+            shape = cardShape,
+            colors = cardColors,
+            elevation = cardElevation,
+        ) {
+            cardContent()
         }
     }
 }
