@@ -1238,6 +1238,24 @@ object PlaybackManager {
                             }
                         }
 
+                        // 异步确保本地音频内嵌高清原画大图提取并热更新
+                        launch(Dispatchers.IO) {
+                            try {
+                                val rawCover = org.melodist.data.LocalMusicManager.ensureRawCover(song)
+                                if (!rawCover.isNullOrBlank() && _currentSong.value?.songId == song.songId) {
+                                    withContext(Dispatchers.Main) {
+                                        val current = _currentSong.value
+                                        if (current != null && current.songId == song.songId && current.rawCoverUrl != rawCover) {
+                                            val updated = current.copy(rawCoverUrl = rawCover)
+                                            _currentSong.value = updated
+                                            queueManager.updateSongInPlaylist(updated)
+                                        }
+                                    }
+                                }
+                            } catch (_: Exception) {
+                            }
+                        }
+
                         return@launch
                     }
                 }
@@ -1432,6 +1450,7 @@ object PlaybackManager {
                                                 val updated =
                                                     _currentSong.value?.copy(
                                                         coverUrl = versionedCover,
+                                                        rawCoverUrl = meta.rawCoverUrl ?: _currentSong.value?.rawCoverUrl.orEmpty(),
                                                         currentTier = newTier ?: _currentSong.value?.currentTier ?: AudioQualityTier.SQ,
                                                     )
                                                 _currentSong.value = updated
@@ -2150,58 +2169,68 @@ object PlaybackManager {
         prefetchAdjacentWebDavCovers()
     }
 
-    private val prefetchingWebDavMids = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val prefetchingTargetMids = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
-    fun prefetchAdjacentWebDavCovers() {
-        val server = org.melodist.data.WebDavManager.getActiveServer() ?: return
+    /**
+     * 方案 B：后台静默预加载相邻曲目（优先下一首）的原始大图与歌曲信息，
+     * 使切歌时无需等待现场提取，实现 4K 原画秒开。
+     */
+    fun prefetchAdjacentCoversAndMetadata() {
         val next = getNextSong()
         val prev = getPreviousSong()
-        val targets = listOfNotNull(next, prev).distinctBy { it.songMid }.filter { it.isWebDav || it.songMid.startsWith("webdav_") }
+        val targets = listOfNotNull(next, prev).distinctBy { it.songMid }
         if (targets.isEmpty()) return
 
         scope.launch(Dispatchers.IO) {
             for (target in targets) {
-                val currentCover = target.coverUrl
-                val hasValidCoverFile = if (currentCover.startsWith("file://")) {
-                    val f = java.io.File(currentCover.removePrefix("file://").substringBefore('?'))
-                    f.exists() && f.length() > 0L
-                } else if (currentCover.startsWith("http://") || currentCover.startsWith("https://")) {
-                    true
-                } else {
-                    false
-                }
-
-                if (hasValidCoverFile) continue
-                if (!prefetchingWebDavMids.add(target.songMid)) continue
-
+                if (!prefetchingTargetMids.add(target.songMid)) continue
                 try {
-                    val relativeHref = target.mediaMid.ifBlank { target.localFilePath ?: "" }
-                    if (relativeHref.isBlank()) continue
+                    val isWebDav = target.isWebDav || target.songMid.startsWith("webdav_")
+                    val isLocal = target.isLocal || !target.localFilePath.isNullOrBlank() || target.songMid.startsWith("local_")
 
-                    val existingCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
-                    if (!existingCover.isNullOrBlank()) {
-                        withContext(Dispatchers.Main) {
-                            queueManager.updateSongInPlaylist(target.copy(coverUrl = existingCover))
+                    if (isWebDav) {
+                        val server = org.melodist.data.WebDavManager.getActiveServer() ?: continue
+                        val relativeHref = target.mediaMid.ifBlank { target.localFilePath ?: "" }
+                        if (relativeHref.isBlank()) continue
+
+                        val existingRaw = org.melodist.data.WebDavManager.getSongRawCoverPath(server.id, relativeHref)
+                        if (existingRaw != null) {
+                            withContext(Dispatchers.Main) {
+                                queueManager.updateSongInPlaylist(target.copy(rawCoverUrl = existingRaw))
+                            }
+                            continue
                         }
-                        continue
-                    }
 
-                    val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, target)
-                    val newCover = meta.coverUrl
-                    if (!newCover.isNullOrBlank()) {
-                        val versioned = "${newCover.substringBefore('?')}?t=${System.currentTimeMillis()}"
+                        val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, target)
+                        val versionedCover = meta.coverUrl?.let { "${it.substringBefore('?')}?t=${System.currentTimeMillis()}" }
                         withContext(Dispatchers.Main) {
-                            queueManager.updateSongInPlaylist(target.copy(coverUrl = versioned))
+                            val updated =
+                                target.copy(
+                                    coverUrl = versionedCover ?: target.coverUrl,
+                                    rawCoverUrl = meta.rawCoverUrl ?: target.rawCoverUrl,
+                                    currentTier = meta.inferredTier ?: target.currentTier,
+                                )
+                            queueManager.updateSongInPlaylist(updated)
+                        }
+                    } else if (isLocal) {
+                        val rawCover = org.melodist.data.LocalMusicManager.ensureRawCover(target)
+                        if (!rawCover.isNullOrBlank() && rawCover != target.rawCoverUrl) {
+                            withContext(Dispatchers.Main) {
+                                queueManager.updateSongInPlaylist(target.copy(rawCoverUrl = rawCover))
+                            }
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w("MelodistPlayback", "Error prefetching WebDAV cover for ${target.name}", e)
+                    Log.w("MelodistPlayback", "Error prefetching cover and metadata for ${target.name}", e)
                 } finally {
-                    prefetchingWebDavMids.remove(target.songMid)
+                    prefetchingTargetMids.remove(target.songMid)
                 }
             }
         }
     }
+
+    fun prefetchAdjacentWebDavCovers() = prefetchAdjacentCoversAndMetadata()
+
 
     private fun handleSongEnded() {
         _isTransitioning.value = true
