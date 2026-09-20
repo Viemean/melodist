@@ -62,4 +62,18 @@ data class Song(
             }
             return listOf(coverUrl)
         }
+
+    val rawCoverCandidates: List<String>
+        get() {
+            if (coverUrl.isBlank()) return emptyList()
+            if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) return listOf(coverUrl)
+            val regex = Regex("R[0-9]+x[0-9]+")
+            if (coverUrl.contains(regex)) {
+                val rawUrl = coverUrl.replace(regex, "")
+                val url1200 = coverUrl.replace(regex, "R1200x1200")
+                val url800 = coverUrl.replace(regex, "R800x800")
+                return listOf(rawUrl, url1200, url800, coverUrl).distinct()
+            }
+            return listOf(coverUrl)
+        }
 }

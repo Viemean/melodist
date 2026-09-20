@@ -57,6 +57,28 @@ class SongCoverResolutionTest {
     }
 
     @Test
+    fun testRawCoverCandidatesPrioritizeM000WithFallbacks() {
+        val song =
+            Song(
+                coverUrl = "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            )
+        val candidates = song.rawCoverCandidates
+        assertEquals(3, candidates.size)
+        assertEquals(
+            "https://y.qq.com/music/photo_new/T002M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            candidates[0],
+        )
+        assertEquals(
+            "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            candidates[1],
+        )
+        assertEquals(
+            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            candidates[2],
+        )
+    }
+
+    @Test
     fun testLocalAndBlankCoversArePreserved() {
         val blankSong = Song(coverUrl = "")
         assertEquals("", blankSong.thumbnailCoverUrl)
