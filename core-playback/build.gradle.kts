@@ -46,6 +46,9 @@ dependencies {
     implementation(libs.media3.datasource)
     implementation(libs.media3.session)
 
+    // Image preloading
+    implementation(libs.coil)
+
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
