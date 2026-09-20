@@ -141,6 +141,11 @@ class MelodistCacheManagerTest {
     fun `uninitialized cache manager returns safe defaults`() {
         assertEquals(0L, MelodistCacheManager.getCacheSizeBytes())
         assertEquals(0, MelodistCacheManager.getCachedKeyCount())
+        assertFalse(MelodistCacheManager.isKeyCached("test_key"))
+        assertFalse(MelodistCacheManager.isKeyFullyCached("test_key"))
+        assertFalse(MelodistCacheManager.isSongTierCached("test_mid", org.melodist.model.AudioQualityTier.SQ))
+        assertFalse(MelodistCacheManager.isSongTierFullyCached("test_mid", org.melodist.model.AudioQualityTier.SQ))
+        assertFalse(MelodistCacheManager.isUriCached("https://example.com/audio.flac"))
     }
 }
 

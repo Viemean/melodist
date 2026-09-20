@@ -364,6 +364,17 @@ object PlaybackManager {
                     return
                 }
 
+                val isDummyUriFailure = current != null && (exoPlayer?.currentMediaItem?.localConfiguration?.uri?.host == "cache.melodist.internal")
+                if (isDummyUriFailure) {
+                    Log.w("MelodistPlayback", "Local cache playback failed for ${current.name}, evicting cache and falling back to network")
+                    MelodistCacheManager.evictIncompleteCacheAsync(current.songMid, curTier)
+                    scope.launch {
+                        delay(200L)
+                        playSong(current, forceTier = curTier, seekToMs = _currentPositionMs.value)
+                    }
+                    return
+                }
+
                 if (current != null && fallback != null && !isLocalOrWebDavSong(current)) {
                     Log.w("MelodistPlayback", "Playback failed at tier $curTier, falling back to $fallback")
                     _errorMessage.value = "当前音质播放失败，已自动降级为 ${AudioQualityTier.getBadge(fallback)}"
@@ -1900,13 +1911,24 @@ object PlaybackManager {
         switchQualityJob =
             scope.launch {
                 try {
+                    val isTargetFullyCached = MelodistCacheManager.isSongTierFullyCached(current.songMid, effectiveTier)
                     val playUrlInfo =
-                        withContext(Dispatchers.IO) {
-                            try {
-                                apiService.getPlayUrl(current.songMid, mediaMid = current.mediaMid, preferredTier = effectiveTier)
-                            } catch (e: Exception) {
-                                Log.w("MelodistPlayback", "Failed to fetch play url for quality $effectiveTier: ${e.message}", e)
-                                null
+                        if (isTargetFullyCached) {
+                            Log.i("MelodistPlayback", "Reusing local complete cache for tier switch: ${current.name} ($effectiveTier)")
+                            val dummyUri = "https://cache.melodist.internal/${current.songMid}?tier=${effectiveTier.name}"
+                            org.melodist.api.QualityResult(
+                                url = dummyUri,
+                                tier = effectiveTier,
+                                badge = AudioQualityTier.getBadge(effectiveTier),
+                            )
+                        } else {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    apiService.getPlayUrl(current.songMid, mediaMid = current.mediaMid, preferredTier = effectiveTier)
+                                } catch (e: Exception) {
+                                    Log.w("MelodistPlayback", "Failed to fetch play url for quality $effectiveTier: ${e.message}", e)
+                                    null
+                                }
                             }
                         }
 
@@ -1919,6 +1941,7 @@ object PlaybackManager {
                     if (playUrlInfo != null && !rawUrl.isNullOrBlank()) {
                         _currentTier.value = playUrlInfo.tier
                         _currentSong.value = _currentSong.value?.copy(currentTier = playUrlInfo.tier)
+                        _isCurrentTrackFromCache.value = isTargetFullyCached || MelodistCacheManager.isSongTierFullyCached(current.songMid, playUrlInfo.tier)
                         val player = exoPlayer ?: return@launch
 
                         // 在新媒体就绪并即将注入播放器的瞬间，抓取最新实时播放进度，消除位置断层与回跳

@@ -11,6 +11,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.CacheWriter
+import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import kotlinx.coroutines.CoroutineScope
@@ -236,16 +237,38 @@ object MelodistCacheManager {
     }
 
     /**
-     * 判断指定曲目的指定音质是否已有本地缓存
+     * 检查某个业务 CacheKey 是否已经在磁盘缓存中 100% 完整落盘
+     */
+    fun isKeyFullyCached(cacheKey: String?): Boolean {
+        if (cacheKey.isNullOrBlank()) return false
+        val cache = simpleCache ?: return false
+        return try {
+            val metadata = cache.getContentMetadata(cacheKey)
+            val contentLength = ContentMetadata.getContentLength(metadata)
+            contentLength > 0L && cache.isCached(cacheKey, 0L, contentLength)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to inspect full cache status for key: $cacheKey", e)
+            false
+        }
+    }
+
+    /**
+     * 判断指定曲目的指定音质是否已在本地磁盘 100% 完整落盘
+     */
+    fun isSongTierFullyCached(songMid: String, tier: org.melodist.model.AudioQualityTier?): Boolean {
+        if (songMid.isBlank()) return false
+        val targetTier = tier ?: cachedSongTiers[songMid] ?: return false
+        val key = getCacheKey(songMid, targetTier)
+        return isKeyFullyCached(key)
+    }
+
+    /**
+     * 判断指定曲目的指定音质是否已有本地完整缓存
      */
     fun isSongTierCached(songMid: String, tier: org.melodist.model.AudioQualityTier?): Boolean {
         if (songMid.isBlank()) return false
-        if (tier == null) return cachedSongTiers.containsKey(songMid)
-        val recordedTier = cachedSongTiers[songMid]
-        if (recordedTier == tier && isKeyCached(getCacheKey(songMid, tier))) {
-            return true
-        }
-        return false
+        val targetTier = tier ?: cachedSongTiers[songMid] ?: return false
+        return isSongTierFullyCached(songMid, targetTier)
     }
 
     /**
@@ -290,7 +313,7 @@ object MelodistCacheManager {
 
     /**
      * 检查本地是否已经完整缓存了相同或更高等级的立体声音质。
-     * 若存在，返回本地已缓存的最佳音质级别，业务层可直接免流复用本地数据起播。
+     * 若存在且 100% 完整落盘，返回本地已缓存的最佳音质级别，业务层可直接免流复用本地数据起播。
      */
     fun findHigherOrEqualStereoCachedTier(
         songMid: String,
@@ -304,7 +327,7 @@ object MelodistCacheManager {
         val cachedStereoRank = org.melodist.model.AudioQualityTier.getStereoRank(cachedTier)
         if (cachedStereoRank >= targetStereoRank) {
             val cacheKey = getCacheKey(songMid, cachedTier)
-            if (isKeyCached(cacheKey)) {
+            if (isKeyFullyCached(cacheKey)) {
                 return cachedTier
             }
         }
