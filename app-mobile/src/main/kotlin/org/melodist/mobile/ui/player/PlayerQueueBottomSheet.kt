@@ -59,10 +59,24 @@ fun PlayerQueueBottomSheet(
     val paginationSource by PlaybackManager.paginationSource.collectAsState()
     val isLoadingMoreForQueue by PlaybackManager.isLoadingMoreForQueue.collectAsState()
 
-    if (isRadioMode) {
-        LaunchedEffect(Unit) { onDismissRequest() }
-        return
-    }
+    val activeIndex =
+        remember(playlist, currentSong) {
+            val found = playlist.indexOfFirst { it.songMid == currentSong?.songMid }
+            if (found >= 0) found else 0
+        }
+
+    val displayPlaylist =
+        remember(playlist, isRadioMode, activeIndex) {
+            if (isRadioMode) {
+                if (playlist.isEmpty()) {
+                    emptyList()
+                } else {
+                    playlist.take(activeIndex + 2)
+                }
+            } else {
+                playlist
+            }
+        }
 
     val listState = rememberLazyListState()
     var actionSongWithIndex by remember { mutableStateOf<Pair<Song, Int>?>(null) }
@@ -70,6 +84,7 @@ fun PlayerQueueBottomSheet(
 
     val shouldLoadMore by remember {
         derivedStateOf {
+            if (isRadioMode) return@derivedStateOf false
             val totalCount = listState.layoutInfo.totalItemsCount
             val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             totalCount > 0 && lastVisibleIndex >= totalCount - 3
@@ -83,9 +98,8 @@ fun PlayerQueueBottomSheet(
     }
 
     LaunchedEffect(Unit) {
-        val activeIndex = playlist.indexOfFirst { it.songMid == currentSong?.songMid }
-        if (activeIndex != -1) {
-            listState.scrollToItem(activeIndex.coerceAtLeast(0))
+        if (activeIndex in displayPlaylist.indices) {
+            listState.scrollToItem(activeIndex)
         }
     }
 
@@ -114,20 +128,20 @@ fun PlayerQueueBottomSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "播放队列",
+                        text = if (isRadioMode) "猜你喜欢电台" else "播放队列",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "(${playlist.size})",
+                        text = "(${displayPlaylist.size})",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
-                if (playlist.isNotEmpty()) {
+                if (!isRadioMode && playlist.isNotEmpty()) {
                     IconButton(
                         onClick = { showClearConfirmDialog = true },
                         modifier = Modifier.size(40.dp),
@@ -152,9 +166,9 @@ fun PlayerQueueBottomSheet(
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 CommonSongList(
-                    songs = playlist,
+                    songs = displayPlaylist,
                     state = listState,
-                    deleteType = SongListDeleteType.PlayerQueue,
+                    deleteType = if (isRadioMode) SongListDeleteType.None else SongListDeleteType.PlayerQueue,
                     onSongClick = { songs, index ->
                         PlaybackManager.playSong(songs[index])
                     },
@@ -163,7 +177,7 @@ fun PlayerQueueBottomSheet(
                         actionSongWithIndex = Pair(song, idx)
                     },
                     footerItems = {
-                        if (isLoadingMoreForQueue || paginationSource?.isLoadingMore == true) {
+                        if (!isRadioMode && (isLoadingMoreForQueue || paginationSource?.isLoadingMore == true)) {
                             item(key = "queue_loading_more_indicator") {
                                 Box(
                                     modifier =
@@ -186,7 +200,7 @@ fun PlayerQueueBottomSheet(
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = "播放队列为空",
+                                text = if (isRadioMode) "电台曲目加载中" else "播放队列为空",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

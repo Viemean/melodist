@@ -36,12 +36,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.mobile.connect.MobileConnectManager
@@ -124,6 +126,7 @@ fun FullPlayerSheet(
     val connectState by MobileConnectManager.connectionState.collectAsState()
     var displayMode by remember { mutableStateOf(PlayerDisplayMode.Cover) }
     var showTvMenu by remember { mutableStateOf(false) }
+    var showDislikeConfirmDialog by remember { mutableStateOf(false) }
 
     val isFavSupported = remember(song) { PlaybackManager.isSongFavoriteSupported(song) }
     val isFavorite =
@@ -585,8 +588,38 @@ fun FullPlayerSheet(
                     },
                     onToggleLoopMode = onToggleLoopMode,
                     onOpenQueue = { showQueueSheet = true },
+                    onDislikeClick = { showDislikeConfirmDialog = true },
                 )
             }
+        }
+
+        // 不喜欢歌曲二次确认弹窗
+        if (showDislikeConfirmDialog && song != null) {
+            AlertDialog(
+                onDismissRequest = { showDislikeConfirmDialog = false },
+                title = { Text("不喜欢这首歌曲？") },
+                text = { Text("将跳过《${song.name}》并自动为你播放下一首。") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDislikeConfirmDialog = false
+                            val curIdx = PlaybackManager.currentIndex.value
+                            if (curIdx >= 0) {
+                                PlaybackManager.removeFromPlaylist(curIdx)
+                            } else {
+                                PlaybackManager.playNext()
+                            }
+                        },
+                    ) {
+                        Text("确定", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDislikeConfirmDialog = false }) {
+                        Text("取消")
+                    }
+                },
+            )
         }
 
         // 音质选择弹窗

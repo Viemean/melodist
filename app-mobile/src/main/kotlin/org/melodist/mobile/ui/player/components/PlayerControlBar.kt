@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.HeartBroken
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
@@ -53,6 +54,7 @@ fun PlayerControlBar(
     onTogglePlayPause: () -> Unit,
     onToggleLoopMode: () -> Unit,
     onOpenQueue: () -> Unit,
+    onDislikeClick: () -> Unit = {},
     isMuted: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -103,12 +105,16 @@ fun PlayerControlBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        // 循环模式按键（猜你喜欢模式下锁定为官方推荐顺序，带弹性缩放与图标切换动效）
+        // 左侧按键：普通模式为循环模式切换，猜你喜欢电台模式为“不喜欢”按键
         IconButton(
             onClick = {
-                if (!isRadioMode) onToggleLoopMode()
+                if (isRadioMode) {
+                    onDislikeClick()
+                } else {
+                    onToggleLoopMode()
+                }
             },
-            enabled = !isRadioMode,
+            enabled = true,
             interactionSource = loopInteractionSource,
             modifier =
                 Modifier
@@ -118,7 +124,7 @@ fun PlayerControlBar(
                         scaleY = loopScale
                     }
                     .background(
-                        if (isRadioMode) auxButtonBgColor.copy(alpha = 0.04f) else auxButtonBgColor,
+                        auxButtonBgColor,
                         CircleShape,
                     ),
         ) {
@@ -133,7 +139,7 @@ fun PlayerControlBar(
                 Icon(
                     imageVector =
                         if (mode == null) {
-                            Icons.Default.Radio
+                            Icons.Default.HeartBroken
                         } else {
                             when (mode) {
                                 PlaybackLoopMode.ListRepeat -> Icons.Default.Repeat
@@ -141,8 +147,8 @@ fun PlayerControlBar(
                                 PlaybackLoopMode.Shuffle -> Icons.Default.Shuffle
                             }
                         },
-                    contentDescription = if (isRadioMode) "猜你喜欢模式（官方推荐顺序）" else loopMode.label,
-                    tint = if (isRadioMode) contentPrimary.copy(alpha = 0.38f) else contentPrimary,
+                    contentDescription = if (isRadioMode) "不喜欢" else loopMode.label,
+                    tint = contentPrimary,
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -190,10 +196,8 @@ fun PlayerControlBar(
 
         // 右侧按钮：播放列表队列（带按压微缩放弹性动画）
         IconButton(
-            onClick = {
-                if (!isRadioMode) onOpenQueue()
-            },
-            enabled = !isRadioMode,
+            onClick = onOpenQueue,
+            enabled = true,
             interactionSource = queueInteractionSource,
             modifier =
                 Modifier
@@ -203,14 +207,14 @@ fun PlayerControlBar(
                         scaleY = queueScale
                     }
                     .background(
-                        if (isRadioMode) auxButtonBgColor.copy(alpha = 0.04f) else auxButtonBgColor,
+                        auxButtonBgColor,
                         CircleShape,
                     ),
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                contentDescription = if (isRadioMode) "猜你喜欢模式下播放列表不可用" else "播放队列",
-                tint = if (isRadioMode) contentPrimary.copy(alpha = 0.28f) else contentPrimary,
+                contentDescription = if (isRadioMode) "猜你喜欢队列" else "播放队列",
+                tint = contentPrimary,
                 modifier = Modifier.size(24.dp),
             )
         }
