@@ -252,6 +252,43 @@ object MelodistCacheManager {
         }
     }
 
+    data class FileCacheProgress(
+        val cachedBytes: Long = 0L,
+        val totalBytes: Long = 0L,
+        val fraction: Float = 0f,
+        val isFullyCached: Boolean = false,
+    )
+
+    /**
+     * 获取指定曲目指定音质的磁盘文件缓存进度与完成状态
+     */
+    fun getSongFileCacheProgress(songMid: String, tier: org.melodist.model.AudioQualityTier?): FileCacheProgress {
+        if (songMid.isBlank()) return FileCacheProgress()
+        val cache = simpleCache ?: return FileCacheProgress()
+        val targetTier = tier ?: cachedSongTiers[songMid]
+        val key = getCacheKey(songMid, targetTier)
+        return try {
+            val metadata = cache.getContentMetadata(key)
+            val contentLength = ContentMetadata.getContentLength(metadata)
+            if (contentLength > 0L) {
+                val cachedBytes = cache.getCachedBytes(key, 0L, contentLength)
+                val isFullyCached = cachedBytes >= contentLength && cache.isCached(key, 0L, contentLength)
+                val fraction = (cachedBytes.toFloat() / contentLength).coerceIn(0f, 1f)
+                FileCacheProgress(cachedBytes, contentLength, fraction, isFullyCached)
+            } else {
+                val isCached = cache.isCached(key, 0L, 65536L)
+                FileCacheProgress(
+                    cachedBytes = if (isCached) 65536L else 0L,
+                    totalBytes = 0L,
+                    fraction = if (isCached) 0.05f else 0f,
+                    isFullyCached = false,
+                )
+            }
+        } catch (e: Exception) {
+            FileCacheProgress()
+        }
+    }
+
     /**
      * 判断指定曲目的指定音质是否已在本地磁盘 100% 完整落盘
      */
@@ -279,16 +316,18 @@ object MelodistCacheManager {
         playedMs: Long,
         durationMs: Long,
         tier: org.melodist.model.AudioQualityTier? = null,
-    ) {
-        if (songMid.isBlank()) return
+    ): Boolean {
+        if (songMid.isBlank()) return false
         // 若已经达标确认为完整留存曲目，则无需清理
-        if (cachedSongTiers.containsKey(songMid)) return
+        if (cachedSongTiers.containsKey(songMid)) return false
 
         val thresholdMs = currentProfile.getTrialThresholdMs(durationMs)
         if (playedMs < thresholdMs) {
             Log.i(TAG, "Track switched before trial threshold ($playedMs ms < $thresholdMs ms), evicting incomplete cache for $songMid")
             evictIncompleteCacheAsync(songMid, tier)
+            return true
         }
+        return false
     }
 
     /**

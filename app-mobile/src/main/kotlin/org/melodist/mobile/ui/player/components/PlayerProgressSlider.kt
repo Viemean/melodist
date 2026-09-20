@@ -46,6 +46,8 @@ fun PlayerProgressSlider(
     textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     val sliderPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+    val isFromCache by PlaybackManager.isCurrentTrackFromCache.collectAsState()
+    val fileCacheFraction by PlaybackManager.fileCacheFraction.collectAsState()
     var isDraggingSlider by remember { mutableStateOf(false) }
     var draggingSliderValue by remember { mutableFloatStateOf(0f) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -58,6 +60,8 @@ fun PlayerProgressSlider(
             sliderPositionMs.coerceIn(0L, durationSafe)
         }
     val progressFraction = (currentPosSafe.toFloat() / durationSafe).coerceIn(0f, 1f)
+    // 真实音频文件磁盘缓存比例：若曲目已完整落盘则直接 100%，否则按已下载字节呈现
+    val actualCacheFraction = if (isFromCache) 1f else fileCacheFraction.coerceIn(0f, 1f)
 
     // 莫奈色彩：与主界面全局动态色彩系统保持一致
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -109,6 +113,7 @@ fun PlayerProgressSlider(
                 ) {
                     val centerY = size.height / 2f
                     val activeWidth = size.width * progressFraction
+                    val cachedWidth = size.width * actualCacheFraction
 
                     // 1. 未播放平滑底轨（与主界面一致的莫奈表层色）
                     drawLine(
@@ -119,7 +124,18 @@ fun PlayerProgressSlider(
                         cap = StrokeCap.Round,
                     )
 
-                    // 2. 已播放进度线（莫奈主色平滑覆盖）
+                    // 2. 音频文件磁盘缓存进度（若文件正在下载写入，以 35% 莫奈主色实时展示已落盘范围；已全盘缓存则覆盖整轨）
+                    if (cachedWidth > 0f) {
+                        drawLine(
+                            color = primaryColor.copy(alpha = 0.35f),
+                            start = Offset(0f, centerY),
+                            end = Offset(cachedWidth, centerY),
+                            strokeWidth = trackHeightPx,
+                            cap = StrokeCap.Round,
+                        )
+                    }
+
+                    // 3. 已播放进度线（莫奈主色平滑覆盖）
                     if (activeWidth > 0f) {
                         drawLine(
                             color = primaryColor,

@@ -109,6 +109,8 @@ object PlaybackManager {
         _isPlaying.value = false
         _currentSong.value = null
         _currentPositionMs.value = 0L
+        _bufferedPositionMs.value = 0L
+        _fileCacheFraction.value = 0f
         _durationMs.value = 0L
     }
 
@@ -154,6 +156,9 @@ object PlaybackManager {
     private val _currentPositionMs = MutableStateFlow(0L)
     val currentPositionMs: StateFlow<Long> = _currentPositionMs.asStateFlow()
 
+    private val _bufferedPositionMs = MutableStateFlow(0L)
+    val bufferedPositionMs: StateFlow<Long> = _bufferedPositionMs.asStateFlow()
+
     private val _durationMs = MutableStateFlow(0L)
     val durationMs: StateFlow<Long> = _durationMs.asStateFlow()
 
@@ -190,6 +195,9 @@ object PlaybackManager {
 
     private val _isCurrentTrackFromCache = MutableStateFlow(false)
     val isCurrentTrackFromCache: StateFlow<Boolean> = _isCurrentTrackFromCache.asStateFlow()
+
+    private val _fileCacheFraction = MutableStateFlow(0f)
+    val fileCacheFraction: StateFlow<Float> = _fileCacheFraction.asStateFlow()
 
     private val _lyricsLoadedFlow = MutableSharedFlow<Pair<Song, List<LyricLine>>>(extraBufferCapacity = 8)
     val lyricsLoadedFlow: SharedFlow<Pair<Song, List<LyricLine>>> = _lyricsLoadedFlow.asSharedFlow()
@@ -887,13 +895,36 @@ object PlaybackManager {
                         continue
                     }
                     exoPlayer?.let { player ->
+                        val currentBuf = player.bufferedPosition.coerceAtLeast(0L)
+                        _bufferedPositionMs.value = maxOf(_bufferedPositionMs.value, currentBuf)
+
+                        val currSong = _currentSong.value
+                        val mid = currSong?.songMid
+                        if (!mid.isNullOrBlank()) {
+                            val curTier = _currentTier.value
+                            val isLocal = currSong.isLocal || mid.startsWith("local_") || mid.startsWith("webdav_") || !currSong.localFilePath.isNullOrBlank()
+                            if (isLocal || _isCurrentTrackFromCache.value) {
+                                _fileCacheFraction.value = 1f
+                            } else {
+                                val dur = player.duration.takeIf { it > 0L } ?: _durationMs.value
+                                val streamBufFraction = if (dur > 0L) (currentBuf.toFloat() / dur).coerceIn(0f, 1f) else 0f
+                                val fileProgress = MelodistCacheManager.getSongFileCacheProgress(mid, curTier)
+                                val combinedFraction = maxOf(fileProgress.fraction, streamBufFraction)
+                                _fileCacheFraction.value = maxOf(_fileCacheFraction.value, combinedFraction)
+                                if (fileProgress.isFullyCached || _fileCacheFraction.value >= 1f) {
+                                    _fileCacheFraction.value = 1f
+                                    _isCurrentTrackFromCache.value = true
+                                    MelodistCacheManager.confirmCacheRetention(mid, curTier)
+                                }
+                            }
+                        }
+
                         if (player.isPlaying) {
                             val pos = player.currentPosition.coerceAtLeast(0L)
                             val dur = player.duration
                             _currentPositionMs.value = pos
                             if (dur > 0L) {
                                 _durationMs.value = dur
-                                val mid = _currentSong.value?.songMid
                                 if (!mid.isNullOrBlank()) {
                                     MelodistCacheManager.recordPlayProgress(mid, pos, dur)
                                     val curTier = _currentTier.value
@@ -903,6 +934,10 @@ object PlaybackManager {
                                             val thresholdMs = MelodistCacheManager.currentProfile.getTrialThresholdMs(dur)
                                             if (pos >= thresholdMs) {
                                                 MelodistCacheManager.confirmCacheRetention(mid, curTier)
+                                                if (MelodistCacheManager.isSongTierFullyCached(mid, curTier)) {
+                                                    _isCurrentTrackFromCache.value = true
+                                                    _fileCacheFraction.value = 1f
+                                                }
                                             }
                                         }
                                     }
@@ -1068,6 +1103,7 @@ object PlaybackManager {
             exoPlayer?.pause()
             _currentSong.value = effectiveSong
             _currentPositionMs.value = seekToMs
+            _bufferedPositionMs.value = seekToMs
             _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
             _currentTier.value = forceTier ?: _preferredTier.value
             _isPlaying.value = true
@@ -1079,8 +1115,22 @@ object PlaybackManager {
         exoPlayer?.pause()
         _currentSong.value = effectiveSong
         _currentPositionMs.value = seekToMs
+        _bufferedPositionMs.value = seekToMs
         _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
         _isTransitioning.value = true
+        val targetTierInit = forceTier ?: _preferredTier.value
+        val initialCachedTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
+            ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
+        val isDirectCachedInit = initialCachedTier != null ||
+            effectiveSong.isLocal || effectiveSong.songMid.startsWith("local_") ||
+            !effectiveSong.localFilePath.isNullOrBlank()
+        _isCurrentTrackFromCache.value = isDirectCachedInit
+        _fileCacheFraction.value = if (isDirectCachedInit) 1f else 0f
+        if (initialCachedTier != null) {
+            _currentTier.value = initialCachedTier
+        } else if (forceTier != null) {
+            _currentTier.value = forceTier
+        }
         updateCurrentMediaMetadata(effectiveSong)
         org.melodist.data.RecentPlaybackManager
             .recordSong(effectiveSong)
@@ -1158,6 +1208,7 @@ object PlaybackManager {
 
                         _currentTier.value = song.currentTier
                         _isCurrentTrackFromCache.value = true
+                        _fileCacheFraction.value = 1f
                         val mediaItem = buildMediaItem(android.net.Uri.fromFile(directFile), song)
                         if (seekToMs > 0L) {
                             player.setMediaItem(mediaItem, seekToMs)
@@ -1271,6 +1322,7 @@ object PlaybackManager {
                     if (localFile != null && localFile.exists() && localFile.length() > 0L) {
                         Log.i("MelodistPlayback", "Playing WebDAV song from local cache: ${song.name}, file=${localFile.absolutePath}")
                         _isCurrentTrackFromCache.value = true
+                        _fileCacheFraction.value = 1f
                         val mediaItem = buildMediaItem(android.net.Uri.fromFile(localFile), song)
                         if (seekToMs > 0L) {
                             player.setMediaItem(mediaItem, seekToMs)
@@ -1482,6 +1534,7 @@ object PlaybackManager {
                     val isPrecached = MelodistCacheManager.isKeyCached(targetCacheKey)
                     val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav, playUrlInfo.tier)
                     _isCurrentTrackFromCache.value = isCached
+                    _fileCacheFraction.value = if (isCached) 1f else MelodistCacheManager.getSongFileCacheProgress(song.songMid, playUrlInfo.tier).fraction
                     Log.i(
                         "MelodistPlayback",
                         "Admission cache check for ${song.name}: shouldCache=$shouldCache (fav=$isFav, plays=${MelodistCacheManager.getPlayCount(song.songMid)}, isCached=$isCached, isPrecached=$isPrecached)",
@@ -1496,7 +1549,7 @@ object PlaybackManager {
                             .setReadTimeoutMs(30_000)
                     val defaultFactory = DefaultDataSource.Factory(ctx, httpFactory)
                     val dsFactory =
-                        if (shouldCache || isCached || isPrecached) {
+                        if (shouldCache || isCached || isPrecached || !MelodistCacheManager.currentProfile.isTvDevice) {
                             MelodistCacheManager.buildCacheDataSourceFactory(ctx, defaultFactory)
                         } else {
                             defaultFactory
@@ -1941,7 +1994,9 @@ object PlaybackManager {
                     if (playUrlInfo != null && !rawUrl.isNullOrBlank()) {
                         _currentTier.value = playUrlInfo.tier
                         _currentSong.value = _currentSong.value?.copy(currentTier = playUrlInfo.tier)
-                        _isCurrentTrackFromCache.value = isTargetFullyCached || MelodistCacheManager.isSongTierFullyCached(current.songMid, playUrlInfo.tier)
+                        val isTargetFullyCached = MelodistCacheManager.isSongTierFullyCached(current.songMid, playUrlInfo.tier)
+                        _isCurrentTrackFromCache.value = isTargetFullyCached
+                        _fileCacheFraction.value = if (isTargetFullyCached) 1f else 0f
                         val player = exoPlayer ?: return@launch
 
                         // 在新媒体就绪并即将注入播放器的瞬间，抓取最新实时播放进度，消除位置断层与回跳
@@ -1959,6 +2014,7 @@ object PlaybackManager {
                         } else {
                             player.setMediaItem(mediaItem)
                         }
+                        _bufferedPositionMs.value = livePositionMs
                         player.prepare()
                         if (isPlayerPlaying || player.playWhenReady) {
                             player.play()
@@ -2152,6 +2208,7 @@ object PlaybackManager {
         when {
             !queueManager.isRadioMode.value && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {
                 _currentPositionMs.value = 0L
+                _bufferedPositionMs.value = 0L
                 exoPlayer?.seekTo(0L)
                 exoPlayer?.play()
                 _isTransitioning.value = false
