@@ -169,21 +169,26 @@ object PlaybackManager {
     private val _currentTrackSpec = MutableStateFlow<AudioTrackSpec?>(null)
     val currentTrackSpec: StateFlow<AudioTrackSpec?> = _currentTrackSpec.asStateFlow()
 
-    private val _availableTiers = MutableStateFlow<Set<AudioQualityTier>>(emptySet())
-    val availableTiers: StateFlow<Set<AudioQualityTier>> = _availableTiers.asStateFlow()
+    val qualityCoordinator by lazy { AudioQualityCoordinator(scope, apiService) }
+    val lyricsCoordinator by lazy {
+        PlaybackLyricsCoordinator(
+            scope = scope,
+            apiService = apiService,
+            currentSongProvider = { _currentSong.value },
+            onLyricsUpdated = { _lyrics.value = it },
+            onOffsetCalibrated = { _currentLyricOffsetMs.value = it },
+            onLyricsLoadedBroadcast = { _lyricsLoadedFlow.tryEmit(it) },
+        )
+    }
 
-    private val _probedQualityOptions = MutableStateFlow<List<QualityOption>>(emptyList())
-    val probedQualityOptions: StateFlow<List<QualityOption>> = _probedQualityOptions.asStateFlow()
-
-    private val _isProbingQuality = MutableStateFlow(false)
-    val isProbingQuality: StateFlow<Boolean> = _isProbingQuality.asStateFlow()
+    val availableTiers: StateFlow<Set<AudioQualityTier>> get() = qualityCoordinator.availableTiers
+    val probedQualityOptions: StateFlow<List<QualityOption>> get() = qualityCoordinator.probedQualityOptions
+    val isProbingQuality: StateFlow<Boolean> get() = qualityCoordinator.isProbingQuality
 
     private val _isSwitchingQuality = MutableStateFlow(false)
     val isSwitchingQuality: StateFlow<Boolean> = _isSwitchingQuality.asStateFlow()
 
     private var switchQualityJob: Job? = null
-    private var probeJob: Job? = null
-    private var probedSongMid: String? = null
 
     private val _lyrics = MutableStateFlow<List<LyricLine>>(emptyList())
     val lyrics: StateFlow<List<LyricLine>> = _lyrics.asStateFlow()
@@ -456,7 +461,7 @@ object PlaybackManager {
                                         C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 32
                                         else -> {
                                             val currentTier = _currentTier.value
-                                            val probedDepth = _probedQualityOptions.value.find { it.tier == currentTier }?.bitDepth ?: 0
+                                            val probedDepth = probedQualityOptions.value.find { it.tier == currentTier }?.bitDepth ?: 0
                                             when {
                                                 probedDepth > 0 -> probedDepth
                                                 currentTier == AudioQualityTier.Master || currentTier == AudioQualityTier.HiRes -> 24
@@ -507,7 +512,7 @@ object PlaybackManager {
                                             else -> mime?.substringAfterLast('/')?.uppercase() ?: "Flac"
                                         }
                                     val currentSong = _currentSong.value
-                                    val probedSize = _probedQualityOptions.value.find { it.tier == _currentTier.value }?.sizeBytes ?: 0L
+                                    val probedSize = probedQualityOptions.value.find { it.tier == _currentTier.value }?.sizeBytes ?: 0L
                                     val currentDur = currentSong?.durationSeconds ?: 0
                                     val calcKbps =
                                         if (currentDur > 0 && probedSize > 0L) {
@@ -544,129 +549,24 @@ object PlaybackManager {
             }
         }
 
-    private fun createRenderersFactory(context: Context): DefaultRenderersFactory {
-        return object : DefaultRenderersFactory(context.applicationContext) {
-            override fun buildAudioSink(
-                context: Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean,
-            ): AudioSink? {
-                val settings = org.melodist.data.AppSettingsManager.settings.value
-                val isExclusive = settings.enableUsbExclusive
-                val isPassthrough = settings.enableAudioPassthrough || isExclusive
-                @Suppress("DEPRECATION")
-                val audioCapabilities =
-                    if (isPassthrough) {
-                        AudioCapabilities.getCapabilities(context)
-                    } else {
-                        AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES
-                    }
-                @Suppress("DEPRECATION")
-                val builder =
-                    DefaultAudioSink
-                        .Builder(context)
-                        .setAudioCapabilities(audioCapabilities)
-                        .setAudioProcessors(emptyArray())
-                        .setAudioOffloadSupportProvider(
-                            androidx.media3.exoplayer.audio
-                                .DefaultAudioOffloadSupportProvider(context),
-                        ).setEnableFloatOutput(if (isExclusive) true else enableFloatOutput)
-                        .setEnableAudioTrackPlaybackParams(if (isExclusive) false else enableAudioTrackPlaybackParams)
-                return builder.build()
-            }
-        }.apply {
-            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
-        }
-    }
-
     private fun buildExoPlayer(context: Context): ExoPlayer {
-        val audioAttributes =
-            AudioAttributes
-                .Builder()
-                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                .setUsage(C.USAGE_MEDIA)
-                .setAllowedCapturePolicy(C.ALLOW_CAPTURE_BY_NONE)
-                .build()
-
-        val httpDataSourceFactory =
-            DefaultHttpDataSource
-                .Factory()
-                .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                .setAllowCrossProtocolRedirects(true)
-                .setConnectTimeoutMs(30_000)
-                .setReadTimeoutMs(30_000)
-
-        val defaultDataSourceFactory = DefaultDataSource.Factory(context.applicationContext, httpDataSourceFactory)
-        val cachedDataSourceFactory =
-            MelodistCacheManager.buildCacheDataSourceFactory(context.applicationContext, defaultDataSourceFactory)
-
-        val mediaSourceFactory =
-            DefaultMediaSourceFactory(context.applicationContext)
-                .setDataSourceFactory(cachedDataSourceFactory)
-                .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
-
-        val isOffload = org.melodist.data.AppSettingsManager.settings.value.enableAudioOffload
-        val offloadMode =
-            if (isOffload) {
-                androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
-            } else {
-                androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
-            }
-        val offloadPreferences =
-            androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
-                .Builder()
-                .setAudioOffloadMode(offloadMode)
-                .setIsGaplessSupportRequired(false)
-                .setIsSpeedChangeSupportRequired(false)
-                .build()
-
-        val profile = PlaybackProfile.detect(context)
-        val loadControl =
-            DefaultLoadControl
-                .Builder()
-                .setBufferDurationsMs(
-                    // minBufferMs
-                    profile.minBufferMs,
-                    // maxBufferMs
-                    profile.maxBufferMs,
-                    // bufferForPlaybackMs =
-                    2_000,
-                    // bufferForPlaybackAfterRebufferMs =
-                    4_000,
-                ).setPrioritizeTimeOverSizeThresholds(true)
-                .build()
-
-        return ExoPlayer
-            .Builder(context.applicationContext, createRenderersFactory(context))
-            .setMediaSourceFactory(mediaSourceFactory)
-            .setLoadControl(loadControl)
-            .setAudioAttributes(audioAttributes, true)
-            .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
-            .build()
-            .apply {
-                trackSelectionParameters =
-                    trackSelectionParameters
-                        .buildUpon()
-                        .setAudioOffloadPreferences(offloadPreferences)
-                        .build()
-                addListener(playerListener)
-                addAnalyticsListener(
-                    object : androidx.media3.exoplayer.analytics.AnalyticsListener {
-                        override fun onAudioTrackInitialized(
-                            eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
-                            audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
-                        ) {
-                            Log.i(
-                                "MelodistPlayback",
-                                "AudioTrack initialized: rate=${audioTrackConfig.sampleRate}, enc=${audioTrackConfig.encoding}, ch=${audioTrackConfig.channelConfig}, offload=${audioTrackConfig.offload}",
-                            )
-                        }
-                    },
-                )
-            }.also {
-                updateUsbExclusiveRouting()
-            }
+        return PlaybackEngineFactory.buildExoPlayer(
+            context = context,
+            listener = playerListener,
+            analyticsListener = object : androidx.media3.exoplayer.analytics.AnalyticsListener {
+                override fun onAudioTrackInitialized(
+                    eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime,
+                    audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
+                ) {
+                    Log.i(
+                        "MelodistPlayback",
+                        "AudioTrack initialized: rate=${audioTrackConfig.sampleRate}, enc=${audioTrackConfig.encoding}, ch=${audioTrackConfig.channelConfig}, offload=${audioTrackConfig.offload}",
+                    )
+                }
+            },
+        ).also {
+            updateUsbExclusiveRouting()
+        }
     }
 
     fun getOrCreatePlayer(context: Context): ExoPlayer {
@@ -1122,6 +1022,7 @@ object PlaybackManager {
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
         appContext?.let { startPlaybackService(it) }
+
         var effectiveSong = song
         val coverFile =
             if (effectiveSong.coverUrl.startsWith("file://")) {
@@ -1132,14 +1033,10 @@ object PlaybackManager {
         val isCoverInvalid = coverFile != null && (!coverFile.exists() || coverFile.length() == 0L)
         if (effectiveSong.coverUrl.isBlank() || isCoverInvalid) {
             if (effectiveSong.songMid.startsWith("webdav_")) {
-                val server =
-                    org.melodist.data.WebDavManager
-                        .getActiveServer()
+                val server = org.melodist.data.WebDavManager.getActiveServer()
                 val relativeHref = effectiveSong.mediaMid.ifBlank { effectiveSong.localFilePath ?: "" }
                 if (server != null && relativeHref.isNotBlank()) {
-                    val cachedCover =
-                        org.melodist.data.WebDavManager
-                            .getSongCoverPath(server.id, relativeHref)
+                    val cachedCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
                     effectiveSong = effectiveSong.copy(coverUrl = cachedCover.orEmpty())
                 } else {
                     effectiveSong = effectiveSong.copy(coverUrl = "")
@@ -1148,6 +1045,7 @@ object PlaybackManager {
                 effectiveSong = effectiveSong.copy(coverUrl = "")
             }
         }
+
         if (playbackInterceptor?.onInterceptPlaySong(effectiveSong, forceTier, seekToMs) == true) {
             exoPlayer?.pause()
             _currentSong.value = effectiveSong
@@ -1161,12 +1059,14 @@ object PlaybackManager {
             loadLyricsForSong(effectiveSong)
             return
         }
+
         exoPlayer?.pause()
         _currentSong.value = effectiveSong
         _currentPositionMs.value = seekToMs
         _bufferedPositionMs.value = seekToMs
         _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
         _isTransitioning.value = true
+
         val targetTierInit = forceTier ?: _preferredTier.value
         val initialCachedTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
             ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
@@ -1180,10 +1080,11 @@ object PlaybackManager {
         } else if (forceTier != null) {
             _currentTier.value = forceTier
         }
+
         updateCurrentMediaMetadata(effectiveSong)
-        org.melodist.data.RecentPlaybackManager
-            .recordSong(effectiveSong)
+        org.melodist.data.RecentPlaybackManager.recordSong(effectiveSong)
         _currentTrackSpec.value = null
+
         val list = queueManager.playlist.value
         val foundIndex = list.indexOfFirst { it.songMid == song.songMid }
         if (foundIndex != -1) {
@@ -1193,11 +1094,12 @@ object PlaybackManager {
             }
         }
         queueManager.checkPrefetchRadioSongs()
+
         _isLoading.value = true
         _errorMessage.value = null
         _lyrics.value = emptyList()
         _currentPositionMs.value = seekToMs
-        probeJob?.cancel()
+
         appContext?.let { ctx ->
             CoverMemoryManager.trimMemoryWindow(
                 context = ctx,
@@ -1206,96 +1108,46 @@ object PlaybackManager {
                 nextSong = getNextSong(),
             )
         }
-        val isLocalOrWebDav = PlaybackSourceResolver.isLocalOrWebDavSong(song)
-        if (isLocalOrWebDav) {
-            val actualTier = song.currentTier
-            _availableTiers.value = setOf(actualTier)
-            val localPath = song.localFilePath
-            val localSize =
-                if (!localPath.isNullOrBlank()) {
-                    try {
-                        java.io.File(localPath).length()
-                    } catch (_: Exception) {
-                        0L
-                    }
-                } else {
-                    0L
-                }
-            _probedQualityOptions.value =
-                listOf(
-                    QualityOption(
-                        tier = actualTier,
-                        format = localPath?.substringAfterLast('.', "")?.uppercase()?.ifBlank { "FLAC" } ?: "FLAC",
-                        bitrate = "",
-                        sizeBytes = localSize,
-                        isAvailable = true,
-                    ),
-                )
-            probedSongMid = song.songMid
-        } else {
-            _availableTiers.value = emptySet()
-            _probedQualityOptions.value = emptyList()
-            probedSongMid = null
+
+        qualityCoordinator.resetForSong(song)
+        if (!PlaybackSourceResolver.isLocalOrWebDavSong(song)) {
             launchProbeJob(song, delayMs = 3000L)
             launchCoverHealJob(song)
         }
 
         playJob =
             scope.launch {
-                val isPureLocal = !song.localFilePath.isNullOrBlank() && !song.songMid.startsWith("webdav_")
-                if (isPureLocal) {
-                    val player = exoPlayer ?: return@launch
-                    val directFile = java.io.File(song.localFilePath!!)
-                    if (directFile.exists() && directFile.isFile) {
-                        val lyricDeferred =
-                            async(Dispatchers.IO) {
-                                try {
-                                    val lrcText =
-                                        org.melodist.data.LocalMusicManager
-                                            .getSongLyrics(song)
-                                    if (!lrcText.isNullOrBlank()) {
-                                        LyricParser.parseMergedLyrics(lrcText, null)
-                                    } else {
-                                        emptyList()
-                                    }
-                                } catch (_: Exception) {
-                                    emptyList()
-                                }
-                            }
+                val player = exoPlayer ?: return@launch
+                val ctx = appContext ?: return@launch
+                val rawTargetTier = forceTier ?: _preferredTier.value
+                val targetTier = clampCellularTier(rawTargetTier, song)
 
-                        _currentTier.value = song.currentTier
+                when (
+                    val target =
+                        PlaybackMediaLoader.resolveTarget(
+                            context = ctx,
+                            song = song,
+                            targetTier = targetTier,
+                            apiService = apiService,
+                            isSongFavorite = { isSongFavorite(it) },
+                            metadataBuilder = { buildMediaMetadata(it) },
+                            prefetchedUrlInfo = if (forceTier == null) prefetchedUrlInfo else null,
+                        )
+                ) {
+                    is PlaybackTargetResult.LocalFile -> {
+                        _currentTier.value = target.actualTier
                         _isCurrentTrackFromCache.value = true
                         _fileCacheFraction.value = 1f
-                        val mediaItem = buildMediaItem(android.net.Uri.fromFile(directFile), song)
                         if (seekToMs > 0L) {
-                            player.setMediaItem(mediaItem, seekToMs)
+                            player.setMediaItem(target.mediaItem, seekToMs)
                         } else {
-                            player.setMediaItem(mediaItem)
+                            player.setMediaItem(target.mediaItem)
                         }
                         player.prepare()
                         player.play()
                         savePlaybackState()
+                        loadLyricsForSong(song)
 
-                        val baseLyrics = lyricDeferred.await()
-                        _lyrics.value = baseLyrics
-
-                        // 后台智能匹配官方逐行歌词与中文双语翻译（切片指纹识别与文本双轨，私有缓存隔离落盘）
-                        launch(Dispatchers.IO) {
-                            try {
-                                val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, directFile, baseLyrics)
-                                if (matched != null && matched.isNotEmpty() && _currentSong.value?.songId == song.songId) {
-                                    Log.i(
-                                        "MelodistPlayback",
-                                        "Applied auto-matched official lyrics for local song: ${song.name} (lines=${matched.size})",
-                                    )
-                                    _lyrics.value = matched
-                                }
-                            } catch (e: Exception) {
-                                Log.w("MelodistPlayback", "Error auto-matching lyrics for local song", e)
-                            }
-                        }
-
-                        // 异步确保本地音频内嵌高清原画大图提取并热更新
                         launch(Dispatchers.IO) {
                             try {
                                 val rawCover = org.melodist.data.LocalMusicManager.ensureRawCover(song)
@@ -1316,346 +1168,131 @@ object PlaybackManager {
                             } catch (_: Exception) {
                             }
                         }
-
-                        return@launch
                     }
-                }
-
-                // 本地音乐远程流式播放（局域网代理中转，mediaMid 携带 http:// 或 https:// 直链）
-                val isLocalStream = (song.isLocal || song.songMid.startsWith("local_")) &&
-                    (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://"))
-                if (isLocalStream) {
-                    val player = exoPlayer ?: return@launch
-                    _currentTier.value = song.currentTier
-                    _isCurrentTrackFromCache.value = false
-                    val baseHttpFactory = DefaultHttpDataSource.Factory()
-                        .setUserAgent("MelodistTV/1.0 ConnectStream")
-                        .setAllowCrossProtocolRedirects(true)
-                        .setConnectTimeoutMs(30_000)
-                        .setReadTimeoutMs(30_000)
-                    val ctx = appContext ?: return@launch
-                    val dataSourceFactory = DefaultDataSource.Factory(ctx, baseHttpFactory)
-                    val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                        .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
-                        .createMediaSource(buildMediaItem(android.net.Uri.parse(song.mediaMid), song))
-                    if (seekToMs > 0L) {
-                        player.setMediaSource(mediaSource, seekToMs)
-                    } else {
-                        player.setMediaSource(mediaSource)
-                    }
-                    player.prepare()
-                    player.play()
-                    savePlaybackState()
-                    loadLyricsForSong(song)
-                    return@launch
-                }
-
-                // 本地歌曲既无本地文件也无可用流代理，直接上报失败，严禁调用在线接口或触发 3 秒网络重试
-                if (song.isLocal || song.songMid.startsWith("local_")) {
-                    Log.w("MelodistPlayback", "Local song not found on device and no stream proxy available: ${song.name}, path=${song.localFilePath}")
-                    handlePlaybackFailure("无法找到本地音频文件", allowCurrentSongRetry = false)
-                    return@launch
-                }
-
-                if (song.songMid.startsWith("webdav_")) {
-                    val server =
-                        org.melodist.data.WebDavManager
-                            .getActiveServer()
-                    val player = exoPlayer ?: return@launch
-
-                    // 异步装载 WebDAV 歌词（内嵌/同名LRC）
-                    val lyricDeferred =
-                        async(Dispatchers.IO) {
-                            try {
-                                val lrcText =
-                                    org.melodist.data.WebDavManager
-                                        .getSongLyrics(song)
-                                if (!lrcText.isNullOrBlank()) {
-                                    LyricParser.parseMergedLyrics(lrcText, null)
-                                } else {
-                                    emptyList()
-                                }
-                            } catch (_: Exception) {
-                                emptyList()
-                            }
+                    is PlaybackTargetResult.LocalStream -> {
+                        _currentTier.value = target.actualTier
+                        _isCurrentTrackFromCache.value = false
+                        if (seekToMs > 0L) {
+                            player.setMediaSource(target.mediaSource, seekToMs)
+                        } else {
+                            player.setMediaSource(target.mediaSource)
                         }
-
-                    _currentTier.value = AudioQualityTier.SQ
-                    val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
-                    if (server != null && relativeHref.isNotBlank() && _currentSong.value?.coverUrl.isNullOrBlank()) {
-                        val existingCover =
-                            org.melodist.data.WebDavManager
-                                .getSongCoverPath(server.id, relativeHref)
-                        if (!existingCover.isNullOrBlank()) {
-                            _currentSong.value = _currentSong.value?.copy(coverUrl = existingCover)
-                        }
+                        player.prepare()
+                        player.play()
+                        savePlaybackState()
+                        loadLyricsForSong(song)
                     }
-                    val localFile =
-                        if (server != null && relativeHref.isNotBlank()) {
-                            org.melodist.data.WebDavManager
-                                .getLocalCacheFile(server.id, relativeHref)
+                    is PlaybackTargetResult.WebDavLocalCache -> {
+                        _currentTier.value = target.actualTier
+                        _isCurrentTrackFromCache.value = true
+                        _fileCacheFraction.value = 1f
+                        if (seekToMs > 0L) {
+                            player.setMediaItem(target.mediaItem, seekToMs)
+                        } else {
+                            player.setMediaItem(target.mediaItem)
+                        }
+                        player.prepare()
+                        player.play()
+                        savePlaybackState()
+                        loadLyricsForSong(song)
+                        triggerWebDavMetadataAndCoverHeal(song)
+                    }
+                    is PlaybackTargetResult.WebDavStream -> {
+                        _currentTier.value = target.actualTier
+                        _isCurrentTrackFromCache.value = false
+                        if (seekToMs > 0L) {
+                            player.setMediaSource(target.mediaSource, seekToMs)
+                        } else {
+                            player.setMediaSource(target.mediaSource)
+                        }
+                        player.prepare()
+                        player.play()
+                        savePlaybackState()
+                        loadLyricsForSong(song)
+                        triggerWebDavMetadataAndCoverHeal(song)
+                    }
+                    is PlaybackTargetResult.Online -> {
+                        _currentTier.value = target.actualTier
+                        _isCurrentTrackFromCache.value = target.isDirectCached
+                        _fileCacheFraction.value = target.fileCacheFraction
+                        if (seekToMs > 0L) {
+                            player.setMediaSource(target.mediaSource, seekToMs)
+                        } else {
+                            player.setMediaSource(target.mediaSource)
+                        }
+                        player.volume = if (_isMuted.value) 0f else targetVolume
+                        player.prepare()
+                        player.play()
+                        _isTransitioning.value = false
+                        savePlaybackState()
+                        loadLyricsForSong(song)
+                    }
+                    is PlaybackTargetResult.Failure -> {
+                        handlePlaybackFailure(target.message, target.allowRetry)
+                    }
+                }
+            }
+    }
+
+    private fun triggerWebDavMetadataAndCoverHeal(song: Song) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val server = org.melodist.data.WebDavManager.getActiveServer() ?: return@launch
+                val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, song)
+                if (_currentSong.value?.songMid == song.songMid) {
+                    val currentCover = _currentSong.value?.coverUrl.orEmpty()
+                    val currentCoverFile =
+                        if (currentCover.startsWith("file://")) {
+                            java.io.File(currentCover.removePrefix("file://").substringBefore('?'))
                         } else {
                             null
                         }
-
-                    if (localFile != null && localFile.exists() && localFile.length() > 0L) {
-                        Log.i("MelodistPlayback", "Playing WebDAV song from local cache: ${song.name}, file=${localFile.absolutePath}")
-                        _isCurrentTrackFromCache.value = true
-                        _fileCacheFraction.value = 1f
-                        val mediaItem = buildMediaItem(android.net.Uri.fromFile(localFile), song)
-                        if (seekToMs > 0L) {
-                            player.setMediaItem(mediaItem, seekToMs)
+                    val isCurrentCoverMissing =
+                        currentCover.isBlank() || (currentCoverFile != null && (!currentCoverFile.exists() || currentCoverFile.length() == 0L))
+                    val effectiveNewCover =
+                        if (isCurrentCoverMissing && !meta.coverUrl.isNullOrBlank()) {
+                            meta.coverUrl
+                        } else if (!meta.coverUrl.isNullOrBlank() && currentCover.startsWith("file://")) {
+                            meta.coverUrl
                         } else {
-                            player.setMediaItem(mediaItem)
+                            null
                         }
-                    } else if (server != null && relativeHref.isNotBlank()) {
-                        val (streamUrl, authHeader) =
-                            org.melodist.data.WebDavManager
-                                .resolvePlaybackUrl(server, relativeHref)
-                        Log.i(
-                            "MelodistPlayback",
-                            "Playing WebDAV song from stream: ${song.name}, streamUrl=$streamUrl, hasAuth=${!authHeader.isNullOrBlank()}",
-                        )
-                        val baseHttpFactory =
-                            DefaultHttpDataSource
-                                .Factory()
-                                .setUserAgent("MelodistTV/1.0 ExoPlayer")
-                                .setAllowCrossProtocolRedirects(true)
-                                .setConnectTimeoutMs(30_000)
-                                .setReadTimeoutMs(30_000)
-                        if (!authHeader.isNullOrBlank()) {
-                            baseHttpFactory.setDefaultRequestProperties(mapOf("Authorization" to authHeader))
-                        }
-                        val ctx = appContext ?: return@launch
-                        val dataSourceFactory = DefaultDataSource.Factory(ctx, baseHttpFactory)
-                        val cachedDataSourceFactory = MelodistCacheManager.buildCacheDataSourceFactory(ctx, dataSourceFactory)
-                        val mediaSource =
-                            ProgressiveMediaSource
-                                .Factory(cachedDataSourceFactory)
-                                .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
-                                .createMediaSource(buildMediaItem(android.net.Uri.parse(streamUrl), song))
-                        if (seekToMs > 0L) {
-                            player.setMediaSource(mediaSource, seekToMs)
-                        } else {
-                            player.setMediaSource(mediaSource)
-                        }
-                    } else {
-                        Log.w("MelodistPlayback", "No valid local file or WebDAV server found for ${song.name}")
-                        handlePlaybackFailure("无法加载本地或 WebDAV 音频文件")
-                        return@launch
-                    }
-
-                    player.prepare()
-                    player.play()
-                    savePlaybackState()
-
-                    val baseLyrics = lyricDeferred.await()
-                    _lyrics.value = baseLyrics
-
-                    // 后台智能匹配官方逐行歌词与中文双语翻译（切片指纹识别与文本双轨，私有缓存隔离落盘）
-                    launch(Dispatchers.IO) {
-                        try {
-                            val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, localFile, baseLyrics)
-                            if (matched != null && matched.isNotEmpty() && _currentSong.value?.songId == song.songId) {
-                                Log.i(
-                                    "MelodistPlayback",
-                                    "Applied auto-matched official lyrics for WebDAV song: ${song.name} (lines=${matched.size})",
-                                )
-                                _lyrics.value = matched
+                    val newTier = meta.inferredTier
+                    if (!effectiveNewCover.isNullOrBlank() || newTier != null) {
+                        val versionedCover =
+                            if (!effectiveNewCover.isNullOrBlank()) {
+                                val clean = effectiveNewCover.substringBefore('?')
+                                "$clean?t=${System.currentTimeMillis()}"
+                            } else {
+                                _currentSong.value?.coverUrl.orEmpty()
                             }
-                        } catch (e: Exception) {
-                            Log.w("MelodistPlayback", "Error auto-matching lyrics for WebDAV song", e)
-                        }
-                    }
-
-                    // 后台异步提取并缓存 WebDAV 内嵌专辑封面与音质信息
-                    launch(Dispatchers.IO) {
-                        try {
-                            if (server != null) {
-                                val meta =
-                                    org.melodist.data.WebDavManager
-                                        .extractPlaybackMetadata(server, song)
-                                if (_currentSong.value?.songMid == song.songMid) {
-                                    val currentCover = _currentSong.value?.coverUrl.orEmpty()
-                                    val currentCoverFile =
-                                        if (currentCover.startsWith("file://")) {
-                                            java.io.File(currentCover.removePrefix("file://").substringBefore('?'))
-                                        } else {
-                                            null
-                                        }
-                                    val isCurrentCoverMissing =
-                                        currentCover.isBlank() || (currentCoverFile != null && (!currentCoverFile.exists() || currentCoverFile.length() == 0L))
-                                    val effectiveNewCover =
-                                        if (isCurrentCoverMissing && !meta.coverUrl.isNullOrBlank()) {
-                                            meta.coverUrl
-                                        } else if (!meta.coverUrl.isNullOrBlank() && currentCover.startsWith("file://")) {
-                                            meta.coverUrl
-                                        } else {
-                                            null
-                                        }
-                                    val newTier = meta.inferredTier
-                                    if (!effectiveNewCover.isNullOrBlank() || newTier != null) {
-                                        val versionedCover =
-                                            if (!effectiveNewCover.isNullOrBlank()) {
-                                                val clean = effectiveNewCover.substringBefore('?')
-                                                "$clean?t=${System.currentTimeMillis()}"
-                                            } else {
-                                                _currentSong.value?.coverUrl.orEmpty()
-                                            }
-                                        Log.i(
-                                            "MelodistPlayback",
-                                            "Loaded WebDAV metadata: cover=$versionedCover, tier=$newTier for ${song.name}",
-                                        )
-                                        withContext(Dispatchers.Main) {
-                                            if (_currentSong.value?.songMid == song.songMid) {
-                                                val updated =
-                                                    _currentSong.value?.copy(
-                                                        coverUrl = versionedCover,
-                                                        rawCoverUrl = meta.rawCoverUrl ?: _currentSong.value?.rawCoverUrl.orEmpty(),
-                                                        currentTier = newTier ?: _currentSong.value?.currentTier ?: AudioQualityTier.SQ,
-                                                    )
-                                                _currentSong.value = updated
-                                                if (newTier != null) {
-                                                    _currentTier.value = newTier
-                                                    _availableTiers.value = setOf(newTier)
-                                                }
-                                                if (updated != null) {
-                                                    queueManager.updateSongInPlaylist(updated)
-                                                    updateCurrentMediaMetadata(updated)
-                                                }
-                                            }
-                                        }
-                                    }
+                        withContext(Dispatchers.Main) {
+                            if (_currentSong.value?.songMid == song.songMid) {
+                                val updated =
+                                    _currentSong.value?.copy(
+                                        coverUrl = versionedCover,
+                                        rawCoverUrl = meta.rawCoverUrl ?: _currentSong.value?.rawCoverUrl.orEmpty(),
+                                        currentTier = newTier ?: _currentSong.value?.currentTier ?: AudioQualityTier.SQ,
+                                    )
+                                _currentSong.value = updated
+                                if (newTier != null) {
+                                    _currentTier.value = newTier
+                                    qualityCoordinator.updateAvailableTiers(setOf(newTier))
+                                }
+                                if (updated != null) {
+                                    queueManager.updateSongInPlaylist(updated)
+                                    updateCurrentMediaMetadata(updated)
                                 }
                             }
-                        } catch (e: Exception) {
-                            Log.w("MelodistPlayback", "Error extracting WebDAV song metadata", e)
-                        } finally {
-                            prefetchAdjacentWebDavCovers()
                         }
                     }
-
-                    return@launch
                 }
-
-                val lyricDeferred =
-                    async(Dispatchers.IO) {
-                        try {
-                            apiService.getLyrics(song.songMid, song.songId, songName = song.name, singer = song.singer)
-                        } catch (e: Exception) {
-                            Log.w("MelodistPlayback", "Error loading lyrics for ${song.name}", e)
-                            emptyList()
-                        }
-                    }
-
-                val isPassthrough = org.melodist.data.AppSettingsManager.settings.value.enableAudioPassthrough
-                val rawTargetTier = forceTier ?: _preferredTier.value
-                val targetTier = clampCellularTier(rawTargetTier, song)
-                val higherStereoTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(song.songMid, targetTier)
-
-                val playUrlInfo =
-                    if (higherStereoTier != null) {
-                        if (prefetchedSongMid == song.songMid) {
-                            prefetchedSongMid = null
-                            prefetchedUrlInfo = null
-                        }
-                        val dummyUri = "https://cache.melodist.internal/${song.songMid}?tier=${higherStereoTier.name}"
-                        Log.i(
-                            "MelodistPlayback",
-                            "Reusing local stereo cache ($higherStereoTier) for ${song.name} (target: $targetTier)",
-                        )
-                        org.melodist.api.QualityResult(
-                            url = dummyUri,
-                            tier = higherStereoTier,
-                            badge = AudioQualityTier.getBadge(higherStereoTier),
-                        )
-                    } else {
-                        val cachedInfo =
-                            if (prefetchedUrlInfo?.first == song.songMid && forceTier == null) {
-                                val info = prefetchedUrlInfo?.second
-                                prefetchedSongMid = null
-                                prefetchedUrlInfo = null
-                                info
-                            } else {
-                                null
-                            }
-
-                        val urlDeferred =
-                            if (cachedInfo == null) {
-                                async(Dispatchers.IO) {
-                                    try {
-                                        apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier)
-                                    } catch (e: Exception) {
-                                        Log.w("MelodistPlayback", "Failed to fetch play URL for ${song.name}", e)
-                                        null
-                                    }
-                                }
-                            } else {
-                                null
-                            }
-                        cachedInfo ?: urlDeferred?.await()
-                    }
-
-                val lyricList = lyricDeferred.await()
-                _lyrics.value = lyricList
-
-                if (playUrlInfo != null && !playUrlInfo.url.isNullOrBlank()) {
-                    val rawUrl = playUrlInfo.url
-                    Log.i(
-                        "MelodistPlayback",
-                        "Preparing playback with URL: $rawUrl, tier: ${playUrlInfo.tier} (preferred: $targetTier, passthrough: $isPassthrough)",
-                    )
-                    _currentTier.value = playUrlInfo.tier
-                    val player = exoPlayer ?: return@launch
-                    val ctx = appContext ?: return@launch
-                    val isFav = isSongFavorite(song.songMid)
-                    val isCached = higherStereoTier != null || MelodistCacheManager.isSongTierCached(song.songMid, playUrlInfo.tier)
-                    val targetCacheKey = MelodistCacheManager.getCacheKey(song.songMid, playUrlInfo.tier)
-                    val isPrecached = MelodistCacheManager.isKeyCached(targetCacheKey)
-                    val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav, playUrlInfo.tier)
-                    _isCurrentTrackFromCache.value = isCached
-                    _fileCacheFraction.value = if (isCached) 1f else MelodistCacheManager.getSongFileCacheProgress(song.songMid, playUrlInfo.tier).fraction
-                    Log.i(
-                        "MelodistPlayback",
-                        "Admission cache check for ${song.name}: shouldCache=$shouldCache (fav=$isFav, plays=${MelodistCacheManager.getPlayCount(song.songMid)}, isCached=$isCached, isPrecached=$isPrecached)",
-                    )
-
-                    val httpFactory =
-                        DefaultHttpDataSource
-                            .Factory()
-                            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                            .setAllowCrossProtocolRedirects(true)
-                            .setConnectTimeoutMs(30_000)
-                            .setReadTimeoutMs(30_000)
-                    val defaultFactory = DefaultDataSource.Factory(ctx, httpFactory)
-                    val dsFactory =
-                        if (shouldCache || isCached || isPrecached || !MelodistCacheManager.currentProfile.isTvDevice) {
-                            MelodistCacheManager.buildCacheDataSourceFactory(ctx, defaultFactory)
-                        } else {
-                            defaultFactory
-                        }
-
-                    val mediaSource =
-                        ProgressiveMediaSource
-                            .Factory(dsFactory)
-                            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
-                            .createMediaSource(buildMediaItem(android.net.Uri.parse(rawUrl), song, playUrlInfo.tier))
-
-                    if (seekToMs > 0L) {
-                        player.setMediaSource(mediaSource, seekToMs)
-                    } else {
-                        player.setMediaSource(mediaSource)
-                    }
-                    player.volume = if (_isMuted.value) 0f else targetVolume
-                    player.prepare()
-                    player.play()
-                    _isTransitioning.value = false
-                    savePlaybackState()
-                } else {
-                    Log.w("MelodistPlayback", "Failed to obtain playback URL for songMid=${song.songMid}, preferredTier=$targetTier")
-                    handlePlaybackFailure("无法获取播放直链 (需 VIP 或版权限制)")
-                }
+            } catch (e: Exception) {
+                Log.w("MelodistPlayback", "Error extracting WebDAV song metadata", e)
+            } finally {
+                prefetchAdjacentWebDavCovers()
             }
+        }
     }
 
     fun togglePlayPause() {
@@ -1830,7 +1467,7 @@ object PlaybackManager {
             _currentTier.value = currentTier
         }
         if (availableTiers.isNotEmpty()) {
-            _availableTiers.value = availableTiers
+            qualityCoordinator.updateAvailableTiers(availableTiers)
         }
         if (!loopModeName.isNullOrBlank()) {
             try {
@@ -1854,122 +1491,16 @@ object PlaybackManager {
     }
 
     fun loadLyricsForSong(song: Song) {
-        lyricLoadJob?.cancel()
-        val cached = org.melodist.data.LyricCacheManager.getLyrics(song.songMid)
-        if (cached != null && cached.isNotEmpty()) {
-            _lyrics.value = cached
-        } else {
-            _lyrics.value = emptyList()
-        }
-        val cachedOffset = org.melodist.data.LyricCacheManager.getLyricOffsetMs(song.songMid)
-        _currentLyricOffsetMs.value = cachedOffset
-
-        lyricLoadJob = scope.launch(Dispatchers.IO) {
-            try {
-                if (song.songMid.startsWith("webdav_")) {
-                    val lrcText = org.melodist.data.WebDavManager.getSongLyrics(song)
-                    val baseLyrics = if (!lrcText.isNullOrBlank()) {
-                        LyricParser.parseMergedLyrics(lrcText, null)
-                    } else {
-                        emptyList()
-                    }
-                    if (_currentSong.value?.songMid == song.songMid && baseLyrics.isNotEmpty()) {
-                        if (org.melodist.data.LyricCacheManager.isBetterQuality(baseLyrics, _lyrics.value)) {
-                            _lyrics.value = baseLyrics
-                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, baseLyrics)
-                            _lyricsLoadedFlow.tryEmit(song to baseLyrics)
-                        }
-                    }
-                    val server = org.melodist.data.WebDavManager.getActiveServer()
-                    val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
-                    val validFile =
-                        if (server != null && relativeHref.isNotBlank()) {
-                            org.melodist.data.WebDavManager.fetchAudioSliceSample(server, relativeHref)
-                        } else {
-                            null
-                        }
-
-                    // 智能匹配官方逐行歌词与双语翻译
-                    val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, validFile, baseLyrics)
-                    if (matched != null && matched.isNotEmpty() && _currentSong.value?.songMid == song.songMid) {
-                        Log.i("MelodistPlayback", "Applied auto-matched lyrics for WebDAV song: ${song.name}")
-                        if (org.melodist.data.LyricCacheManager.isBetterQuality(matched, _lyrics.value)) {
-                            _lyrics.value = matched
-                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, matched)
-                            _lyricsLoadedFlow.tryEmit(song to matched)
-                        }
-                    }
-                    // 后台异步检查并校准时间轴偏移量 (涵盖流式与完整缓存的 WebDAV 歌曲)
-                    if (!org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
-                        val calibratedOffset = LocalLyricAutoMatcher.calibrateOffsetAsync(song, validFile)
-                        if (_currentSong.value?.songMid == song.songMid) {
-                            _currentLyricOffsetMs.value = calibratedOffset
-                        }
-                    }
-                } else if (!song.localFilePath.isNullOrBlank() || song.isLocal) {
-                    val lrcText = org.melodist.data.LocalMusicManager.getSongLyrics(song)
-                    val baseLyrics = if (!lrcText.isNullOrBlank()) {
-                        LyricParser.parseMergedLyrics(lrcText, null)
-                    } else {
-                        emptyList()
-                    }
-                    if (_currentSong.value?.songMid == song.songMid && baseLyrics.isNotEmpty()) {
-                        if (org.melodist.data.LyricCacheManager.isBetterQuality(baseLyrics, _lyrics.value)) {
-                            _lyrics.value = baseLyrics
-                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, baseLyrics)
-                            _lyricsLoadedFlow.tryEmit(song to baseLyrics)
-                        }
-                    }
-                    val path = song.localFilePath
-                    val directFile = if (!path.isNullOrBlank()) java.io.File(path) else null
-                    val validFile = if (directFile != null && directFile.exists() && directFile.isFile) directFile else null
-                    val matched = LocalLyricAutoMatcher.matchLyricsAsync(song, validFile, baseLyrics)
-                    if (matched != null && matched.isNotEmpty() && _currentSong.value?.songMid == song.songMid) {
-                        Log.i("MelodistPlayback", "Applied auto-matched lyrics for local song: ${song.name}")
-                        if (org.melodist.data.LyricCacheManager.isBetterQuality(matched, _lyrics.value)) {
-                            _lyrics.value = matched
-                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, matched)
-                            _lyricsLoadedFlow.tryEmit(song to matched)
-                        }
-                    }
-                    // 后台异步检查并校准时间轴偏移量 (覆盖已有缓存歌词但时间轴不齐的历史歌曲)
-                    if (!org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
-                        val calibratedOffset = LocalLyricAutoMatcher.calibrateOffsetAsync(song, validFile)
-                        if (_currentSong.value?.songMid == song.songMid) {
-                            _currentLyricOffsetMs.value = calibratedOffset
-                        }
-                    }
-                } else {
-                    val onlineLyrics = apiService.getLyrics(
-                        song.songMid,
-                        song.songId,
-                        songName = song.name,
-                        singer = song.singer,
-                    )
-                    if (_currentSong.value?.songMid == song.songMid && onlineLyrics.isNotEmpty()) {
-                        if (org.melodist.data.LyricCacheManager.isBetterQuality(onlineLyrics, _lyrics.value)) {
-                            _lyrics.value = onlineLyrics
-                            org.melodist.data.LyricCacheManager.saveLyrics(song.songMid, onlineLyrics)
-                            _lyricsLoadedFlow.tryEmit(song to onlineLyrics)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w("MelodistPlayback", "Error loading lyrics for ${song.name}", e)
-            }
-        }
+        lyricsCoordinator.loadLyricsForSong(song)
     }
 
     fun setExternalLyrics(songMid: String, lyrics: List<LyricLine>) {
-        if (songMid.isBlank() || lyrics.isEmpty()) return
-        val current = _lyrics.value
-        val isCurrent = _currentSong.value?.songMid == songMid
-        if (org.melodist.data.LyricCacheManager.isBetterQuality(lyrics, current)) {
-            if (isCurrent) {
-                _lyrics.value = lyrics
-            }
-            org.melodist.data.LyricCacheManager.saveLyrics(songMid, lyrics, isRemoteSynced = true)
-        }
+        lyricsCoordinator.setExternalLyrics(
+            songMid = songMid,
+            lyrics = lyrics,
+            currentLyrics = _lyrics.value,
+            isCurrentSong = _currentSong.value?.songMid == songMid,
+        )
     }
 
     fun isCellularNetwork(): Boolean = PlaybackSourceResolver.isCellularNetwork(appContext)
@@ -2123,56 +1654,35 @@ object PlaybackManager {
     }
 
     fun ensureQualityProbed() {
-        val song = _currentSong.value ?: return
-        val isLocalOrWebDav = song.songMid.startsWith("webdav_") || !song.localFilePath.isNullOrBlank()
-        if (isLocalOrWebDav) return
-        if (probedSongMid == song.songMid && _probedQualityOptions.value.isNotEmpty()) return
-        probeJob?.cancel()
-        launchProbeJob(song, delayMs = 0L)
+        qualityCoordinator.ensureQualityProbed(
+            song = _currentSong.value,
+            currentSongMidProvider = { _currentSong.value?.songMid },
+            currentTierProvider = { _currentTier.value },
+            preferredTierProvider = { _preferredTier.value },
+            context = appContext,
+            onAutoUpgrade = { switchTier(it) },
+        )
     }
 
     private fun launchProbeJob(
         song: Song,
         delayMs: Long,
     ) {
-        probeJob =
-            scope.launch(Dispatchers.IO) {
-                if (delayMs > 0L) {
-                    delay(delayMs)
+        qualityCoordinator.launchProbeJob(
+            song = song,
+            delayMs = delayMs,
+            currentSongMidProvider = { _currentSong.value?.songMid },
+            currentTierProvider = { _currentTier.value },
+            preferredTierProvider = { _preferredTier.value },
+            context = appContext,
+            onTrackSpecBitrateCalculated = { bitrate ->
+                val curSpec = _currentTrackSpec.value
+                if (curSpec != null && curSpec.bitrateKbps <= 0) {
+                    _currentTrackSpec.value = curSpec.copy(bitrateKbps = bitrate)
                 }
-                _isProbingQuality.value = true
-                try {
-                    val probed = apiService.probeSongQualities(song.songMid, song.mediaMid)
-                    val available = probed.filter { it.isAvailable }.map { it.tier }.toSet()
-                    if (available.isNotEmpty()) {
-                        _availableTiers.value = available
-                        _probedQualityOptions.value = probed
-                        probedSongMid = song.songMid
-                        val curSpec = _currentTrackSpec.value
-                        if (curSpec != null && curSpec.bitrateKbps <= 0 && song.durationSeconds > 0) {
-                            val curSize = probed.find { it.tier == _currentTier.value }?.sizeBytes ?: 0L
-                            if (curSize > 0L) {
-                                val calcKbps = ((curSize * 8L) / 1024L / song.durationSeconds).toInt()
-                                if (calcKbps > 0) {
-                                    _currentTrackSpec.value = curSpec.copy(bitrateKbps = calcKbps)
-                                }
-                            }
-                        }
-
-                        // 自动平滑升级：若当前音质不同于用户偏好音质（如听歌识曲初始加载 HQ），且偏好音质可用，自动异步无缝切换
-                        val preferred = _preferredTier.value
-                        val effective = clampCellularTier(preferred, song)
-                        if (_currentTier.value != effective && available.contains(effective) && _currentSong.value?.songMid == song.songMid) {
-                            Log.i("MelodistPlayback", "Auto-upgrading to preferred tier ${AudioQualityTier.getBadge(effective)} after probe for ${song.name}")
-                            switchTier(effective)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w("MelodistPlayback", "Probe qualities failed", e)
-                } finally {
-                    _isProbingQuality.value = false
-                }
-            }
+            },
+            onAutoUpgrade = { switchTier(it) },
+        )
     }
 
     private fun launchCoverHealJob(song: Song) {
