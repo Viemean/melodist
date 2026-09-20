@@ -1149,6 +1149,14 @@ object PlaybackManager {
         _lyrics.value = emptyList()
         _currentPositionMs.value = seekToMs
         probeJob?.cancel()
+        appContext?.let { ctx ->
+            CoverMemoryManager.trimMemoryWindow(
+                context = ctx,
+                prevSong = getPreviousSong(),
+                currSong = song,
+                nextSong = getNextSong(),
+            )
+        }
         val isLocalOrWebDav = PlaybackSourceResolver.isLocalOrWebDavSong(song)
         if (isLocalOrWebDav) {
             val actualTier = song.currentTier
@@ -2225,6 +2233,14 @@ object PlaybackManager {
                 } finally {
                     prefetchingTargetMids.remove(target.songMid)
                 }
+            }
+            appContext?.let { ctx ->
+                CoverMemoryManager.trimMemoryWindow(
+                    context = ctx,
+                    prevSong = prev,
+                    currSong = _currentSong.value,
+                    nextSong = next,
+                )
             }
         }
     }
