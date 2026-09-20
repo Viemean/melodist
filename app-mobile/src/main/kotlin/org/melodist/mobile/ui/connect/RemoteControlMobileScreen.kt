@@ -5,7 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -446,7 +446,7 @@ fun RemoteControlMobileScreen(
                         }
 
                         // M3 风格控制按钮栏
-                        val isDark = isSystemInDarkTheme()
+                        val isDark = isAppInDarkTheme()
                         val playPauseContainerColor = if (isDark) Color.White else Color(0xFF1C1B1F)
                         val playPauseContentColor = if (isDark) Color(0xFF1C1B1F) else Color.White
                         val auxButtonBgColor = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)

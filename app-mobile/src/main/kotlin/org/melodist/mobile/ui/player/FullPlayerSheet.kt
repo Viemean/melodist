@@ -18,7 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
+import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -183,7 +183,7 @@ fun FullPlayerSheet(
         label = "monet_accent_color",
     )
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = isAppInDarkTheme()
     val view = LocalView.current
     val window = (context as? Activity)?.window
     DisposableEffect(window, view, isDark) {

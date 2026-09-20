@@ -8,7 +8,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.isSystemInDarkTheme
+import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -185,7 +185,7 @@ fun PlayerContainer(
         )
     }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = isAppInDarkTheme()
 
     // 只要全屏播放器未展开，且不是正在从底部拉升到顶，底部的 MiniPlayerBar 均保持可见
     val isMiniPlayerVisible by remember {
