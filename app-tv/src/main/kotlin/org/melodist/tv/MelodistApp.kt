@@ -1,6 +1,8 @@
 package org.melodist.tv
 
+import android.app.ActivityManager
 import android.app.Application
+import android.content.Context
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -55,6 +57,10 @@ class MelodistApp :
                     chain.proceed(request)
                 }.build()
 
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val isLowRam = activityManager?.isLowRamDevice == true
+        val memoryPercent = if (isLowRam) 0.15 else 0.25
+
         return ImageLoader
             .Builder(context)
             .components {
@@ -62,7 +68,7 @@ class MelodistApp :
             }.memoryCache {
                 MemoryCache
                     .Builder()
-                    .maxSizePercent(context, 0.25)
+                    .maxSizePercent(context, memoryPercent)
                     .build()
             }.diskCache {
                 DiskCache
