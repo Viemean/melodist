@@ -100,6 +100,21 @@ enum class ScreenSaverBrightness(
     Bright("明亮", 0.85f),
 }
 
+enum class ThemeMode(val label: String) {
+    System("跟随系统"),
+    Light("浅色"),
+    Dark("深色"),
+}
+
+enum class AppColorTheme(val label: String, val seedColor: Long) {
+    Default("青蓝 (默认)", 0xFF5CAFC4),
+    Violet("极光紫", 0xFF7E57C2),
+    Emerald("翡翠绿", 0xFF26A69A),
+    Amber("琥珀金", 0xFFFFA000),
+    Rose("玫瑰红", 0xFFE91E63),
+    Custom("自定义", 0L),
+}
+
 data class AppSettings(
     // 1. 音频与音质
     val preferredQualityTier: AudioQualityTier = AudioQualityTier.SQ,
@@ -119,6 +134,12 @@ data class AppSettings(
     val enableScreenSaverDuringPlayback: Boolean = true,
     // 4. 下载与存储
     val downloadDirectory: String = "",
+    // 5. 外观与主题
+    val themeMode: ThemeMode = ThemeMode.System,
+    val dynamicColor: Boolean = true,
+    val colorTheme: AppColorTheme = AppColorTheme.Default,
+    val customColorHex: String = "#5CAFC4",
+    val amoledDark: Boolean = false,
 ) {
     // 向后兼容旧字段引用
     val enableAtmosPassthrough: Boolean get() = enableAudioPassthrough
@@ -143,6 +164,11 @@ object AppSettingsManager {
     private const val KEY_SCREENSAVER_PIXEL_SHIFT = "screensaver_pixel_shift"
     private const val KEY_SCREENSAVER_DURING_PLAYBACK = "screensaver_during_playback"
     private const val KEY_DOWNLOAD_DIRECTORY = "download_directory"
+    private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+    private const val KEY_COLOR_THEME = "color_theme"
+    private const val KEY_CUSTOM_COLOR_HEX = "custom_color_hex"
+    private const val KEY_AMOLED_DARK = "amoled_dark"
 
     private var prefs: SharedPreferences? = null
     private var appContext: Context? = null
@@ -220,6 +246,13 @@ object AppSettingsManager {
         val pixelShift = p.getBoolean(KEY_SCREENSAVER_PIXEL_SHIFT, true)
         val duringPlayback = p.getBoolean(KEY_SCREENSAVER_DURING_PLAYBACK, true)
         val downloadDir = p.getString(KEY_DOWNLOAD_DIRECTORY, "") ?: ""
+        val themeModeName = p.getString(KEY_THEME_MODE, ThemeMode.System.name) ?: ThemeMode.System.name
+        val themeMode = runCatching { ThemeMode.valueOf(themeModeName) }.getOrDefault(ThemeMode.System)
+        val dynamicColor = p.getBoolean(KEY_DYNAMIC_COLOR, true)
+        val colorThemeName = p.getString(KEY_COLOR_THEME, AppColorTheme.Default.name) ?: AppColorTheme.Default.name
+        val colorTheme = runCatching { AppColorTheme.valueOf(colorThemeName) }.getOrDefault(AppColorTheme.Default)
+        val customColorHex = p.getString(KEY_CUSTOM_COLOR_HEX, "#5CAFC4") ?: "#5CAFC4"
+        val amoledDark = p.getBoolean(KEY_AMOLED_DARK, false)
 
         _settings.value =
             AppSettings(
@@ -237,6 +270,11 @@ object AppSettingsManager {
                 enablePixelShift = pixelShift,
                 enableScreenSaverDuringPlayback = duringPlayback,
                 downloadDirectory = downloadDir,
+                themeMode = themeMode,
+                dynamicColor = dynamicColor,
+                colorTheme = colorTheme,
+                customColorHex = customColorHex,
+                amoledDark = amoledDark,
             )
     }
 
@@ -365,6 +403,40 @@ object AppSettingsManager {
     }
 
     fun updateEnableScreenSaverDuringPlayback(enable: Boolean) = setEnableScreenSaverDuringPlayback(enable)
+
+    fun setThemeMode(mode: ThemeMode) {
+        _settings.value = _settings.value.copy(themeMode = mode)
+        prefs?.edit()?.putString(KEY_THEME_MODE, mode.name)?.apply()
+    }
+
+    fun setDynamicColor(enable: Boolean) {
+        _settings.value = _settings.value.copy(dynamicColor = enable)
+        prefs?.edit()?.putBoolean(KEY_DYNAMIC_COLOR, enable)?.apply()
+    }
+
+    fun setColorTheme(theme: AppColorTheme) {
+        _settings.value = _settings.value.copy(colorTheme = theme)
+        prefs?.edit()?.putString(KEY_COLOR_THEME, theme.name)?.apply()
+    }
+
+    fun setCustomColorHex(hex: String) {
+        val trimmed = hex.trim()
+        val formatted = if (trimmed.startsWith("#")) trimmed else "#$trimmed"
+        _settings.value =
+            _settings.value.copy(
+                customColorHex = formatted,
+                colorTheme = AppColorTheme.Custom,
+            )
+        prefs?.edit()
+            ?.putString(KEY_CUSTOM_COLOR_HEX, formatted)
+            ?.putString(KEY_COLOR_THEME, AppColorTheme.Custom.name)
+            ?.apply()
+    }
+
+    fun setAmoledDark(enable: Boolean) {
+        _settings.value = _settings.value.copy(amoledDark = enable)
+        prefs?.edit()?.putBoolean(KEY_AMOLED_DARK, enable)?.apply()
+    }
 
     var mediaCacheSizeProvider: (() -> Long)? = null
     var mediaQuotaProvider: (() -> Long)? = null
