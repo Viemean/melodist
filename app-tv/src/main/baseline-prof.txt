@@ -1,0 +1,15 @@
+Lorg/melodist/tv/MelodistApp;
+Lorg/melodist/tv/MainActivity;
+Lorg/melodist/tv/ui/theme/ThemeKt;
+Lorg/melodist/tv/ui/HomeTvScreenKt;
+Lorg/melodist/tv/ui/PlayerTvScreenKt;
+Lorg/melodist/tv/ui/components/TopNavBarKt;
+Lorg/melodist/tv/ui/components/BottomPlayerBarKt;
+Lorg/melodist/tv/ui/components/FeedRecommendRowKt;
+Lorg/melodist/tv/ui/components/HomeCoreTracksRowKt;
+Lorg/melodist/tv/ui/components/MelodistAsyncImageKt;
+Lorg/melodist/playback/PlaybackManager;
+Lorg/melodist/data/AppSettingsManager;
+Lorg/melodist/data/DailyRecommendCacheManager;
+Lorg/melodist/data/RecommendFeedManager;
+Lorg/melodist/tv/connect/TvConnectManager;
