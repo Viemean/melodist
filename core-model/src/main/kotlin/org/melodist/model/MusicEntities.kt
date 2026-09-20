@@ -59,6 +59,7 @@ data class Playlist(
     val description: String = "",
 ) {
     val isMyFavorite: Boolean get() = dirId == 201L || name == "我喜欢" || name == "我的喜欢"
+    val isMillionRecommend: Boolean get() = dirId == 211111L || name == "百万收藏" || name.contains("百万收藏")
     val isCreated: Boolean get() = !isFav
     val title: String get() = name
     val songNum: Int get() = songCount
