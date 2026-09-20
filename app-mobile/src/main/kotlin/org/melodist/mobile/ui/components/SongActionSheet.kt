@@ -542,84 +542,17 @@ fun SongActionSheet(
     }
 
     if (showArtistSelectDialog) {
-        AlertDialog(
+        ArtistSelectDialog(
+            artists = candidateArtists,
             onDismissRequest = { showArtistSelectDialog = false },
-            title = {
-                Text(
-                    text = "选择歌手",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    candidateArtists.forEach { artist ->
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        showArtistSelectDialog = false
-                                        onDismissRequest()
-                                        if (artist.mid.isNotBlank()) {
-                                            onNavigate?.invoke()
-                                            navController.navigateToArtist(artist.mid, artist.name, clearStack = isFromPlayer)
-                                        } else {
-                                            Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }.padding(horizontal = 8.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            val avatarUrl =
-                                remember(artist.mid) {
-                                    MusicApiService.getSingerAvatarUrl(artist.mid)
-                                }
-                            if (avatarUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = avatarUrl,
-                                    contentDescription = artist.name,
-                                    contentScale = ContentScale.Crop,
-                                    modifier =
-                                        Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape),
-                                )
-                            } else {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(22.dp),
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Text(
-                                text = artist.name,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showArtistSelectDialog = false }) {
-                    Text("取消")
+            onArtistSelect = { artist ->
+                showArtistSelectDialog = false
+                onDismissRequest()
+                if (artist.mid.isNotBlank()) {
+                    onNavigate?.invoke()
+                    navController.navigateToArtist(artist.mid, artist.name, clearStack = isFromPlayer)
+                } else {
+                    Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
                 }
             },
         )
