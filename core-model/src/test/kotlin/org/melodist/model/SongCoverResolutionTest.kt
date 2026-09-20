@@ -6,13 +6,13 @@ import org.junit.jupiter.api.Test
 
 class SongCoverResolutionTest {
     @Test
-    fun testThumbnailCoverUrlUses800x800() {
+    fun testThumbnailCoverUrlUses500x500() {
         val song1200 =
             Song(
                 coverUrl = "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
             song1200.thumbnailCoverUrl,
         )
 
@@ -21,7 +21,7 @@ class SongCoverResolutionTest {
                 coverUrl = "https://y.gtimg.cn/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         assertEquals(
-            "https://y.gtimg.cn/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.gtimg.cn/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
             song800.thumbnailCoverUrl,
         )
 
@@ -30,34 +30,30 @@ class SongCoverResolutionTest {
                 coverUrl = "https://y.qq.com/music/photo_new/T002R300x300M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
             song300.thumbnailCoverUrl,
         )
     }
 
     @Test
-    fun testPlayerCoverCandidatesPrioritizeRawWith1200And800Fallback() {
+    fun testPlayerCoverCandidatesPrioritize1200With800Fallback() {
         val song =
             Song(
                 coverUrl = "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         val candidates = song.playerCoverCandidates
-        assertEquals(4, candidates.size)
+        assertEquals(3, candidates.size)
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
             candidates[0],
         )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             candidates[1],
         )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
-            candidates[2],
-        )
-        assertEquals(
             "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
-            candidates[3],
+            candidates[2],
         )
     }
 
@@ -92,10 +88,20 @@ class SongCoverResolutionTest {
         val localSong = Song(coverUrl = "/storage/emulated/0/Music/cover.jpg")
         assertEquals("/storage/emulated/0/Music/cover.jpg", localSong.thumbnailCoverUrl)
         assertEquals(listOf("/storage/emulated/0/Music/cover.jpg"), localSong.playerCoverCandidates)
+
+        val localWithRaw = Song(
+            coverUrl = "file:///cache/covers/cover_123.webp",
+            rawCoverUrl = "file:///cache/covers/cover_raw_123.jpg",
+        )
+        assertEquals("file:///cache/covers/cover_123.webp", localWithRaw.thumbnailCoverUrl)
+        assertEquals(
+            listOf("file:///cache/covers/cover_raw_123.jpg", "file:///cache/covers/cover_123.webp"),
+            localWithRaw.playerCoverCandidates,
+        )
     }
 
     @Test
-    fun testPlaylistThumbnailPicUrlUses800x800() {
+    fun testPlaylistThumbnailPicUrlUses500x500() {
         val playlist =
             Playlist(
                 dirId = 1L,
@@ -104,13 +110,13 @@ class SongCoverResolutionTest {
                 picUrl = "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg",
             )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg",
+            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg",
             playlist.thumbnailPicUrl,
         )
         assertEquals(
             listOf(
-                "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg",
                 "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg",
+                "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg",
             ),
             playlist.thumbnailCandidates,
         )
@@ -123,22 +129,18 @@ class SongCoverResolutionTest {
                 songMid = "003yPnkT3h4fO8",
                 coverUrl = "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg",
             )
-        val rawUrl = "https://y.qq.com/music/photo_new/T002M000003yPnkT3h4fO8.jpg"
         val url1200 = "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg"
         val url800 = "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg"
+        val url500 = "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg"
 
-        // 1. WiFi 环境（非蜂窝）：首选原图
+        // 1. WiFi 环境（非蜂窝）：首选 1200
         val wifiCandidates = song.resolvePlayerCoverCandidates(isCellular = false, hasRawCache = false)
-        assertEquals(rawUrl, wifiCandidates.first())
+        assertEquals(url1200, wifiCandidates.first())
 
-        // 2. 蜂窝移动网络 + 无原图缓存：最大加载 1200，降级 800
-        val cellularNoCache = song.resolvePlayerCoverCandidates(isCellular = true, hasRawCache = false)
-        assertFalse(cellularNoCache.contains(rawUrl))
-        assertEquals(url1200, cellularNoCache.first())
-        assertEquals(url800, cellularNoCache[1])
-
-        // 3. 蜂窝移动网络 + 已有原图缓存：直接使用原图
-        val cellularWithCache = song.resolvePlayerCoverCandidates(isCellular = true, hasRawCache = true)
-        assertEquals(rawUrl, cellularWithCache.first())
+        // 2. 蜂窝移动网络：不加载 1200，降级 800
+        val cellularCandidates = song.resolvePlayerCoverCandidates(isCellular = true, hasRawCache = false)
+        assertFalse(cellularCandidates.contains(url1200))
+        assertEquals(url800, cellularCandidates.first())
+        assertEquals(url500, cellularCandidates[1])
     }
 }

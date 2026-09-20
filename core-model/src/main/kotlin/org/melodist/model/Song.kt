@@ -45,7 +45,7 @@ data class Song(
             if (coverUrl.isBlank()) return ""
             val regex = Regex("R[0-9]+x[0-9]+")
             return if (coverUrl.contains(regex)) {
-                coverUrl.replace(regex, "R800x800")
+                coverUrl.replace(regex, "R500x500")
             } else {
                 coverUrl
             }
@@ -57,9 +57,9 @@ data class Song(
             if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) return listOf(coverUrl)
             val regex = Regex("R[0-9]+x[0-9]+")
             if (coverUrl.contains(regex)) {
-                val url800 = coverUrl.replace(regex, "R800x800")
                 val url500 = coverUrl.replace(regex, "R500x500")
-                return listOf(url800, url500)
+                val url800 = coverUrl.replace(regex, "R800x800")
+                return listOf(url500, url800)
             }
             return listOf(coverUrl)
         }
@@ -67,14 +67,14 @@ data class Song(
     val playerCoverCandidates: List<String>
         get() {
             val list = mutableListOf<String>()
-            if (rawCoverUrl.isNotBlank()) {
-                list.add(rawCoverUrl)
-            }
             if (coverUrl.isNotBlank()) {
                 if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
                     val matchingRaw = findLocalRawCover(coverUrl)
                     if (!matchingRaw.isNullOrBlank() && !list.contains(matchingRaw)) {
                         list.add(matchingRaw)
+                    }
+                    if (rawCoverUrl.isNotBlank() && !list.contains(rawCoverUrl)) {
+                        list.add(rawCoverUrl)
                     }
                     if (!list.contains(coverUrl)) {
                         list.add(coverUrl)
@@ -82,11 +82,10 @@ data class Song(
                 } else {
                     val regex = Regex("R[0-9]+x[0-9]+")
                     if (coverUrl.contains(regex)) {
-                        val rawUrl = coverUrl.replace(regex, "")
                         val url1200 = coverUrl.replace(regex, "R1200x1200")
                         val url800 = coverUrl.replace(regex, "R800x800")
                         val url500 = coverUrl.replace(regex, "R500x500")
-                        listOf(rawUrl, url1200, url800, url500).forEach { u ->
+                        listOf(url1200, url800, url500).forEach { u ->
                             if (!list.contains(u)) list.add(u)
                         }
                     } else {
@@ -119,10 +118,11 @@ data class Song(
         hasRawCache: Boolean = false,
     ): List<String> {
         val candidates = playerCoverCandidates
-        if (isCellular && !hasRawCache) {
-            val raw = rawCoverUrlOnly
-            if (!raw.isNullOrBlank()) {
-                return candidates.filter { it != raw }
+        if (isCellular) {
+            val regex = Regex("R[0-9]+x[0-9]+")
+            val url1200 = coverUrl.takeIf { it.contains(regex) }?.replace(regex, "R1200x1200")
+            if (!url1200.isNullOrBlank()) {
+                return candidates.filter { it != url1200 }
             }
         }
         return candidates

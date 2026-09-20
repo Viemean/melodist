@@ -175,7 +175,6 @@ class MusicApiService(
             if (albumMid.isBlank()) return emptyList()
             val rawMid = if (albumMid.contains('_')) albumMid.substringBefore('_') else albumMid
             return listOf(
-                "https://y.qq.com/music/photo_new/T002M000$albumMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R1200x1200M000$albumMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R800x800M000$albumMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R800x800M000${rawMid}_1.jpg?max_age=2592000",
@@ -183,22 +182,23 @@ class MusicApiService(
                 "https://y.gtimg.cn/music/photo_new/T002R1200x1200M000$albumMid.jpg?max_age=2592000",
                 "https://y.gtimg.cn/music/photo_new/T002R800x800M000$albumMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R500x500M000$albumMid.jpg?max_age=2592000",
+                "https://y.qq.com/music/photo_new/T002M000$albumMid.jpg?max_age=2592000",
             )
         }
 
         fun getAlbumCoverUrl(albumMid: String): String = getAlbumCoverCandidates(albumMid).firstOrNull().orEmpty()
 
         /**
-         * 获取单曲专属视觉封面候选列表 (T062 前缀: 原画直出 -> 1200x1200 -> 800x800 -> gtimg -> 500x500)
+         * 获取单曲专属视觉封面候选列表 (T062 前缀: 1200x1200 -> 800x800 -> gtimg -> 500x500 -> 原画)
          */
         fun getSingleCoverCandidates(visualMid: String): List<String> {
             if (visualMid.isBlank()) return emptyList()
             return listOf(
-                "https://y.qq.com/music/photo_new/T062M000$visualMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T062R1200x1200M000$visualMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T062R800x800M000$visualMid.jpg?max_age=2592000",
                 "https://y.gtimg.cn/music/photo_new/T062R1200x1200M000$visualMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T062R500x500M000$visualMid.jpg?max_age=2592000",
+                "https://y.qq.com/music/photo_new/T062M000$visualMid.jpg?max_age=2592000",
             )
         }
 
