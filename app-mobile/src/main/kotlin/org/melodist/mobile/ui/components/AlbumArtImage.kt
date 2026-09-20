@@ -55,13 +55,23 @@ fun AlbumArtImage(
 
     val candidateList =
         remember(coverUrl, candidates) {
+            val list = mutableListOf<String>()
             if (!candidates.isNullOrEmpty()) {
-                candidates
+                candidates.forEach { c ->
+                    val raw = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(c)
+                    if (!raw.isNullOrBlank() && !list.contains(raw)) {
+                        list.add(raw)
+                    }
+                    if (!list.contains(c)) list.add(c)
+                }
             } else if (!coverUrl.isNullOrBlank()) {
-                listOf(coverUrl)
-            } else {
-                emptyList()
+                val raw = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(coverUrl)
+                if (!raw.isNullOrBlank()) {
+                    list.add(raw)
+                }
+                list.add(coverUrl)
             }
+            list
         }
 
     var candidateIndex by remember(candidateList) { mutableIntStateOf(0) }

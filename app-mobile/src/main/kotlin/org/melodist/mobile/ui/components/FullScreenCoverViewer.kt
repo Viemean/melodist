@@ -109,8 +109,41 @@ fun FullScreenCoverViewer(
         }
     }
 
-    val candidates = remember(song) {
-        song.rawCoverCandidates.ifEmpty { listOf(song.coverUrl) }.filter { it.isNotBlank() }
+    var extractedRawUrl by remember(song) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(song) {
+        withContext(Dispatchers.IO) {
+            val matchingRaw = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl)
+            if (!matchingRaw.isNullOrBlank()) {
+                extractedRawUrl = matchingRaw
+                return@withContext
+            }
+            if (song.isLocal || !song.localFilePath.isNullOrBlank()) {
+                val raw = org.melodist.data.LocalMusicManager.ensureRawCover(song)
+                if (!raw.isNullOrBlank()) {
+                    extractedRawUrl = raw
+                }
+            } else if (song.songMid.startsWith("webdav_")) {
+                val raw = org.melodist.data.WebDavManager.ensureRawCover(song)
+                if (!raw.isNullOrBlank()) {
+                    extractedRawUrl = raw
+                }
+            }
+        }
+    }
+
+    val candidates = remember(song, extractedRawUrl) {
+        val list = mutableListOf<String>()
+        if (!extractedRawUrl.isNullOrBlank()) {
+            list.add(extractedRawUrl!!)
+        }
+        song.rawCoverCandidates.forEach { u ->
+            if (!list.contains(u)) list.add(u)
+        }
+        if (song.coverUrl.isNotBlank() && !list.contains(song.coverUrl)) {
+            list.add(song.coverUrl)
+        }
+        list
     }
     var candidateIndex by remember(candidates) { mutableIntStateOf(0) }
     val coverUrl = candidates.getOrNull(candidateIndex).orEmpty()

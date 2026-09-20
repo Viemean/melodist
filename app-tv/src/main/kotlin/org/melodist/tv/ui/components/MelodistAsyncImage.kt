@@ -53,6 +53,10 @@ fun MelodistAsyncImage(
             val isLocalFile = coverUrl.startsWith("/") || coverUrl.startsWith("file://")
             if (isLocalFile && coverUrl.isNotBlank()) {
                 val normalized = if (coverUrl.startsWith("/")) "file://$coverUrl" else coverUrl
+                val rawCandidate = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(normalized)
+                if (!rawCandidate.isNullOrBlank() && rawCandidate != normalized) {
+                    list.add(rawCandidate)
+                }
                 list.add(normalized)
             } else {
                 // QQ 音乐 CDN 超高清 1200x1200 与 800x800 优先强升
