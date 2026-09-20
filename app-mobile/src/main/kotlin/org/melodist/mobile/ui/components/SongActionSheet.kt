@@ -464,99 +464,44 @@ fun SongActionSheet(
         }
     }
 
-    if (showCommentsSheet) {
-        SongCommentsBottomSheet(
-            song = song,
-            onDismissRequest = { showCommentsSheet = false },
-        )
-    }
-
-    if (showSongInfoSheet) {
-        SongInfoBottomSheet(
-            song = song,
-            onDismissRequest = { showSongInfoSheet = false },
-        )
-    }
-
-    if (showDeleteConfirmDialog && localFilePath != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Rounded.DeleteForever,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            },
-            title = {
-                Text(
-                    text = "删除本地文件",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            },
-            text = {
-                Text(
-                    text = "确定要从设备中删除《${song.name}》的本地文件吗？此操作将永久移除该文件，无法撤销。",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirmDialog = false
-                        val file = File(localFilePath)
-                        if (file.exists()) {
-                            file.delete()
-                            val lrcFile = File(localFilePath.substringBeforeLast(".") + ".lrc")
-                            if (lrcFile.exists()) {
-                                lrcFile.delete()
-                            }
-                        }
-                        LocalMusicManager.removeSongByPath(localFilePath)
-                        DownloadManager.deleteDownloadedByPath(localFilePath)
-                        DownloadManager.deleteDownloadedBySongMid(song.songMid, deleteFile = false)
-                        try {
-                            MediaScannerConnection.scanFile(
-                                context,
-                                arrayOf(localFilePath),
-                                null,
-                                null,
-                            )
-                        } catch (_: Exception) {
-                        }
-                        Toast.makeText(context, "已删除本地文件", Toast.LENGTH_SHORT).show()
-                        onDeleteLocalFile?.invoke(song)
-                        onDismissRequest()
-                    },
-                ) {
-                    Text("确认删除", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("取消")
-                }
-            },
-        )
-    }
-
-    if (showArtistSelectDialog) {
-        ArtistSelectDialog(
-            artists = candidateArtists,
-            onDismissRequest = { showArtistSelectDialog = false },
-            onArtistSelect = { artist ->
-                showArtistSelectDialog = false
-                onDismissRequest()
-                if (artist.mid.isNotBlank()) {
-                    onNavigate?.invoke()
-                    navController.navigateToArtist(artist.mid, artist.name, clearStack = isFromPlayer)
-                } else {
-                    Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
-                }
-            },
-        )
-    }
+    SongActionSecondaryDialogs(
+        song = song,
+        localFilePath = localFilePath,
+        showDeleteConfirmDialog = showDeleteConfirmDialog,
+        onDismissDeleteConfirmDialog = { showDeleteConfirmDialog = false },
+        onDeleteConfirmed = {
+            onDeleteLocalFile?.invoke(song)
+            onDismissRequest()
+        },
+        showArtistSelectDialog = showArtistSelectDialog,
+        candidateArtists = candidateArtists,
+        onDismissArtistSelectDialog = { showArtistSelectDialog = false },
+        onArtistSelected = { artist ->
+            showArtistSelectDialog = false
+            onDismissRequest()
+            if (artist.mid.isNotBlank()) {
+                onNavigate?.invoke()
+                navController.navigateToArtist(artist.mid, artist.name, clearStack = isFromPlayer)
+            } else {
+                Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
+            }
+        },
+        showPermissionDialog = showPermissionDialog,
+        onDismissPermissionDialog = {
+            showPermissionDialog = false
+            onDismissRequest()
+        },
+        onRequestStoragePermission = {
+            DownloadManager.requestStoragePermission(context)
+        },
+        showAddToPlaylistDialog = showAddToPlaylistDialog,
+        onDismissAddToPlaylistDialog = { showAddToPlaylistDialog = false },
+        onAddToPlaylistSuccess = { onDismissRequest() },
+        showCommentsSheet = showCommentsSheet,
+        onDismissCommentsSheet = { showCommentsSheet = false },
+        showSongInfoSheet = showSongInfoSheet,
+        onDismissSongInfoSheet = { showSongInfoSheet = false },
+    )
 
     if (showDownloadQualityDialog) {
         val currentPreferredTier =
@@ -580,57 +525,6 @@ fun SongActionSheet(
                 }
             },
             onDismissRequest = { showDownloadQualityDialog = false },
-        )
-    }
-
-    if (showPermissionDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showPermissionDialog = false
-                onDismissRequest()
-            },
-            title = {
-                Text(
-                    text = "需要存储权限",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            },
-            text = {
-                Text(
-                    text = "保存歌曲至系统的标准 Music/Melodist 目录需要授予“所有文件访问权限”，请在打开的系统设置中开启权限开关。",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showPermissionDialog = false
-                        onDismissRequest()
-                        DownloadManager.requestStoragePermission(context)
-                    },
-                ) {
-                    Text("前往设置授权")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showPermissionDialog = false
-                        onDismissRequest()
-                    },
-                ) {
-                    Text("取消")
-                }
-            },
-        )
-    }
-
-    if (showAddToPlaylistDialog) {
-        AddToPlaylistBottomSheet(
-            songs = listOf(song),
-            onDismissRequest = { showAddToPlaylistDialog = false },
-            onSuccess = { onDismissRequest() },
         )
     }
 }
