@@ -647,11 +647,13 @@ object PlaybackManager {
     private fun buildMediaItem(
         uri: android.net.Uri,
         song: Song,
+        tier: AudioQualityTier? = null,
     ): MediaItem =
         MediaItem
             .Builder()
             .setUri(uri)
             .setMediaId(song.songMid)
+            .setCustomCacheKey(MelodistCacheManager.getCacheKey(song.songMid, tier))
             .setMediaMetadata(buildMediaMetadata(song))
             .build()
 
@@ -842,6 +844,16 @@ object PlaybackManager {
                                 val mid = _currentSong.value?.songMid
                                 if (!mid.isNullOrBlank()) {
                                     MelodistCacheManager.recordPlayProgress(mid, pos, dur)
+                                    val curTier = _currentTier.value
+                                    if (curTier != null && !_isCurrentTrackFromCache.value) {
+                                        val isFav = isSongFavorite(mid)
+                                        if (MelodistCacheManager.shouldCacheSong(mid, isFav, curTier)) {
+                                            val thresholdMs = MelodistCacheManager.currentProfile.getTrialThresholdMs(dur)
+                                            if (pos >= thresholdMs) {
+                                                MelodistCacheManager.confirmCacheRetention(mid, curTier)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             saveCounter++
@@ -1348,44 +1360,60 @@ object PlaybackManager {
                 val isPassthrough = org.melodist.data.AppSettingsManager.settings.value.enableAudioPassthrough
                 val rawTargetTier = forceTier ?: _preferredTier.value
                 val targetTier = clampCellularTier(rawTargetTier, song)
-                val cachedInfo =
-                    if (prefetchedUrlInfo?.first == song.songMid && forceTier == null) {
-                        val info = prefetchedUrlInfo?.second
-                        prefetchedUrlInfo = null
-                        info
-                    } else {
-                        null
-                    }
+                val higherStereoTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(song.songMid, targetTier)
 
-                val urlDeferred =
-                    if (cachedInfo == null) {
-                        async(Dispatchers.IO) {
-                            try {
-                                apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier)
-                            } catch (e: Exception) {
+                val playUrlInfo =
+                    if (higherStereoTier != null) {
+                        val dummyUri = "https://cache.melodist.internal/${song.songMid}?tier=${higherStereoTier.name}"
+                        Log.i(
+                            "MelodistPlayback",
+                            "Reusing local stereo cache ($higherStereoTier) for ${song.name} (target: $targetTier)",
+                        )
+                        org.melodist.api.QualityResult(
+                            url = dummyUri,
+                            tier = higherStereoTier,
+                            badge = AudioQualityTier.getBadge(higherStereoTier),
+                        )
+                    } else {
+                        val cachedInfo =
+                            if (prefetchedUrlInfo?.first == song.songMid && forceTier == null) {
+                                val info = prefetchedUrlInfo?.second
+                                prefetchedUrlInfo = null
+                                info
+                            } else {
                                 null
                             }
-                        }
-                    } else {
-                        null
+
+                        val urlDeferred =
+                            if (cachedInfo == null) {
+                                async(Dispatchers.IO) {
+                                    try {
+                                        apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier)
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+                                }
+                            } else {
+                                null
+                            }
+                        cachedInfo ?: urlDeferred?.await()
                     }
 
                 val lyricList = lyricDeferred.await()
                 _lyrics.value = lyricList
 
-                val playUrlInfo = cachedInfo ?: urlDeferred?.await()
                 if (playUrlInfo != null && !playUrlInfo.url.isNullOrBlank()) {
                     val rawUrl = playUrlInfo.url
                     Log.i(
                         "MelodistPlayback",
-                        "Preparing playback with URL: $rawUrl, tier: ${playUrlInfo.tier} (preferred: $targetTier, passthrough: $isPassthrough, fromPrefetch=${cachedInfo != null})",
+                        "Preparing playback with URL: $rawUrl, tier: ${playUrlInfo.tier} (preferred: $targetTier, passthrough: $isPassthrough)",
                     )
                     _currentTier.value = playUrlInfo.tier
                     val player = exoPlayer ?: return@launch
                     val ctx = appContext ?: return@launch
                     val isFav = isSongFavorite(song.songMid)
+                    val isCached = higherStereoTier != null || MelodistCacheManager.isSongTierCached(song.songMid, playUrlInfo.tier)
                     val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav, playUrlInfo.tier)
-                    val isCached = MelodistCacheManager.isUriCached(rawUrl) || MelodistCacheManager.getCachedSongTier(song.songMid) != null
                     _isCurrentTrackFromCache.value = isCached
                     Log.i(
                         "MelodistPlayback",
@@ -1411,7 +1439,7 @@ object PlaybackManager {
                         ProgressiveMediaSource
                             .Factory(dsFactory)
                             .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
-                            .createMediaSource(buildMediaItem(android.net.Uri.parse(rawUrl), song))
+                            .createMediaSource(buildMediaItem(android.net.Uri.parse(rawUrl), song, playUrlInfo.tier))
 
                     if (seekToMs > 0L) {
                         player.setMediaSource(mediaSource, seekToMs)
@@ -1845,7 +1873,7 @@ object PlaybackManager {
                             }
 
                         player.volume = if (_isMuted.value) 0f else targetVolume
-                        val mediaItem = buildMediaItem(android.net.Uri.parse(rawUrl), current)
+                        val mediaItem = buildMediaItem(android.net.Uri.parse(rawUrl), current, playUrlInfo.tier)
                         if (livePositionMs > 0L) {
                             player.setMediaItem(mediaItem, livePositionMs)
                         } else {

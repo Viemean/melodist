@@ -95,6 +95,13 @@ class MelodistCacheManagerTest {
     }
 
     @Test
+    fun `getCacheKey generates normalized format`() {
+        assertEquals("melodist_001_HQ", MelodistCacheManager.getCacheKey("001", org.melodist.model.AudioQualityTier.HQ))
+        assertEquals("melodist_001_HiRes", MelodistCacheManager.getCacheKey("001", org.melodist.model.AudioQualityTier.HiRes))
+        assertEquals("melodist_001", MelodistCacheManager.getCacheKey("001", null))
+    }
+
+    @Test
     fun `master tier is strictly stream-only when allowMasterDiskCache is false`() {
         val songMid = "test_master_song"
         MelodistCacheManager.onNewSongStarted(songMid)
@@ -112,6 +119,22 @@ class MelodistCacheManagerTest {
         // 切换为 Mobile Profile（允许 Master 落盘）
         MelodistCacheManager.currentProfile = PlaybackProfile.Mobile
         assertTrue(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true, tier = org.melodist.model.AudioQualityTier.Master))
+    }
+
+    @Test
+    fun `stereo rank ordering follows physical audio quality hierarchy`() {
+        val stdRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.Standard)
+        val hqRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.HQ)
+        val sqRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.SQ)
+        val hiResRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.HiRes)
+        val masterRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.Master)
+        val atmosRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.Atmos)
+
+        assertTrue(stdRank in 1..<hqRank)
+        assertTrue(hqRank < sqRank)
+        assertTrue(sqRank < hiResRank)
+        assertTrue(hiResRank < masterRank)
+        assertEquals(0, atmosRank) // 非立体声轨道不参与立体声收敛
     }
 
     @Test

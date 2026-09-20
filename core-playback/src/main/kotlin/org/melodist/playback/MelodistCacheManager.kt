@@ -214,6 +214,30 @@ object MelodistCacheManager {
     fun getPlayCount(songMid: String): Int = playCountMap[songMid] ?: 0
 
     /**
+     * 生成标准业务 CacheKey，规避 CDN URL 携带动态 Token 导致缓存失效
+     */
+    fun getCacheKey(songMid: String, tier: org.melodist.model.AudioQualityTier? = null): String {
+        return if (tier != null) {
+            "melodist_${songMid}_${tier.name}"
+        } else {
+            "melodist_${songMid}"
+        }
+    }
+
+    /**
+     * 判断指定曲目的指定音质是否已有本地缓存
+     */
+    fun isSongTierCached(songMid: String, tier: org.melodist.model.AudioQualityTier?): Boolean {
+        if (songMid.isBlank()) return false
+        if (tier == null) return cachedSongTiers.containsKey(songMid)
+        val recordedTier = cachedSongTiers[songMid]
+        if (recordedTier == tier && isKeyCached(getCacheKey(songMid, tier))) {
+            return true
+        }
+        return false
+    }
+
+    /**
      * 切歌事件触发：若切走的曲目在试探期内被切走（播放时长未达门槛），异步清理其磁盘残片，防磁盘碎片堆积
      */
     fun handleTrackSwitchEviction(
@@ -254,6 +278,42 @@ object MelodistCacheManager {
     }
 
     /**
+     * 检查本地是否已经完整缓存了相同或更高等级的立体声音质。
+     * 若存在，返回本地已缓存的最佳音质级别，业务层可直接免流复用本地数据起播。
+     */
+    fun findHigherOrEqualStereoCachedTier(
+        songMid: String,
+        targetTier: org.melodist.model.AudioQualityTier,
+    ): org.melodist.model.AudioQualityTier? {
+        if (songMid.isBlank()) return null
+        val targetStereoRank = org.melodist.model.AudioQualityTier.getStereoRank(targetTier)
+        if (targetStereoRank <= 0) return null // 仅针对立体声轨道收敛
+
+        val cachedTier = cachedSongTiers[songMid] ?: return null
+        val cachedStereoRank = org.melodist.model.AudioQualityTier.getStereoRank(cachedTier)
+        if (cachedStereoRank >= targetStereoRank) {
+            val cacheKey = getCacheKey(songMid, cachedTier)
+            if (isKeyCached(cacheKey)) {
+                return cachedTier
+            }
+        }
+        return null
+    }
+
+    /**
+     * 检查某个业务 CacheKey 是否已经在磁盘缓存中（首分片就绪）
+     */
+    fun isKeyCached(cacheKey: String?): Boolean {
+        if (cacheKey.isNullOrBlank()) return false
+        val cache = simpleCache ?: return false
+        return try {
+            cache.isCached(cacheKey, 0, 65536) || cache.keys.contains(cacheKey)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
      * 异步清理未达收听门槛曲目的残片数据
      */
     fun evictIncompleteCacheAsync(songMid: String, tier: org.melodist.model.AudioQualityTier? = null) {
@@ -261,7 +321,12 @@ object MelodistCacheManager {
         val cache = simpleCache ?: return
         scope.launch {
             try {
-                val keysToEvict = cache.keys.filter { it.contains(songMid) }
+                val keysToEvict =
+                    if (tier != null) {
+                        listOf(getCacheKey(songMid, tier))
+                    } else {
+                        cache.keys.filter { it.contains(songMid) }
+                    }
                 for (key in keysToEvict) {
                     cache.removeResource(key)
                     Log.i(TAG, "Evicted incomplete cache span for key: $key")
@@ -270,6 +335,43 @@ object MelodistCacheManager {
                 Log.w(TAG, "Failed to evict incomplete cache for songMid=$songMid", e)
             }
         }
+    }
+
+    /**
+     * 向上升级替换：更高音质完整留存后，异步清理同曲目的低音质旧文件，立体声只保留一份
+     */
+    fun pruneLowerTierCacheAsync(songMid: String, currentTier: org.melodist.model.AudioQualityTier) {
+        if (songMid.isBlank()) return
+        val cache = simpleCache ?: return
+        val currentRank = org.melodist.model.AudioQualityTier.getStereoRank(currentTier)
+        if (currentRank <= 0) return
+
+        scope.launch {
+            try {
+                org.melodist.model.AudioQualityTier.entries.forEach { otherTier ->
+                    val otherRank = org.melodist.model.AudioQualityTier.getStereoRank(otherTier)
+                    if (otherRank in 1 until currentRank) {
+                        val lowerKey = getCacheKey(songMid, otherTier)
+                        if (cache.keys.contains(lowerKey)) {
+                            cache.removeResource(lowerKey)
+                            Log.i(TAG, "Pruned lower tier cache ($lowerKey) in favor of ${currentTier.name}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to prune lower tiers for songMid=$songMid", e)
+            }
+        }
+    }
+
+    /**
+     * 确认收听达标持久留存，并触发同曲目旧版本淘汰
+     */
+    fun confirmCacheRetention(songMid: String, tier: org.melodist.model.AudioQualityTier) {
+        if (songMid.isBlank()) return
+        if (cachedSongTiers[songMid] == tier) return
+        recordCachedSongTier(songMid, tier)
+        pruneLowerTierCacheAsync(songMid, tier)
     }
 
     /**
