@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.Check
@@ -44,6 +45,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.melodist.data.AppColorTheme
 import org.melodist.data.AppSettings
@@ -53,6 +56,7 @@ import org.melodist.mobile.ui.components.SettingsDivider
 import org.melodist.mobile.ui.components.SettingsGroupCard
 import org.melodist.mobile.ui.components.SettingsGroupTitle
 import org.melodist.mobile.ui.components.SettingsSwitchRow
+import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import org.melodist.mobile.ui.theme.parseHexColor
 
 @Composable
@@ -115,10 +119,16 @@ fun SettingsAppearanceSection(
             SettingsDivider()
 
             // 4. AMOLED 纯黑背景
+            val isCurrentDark = isAppInDarkTheme()
             SettingsSwitchRow(
                 icon = Icons.Rounded.Contrast,
                 title = "AMOLED 纯黑背景",
-                subtitle = "深色模式下将背景设置为纯黑，适合 OLED 屏幕",
+                subtitle =
+                    if (isCurrentDark) {
+                        "深色模式下将背景设置为纯黑，适合 OLED 屏幕"
+                    } else {
+                        "当前处于浅色模式，切换至深色后生效"
+                    },
                 checked = settings.amoledDark,
                 onCheckedChange = { AppSettingsManager.setAmoledDark(it) },
             )
@@ -387,11 +397,19 @@ private fun CustomColorHexDialog(
 
                 OutlinedTextField(
                     value = hexInput,
-                    onValueChange = { hexInput = it.trim() },
+                    onValueChange = { raw ->
+                        val cleaned = raw.filter { c -> c in '0'..'9' || c in 'a'..'f' || c in 'A'..'F' || c == '#' }.uppercase()
+                        hexInput = if (cleaned.isNotEmpty() && !cleaned.startsWith("#")) "#$cleaned" else cleaned
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("颜色代码 (HEX)") },
                     placeholder = { Text("#1E88E5") },
                     singleLine = true,
+                    keyboardOptions =
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Ascii,
+                            capitalization = KeyboardCapitalization.Characters,
+                        ),
                     isError = !isValid && hexInput.isNotEmpty(),
                     supportingText = {
                         if (!isValid && hexInput.isNotEmpty()) {
