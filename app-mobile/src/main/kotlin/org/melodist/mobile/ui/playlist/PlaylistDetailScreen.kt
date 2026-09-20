@@ -496,10 +496,10 @@ fun PlaylistDetailScreen(
                                         remember(effectiveCoverUrl) {
                                             val regex = Regex("R[0-9]+x[0-9]+")
                                             if (effectiveCoverUrl.contains(regex)) {
-                                                val rawUrl = effectiveCoverUrl.replace(regex, "")
                                                 val url1200 = effectiveCoverUrl.replace(regex, "R1200x1200")
                                                 val url800 = effectiveCoverUrl.replace(regex, "R800x800")
-                                                listOf(rawUrl, url1200, url800).distinct()
+                                                val url500 = effectiveCoverUrl.replace(regex, "R500x500")
+                                                listOf(url1200, url800, url500).distinct()
                                             } else {
                                                 listOf(effectiveCoverUrl)
                                             }

@@ -55,8 +55,7 @@ object MobileCoverCacheResolver {
     fun resolveCandidates(context: Context, song: Song?): List<String> {
         if (song == null) return emptyList()
         val isCellular = PlaybackManager.isCellularNetwork()
-        val hasRawCache = hasRawCoverCache(context, song)
-        return song.resolvePlayerCoverCandidates(isCellular = isCellular, hasRawCache = hasRawCache)
+        return song.resolvePlayerCoverCandidates(isCellular = isCellular)
     }
 
     /**

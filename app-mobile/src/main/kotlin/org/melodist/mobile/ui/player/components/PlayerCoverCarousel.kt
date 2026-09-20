@@ -267,21 +267,8 @@ private fun CoverCard(
     alpha: Float,
 ) {
     val context = LocalContext.current
-    var hasRawCache by remember(song?.songMid, song?.coverUrl) {
-        mutableStateOf(MobileCoverCacheResolver.hasRawCoverCache(context, song))
-    }
-
-    LaunchedEffect(song?.songMid, song?.coverUrl) {
-        val isCellular = PlaybackManager.isCellularNetwork()
-        if (!isCellular && !hasRawCache) {
-            MobileCoverCacheResolver.upgradeRawCoverOnWifiAsync(context, song) {
-                hasRawCache = true
-            }
-        }
-    }
-
     val candidates =
-        remember(song, hasRawCache) {
+        remember(song) {
             MobileCoverCacheResolver.resolveCandidates(context, song)
         }
 
