@@ -323,9 +323,9 @@ fun AlbumDetailScreen(
                                             currentDetail.description.trim()
                                         } else {
                                             listOfNotNull(
-                                                currentDetail.language.takeIf { it.isNotBlank() }?.let { "语种: $it" },
-                                                currentDetail.albumType.takeIf { it.isNotBlank() }?.let { "类型: $it" },
-                                                currentDetail.company.takeIf { it.isNotBlank() }?.let { "厂牌: $it" },
+                                                currentDetail.language.takeIf { it.isNotBlank() }?.let { "语言: $it" },
+                                                currentDetail.company.takeIf { it.isNotBlank() }?.let { "唱片公司: $it" },
+                                                currentDetail.albumType.takeIf { it.isNotBlank() }?.let { "唱片类型: $it" },
                                             ).joinToString(" · ").ifBlank { "点击查看完整唱片与发行信息" }
                                         }
 
