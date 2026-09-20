@@ -10,7 +10,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.graphics.ColorUtils
 import org.melodist.data.AppColorTheme
 import org.melodist.data.ThemeMode
 
@@ -172,25 +174,68 @@ fun parseHexColor(
     return if (colorLong != null) Color(colorLong) else fallback
 }
 
-private fun createCustomDarkColorScheme(seedColor: Color): ColorScheme =
-    createDarkColorScheme(
-        primary = seedColor,
-        onPrimary = Color.Black,
-        primaryContainer = seedColor.copy(alpha = 0.35f),
-        onPrimaryContainer = Color.White,
-        secondary = seedColor,
-        onSecondary = Color.Black,
-        secondaryContainer = seedColor.copy(alpha = 0.25f),
-        onSecondaryContainer = Color.White,
+private fun Color.adjustHsl(
+    saturationFactor: Float = 1f,
+    lightness: Float,
+): Color {
+    val hsl = FloatArray(3)
+    ColorUtils.colorToHSL(
+        android.graphics.Color.argb(
+            (alpha * 255).toInt(),
+            (red * 255).toInt(),
+            (green * 255).toInt(),
+            (blue * 255).toInt(),
+        ),
+        hsl,
     )
+    hsl[1] = (hsl[1] * saturationFactor).coerceIn(0f, 1f)
+    hsl[2] = lightness.coerceIn(0f, 1f)
+    return Color(ColorUtils.HSLToColor(hsl))
+}
 
-private fun createCustomLightColorScheme(seedColor: Color): ColorScheme =
-    createLightColorScheme(
-        primary = seedColor,
-        onPrimary = Color.White,
-        primaryContainer = seedColor.copy(alpha = 0.2f),
-        onPrimaryContainer = seedColor,
+private fun createCustomDarkColorScheme(seedColor: Color): ColorScheme {
+    // 若原色在暗色背景下过暗，适当调高明度以符合 M3 暗色主色标准
+    val effectivePrimary =
+        if (seedColor.luminance() < 0.22f) {
+            seedColor.adjustHsl(saturationFactor = 0.9f, lightness = 0.72f)
+        } else {
+            seedColor
+        }
+    val onPrimary = if (effectivePrimary.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White
+    val container = seedColor.adjustHsl(saturationFactor = 0.95f, lightness = 0.22f)
+    val onContainer = seedColor.adjustHsl(saturationFactor = 0.8f, lightness = 0.88f)
+
+    return createDarkColorScheme(
+        primary = effectivePrimary,
+        onPrimary = onPrimary,
+        primaryContainer = container,
+        onPrimaryContainer = onContainer,
+        secondary = effectivePrimary.adjustHsl(saturationFactor = 0.7f, lightness = 0.65f),
+        onSecondary = if (effectivePrimary.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White,
+        secondaryContainer = container,
+        onSecondaryContainer = onContainer,
     )
+}
+
+private fun createCustomLightColorScheme(seedColor: Color): ColorScheme {
+    // 若原色在浅色背景下过亮，适当降低明度以保证对比度
+    val effectivePrimary =
+        if (seedColor.luminance() > 0.65f) {
+            seedColor.adjustHsl(saturationFactor = 0.95f, lightness = 0.40f)
+        } else {
+            seedColor
+        }
+    val onPrimary = if (effectivePrimary.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White
+    val container = seedColor.adjustHsl(saturationFactor = 0.85f, lightness = 0.92f)
+    val onContainer = seedColor.adjustHsl(saturationFactor = 0.95f, lightness = 0.15f)
+
+    return createLightColorScheme(
+        primary = effectivePrimary,
+        onPrimary = onPrimary,
+        primaryContainer = container,
+        onPrimaryContainer = onContainer,
+    )
+}
 
 fun getPresetColorScheme(
     theme: AppColorTheme,
