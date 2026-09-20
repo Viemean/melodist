@@ -109,4 +109,10 @@ object PlaybackSourceResolver {
             AudioQualityTier.HQ -> AudioQualityTier.Standard
             AudioQualityTier.Standard -> null
         }
+
+    fun shouldTriggerPrefetch(durationMs: Long, positionMs: Long): Boolean {
+        if (durationMs <= 20_000L) return false
+        val remainingMs = durationMs - positionMs
+        return remainingMs <= 20_000L || (positionMs.toDouble() / durationMs) >= 0.85
+    }
 }

@@ -104,5 +104,24 @@ class PlaybackSourceResolverTest {
         )
         assertEquals(AudioQualityTier.Master, clamped)
     }
+
+    @Test
+    fun `shouldTriggerPrefetch accurately identifies timing window`() {
+        // 短曲目（<= 20秒）不触发
+        assertFalse(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 20_000L, positionMs = 15_000L))
+        assertFalse(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 10_000L, positionMs = 9_000L))
+
+        // 歌曲 200 秒：剩余 > 20s 且进度 < 85%（例如播放 100s，进度 50%）不触发
+        assertFalse(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 200_000L, positionMs = 100_000L))
+
+        // 歌曲 200 秒：播放到 170 秒（85% 门槛，剩余 30s > 20s）触发
+        assertTrue(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 200_000L, positionMs = 170_000L))
+
+        // 歌曲 60 秒：播放到 41 秒（剩余 19 秒 <= 20s，进度 68.3% < 85%）触发
+        assertTrue(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 60_000L, positionMs = 41_000L))
+
+        // 歌曲 60 秒：播放到 35 秒（剩余 25s，进度 58.3%）不触发
+        assertFalse(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 60_000L, positionMs = 35_000L))
+    }
 }
 

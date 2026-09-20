@@ -6,12 +6,18 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
@@ -313,7 +319,8 @@ object MelodistCacheManager {
         val cache = simpleCache ?: return false
         return try {
             cache.isCached(cacheKey, 0, 65536) || cache.keys.contains(cacheKey)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to inspect cache status for key: $cacheKey", e)
             false
         }
     }
@@ -420,7 +427,8 @@ object MelodistCacheManager {
     fun getCacheSizeBytes(): Long =
         try {
             simpleCache?.cacheSpace ?: 0L
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to retrieve cache size bytes", e)
             0L
         }
 
@@ -430,7 +438,8 @@ object MelodistCacheManager {
     fun getCachedKeyCount(): Int =
         try {
             simpleCache?.keys?.size ?: 0
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to retrieve cached key count", e)
             0
         }
 

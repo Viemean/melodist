@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
 import android.util.Log
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -195,6 +197,7 @@ object PlaybackManager {
     private val _isTransitioning = MutableStateFlow(false)
     val isTransitioning: StateFlow<Boolean> = _isTransitioning.asStateFlow()
 
+    private var prefetchedSongMid: String? = null
     private var prefetchedUrlInfo: Pair<String, QualityResult>? = null
     private var prefetchJob: Job? = null
     private var currentSongRetryCount = 0
@@ -806,21 +809,53 @@ object PlaybackManager {
     private fun triggerPrefetchNextSong() {
         if (prefetchJob?.isActive == true) return
         val nextSong = getNextSong() ?: return
-        if (nextSong.songMid == prefetchedUrlInfo?.first) return
-        if (isLocalOrWebDavSong(nextSong)) return
+        val nextMid = nextSong.songMid
+        if (nextMid == prefetchedSongMid) return
+        prefetchedSongMid = nextMid
 
+        val ctx = appContext ?: return
         prefetchJob =
             scope.launch(Dispatchers.IO) {
+                // 1. 预取封面至 Coil 磁盘缓存
+                val coverUrl = nextSong.coverUrl
+                if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://")) {
+                    try {
+                        val imageLoader = SingletonImageLoader.get(ctx)
+                        val req = ImageRequest.Builder(ctx)
+                            .data(coverUrl)
+                            .build()
+                        imageLoader.enqueue(req)
+                        Log.d("MelodistPlayback", "Prefetched next song cover: ${nextSong.name}")
+                    } catch (e: Exception) {
+                        Log.w("MelodistPlayback", "Failed to prefetch cover for ${nextSong.name}", e)
+                    }
+                }
+
+                // 2. 本地纯文件歌曲或 WebDAV 歌曲：无需预取在线播放数据
+                val isPureLocal = !nextSong.localFilePath.isNullOrBlank() && !nextSong.songMid.startsWith("webdav_")
+                val isWebDav = nextSong.isWebDav || nextSong.songMid.startsWith("webdav_")
+                if (isPureLocal || isWebDav) return@launch
+
+                // 3. 在线歌曲：若本地已有完整缓存，直接跳过网络预取
+                val rawTargetTier = _preferredTier.value
+                val targetTier = clampCellularTier(rawTargetTier, nextSong)
+                val higherStereoTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(nextSong.songMid, targetTier)
+                if (higherStereoTier != null) {
+                    Log.d("MelodistPlayback", "Next song already cached locally ($higherStereoTier) for ${nextSong.name}, skip prefetch")
+                    return@launch
+                }
+
+                // 4. 在线歌曲：仅预取下一曲播放直链 URL
                 try {
-                    val rawTargetTier = _preferredTier.value
-                    val targetTier = clampCellularTier(rawTargetTier, nextSong)
                     val playUrlInfo = apiService.getPlayUrl(nextSong.songMid, mediaMid = nextSong.mediaMid, preferredTier = targetTier)
-                    if (!playUrlInfo.url.isNullOrBlank()) {
+                    val playUrl = playUrlInfo.url
+                    if (!playUrl.isNullOrBlank()) {
                         prefetchedUrlInfo = Pair(nextSong.songMid, playUrlInfo)
                         Log.i("MelodistPlayback", "Prefetched next song URL: ${nextSong.name}, tier: ${playUrlInfo.tier}")
                     }
                 } catch (e: Exception) {
-                    Log.w("MelodistPlayback", "Prefetch next song failed", e)
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Log.w("MelodistPlayback", "Prefetch next song failed for ${nextSong.name}", e)
                 }
             }
     }
@@ -851,7 +886,7 @@ object PlaybackManager {
                                 if (!mid.isNullOrBlank()) {
                                     MelodistCacheManager.recordPlayProgress(mid, pos, dur)
                                     val curTier = _currentTier.value
-                                    if (curTier != null && !_isCurrentTrackFromCache.value) {
+                                    if (!_isCurrentTrackFromCache.value) {
                                         val isFav = isSongFavorite(mid)
                                         if (MelodistCacheManager.shouldCacheSong(mid, isFav, curTier)) {
                                             val thresholdMs = MelodistCacheManager.currentProfile.getTrialThresholdMs(dur)
@@ -870,7 +905,7 @@ object PlaybackManager {
                             prefetchCounter++
                             if (prefetchCounter >= 16) {
                                 prefetchCounter = 0
-                                if (dur > 20_000L && (dur - pos <= 15_000L || (pos.toDouble() / dur) >= 0.85)) {
+                                if (PlaybackSourceResolver.shouldTriggerPrefetch(dur, pos)) {
                                     triggerPrefetchNextSong()
                                 }
                             }
@@ -982,6 +1017,11 @@ object PlaybackManager {
         if (_currentSong.value?.songMid != song.songMid) {
             currentSongRetryCount = 0
             audioTrackRetryCount = 0
+            if (prefetchedSongMid != song.songMid) {
+                prefetchJob?.cancel()
+                prefetchedSongMid = null
+                prefetchedUrlInfo = null
+            }
         }
         playJob?.cancel()
         switchQualityJob?.cancel()
@@ -1370,6 +1410,10 @@ object PlaybackManager {
 
                 val playUrlInfo =
                     if (higherStereoTier != null) {
+                        if (prefetchedSongMid == song.songMid) {
+                            prefetchedSongMid = null
+                            prefetchedUrlInfo = null
+                        }
                         val dummyUri = "https://cache.melodist.internal/${song.songMid}?tier=${higherStereoTier.name}"
                         Log.i(
                             "MelodistPlayback",
@@ -1384,6 +1428,7 @@ object PlaybackManager {
                         val cachedInfo =
                             if (prefetchedUrlInfo?.first == song.songMid && forceTier == null) {
                                 val info = prefetchedUrlInfo?.second
+                                prefetchedSongMid = null
                                 prefetchedUrlInfo = null
                                 info
                             } else {
@@ -1396,6 +1441,7 @@ object PlaybackManager {
                                     try {
                                         apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier)
                                     } catch (e: Exception) {
+                                        Log.w("MelodistPlayback", "Failed to fetch play URL for ${song.name}", e)
                                         null
                                     }
                                 }
@@ -1419,11 +1465,13 @@ object PlaybackManager {
                     val ctx = appContext ?: return@launch
                     val isFav = isSongFavorite(song.songMid)
                     val isCached = higherStereoTier != null || MelodistCacheManager.isSongTierCached(song.songMid, playUrlInfo.tier)
+                    val targetCacheKey = MelodistCacheManager.getCacheKey(song.songMid, playUrlInfo.tier)
+                    val isPrecached = MelodistCacheManager.isKeyCached(targetCacheKey)
                     val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav, playUrlInfo.tier)
                     _isCurrentTrackFromCache.value = isCached
                     Log.i(
                         "MelodistPlayback",
-                        "Admission cache check for ${song.name}: shouldCache=$shouldCache (fav=$isFav, plays=${MelodistCacheManager.getPlayCount(song.songMid)}, isCached=$isCached)",
+                        "Admission cache check for ${song.name}: shouldCache=$shouldCache (fav=$isFav, plays=${MelodistCacheManager.getPlayCount(song.songMid)}, isCached=$isCached, isPrecached=$isPrecached)",
                     )
 
                     val httpFactory =
@@ -1435,7 +1483,7 @@ object PlaybackManager {
                             .setReadTimeoutMs(30_000)
                     val defaultFactory = DefaultDataSource.Factory(ctx, httpFactory)
                     val dsFactory =
-                        if (shouldCache || isCached) {
+                        if (shouldCache || isCached || isPrecached) {
                             MelodistCacheManager.buildCacheDataSourceFactory(ctx, defaultFactory)
                         } else {
                             defaultFactory
@@ -2091,6 +2139,9 @@ object PlaybackManager {
         savePlaybackState()
         progressJob?.cancel()
         playJob?.cancel()
+        prefetchJob?.cancel()
+        prefetchedSongMid = null
+        prefetchedUrlInfo = null
         exoPlayer?.release()
         exoPlayer = null
         _isPlaying.value = false
