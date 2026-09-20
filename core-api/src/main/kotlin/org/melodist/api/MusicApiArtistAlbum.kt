@@ -110,15 +110,24 @@ suspend fun MusicApiService.getAlbumSongs(albumMid: String): List<Song> =
 suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model.AlbumDetail? =
     withContext(Dispatchers.IO) {
         if (albumMid.isBlank()) return@withContext null
-        val uin = UserSession.profile.uin.ifBlank { "0" }
         val payload =
             """
             {
-              "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "" },
-              "album_songs": {
+              "comm": {
+                "ct": 20,
+                "cv": 1770,
+                "platform": "wk_v17",
+                "format": "json"
+              },
+              "albumInfo": {
+                "module": "music.musichallAlbum.AlbumInfoServer",
+                "method": "GetAlbumDetail",
+                "param": { "albumMid": "$albumMid" }
+              },
+              "songList": {
                 "module": "music.musichallAlbum.AlbumSongList",
                 "method": "GetAlbumSongList",
-                "param": { "albumMid": "$albumMid", "begin": 0, "num": -1, "order": 2 }
+                "param": { "albumMid": "$albumMid", "begin": 0, "num": 1000, "order": 2 }
               }
             }
             """.trimIndent()
@@ -126,25 +135,68 @@ suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model
         try {
             val respJson = postGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            val dataObj = root["album_songs"]?.jsonObject?.get("data")?.jsonObject ?: return@withContext null
+            val albumInfoObj = root["albumInfo"]?.jsonObject?.get("data")?.jsonObject
+            val basicInfo = albumInfoObj?.get("basicInfo")?.jsonObject
+            val companyObj = albumInfoObj?.get("company")?.jsonObject
+            val singerObj = albumInfoObj?.get("singer")?.jsonObject
+
+            val songListObj = root["songList"]?.jsonObject?.get("data")?.jsonObject
             val songList =
-                dataObj["songList"]?.jsonArray?.mapNotNull {
+                songListObj?.get("songList")?.jsonArray?.mapNotNull {
                     val sInfo = it.jsonObject["songInfo"] ?: it
                     MusicApiService.parseSongFromElement(sInfo)
                 } ?: emptyList()
 
             val firstSong = songList.firstOrNull()
-            val name = firstSong?.album.orEmpty().ifBlank { "专辑曲目" }
+            val rawName = basicInfo?.get("albumName")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val name = rawName.ifBlank { firstSong?.album.orEmpty().ifBlank { "专辑曲目" } }
             val artist = firstSong?.singer.orEmpty()
+            val publishDate = basicInfo?.get("publishDate")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val company = companyObj?.get("name")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val desc = basicInfo?.get("desc")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val rawLanguage = basicInfo?.get("language")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val language = rawLanguage.ifBlank { basicInfo?.get("lan")?.jsonPrimitive?.contentOrNull.orEmpty() }
+            val albumType = basicInfo?.get("albumType")?.jsonPrimitive?.contentOrNull.orEmpty()
+
+            val parsedSingers =
+                singerObj?.get("singerList")?.jsonArray?.mapNotNull { item ->
+                    val s = item.jsonObject
+                    val sName = s["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val transName = s["transName"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    if (sName.isBlank()) {
+                        null
+                    } else if (
+                        transName.isNotBlank() &&
+                        !sName.contains(transName, ignoreCase = true) &&
+                        !sName.contains('(') &&
+                        !sName.contains('（')
+                    ) {
+                        "$sName ($transName)"
+                    } else {
+                        sName
+                    }
+                } ?: emptyList()
+
+            val singerList =
+                if (parsedSingers.isNotEmpty()) {
+                    parsedSingers
+                } else if (artist.isNotBlank()) {
+                    artist.split('/', '&', ',').map { it.trim() }.filter { it.isNotBlank() }
+                } else {
+                    emptyList()
+                }
 
             org.melodist.model.AlbumDetail(
                 mid = albumMid,
                 name = name,
                 artist = artist,
-                publishDate = "",
-                company = "",
-                description = "共收录 ${songList.size} 首单曲",
+                publishDate = publishDate,
+                company = company,
+                description = desc,
                 songs = songList,
+                language = language,
+                albumType = albumType,
+                singerList = singerList,
             )
         } catch (e: Exception) {
             null
