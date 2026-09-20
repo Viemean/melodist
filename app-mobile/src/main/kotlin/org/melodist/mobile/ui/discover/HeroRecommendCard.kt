@@ -36,6 +36,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
+import androidx.compose.material.icons.rounded.PlayArrow
+
 @Composable
 fun HeroRecommendCard(
     badgeText: String,
@@ -47,9 +51,9 @@ fun HeroRecommendCard(
     accentColor: Color,
     accentContainerColor: Color,
     onAccentContainerColor: Color,
-    playIcon: ImageVector,
-    playContentDescription: String,
-    onPlayClick: () -> Unit,
+    playIcon: ImageVector = Icons.Rounded.PlayArrow,
+    playContentDescription: String = "播放",
+    onPlayClick: (() -> Unit)? = null,
     onCardClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -188,22 +192,31 @@ fun HeroRecommendCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // 右侧播放按钮
-                FilledTonalIconButton(
-                    onClick = onPlayClick,
-                    modifier = Modifier.size(46.dp),
-                    colors =
-                        IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = accentContainerColor,
-                            contentColor = onAccentContainerColor,
-                        ),
-                ) {
+                // 右侧操作区：若提供播放回调则显示播放按钮，否则可点击卡片时显示轻量右箭头
+                if (onPlayClick != null) {
+                    Spacer(modifier = Modifier.width(10.dp))
+                    FilledTonalIconButton(
+                        onClick = onPlayClick,
+                        modifier = Modifier.size(46.dp),
+                        colors =
+                            IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = accentContainerColor,
+                                contentColor = onAccentContainerColor,
+                            ),
+                    ) {
+                        Icon(
+                            imageVector = playIcon,
+                            contentDescription = playContentDescription,
+                            modifier = Modifier.size(26.dp),
+                        )
+                    }
+                } else if (onCardClick != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
                     Icon(
-                        imageVector = playIcon,
-                        contentDescription = playContentDescription,
-                        modifier = Modifier.size(26.dp),
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp),
                     )
                 }
             }
