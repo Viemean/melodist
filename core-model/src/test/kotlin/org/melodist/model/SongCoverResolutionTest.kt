@@ -5,13 +5,13 @@ import org.junit.jupiter.api.Test
 
 class SongCoverResolutionTest {
     @Test
-    fun testThumbnailCoverUrlUses500x500() {
+    fun testThumbnailCoverUrlUses800x800() {
         val song1200 =
             Song(
                 coverUrl = "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             song1200.thumbnailCoverUrl,
         )
 
@@ -20,7 +20,7 @@ class SongCoverResolutionTest {
                 coverUrl = "https://y.gtimg.cn/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         assertEquals(
-            "https://y.gtimg.cn/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.gtimg.cn/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             song800.thumbnailCoverUrl,
         )
 
@@ -29,30 +29,34 @@ class SongCoverResolutionTest {
                 coverUrl = "https://y.qq.com/music/photo_new/T002R300x300M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             song300.thumbnailCoverUrl,
         )
     }
 
     @Test
-    fun testPlayerCoverCandidatesPrioritize1200With800Fallback() {
+    fun testPlayerCoverCandidatesPrioritizeRawWith1200And800Fallback() {
         val song =
             Song(
                 coverUrl = "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             )
         val candidates = song.playerCoverCandidates
-        assertEquals(3, candidates.size)
+        assertEquals(4, candidates.size)
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002M000003yPnkT3h4fO8.jpg?max_age=2592000",
             candidates[0],
         )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg?max_age=2592000",
             candidates[1],
         )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg?max_age=2592000",
             candidates[2],
+        )
+        assertEquals(
+            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg?max_age=2592000",
+            candidates[3],
         )
     }
 
@@ -90,7 +94,7 @@ class SongCoverResolutionTest {
     }
 
     @Test
-    fun testPlaylistThumbnailPicUrlUses500x500() {
+    fun testPlaylistThumbnailPicUrlUses800x800() {
         val playlist =
             Playlist(
                 dirId = 1L,
@@ -99,8 +103,15 @@ class SongCoverResolutionTest {
                 picUrl = "https://y.qq.com/music/photo_new/T002R1200x1200M000003yPnkT3h4fO8.jpg",
             )
         assertEquals(
-            "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg",
+            "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg",
             playlist.thumbnailPicUrl,
+        )
+        assertEquals(
+            listOf(
+                "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg",
+                "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg",
+            ),
+            playlist.thumbnailCandidates,
         )
     }
 }

@@ -155,51 +155,50 @@ class MusicApiService(
         fun getSingerAvatarUrl(singerMid: String): String = getSingerAvatarCandidates(singerMid).firstOrNull().orEmpty()
 
         /**
-         * 获取歌手写真多清晰度与多 CDN 降级候选列表 (500x500 -> 300x300 -> 150x150)
+         * 获取歌手写真多清晰度与多 CDN 降级候选列表 (800x800 -> 500x500 -> 300x300)
          */
         fun getSingerAvatarCandidates(singerMid: String): List<String> {
             if (singerMid.isBlank()) return emptyList()
             return listOf(
+                "https://y.gtimg.cn/music/photo_new/T001R800x800M000$singerMid.jpg?max_age=2592000",
+                "https://y.qq.com/music/photo_new/T001R800x800M000$singerMid.jpg?max_age=2592000",
                 "https://y.gtimg.cn/music/photo_new/T001R500x500M000$singerMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T001R500x500M000$singerMid.jpg?max_age=2592000",
                 "https://y.gtimg.cn/music/photo_new/T001R300x300M000$singerMid.jpg?max_age=2592000",
-                "https://y.qq.com/music/photo_new/T001R300x300M000$singerMid.jpg?max_age=2592000",
-                "https://y.gtimg.cn/music/photo_new/T001R150x150M000$singerMid.jpg?max_age=2592000",
             )
         }
 
         /**
-         * 获取专辑封面多清晰度与多 CDN 降级候选列表 (1200x1200 -> 800x800 -> gtimg -> 500x500 -> 300x300)
+         * 获取专辑封面多清晰度与多 CDN 降级候选列表 (原图直出 -> 1200x1200 -> 800x800 -> gtimg -> 500x500)
          */
         fun getAlbumCoverCandidates(albumMid: String): List<String> {
             if (albumMid.isBlank()) return emptyList()
             val rawMid = if (albumMid.contains('_')) albumMid.substringBefore('_') else albumMid
             return listOf(
+                "https://y.qq.com/music/photo_new/T002M000$albumMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R1200x1200M000$albumMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R800x800M000$albumMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R800x800M000${rawMid}_1.jpg?max_age=2592000",
-                "https://y.qq.com/music/photo_new/T002R800x800M000${rawMid}_2.jpg?max_age=2592000",
+                "https://y.gtimg.cn/music/photo_new/T002R800x800M000${rawMid}_2.jpg?max_age=2592000",
                 "https://y.gtimg.cn/music/photo_new/T002R1200x1200M000$albumMid.jpg?max_age=2592000",
                 "https://y.gtimg.cn/music/photo_new/T002R800x800M000$albumMid.jpg?max_age=2592000",
-                "https://y.gtimg.cn/music/photo_new/T002R800x800M000${rawMid}_1.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T002R500x500M000$albumMid.jpg?max_age=2592000",
-                "https://y.qq.com/music/photo_new/T002R300x300M000$albumMid.jpg?max_age=2592000",
             )
         }
 
         fun getAlbumCoverUrl(albumMid: String): String = getAlbumCoverCandidates(albumMid).firstOrNull().orEmpty()
 
         /**
-         * 获取单曲专属视觉封面候选列表 (T062 前缀: 1200x1200 -> 800x800 -> gtimg -> 500x500 -> 原画)
+         * 获取单曲专属视觉封面候选列表 (T062 前缀: 原画直出 -> 1200x1200 -> 800x800 -> gtimg -> 500x500)
          */
         fun getSingleCoverCandidates(visualMid: String): List<String> {
             if (visualMid.isBlank()) return emptyList()
             return listOf(
+                "https://y.qq.com/music/photo_new/T062M000$visualMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T062R1200x1200M000$visualMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T062R800x800M000$visualMid.jpg?max_age=2592000",
                 "https://y.gtimg.cn/music/photo_new/T062R1200x1200M000$visualMid.jpg?max_age=2592000",
                 "https://y.qq.com/music/photo_new/T062R500x500M000$visualMid.jpg?max_age=2592000",
-                "https://y.qq.com/music/photo_new/T062M000$visualMid.jpg?max_age=2592000",
             )
         }
 

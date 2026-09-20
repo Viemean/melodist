@@ -67,13 +67,41 @@ data class Playlist(
     val thumbnailPicUrl: String
         get() {
             if (picUrl.isBlank()) return ""
-            return if (picUrl.contains("R1200x1200") || picUrl.contains("R800x800") || picUrl.contains("R300x300")) {
-                picUrl.replace(Regex("R[0-9]+x[0-9]+"), "R500x500")
+            val regex = Regex("R[0-9]+x[0-9]+")
+            return if (picUrl.contains(regex)) {
+                picUrl.replace(regex, "R800x800")
             } else {
                 picUrl
             }
         }
+
+    val thumbnailCandidates: List<String>
+        get() {
+            if (picUrl.isBlank()) return emptyList()
+            val regex = Regex("R[0-9]+x[0-9]+")
+            if (picUrl.contains(regex)) {
+                val url800 = picUrl.replace(regex, "R800x800")
+                val url500 = picUrl.replace(regex, "R500x500")
+                return listOf(url800, url500)
+            }
+            return listOf(picUrl)
+        }
+
+    val detailCoverCandidates: List<String>
+        get() {
+            if (picUrl.isBlank()) return emptyList()
+            val regex = Regex("R[0-9]+x[0-9]+")
+            if (picUrl.contains(regex)) {
+                val rawUrl = picUrl.replace(regex, "")
+                val url1200 = picUrl.replace(regex, "R1200x1200")
+                val url800 = picUrl.replace(regex, "R800x800")
+                val url500 = picUrl.replace(regex, "R500x500")
+                return listOf(rawUrl, url1200, url800, url500).distinct()
+            }
+            return listOf(picUrl)
+        }
 }
+
 
 @Serializable
 data class QualityOption(
