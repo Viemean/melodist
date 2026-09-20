@@ -229,4 +229,19 @@ class ConnectModelsTest {
         assertTrue(modes.contains("TAKEOVER"))
         assertTrue(modes.contains("BROWSE"))
     }
+
+    // ── MobileConnectionState ──────────────────────────────────────
+
+    @Test
+    fun `MobileConnectionState Reconnecting holds device and attempt progress`() {
+        val device = ConnectDevice(id = "tv_1", name = "Living Room TV", type = DeviceType.TV)
+        val state = org.melodist.core.connect.client.MobileConnectionState.Reconnecting(
+            targetDevice = device,
+            attempt = 2,
+            maxAttempts = 5,
+        )
+        assertEquals(device, state.targetDevice)
+        assertEquals(2, state.attempt)
+        assertEquals(5, state.maxAttempts)
+    }
 }

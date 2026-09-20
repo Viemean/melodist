@@ -279,6 +279,7 @@ fun RemoteControlMobileScreen(
                                     is MobileConnectionState.Paired -> (connectionState as MobileConnectionState.Paired).targetDevice.name
                                     is MobileConnectionState.Connecting -> "正在连接电视..."
                                     is MobileConnectionState.Connected -> "正在握手认证..."
+                                    is MobileConnectionState.Reconnecting -> "正在重连 (${(connectionState as MobileConnectionState.Reconnecting).attempt}/${(connectionState as MobileConnectionState.Reconnecting).maxAttempts})..."
                                     is MobileConnectionState.Error -> "连接失败"
                                     else -> "TV 远程控制板 (未连接)"
                                 },
@@ -311,13 +312,15 @@ fun RemoteControlMobileScreen(
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text("AOD", fontSize = 11.sp)
                                 }
+                            }
+                            if (connectionState is MobileConnectionState.Paired || connectionState is MobileConnectionState.Reconnecting) {
                                 IconButton(
                                     onClick = { MobileConnectManager.disconnect() },
                                     modifier = Modifier.size(30.dp),
                                 ) {
                                     Icon(
                                         Icons.Filled.Close,
-                                        contentDescription = "断开连接",
+                                        contentDescription = if (connectionState is MobileConnectionState.Reconnecting) "取消重连" else "断开连接",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp),
                                     )

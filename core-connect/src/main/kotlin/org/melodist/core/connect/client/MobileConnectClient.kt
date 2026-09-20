@@ -2,7 +2,9 @@ package org.melodist.core.connect.client
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -38,6 +40,11 @@ sealed interface MobileConnectionState {
     data object Connecting : MobileConnectionState
     data object Connected : MobileConnectionState
     data class Paired(val targetDevice: ConnectDevice) : MobileConnectionState
+    data class Reconnecting(
+        val targetDevice: ConnectDevice,
+        val attempt: Int,
+        val maxAttempts: Int = 5,
+    ) : MobileConnectionState
     data class Error(val message: String) : MobileConnectionState
 }
 
@@ -64,6 +71,11 @@ class MobileConnectClient(
 
     private var activeSocket: WebSocket? = null
     private var currentTarget: ConnectDevice? = null
+    private var isManualDisconnect = false
+    private var lastPinCode: String = ""
+    private var reconnectAttempt = 0
+    private val maxReconnectAttempts = 5
+    private var reconnectJob: Job? = null
 
     private val _connectionState = MutableStateFlow<MobileConnectionState>(MobileConnectionState.Disconnected)
     val connectionState: StateFlow<MobileConnectionState> = _connectionState.asStateFlow()
@@ -81,10 +93,18 @@ class MobileConnectClient(
     val lyricsSyncFlow: SharedFlow<org.melodist.core.connect.model.LyricsSyncPayload> = _lyricsSyncFlow.asSharedFlow()
 
     fun connect(targetDevice: ConnectDevice, pinCode: String = "") {
-        disconnect()
+        isManualDisconnect = false
+        reconnectAttempt = 0
+        reconnectJob?.cancel()
+        reconnectJob = null
+        closeSocket()
         currentTarget = targetDevice
+        lastPinCode = pinCode
         _connectionState.value = MobileConnectionState.Connecting
+        startSocket(targetDevice, pinCode)
+    }
 
+    private fun startSocket(targetDevice: ConnectDevice, pinCode: String) {
         val url = "ws://${targetDevice.host}:${targetDevice.port}"
         android.util.Log.i("MelodistConnectClient", "Connecting to $url (deviceName: ${targetDevice.name})")
         val request = Request.Builder().url(url).build()
@@ -94,6 +114,9 @@ class MobileConnectClient(
             object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     android.util.Log.i("MelodistConnectClient", "Connected to $url successfully")
+                    reconnectAttempt = 0
+                    reconnectJob?.cancel()
+                    reconnectJob = null
                     _connectionState.value = MobileConnectionState.Connected
                     val local = storageManager.getOrCreateLocalDevice()
                     sendData(
@@ -112,8 +135,7 @@ class MobileConnectClient(
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     android.util.Log.i("MelodistConnectClient", "WebSocket closed: $code, reason: $reason")
-                    _connectionState.value = MobileConnectionState.Disconnected
-                    _playerState.value = null
+                    handleDisconnectionOrScheduleReconnect(targetDevice, isFailure = false, errorMsg = null)
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -123,14 +145,66 @@ class MobileConnectClient(
                     } else {
                         t.message ?: "连接失败"
                     }
-                    _connectionState.value = MobileConnectionState.Error(friendlyMsg)
-                    _playerState.value = null
+                    handleDisconnectionOrScheduleReconnect(targetDevice, isFailure = true, errorMsg = friendlyMsg)
                 }
             },
         )
     }
 
+    private fun handleDisconnectionOrScheduleReconnect(
+        targetDevice: ConnectDevice,
+        isFailure: Boolean,
+        errorMsg: String?,
+    ) {
+        if (isManualDisconnect) {
+            _connectionState.value = MobileConnectionState.Disconnected
+            _playerState.value = null
+            return
+        }
+
+        val hasPairedBefore = storageManager.isDevicePaired(targetDevice.id)
+        if (reconnectAttempt < maxReconnectAttempts && hasPairedBefore) {
+            reconnectAttempt++
+            val currentAttempt = reconnectAttempt
+            _connectionState.value = MobileConnectionState.Reconnecting(
+                targetDevice = targetDevice,
+                attempt = currentAttempt,
+                maxAttempts = maxReconnectAttempts,
+            )
+            val delayMs = (1L shl (currentAttempt - 1)) * 1000L
+            android.util.Log.i("MelodistConnectClient", "Scheduling reconnect attempt $currentAttempt in ${delayMs}ms to ${targetDevice.name}")
+            reconnectJob?.cancel()
+            reconnectJob = scope.launch {
+                delay(delayMs)
+                if (!isManualDisconnect && currentTarget?.id == targetDevice.id) {
+                    startSocket(targetDevice, lastPinCode)
+                }
+            }
+        } else {
+            reconnectAttempt = 0
+            if (isFailure && errorMsg != null) {
+                _connectionState.value = MobileConnectionState.Error(errorMsg)
+            } else {
+                _connectionState.value = MobileConnectionState.Disconnected
+            }
+            _playerState.value = null
+        }
+    }
+
+    private fun closeSocket() {
+        activeSocket?.let {
+            try {
+                it.close(1000, "Normal closure")
+            } catch (_: Exception) {}
+        }
+        activeSocket = null
+    }
+
     fun disconnect() {
+        isManualDisconnect = true
+        reconnectAttempt = 0
+        reconnectJob?.cancel()
+        reconnectJob = null
         activeSocket?.let {
             val local = storageManager.getOrCreateLocalDevice()
             try {
