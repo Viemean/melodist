@@ -257,14 +257,6 @@ fun WebDavTvScreen(
                         onClick = { showConfigDialog = true },
                     )
 
-                    if (currentServer != null && viewMode == WebDavViewMode.Library) {
-                        WebDavNavButton(
-                            icon = Icons.Default.Sync,
-                            text = if (isScanningMetadata) "扫描中..." else "扫描补充信息",
-                            onClick = { startScanMissingMetadata() },
-                        )
-                    }
-
                     if (currentServer != null && viewMode == WebDavViewMode.Directory) {
                         WebDavNavButton(
                             icon = Icons.Default.Sync,
@@ -570,7 +562,7 @@ private fun WebDavLibraryView(
 
                     WebDavNavButton(
                         icon = Icons.Default.Sync,
-                        text = if (isScanningMetadata) "正在提取信息..." else "扫描信息",
+                        text = if (isScanningMetadata) "正在提取信息..." else "扫描补充信息",
                         onClick = onScanMissingMetadata,
                     )
 
