@@ -21,6 +21,10 @@ android {
         buildConfigField("String", "COMPOSE_TV_VERSION", "\"${libs.versions.tv.material.get()}\"")
         buildConfigField("String", "COIL_VERSION", "\"${libs.versions.coil.get()}\"")
         buildConfigField("String", "OKHTTP_VERSION", "\"${libs.versions.okhttp.get()}\"")
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     val releaseKeystore = file("release.jks")
