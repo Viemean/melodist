@@ -220,9 +220,9 @@ object LocalMusicManager {
                     val picBytes = retriever.embeddedPicture
                     if (picBytes != null && picBytes.isNotEmpty()) {
                         val hash = md5(s.path)
-                        val webpFile = File(folder, "cover_$hash.webp")
-                        if (CoverCompressor.compressToWebp(picBytes, webpFile)) {
-                            healedMap[s.path] = webpFile.absolutePath
+                        val webpPath = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(picBytes, folder, hash)
+                        if (webpPath != null) {
+                            healedMap[s.path] = webpPath
                         }
                     }
                 } catch (_: Exception) {
@@ -526,17 +526,8 @@ object LocalMusicManager {
     /**
      * 从文件名推断 (歌曲名, 歌手名)
      */
-    fun inferTitleArtist(fileName: String): Pair<String, String> {
-        val clean = fileName.substringBeforeLast('.')
-        return if (clean.contains(" - ")) {
-            val parts = clean.split(" - ", limit = 2)
-            val artist = parts[0].trim()
-            val title = parts[1].trim()
-            Pair(title, artist)
-        } else {
-            Pair(clean.trim(), "未知歌手")
-        }
-    }
+    fun inferTitleArtist(fileName: String): Pair<String, String> =
+        org.melodist.data.pipeline.AudioMetadataPipeline.inferTitleArtist(fileName)
 
     /**
      * 递归扫描指定目录，解析 ID3 元数据并持久化
@@ -612,67 +603,45 @@ object LocalMusicManager {
         file: File,
     ): LocalSongCache {
         val (inferredTitle, inferredArtist) = inferTitleArtist(file.name)
-        var title = inferredTitle
-        var artist = inferredArtist
-        var album = file.parentFile?.name ?: "本地音乐"
-        var durationSec = 0
-        var coverPath = ""
-        var rawCoverPath = ""
-
-        try {
+        val defaultAlbum = file.parentFile?.name ?: "本地音乐"
+        val parsed = try {
             retriever.setDataSource(file.absolutePath)
-            val metaTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-            val metaArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-            val metaAlbum = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-            val metaDur = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-
-            if (!metaTitle.isNullOrBlank()) title = metaTitle.trim()
-            if (!metaArtist.isNullOrBlank()) artist = metaArtist.trim()
-            if (!metaAlbum.isNullOrBlank()) album = metaAlbum.trim()
-            if (!metaDur.isNullOrBlank()) {
-                durationSec = (metaDur.toLongOrNull() ?: 0L).toInt() / 1000
-            }
-
-            // 扫描阶段仅保存 800x800 WebP 缩略图（原画大图由播放/全屏查看大图时按需加载），覆盖旧低分辨率图
-            val picBytes = retriever.embeddedPicture
-            if (picBytes != null && picBytes.isNotEmpty()) {
-                val hash = md5(file.absolutePath)
-                val folder = getSafeCoversDir()
-                val coverWebp = File(folder, "cover_$hash.webp")
-                if (!coverWebp.exists() || coverWebp.length() == 0L || CoverCompressor.isLowResolution(coverWebp)) {
-                    CoverCompressor.compressToWebp(picBytes, coverWebp)
-                }
-                if (coverWebp.exists() && coverWebp.length() > 0L) {
-                    coverPath = coverWebp.absolutePath
-                } else {
-                    val oldJpg = File(folder, "cover_$hash.jpg")
-                    if (oldJpg.exists() && oldJpg.length() > 0L) {
-                        coverPath = oldJpg.absolutePath
-                    }
-                }
-            }
-
-
+            org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
+                retriever = retriever,
+                fallbackTitle = inferredTitle,
+                fallbackArtist = inferredArtist,
+                fallbackAlbum = defaultAlbum,
+            )
         } catch (e: Exception) {
             Log.w(TAG, "Error extracting metadata for ${file.name}", e)
+            org.melodist.data.pipeline.ParsedAudioMetadata(
+                title = inferredTitle,
+                artist = inferredArtist,
+                album = defaultAlbum,
+                durationSeconds = 0,
+            )
         }
 
-        // 检查同目录下同名 .lrc 歌词
-        val lrcFile = File(file.parentFile, "${file.nameWithoutExtension}.lrc")
-        val hasLrc = lrcFile.exists() && lrcFile.isFile && lrcFile.length() > 0L
+        val folder = getSafeCoversDir()
+        val hash = md5(file.absolutePath)
+        val coverPath = parsed.pictureBytes?.let { bytes ->
+            org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(bytes, folder, hash)
+        } ?: ""
 
-        val id = md5(file.absolutePath)
+        val lrcFile = org.melodist.data.pipeline.AudioMetadataPipeline.detectCompanionLrc(file)
+        val hasLrc = lrcFile != null
+
         return LocalSongCache(
-            id = id,
+            id = hash,
             path = file.absolutePath,
-            title = title,
-            artist = artist,
-            album = album,
-            durationSeconds = durationSec,
+            title = parsed.title,
+            artist = parsed.artist,
+            album = parsed.album,
+            durationSeconds = parsed.durationSeconds,
             coverPath = coverPath,
-            rawCoverPath = rawCoverPath,
+            rawCoverPath = "",
             hasLrc = hasLrc,
-            lrcPath = if (hasLrc) lrcFile.absolutePath else "",
+            lrcPath = lrcFile?.absolutePath ?: "",
             lastModified = file.lastModified(),
         )
     }
@@ -777,7 +746,8 @@ object LocalMusicManager {
                 val existing = existingMap[path]
                 val isCoverValid =
                     existing?.coverPath?.let { cp ->
-                        cp.isNotBlank() && File(cp).exists() && File(cp).length() > 0L
+                        val f = File(cp)
+                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
                     } ?: false
 
                 if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {

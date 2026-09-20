@@ -263,16 +263,18 @@ object WebDavManager {
                     var coverPath = rawCache.coverPath
                     var rawCoverPath = rawCache.rawCoverPath
 
-                    // 封面处理：扫描阶段仅压缩 800x800 WebP 供列表流畅滚动（原画大图由播放/查看大图时按需加载），覆盖旧低分辨率图
+                    // 封面处理：扫描阶段仅压缩 500px WebP 供列表流畅滚动（原画大图由播放/查看大图时按需加载），覆盖旧低分辨率图
                     val coversFolder = getSafeCoversDir()
-                    val targetWebp = File(coversFolder, "webdav_$hash.webp")
 
                     fun saveWebDavThumbnail(bytes: ByteArray) {
-                        if (!targetWebp.exists() || targetWebp.length() == 0L || CoverCompressor.isLowResolution(targetWebp)) {
-                            CoverCompressor.compressToWebp(bytes, targetWebp)
-                        }
-                        if (targetWebp.exists() && targetWebp.length() > 0L) {
-                            coverPath = targetWebp.absolutePath
+                        val path = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
+                            bytes = bytes,
+                            folder = coversFolder,
+                            baseHash = hash,
+                            prefix = "webdav_",
+                        )
+                        if (path != null) {
+                            coverPath = path
                         }
                     }
 
@@ -302,27 +304,26 @@ object WebDavManager {
                         val retriever = android.media.MediaMetadataRetriever()
                         try {
                             retriever.setDataSource(tmpHdrFile.absolutePath)
-
-                            val metaTitle = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim()
-                            val metaArtist = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim()
-                            val metaAlbum = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim()
-                            val durStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
-                            val durSec = (durStr?.toLongOrNull() ?: 0L) / 1000
-
-                            if (!metaTitle.isNullOrBlank() && (finalTitle == rawCache.title || finalTitle.isBlank())) finalTitle = metaTitle
-                            if (!metaArtist.isNullOrBlank() &&
-                                (finalArtist == "WebDAV 音频" || finalArtist.isBlank())
-                            ) {
-                                finalArtist = metaArtist
+                            val meta = org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
+                                retriever = retriever,
+                                fallbackTitle = finalTitle,
+                                fallbackArtist = finalArtist,
+                                fallbackAlbum = finalAlbum,
+                            )
+                            if (meta.title.isNotBlank() && (finalTitle == rawCache.title || finalTitle.isBlank())) {
+                                finalTitle = meta.title
                             }
-                            if (!metaAlbum.isNullOrBlank() && (finalAlbum == "WebDAV 专辑" || finalAlbum.isBlank())) finalAlbum = metaAlbum
-                            if (durSec > 0 && finalDur == 0) finalDur = durSec.toInt()
-
-                            if (coverPath.isNullOrBlank()) {
-                                val picBytes = retriever.embeddedPicture
-                                if (picBytes != null && picBytes.size > 512) {
-                                    saveWebDavThumbnail(picBytes)
-                                }
+                            if (meta.artist.isNotBlank() && (finalArtist == "WebDAV 音频" || finalArtist.isBlank())) {
+                                finalArtist = meta.artist
+                            }
+                            if (meta.album.isNotBlank() && (finalAlbum == "WebDAV 专辑" || finalAlbum.isBlank())) {
+                                finalAlbum = meta.album
+                            }
+                            if (meta.durationSeconds > 0 && finalDur == 0) {
+                                finalDur = meta.durationSeconds
+                            }
+                            if (coverPath.isNullOrBlank() && meta.pictureBytes != null) {
+                                saveWebDavThumbnail(meta.pictureBytes)
                             }
                         } catch (_: Exception) {
                         } finally {
@@ -708,9 +709,14 @@ object WebDavManager {
                     }
                 }
                 if (finalCoverUrl.isNullOrBlank() || !File(finalCoverUrl!!.removePrefix("file://")).exists()) {
-                    CoverCompressor.compressToWebp(bytes, targetWebp)
-                    if (targetWebp.exists() && targetWebp.length() > 0L) {
-                        finalCoverUrl = "file://${targetWebp.absolutePath}"
+                    val path = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
+                        bytes = bytes,
+                        folder = folder,
+                        baseHash = hash,
+                        prefix = "webdav_",
+                    )
+                    if (path != null) {
+                        finalCoverUrl = "file://$path"
                     } else if (finalRawCoverUrl != null) {
                         finalCoverUrl = finalRawCoverUrl
                     }
