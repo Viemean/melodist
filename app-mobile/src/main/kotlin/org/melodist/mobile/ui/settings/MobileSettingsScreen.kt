@@ -35,6 +35,7 @@ import org.melodist.api.UserSession
 import org.melodist.data.AppSettingsManager
 import org.melodist.mobile.ui.settings.sections.SettingsAboutSection
 import org.melodist.mobile.ui.settings.sections.SettingsAccountCard
+import org.melodist.mobile.ui.settings.sections.SettingsAppearanceSection
 import org.melodist.mobile.ui.settings.sections.SettingsCredentialsDialogs
 import org.melodist.mobile.ui.settings.sections.SettingsPlaybackSection
 import org.melodist.mobile.ui.settings.sections.SettingsStorageSection
@@ -107,7 +108,12 @@ fun MobileSettingsScreen(
                 )
             }
 
-            // 2. 播放、音质与歌词显示
+            // 2. 外观与主题
+            item {
+                SettingsAppearanceSection(settings = settings)
+            }
+
+            // 3. 播放、音质与歌词显示
             item {
                 SettingsPlaybackSection(settings = settings)
             }

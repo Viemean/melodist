@@ -124,19 +124,21 @@ fun SettingsSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
+    val alpha = if (enabled) 1f else 0.4f
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable { onCheckedChange(!checked) }
+                .clickable(enabled = enabled) { onCheckedChange(!checked) }
                 .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
             modifier = Modifier.size(24.dp),
         )
         Spacer(modifier = Modifier.width(16.dp))
@@ -145,17 +147,19 @@ fun SettingsSwitchRow(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha),
             )
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
         )
     }
 }
