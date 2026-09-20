@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name="com.tencent.qqmusicsdk.player.listener.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name="com.tencent.qqmusic.third.api.QQMusicApiService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tencent.qqmusic.third.api.QQMusicApiService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
