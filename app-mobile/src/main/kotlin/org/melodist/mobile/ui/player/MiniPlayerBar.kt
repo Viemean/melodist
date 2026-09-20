@@ -78,7 +78,7 @@ private enum class MiniPlayerDragDirection {
 fun MiniPlayerBar(
     song: Song?,
     isPlaying: Boolean,
-    progressFraction: () -> Float,
+    progressFraction: (() -> Float)? = null,
     onTogglePlayPause: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -427,18 +427,50 @@ fun MiniPlayerBar(
             }
 
             // 底部 2dp 局部细进度条
-            LinearProgressIndicator(
-                progress = progressFraction,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .align(Alignment.BottomCenter),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-            )
+            if (progressFraction != null) {
+                LinearProgressIndicator(
+                    progress = progressFraction,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .align(Alignment.BottomCenter),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                )
+            } else {
+                MiniPlayerProgressBar(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .align(Alignment.BottomCenter),
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun MiniPlayerProgressBar(
+    modifier: Modifier = Modifier,
+) {
+    val currentPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+    val durationMs by PlaybackManager.durationMs.collectAsState()
+
+    val progressFraction =
+        if (durationMs > 0L) {
+            (currentPositionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+    LinearProgressIndicator(
+        progress = { progressFraction },
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.primary,
+        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+    )
 }
 
 @Composable

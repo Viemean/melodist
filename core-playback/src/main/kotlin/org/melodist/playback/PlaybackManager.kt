@@ -1057,6 +1057,7 @@ object PlaybackManager {
             exoPlayer?.pause()
             _currentSong.value = effectiveSong
             _currentPositionMs.value = seekToMs
+            _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
             _currentTier.value = forceTier ?: _preferredTier.value
             _isPlaying.value = true
             _isTransitioning.value = false
@@ -1067,6 +1068,7 @@ object PlaybackManager {
         exoPlayer?.pause()
         _currentSong.value = effectiveSong
         _currentPositionMs.value = seekToMs
+        _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
         _isTransitioning.value = true
         updateCurrentMediaMetadata(effectiveSong)
         org.melodist.data.RecentPlaybackManager
@@ -2126,6 +2128,7 @@ object PlaybackManager {
         _isTransitioning.value = true
         when {
             !queueManager.isRadioMode.value && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {
+                _currentPositionMs.value = 0L
                 exoPlayer?.seekTo(0L)
                 exoPlayer?.play()
                 _isTransitioning.value = false

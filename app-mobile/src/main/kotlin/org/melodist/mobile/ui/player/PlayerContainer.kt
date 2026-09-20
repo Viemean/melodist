@@ -204,15 +204,6 @@ fun PlayerContainer(
                     MiniPlayerBar(
                         song = currentSong,
                         isPlaying = isPlaying,
-                        progressFraction = {
-                            val dur = PlaybackManager.durationMs.value
-                            val pos = PlaybackManager.currentPositionMs.value
-                            if (dur > 0L) {
-                                (pos.toFloat() / dur).coerceIn(0f, 1f)
-                            } else {
-                                0f
-                            }
-                        },
                         onTogglePlayPause = { PlaybackManager.togglePlayPause() },
                         onPlayNext = { PlaybackManager.playNext() },
                         onPlayPrevious = { PlaybackManager.playPrevious() },
