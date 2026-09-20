@@ -1,0 +1,12 @@
+Lorg/melodist/mobile/MelodistMobileApp;
+Lorg/melodist/mobile/MainActivity;
+Lorg/melodist/mobile/ui/navigation/MainNavigationScreenKt;
+Lorg/melodist/mobile/ui/theme/ThemeKt;
+Lorg/melodist/playback/PlaybackManager;
+Lorg/melodist/data/AppSettingsManager;
+Lorg/melodist/data/DailyRecommendCacheManager;
+Lorg/melodist/mobile/ui/player/FullPlayerSheetKt;
+Lorg/melodist/mobile/ui/player/PlayerContainerKt;
+Lorg/melodist/mobile/ui/player/MiniPlayerBarKt;
+Lorg/melodist/mobile/ui/discover/DiscoverScreenKt;
+Lorg/melodist/mobile/ui/library/LibraryScreenKt;
