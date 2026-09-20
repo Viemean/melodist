@@ -42,6 +42,9 @@ class PlaybackQueueManager(
 
     val shuffleQueue = ShuffleQueueManager()
 
+    private var pendingNextSongMid: String? = null
+    val hasPendingNextPlay: Boolean get() = pendingNextSongMid != null
+
     @Volatile
     private var isFetchingMoreRadio = false
 
@@ -77,6 +80,7 @@ class PlaybackQueueManager(
     }
 
     fun setCurrentIndex(index: Int) {
+        pendingNextSongMid = null
         _currentIndex.value = index
         if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
             val list = _playlist.value
@@ -100,6 +104,7 @@ class PlaybackQueueManager(
         _paginationSource.value = paginationSource
         _queueTag.value = queueTag
         _playlist.value = songs
+        pendingNextSongMid = null
         if (songs.isNotEmpty() && startIndex in songs.indices) {
             _currentIndex.value = startIndex
             if (!isRadio && _loopMode.value == PlaybackLoopMode.Shuffle) {
@@ -169,16 +174,33 @@ class PlaybackQueueManager(
             return
         }
         val curIdx = _currentIndex.value
-        val insertPos = (curIdx + 1).coerceIn(0, current.size)
         val existingIndex = current.indexOfFirst { it.songMid == song.songMid }
+        if (existingIndex == curIdx && curIdx != -1) {
+            pendingNextSongMid = null
+            return
+        }
+        val targetInsertPos = (curIdx + 1).coerceIn(0, current.size)
         if (existingIndex != -1) {
             current.removeAt(existingIndex)
-            val adjustedPos = if (existingIndex < insertPos) (insertPos - 1).coerceAtLeast(0) else insertPos
+            val adjustedPos = if (existingIndex < targetInsertPos) (targetInsertPos - 1).coerceAtLeast(0) else targetInsertPos
             current.add(adjustedPos, song)
+            if (existingIndex < curIdx) {
+                _currentIndex.value = curIdx - 1
+            }
         } else {
-            current.add(insertPos, song)
+            current.add(targetInsertPos, song)
         }
         _playlist.value = current
+        pendingNextSongMid = song.songMid
+
+        if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
+            val currentPlayingIdx = _currentIndex.value
+            shuffleQueue.syncTo(currentPlayingIdx, current.size, current)
+            val targetIdx = current.indexOfFirst { it.songMid == song.songMid }
+            if (targetIdx != -1) {
+                shuffleQueue.promoteToNext(targetIdx)
+            }
+        }
         onStateChanged()
     }
 
@@ -186,6 +208,7 @@ class PlaybackQueueManager(
         song: Song,
         seekToMs: Long = 0L,
     ) {
+        pendingNextSongMid = null
         if (song.songMid.isBlank()) return
         val current = _playlist.value.toMutableList()
         if (current.isEmpty()) {
@@ -209,6 +232,9 @@ class PlaybackQueueManager(
     fun removeFromPlaylist(index: Int) {
         val list = _playlist.value.toMutableList()
         if (index !in list.indices) return
+        if (list[index].songMid == pendingNextSongMid) {
+            pendingNextSongMid = null
+        }
         val isCurrent = index == _currentIndex.value
         list.removeAt(index)
         _playlist.value = list
@@ -232,6 +258,9 @@ class PlaybackQueueManager(
         if (songs.isEmpty()) return
         val current = _playlist.value.toMutableList()
         val removeMids = songs.map { it.songMid }.toSet()
+        if (pendingNextSongMid != null && removeMids.contains(pendingNextSongMid)) {
+            pendingNextSongMid = null
+        }
         val isCurrentRemoved = currentPlayingMid != null && removeMids.contains(currentPlayingMid)
 
         val remaining = current.filterNot { removeMids.contains(it.songMid) }
@@ -254,6 +283,7 @@ class PlaybackQueueManager(
     }
 
     fun clearPlaylist() {
+        pendingNextSongMid = null
         _paginationSource.value = null
         _queueTag.value = null
         _playlist.value = emptyList()
@@ -324,6 +354,13 @@ class PlaybackQueueManager(
         }
         val list = _playlist.value
         if (list.isEmpty()) return null
+
+        val pendingMid = pendingNextSongMid
+        if (pendingMid != null) {
+            val pendingSong = list.firstOrNull { it.songMid == pendingMid }
+            if (pendingSong != null) return pendingSong
+        }
+
         if (_isRadioMode.value) {
             val nextIndex = _currentIndex.value + 1
             return if (nextIndex in list.indices) list[nextIndex] else null
@@ -350,6 +387,21 @@ class PlaybackQueueManager(
     fun playNext() {
         val list = _playlist.value
         if (list.isEmpty()) return
+
+        val pendingMid = pendingNextSongMid
+        if (pendingMid != null) {
+            pendingNextSongMid = null
+            val pendingIndex = list.indexOfFirst { it.songMid == pendingMid }
+            if (pendingIndex != -1) {
+                _currentIndex.value = pendingIndex
+                if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
+                    shuffleQueue.syncTo(pendingIndex, list.size, list)
+                }
+                onPlaySongRequest(list[pendingIndex], null, 0L)
+                checkPrefetchQueueNextPage()
+                return
+            }
+        }
 
         if (_isRadioMode.value) {
             checkPrefetchRadioSongs()

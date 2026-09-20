@@ -1818,7 +1818,7 @@ object PlaybackManager {
     private fun handleSongEnded() {
         _isTransitioning.value = true
         when {
-            !queueManager.isRadioMode.value && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {
+            !queueManager.isRadioMode.value && !queueManager.hasPendingNextPlay && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {
                 _currentPositionMs.value = 0L
                 _bufferedPositionMs.value = 0L
                 exoPlayer?.seekTo(0L)

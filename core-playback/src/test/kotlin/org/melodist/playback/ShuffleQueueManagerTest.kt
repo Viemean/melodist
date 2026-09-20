@@ -92,4 +92,24 @@ class ShuffleQueueManagerTest {
         val nextAfterSync = manager.next(songs)
         assertNotEquals(targetIndex, nextAfterSync)
     }
+
+    @Test
+    fun `test promoteToNext places target song immediately after current pointer`() {
+        val manager = ShuffleQueueManager()
+        val songs = createDummySongs(10)
+        manager.reset(totalCount = 10, currentOriginalIndex = 0, songs = songs)
+
+        // 挑选一个在当前 pointer 之后的歌曲进行提升
+        val targetIndex = 8
+        manager.promoteToNext(targetIndex)
+
+        // peekNext 与 next 必须精准返回 targetIndex
+        assertEquals(targetIndex, manager.peekNext())
+        val actualNext = manager.next(songs)
+        assertEquals(targetIndex, actualNext)
+
+        // 验证队列总长度与元素完整性未受破坏
+        assertEquals(10, manager.shuffledIndices.size)
+        assertEquals((0 until 10).toSet(), manager.shuffledIndices.toSet())
+    }
 }

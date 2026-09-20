@@ -127,6 +127,22 @@ class ShuffleQueueManager(
     }
 
     /**
+     * 将指定原始索引的歌曲提升至当前指针后一位，确保下一首必然播放该曲目
+     */
+    fun promoteToNext(originalIndex: Int) {
+        if (_shuffledIndices.size <= 1) return
+        val existingIndex = _shuffledIndices.indexOf(originalIndex)
+        if (existingIndex == -1 || existingIndex == _pointer) return
+
+        _shuffledIndices.removeAt(existingIndex)
+        if (existingIndex < _pointer) {
+            _pointer--
+        }
+        val nextPos = (_pointer + 1).coerceIn(0, _shuffledIndices.size)
+        _shuffledIndices.add(nextPos, originalIndex)
+    }
+
+    /**
      * 序列化状态
      */
     fun serialize(): String = _shuffledIndices.joinToString(",")
