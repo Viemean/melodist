@@ -37,6 +37,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
+import org.melodist.api.search
 import org.melodist.data.SearchKeywordHistoryManager
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager

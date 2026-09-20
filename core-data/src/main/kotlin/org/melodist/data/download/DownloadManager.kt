@@ -20,6 +20,8 @@ import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.melodist.api.MusicApiService
+import org.melodist.api.getLyrics
+import org.melodist.api.getPlayUrl
 import org.melodist.data.AppSettingsManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song

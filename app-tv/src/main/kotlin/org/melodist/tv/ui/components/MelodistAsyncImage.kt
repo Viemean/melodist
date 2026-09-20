@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import org.melodist.api.MusicApiService
+import org.melodist.api.getSongVisualMid
 import org.melodist.model.CoverUrlResolver
 
 /**

@@ -9,6 +9,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService
 import org.melodist.api.acr.AcousticRecognizeClient
+import org.melodist.api.getLyrics
+import org.melodist.api.search
 import org.melodist.model.LyricLine
 import org.melodist.model.Song
 import java.io.File

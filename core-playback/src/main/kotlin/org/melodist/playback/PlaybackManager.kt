@@ -41,6 +41,9 @@ import org.melodist.api.addSongToFavorite
 import org.melodist.api.deleteSongFromFavorite
 import org.melodist.api.getFavoriteSongsDetail
 import org.melodist.api.getGuessRecommendSongs
+import org.melodist.api.getLyrics
+import org.melodist.api.getPlayUrl
+import org.melodist.api.getSongVisualMid
 import org.melodist.api.probeSongQualities
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.model.AudioQualityTier

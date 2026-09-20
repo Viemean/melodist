@@ -26,6 +26,7 @@ import androidx.tv.material3.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
+import org.melodist.api.search
 import org.melodist.model.Artist
 import org.melodist.model.Song
 import org.melodist.tv.ui.theme.MelodistColors

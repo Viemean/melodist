@@ -60,6 +60,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
+import org.melodist.api.search
+import org.melodist.api.searchAlbums
+import org.melodist.api.searchPlaylists
 import org.melodist.data.SearchKeywordHistoryManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList

@@ -58,6 +58,14 @@ suspend fun MusicApiService.getFavoriteSongsDetail(
         }
     }
 
+/**
+ * 获取收藏歌曲列表（复用 getFavoriteSongsDetail，消除重复网络请求与 JSON 解析）
+ */
+suspend fun MusicApiService.getFavoriteSongs(
+    page: Int = 1,
+    pageSize: Int = 50,
+): List<Song> = getFavoriteSongsDetail(page, pageSize).songs
+
 suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): List<Playlist> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext emptyList()
