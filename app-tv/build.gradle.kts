@@ -25,6 +25,7 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
+        resourceConfigurations += listOf("zh", "zh-rCN", "en")
     }
 
     val releaseKeystore = file("release.jks")
@@ -77,7 +78,12 @@ android {
 
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += listOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/*.version",
+                "/META-INF/*.kotlin_module",
+                "/META-INF/INDEX.LIST",
+            )
         }
     }
 
@@ -118,8 +124,18 @@ dependencies {
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+
+    // LeakCanary 运行时内存泄漏自动检测
+    debugImplementation(libs.leakcanary)
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+composeCompiler {
+    stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose_compiler_config.conf"))
+    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    metricsDestination = layout.buildDirectory.dir("compose_compiler")
+}
+

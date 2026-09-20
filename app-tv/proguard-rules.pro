@@ -28,3 +28,14 @@
 
 # Android TV & Compose
 -keep class androidx.tv.material3.** { *; }
+
+# Release 优化与日志剥离
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+}
+
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
