@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
@@ -111,7 +113,14 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MelodistMobileTheme {
+            val settings by org.melodist.data.AppSettingsManager.settings.collectAsState()
+            MelodistMobileTheme(
+                themeMode = settings.themeMode,
+                dynamicColor = settings.dynamicColor,
+                colorTheme = settings.colorTheme,
+                customColorHex = settings.customColorHex,
+                amoledDark = settings.amoledDark,
+            ) {
                 MainNavigationScreen()
             }
         }
