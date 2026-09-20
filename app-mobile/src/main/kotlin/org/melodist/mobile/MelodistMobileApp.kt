@@ -17,7 +17,8 @@ class MelodistMobileApp :
     SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
-        org.melodist.data.AppLifecycleManager.init(this)
+        org.melodist.data.AppLifecycleManager
+            .init(this)
         org.melodist.data.AppLifecycleManager.onTrimMemoryAction = {
             try {
                 SingletonImageLoader.get(this@MelodistMobileApp).memoryCache?.clear()
@@ -39,9 +40,10 @@ class MelodistMobileApp :
         }
         try {
             if (packageName == "com.tencent.qqmusic") {
-                val serviceIntent = android.content.Intent().apply {
-                    setComponent(android.content.ComponentName("com.tencent.qqmusic", "com.tencent.qqmusic.third.api.QQMusicApiService"))
-                }
+                val serviceIntent =
+                    android.content.Intent().apply {
+                        setComponent(android.content.ComponentName("com.tencent.qqmusic", "com.tencent.qqmusic.third.api.QQMusicApiService"))
+                    }
                 startService(serviceIntent)
             }
         } catch (_: Exception) {

@@ -4,9 +4,7 @@ import android.view.KeyEvent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,8 +82,7 @@ fun NowPlayingHeroCard(
                     if (it.isFocused) {
                         onFocusChangedCallback?.invoke(true)
                     }
-                }
-                .focusProperties {
+                }.focusProperties {
                     if (upFocusRequester != null) up = upFocusRequester
                     if (downFocusRequester != null) down = downFocusRequester
                     right = playPauseRequester
@@ -250,7 +247,9 @@ fun NowPlayingHeroCard(
                                                             } catch (_: Exception) {
                                                                 false
                                                             }
-                                                        } else false
+                                                        } else {
+                                                            false
+                                                        }
                                                     }
                                                     KeyEvent.KEYCODE_DPAD_UP -> {
                                                         if (upFocusRequester != null) {
@@ -260,11 +259,15 @@ fun NowPlayingHeroCard(
                                                             } catch (_: Exception) {
                                                                 false
                                                             }
-                                                        } else false
+                                                        } else {
+                                                            false
+                                                        }
                                                     }
                                                     else -> false
                                                 }
-                                            } else false
+                                            } else {
+                                                false
+                                            }
                                         },
                                 onClick = onPlayPauseClick,
                             )
@@ -294,7 +297,9 @@ fun NowPlayingHeroCard(
                                                                 } catch (_: Exception) {
                                                                     false
                                                                 }
-                                                            } else false
+                                                            } else {
+                                                                false
+                                                            }
                                                         }
                                                         KeyEvent.KEYCODE_DPAD_UP -> {
                                                             if (upFocusRequester != null) {
@@ -304,11 +309,15 @@ fun NowPlayingHeroCard(
                                                                 } catch (_: Exception) {
                                                                     false
                                                                 }
-                                                            } else false
+                                                            } else {
+                                                                false
+                                                            }
                                                         }
                                                         else -> false
                                                     }
-                                                } else false
+                                                } else {
+                                                    false
+                                                }
                                             },
                                     onClick = onFavoriteClick,
                                 )

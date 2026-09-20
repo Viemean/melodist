@@ -158,7 +158,8 @@ object LocalLyricAutoMatcher {
 
                             val calculatedOffset = Math.round((acrResult.offsetSeconds - sliceResult.startSeconds) * 1000.0)
                             val finalOffset = if (kotlin.math.abs(calculatedOffset) < 150L) 0L else calculatedOffset
-                            org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, finalOffset)
+                            org.melodist.data.LyricCacheManager
+                                .saveLyricOffsetMs(song.songMid, finalOffset)
                             Log.i(TAG, "ACR auto-calibrated lyric offset for ${song.name}: ${finalOffset}ms")
                         } else {
                             Log.w(TAG, "ACR returned no match: ${acrResult.errorMessage}")
@@ -211,8 +212,11 @@ object LocalLyricAutoMatcher {
                 return@withContext 0L
             }
 
-            if (org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
-                return@withContext org.melodist.data.LyricCacheManager.getLyricOffsetMs(song.songMid)
+            if (org.melodist.data.LyricCacheManager
+                    .hasLyricOffsetRecord(song.songMid)
+            ) {
+                return@withContext org.melodist.data.LyricCacheManager
+                    .getLyricOffsetMs(song.songMid)
             }
 
             if (audioFile == null || !audioFile.exists() || !audioFile.canRead() || audioFile.length() < 32 * 1024L) {
@@ -223,7 +227,8 @@ object LocalLyricAutoMatcher {
                 Log.i(TAG, "Starting automatic lyric offset calibration for: ${song.name}")
                 val sliceResult = AudioSliceExtractor.extractSliceWithTime(audioFile)
                 if (sliceResult == null) {
-                    org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, 0L)
+                    org.melodist.data.LyricCacheManager
+                        .saveLyricOffsetMs(song.songMid, 0L)
                     return@withContext 0L
                 }
 
@@ -231,7 +236,8 @@ object LocalLyricAutoMatcher {
                 if (acrResult.success && acrResult.song != null) {
                     val calculatedOffset = Math.round((acrResult.offsetSeconds - sliceResult.startSeconds) * 1000.0)
                     val finalOffset = if (kotlin.math.abs(calculatedOffset) < 150L) 0L else calculatedOffset
-                    org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, finalOffset)
+                    org.melodist.data.LyricCacheManager
+                        .saveLyricOffsetMs(song.songMid, finalOffset)
                     Log.i(
                         TAG,
                         "Successfully calibrated lyric offset for ${song.name}: ${finalOffset}ms (officialOffset=${acrResult.offsetSeconds}s, localStart=${sliceResult.startSeconds}s)",
@@ -239,12 +245,14 @@ object LocalLyricAutoMatcher {
                     return@withContext finalOffset
                 } else {
                     Log.w(TAG, "ACR offset calibration returned no match for: ${song.name}, recording 0ms")
-                    org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, 0L)
+                    org.melodist.data.LyricCacheManager
+                        .saveLyricOffsetMs(song.songMid, 0L)
                     return@withContext 0L
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to calibrate lyric offset for ${song.name}", e)
-                org.melodist.data.LyricCacheManager.saveLyricOffsetMs(song.songMid, 0L)
+                org.melodist.data.LyricCacheManager
+                    .saveLyricOffsetMs(song.songMid, 0L)
                 return@withContext 0L
             }
         }

@@ -1,6 +1,5 @@
 package org.melodist.tv.ui.components
 
-import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -36,12 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
 import kotlinx.coroutines.launch
-import org.melodist.model.Song
 import org.melodist.model.AudioQualityTier
+import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
+import android.view.KeyEvent as AndroidKeyEvent
 
 enum class MediaDetailScreenMode {
     Detail,

@@ -1,25 +1,16 @@
 package org.melodist.tv.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,18 +20,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
-import org.melodist.api.getDailyRecommendSongs
-import org.melodist.api.getFavoriteAlbums
-import org.melodist.api.getFavoriteSongsDetail
 import org.melodist.api.getGuessRecommendSongs
-import org.melodist.api.getPlaylistSongs
-import org.melodist.api.getPlaylists
 import org.melodist.data.DailyRecommendCacheManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
-import org.melodist.tv.ui.theme.MelodistShapes
-import org.melodist.tv.ui.theme.MonetColorExtractor
 
 object HomeCardsCache {
     var favSongs: List<org.melodist.model.Song> = emptyList()
@@ -81,7 +65,10 @@ object HomeCardsCache {
     var lastRadarFetchTimeMs: Long = 0L
     const val RADAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000L // 5 分钟更新一次
 
-    fun onSongFavoriteChanged(song: org.melodist.model.Song, isFav: Boolean) {
+    fun onSongFavoriteChanged(
+        song: org.melodist.model.Song,
+        isFav: Boolean,
+    ) {
         if (isFav) {
             val updated = mutableListOf(song)
             updated.addAll(favSongs.filterNot { it.songMid == song.songMid }.take(14))
@@ -114,7 +101,8 @@ fun HomeCoreTracksRow(
     val dailyData by DailyRecommendCacheManager.recommendFlow.collectAsState()
     val favSongsList by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
     val userLibraryData by UserLibraryCacheManager.libraryFlow.collectAsState()
-    val millionData by org.melodist.data.MillionRecommendManager.resultFlow.collectAsState()
+    val millionData by org.melodist.data.MillionRecommendManager.resultFlow
+        .collectAsState()
 
     var radarSongs by remember { mutableStateOf(HomeCardsCache.radarSongs) }
 
@@ -188,7 +176,8 @@ fun HomeCoreTracksRow(
         // 5. 百万推荐：自然日持久化缓存秒出；后台轻量刷新
         launch {
             try {
-                org.melodist.data.MillionRecommendManager.refresh(apiService, forceRefresh = false)
+                org.melodist.data.MillionRecommendManager
+                    .refresh(apiService, forceRefresh = false)
             } catch (_: Exception) {
             }
         }
@@ -226,7 +215,10 @@ fun HomeCoreTracksRow(
 
     // 15 秒固定轮换定时器：各个卡片从自身的候选池中随机换到下一张（仅当池大小 > 1 时触发，无网/单项静止）
     LaunchedEffect(favSongs.size, dailySongs.size, radarSongs.size, millionSongs.size, playlistItems.size, albumItems.size) {
-        fun pickNextRandom(current: Int, size: Int): Int {
+        fun pickNextRandom(
+            current: Int,
+            size: Int,
+        ): Int {
             if (size <= 1) return 0
             var next = kotlin.random.Random.nextInt(size)
             if (next == current) {

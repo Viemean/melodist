@@ -3,12 +3,8 @@ package org.melodist.mobile.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.media.MediaScannerConnection
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,9 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Comment
@@ -36,16 +29,12 @@ import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Tv
-import org.melodist.core.connect.client.MobileConnectionState
-import org.melodist.mobile.connect.MobileConnectManager
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,30 +42,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.melodist.api.AddSongResult
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
-import org.melodist.api.addSongToPlaylist
 import org.melodist.api.probeSongQualities
+import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.data.AppSettingsManager
-import org.melodist.data.LocalMusicManager
-import org.melodist.data.UserLibraryCacheManager
 import org.melodist.data.download.DownloadManager
+import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.mobile.ui.navigation.ScreenDestination
 import org.melodist.model.Artist
@@ -344,12 +327,13 @@ fun SongActionSheet(
                 title = "复制歌曲信息",
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val content = buildString {
-                        append("${song.name} - ${song.singer}")
-                        if (!song.isLocal && !song.isWebDav && song.songMid.isNotBlank()) {
-                            append("\nhttps://y.qq.com/n/ryqq/songDetail/${song.songMid}")
+                    val content =
+                        buildString {
+                            append("${song.name} - ${song.singer}")
+                            if (!song.isLocal && !song.isWebDav && song.songMid.isNotBlank()) {
+                                append("\nhttps://y.qq.com/n/ryqq/songDetail/${song.songMid}")
+                            }
                         }
-                    }
                     val clip = ClipData.newPlainText("song", content)
                     clipboard.setPrimaryClip(clip)
                     Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()

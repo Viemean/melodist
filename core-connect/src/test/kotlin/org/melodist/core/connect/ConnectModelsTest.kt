@@ -22,7 +22,6 @@ import org.melodist.core.connect.model.SeekCommand
 import org.melodist.core.connect.model.SetVolumeCommand
 
 class ConnectModelsTest {
-
     // ── ConnectDevice ──────────────────────────────────────────────
 
     @Test
@@ -105,33 +104,35 @@ class ConnectModelsTest {
 
     @Test
     fun `ConnectActions 控制命令常量非空且唯一`() {
-        val cmds = listOf(
-            ConnectActions.CMD_PLAY_SONG,
-            ConnectActions.CMD_ENQUEUE_NEXT,
-            ConnectActions.CMD_PAUSE,
-            ConnectActions.CMD_RESUME,
-            ConnectActions.CMD_SEEK,
-            ConnectActions.CMD_PREVIOUS,
-            ConnectActions.CMD_NEXT,
-            ConnectActions.CMD_SET_VOLUME,
-            ConnectActions.CMD_SWITCH_TIER,
-            ConnectActions.CMD_TRIGGER_AOD,
-            ConnectActions.CMD_CYCLE_LOOP_MODE,
-            ConnectActions.CMD_OPEN_PLAYER,
-            ConnectActions.CMD_GESTURE_SWIPE,
-            ConnectActions.CMD_TOGGLE_FAVORITE,
-            ConnectActions.CMD_SYNC_LYRICS_SCROLL,
-        )
+        val cmds =
+            listOf(
+                ConnectActions.CMD_PLAY_SONG,
+                ConnectActions.CMD_ENQUEUE_NEXT,
+                ConnectActions.CMD_PAUSE,
+                ConnectActions.CMD_RESUME,
+                ConnectActions.CMD_SEEK,
+                ConnectActions.CMD_PREVIOUS,
+                ConnectActions.CMD_NEXT,
+                ConnectActions.CMD_SET_VOLUME,
+                ConnectActions.CMD_SWITCH_TIER,
+                ConnectActions.CMD_TRIGGER_AOD,
+                ConnectActions.CMD_CYCLE_LOOP_MODE,
+                ConnectActions.CMD_OPEN_PLAYER,
+                ConnectActions.CMD_GESTURE_SWIPE,
+                ConnectActions.CMD_TOGGLE_FAVORITE,
+                ConnectActions.CMD_SYNC_LYRICS_SCROLL,
+            )
         cmds.forEach { assertTrue(it.isNotBlank()) }
         assertEquals(cmds.size, cmds.toSet().size, "CMD 常量存在重复值")
     }
 
     @Test
     fun `ConnectActions 事件常量非空且唯一`() {
-        val events = listOf(
-            ConnectActions.EVENT_PLAY_STATE,
-            ConnectActions.EVENT_QUEUE_STATE,
-        )
+        val events =
+            listOf(
+                ConnectActions.EVENT_PLAY_STATE,
+                ConnectActions.EVENT_QUEUE_STATE,
+            )
         events.forEach { assertTrue(it.isNotBlank()) }
         assertEquals(events.size, events.toSet().size)
     }
@@ -210,14 +211,15 @@ class ConnectModelsTest {
 
     @Test
     fun `QrPairData 默认版本号为 1`() {
-        val data = QrPairData(
-            deviceId = "id",
-            deviceName = "TV",
-            host = "192.168.1.1",
-            port = 8765,
-            token = "tok",
-            pinCode = "1234",
-        )
+        val data =
+            QrPairData(
+                deviceId = "id",
+                deviceName = "TV",
+                host = "192.168.1.1",
+                port = 8765,
+                token = "tok",
+                pinCode = "1234",
+            )
         assertEquals(1, data.version)
     }
 
@@ -235,11 +237,12 @@ class ConnectModelsTest {
     @Test
     fun `MobileConnectionState Reconnecting holds device and attempt progress`() {
         val device = ConnectDevice(id = "tv_1", name = "Living Room TV", type = DeviceType.TV)
-        val state = org.melodist.core.connect.client.MobileConnectionState.Reconnecting(
-            targetDevice = device,
-            attempt = 2,
-            maxAttempts = 5,
-        )
+        val state =
+            org.melodist.core.connect.client.MobileConnectionState.Reconnecting(
+                targetDevice = device,
+                attempt = 2,
+                maxAttempts = 5,
+            )
         assertEquals(device, state.targetDevice)
         assertEquals(2, state.attempt)
         assertEquals(5, state.maxAttempts)

@@ -8,11 +8,12 @@ class ArtistAlbumCacheManagerTest {
     @Test
     fun testTimedLruCacheHitAndExpiration() {
         var currentTime = 1000L
-        val cache = TimedLruCache<String, String>(
-            maxSize = 3,
-            ttlMillis = 30_000L,
-            timeProvider = { currentTime },
-        )
+        val cache =
+            TimedLruCache<String, String>(
+                maxSize = 3,
+                ttlMillis = 30_000L,
+                timeProvider = { currentTime },
+            )
 
         cache.put("k1", "v1")
         assertEquals("v1", cache.get("k1"))
@@ -30,11 +31,12 @@ class ArtistAlbumCacheManagerTest {
     @Test
     fun testTimedLruCacheCapacityEviction() {
         var currentTime = 1000L
-        val cache = TimedLruCache<String, String>(
-            maxSize = 2,
-            ttlMillis = 30_000L,
-            timeProvider = { currentTime },
-        )
+        val cache =
+            TimedLruCache<String, String>(
+                maxSize = 2,
+                ttlMillis = 30_000L,
+                timeProvider = { currentTime },
+            )
 
         cache.put("k1", "v1")
         cache.put("k2", "v2")
@@ -53,10 +55,11 @@ class ArtistAlbumCacheManagerTest {
 
     @Test
     fun testTimedLruCacheClear() {
-        val cache = TimedLruCache<String, String>(
-            maxSize = 5,
-            ttlMillis = 30_000L,
-        )
+        val cache =
+            TimedLruCache<String, String>(
+                maxSize = 5,
+                ttlMillis = 30_000L,
+            )
         cache.put("k1", "v1")
         cache.put("k2", "v2")
         assertEquals(2, cache.size)

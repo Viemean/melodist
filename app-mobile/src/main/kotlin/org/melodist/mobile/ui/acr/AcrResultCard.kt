@@ -171,7 +171,14 @@ fun AcrResultCard(
                                     val shouldDismiss = abs(cardOffsetX.value) > dismissThresholdX || abs(velocityX) > 450f
                                     if (shouldDismiss) {
                                         scope.launch {
-                                            val sign = if (cardOffsetX.value != 0f) kotlin.math.sign(cardOffsetX.value) else kotlin.math.sign(velocityX).coerceAtLeast(1f)
+                                            val sign =
+                                                if (cardOffsetX.value !=
+                                                    0f
+                                                ) {
+                                                    kotlin.math.sign(cardOffsetX.value)
+                                                } else {
+                                                    kotlin.math.sign(velocityX).coerceAtLeast(1f)
+                                                }
                                             val targetX = cardOffsetX.value + sign * with(density) { 260.dp.toPx() }
                                             cardOffsetX.animateTo(targetX, tween(160, easing = FastOutSlowInEasing))
                                             onCollapse()
@@ -207,8 +214,7 @@ fun AcrResultCard(
                             topSheetDragController?.onDragCancel?.invoke(onCollapse)
                         },
                     )
-                }
-                .clip(RoundedCornerShape(16.dp)),
+                }.clip(RoundedCornerShape(16.dp)),
     ) {
         Box(
             modifier =

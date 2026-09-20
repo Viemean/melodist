@@ -19,10 +19,11 @@ class ConnectStorageManager(
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     private val _pairedDevicesFlow = MutableStateFlow<List<ConnectDevice>>(loadPairedDevices())
     val pairedDevicesFlow: StateFlow<List<ConnectDevice>> = _pairedDevicesFlow.asStateFlow()
@@ -55,11 +56,12 @@ class ConnectStorageManager(
 
         var name = prefs.getString(KEY_LOCAL_DEVICE_NAME, null)
         if (name.isNullOrBlank()) {
-            name = if (defaultDeviceType == DeviceType.TV) {
-                "Melodist TV (${Build.MODEL})"
-            } else {
-                "Melodist Mobile (${Build.MODEL})"
-            }
+            name =
+                if (defaultDeviceType == DeviceType.TV) {
+                    "Melodist TV (${Build.MODEL})"
+                } else {
+                    "Melodist Mobile (${Build.MODEL})"
+                }
             prefs.edit().putString(KEY_LOCAL_DEVICE_NAME, name).apply()
         }
 
@@ -78,9 +80,7 @@ class ConnectStorageManager(
         )
     }
 
-    fun isDevicePaired(deviceId: String): Boolean {
-        return _pairedDevicesFlow.value.any { it.id == deviceId }
-    }
+    fun isDevicePaired(deviceId: String): Boolean = _pairedDevicesFlow.value.any { it.id == deviceId }
 
     fun isTokenTrusted(token: String): Boolean {
         if (token.isBlank()) return false
@@ -122,7 +122,8 @@ class ConnectStorageManager(
     private fun loadRemoteControlMode(): org.melodist.core.connect.model.RemoteControlMode {
         val raw = prefs.getString(KEY_REMOTE_CONTROL_MODE, null) ?: return org.melodist.core.connect.model.RemoteControlMode.BROWSE
         return try {
-            org.melodist.core.connect.model.RemoteControlMode.valueOf(raw)
+            org.melodist.core.connect.model.RemoteControlMode
+                .valueOf(raw)
         } catch (_: Exception) {
             org.melodist.core.connect.model.RemoteControlMode.BROWSE
         }
@@ -148,7 +149,8 @@ class ConnectStorageManager(
         if (!raw.isNullOrBlank()) {
             try {
                 return json.decodeFromString<ConnectDevice>(raw)
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         return _pairedDevicesFlow.value.lastOrNull()
     }

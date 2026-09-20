@@ -239,8 +239,7 @@ fun FavoriteAlbumsScreen(
                                             onLongClick = {
                                                 targetAlbumForAction = album
                                             },
-                                        )
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        ).padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 AlbumArtImage(
@@ -353,8 +352,7 @@ fun FavoriteAlbumsScreen(
                                 .fillMaxWidth()
                                 .clickable {
                                     showUnfavoriteConfirmDialog = true
-                                }
-                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                                }.padding(horizontal = 20.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(

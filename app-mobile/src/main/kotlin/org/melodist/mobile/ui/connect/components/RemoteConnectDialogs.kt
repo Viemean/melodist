@@ -111,13 +111,14 @@ fun RemoteConnectDialogs(
                             val hostParts = trimmedHost.split(":")
                             val actualHost = hostParts.getOrNull(0)?.trim() ?: ""
                             val actualPort = hostParts.getOrNull(1)?.trim()?.toIntOrNull() ?: 8765
-                            val dev = ConnectDevice(
-                                id = "manual_${actualHost.replace(".", "_")}_$actualPort",
-                                name = "Melodist TV ($actualHost)",
-                                type = DeviceType.TV,
-                                host = actualHost,
-                                port = actualPort,
-                            )
+                            val dev =
+                                ConnectDevice(
+                                    id = "manual_${actualHost.replace(".", "_")}_$actualPort",
+                                    name = "Melodist TV ($actualHost)",
+                                    type = DeviceType.TV,
+                                    host = actualHost,
+                                    port = actualPort,
+                                )
                             MobileConnectManager.connectTo(dev, manualPin.trim())
                             onDismissManualInput()
                         }

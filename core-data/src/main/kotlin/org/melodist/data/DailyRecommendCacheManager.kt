@@ -16,7 +16,6 @@ import org.melodist.api.getDailyRecommendDetail
 import org.melodist.api.getGuessRecommendSongs
 import org.melodist.model.Song
 import java.io.File
-import java.util.Calendar
 
 @Serializable
 data class DailyRecommendData(
@@ -31,13 +30,19 @@ object DailyRecommendCacheManager {
 
     fun getUtc8DateString(timestampMs: Long = System.currentTimeMillis()): String {
         val instant = java.time.Instant.ofEpochMilli(timestampMs)
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZONE_UTC8)
+        val formatter =
+            java.time.format.DateTimeFormatter
+                .ofPattern("yyyyMMdd")
+                .withZone(ZONE_UTC8)
         return formatter.format(instant)
     }
 
     fun getFormattedLocalDailyRecommendUpdateTime(): String {
         val localZone = java.time.ZoneId.systemDefault()
-        val utc8Midnight = java.time.LocalDate.now(ZONE_UTC8).atStartOfDay(ZONE_UTC8)
+        val utc8Midnight =
+            java.time.LocalDate
+                .now(ZONE_UTC8)
+                .atStartOfDay(ZONE_UTC8)
         val localTime = utc8Midnight.withZoneSameInstant(localZone)
         return String.format(java.util.Locale.getDefault(), "%02d:%02d", localTime.hour, localTime.minute)
     }
@@ -93,7 +98,8 @@ object DailyRecommendCacheManager {
     private fun deleteCurrentCacheFile() {
         try {
             getTodayCacheFile()?.delete()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun cleanupOldCacheFiles(currentDateStr: String) {
@@ -103,15 +109,17 @@ object DailyRecommendCacheManager {
             if (legacyFile.exists()) {
                 legacyFile.delete()
             }
-            val files = dir.listFiles { _, name ->
-                name.startsWith("daily_recommend_") && name.endsWith(".json")
-            } ?: return
+            val files =
+                dir.listFiles { _, name ->
+                    name.startsWith("daily_recommend_") && name.endsWith(".json")
+                } ?: return
             for (file in files) {
-                if (file.name != "daily_recommend_${currentDateStr}.json") {
+                if (file.name != "daily_recommend_$currentDateStr.json") {
                     file.delete()
                 }
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun triggerPreload(songs: List<Song>) {

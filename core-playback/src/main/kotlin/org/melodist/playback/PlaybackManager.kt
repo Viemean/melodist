@@ -4,9 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
 import android.util.Log
-import coil3.SingletonImageLoader
-import coil3.request.ImageRequest
-import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -14,33 +11,20 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.melodist.api.LyricParser
 import org.melodist.api.MusicApiService
 import org.melodist.api.QualityResult
 import org.melodist.api.UserSession
-import org.melodist.api.addSongToFavorite
-import org.melodist.api.deleteSongFromFavorite
-import org.melodist.api.getFavoriteSongsDetail
-import org.melodist.api.getGuessRecommendSongs
-import org.melodist.api.getLyrics
 import org.melodist.api.getPlayUrl
 import org.melodist.api.getSongVisualMid
-import org.melodist.api.probeSongQualities
-import org.melodist.data.UserLibraryCacheManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
 import org.melodist.model.QualityOption
@@ -61,16 +45,20 @@ interface PlaybackInterceptor {
         seekToMs: Long,
     ): Boolean = false
 
-    fun onInterceptSwitchTier(
-        tier: AudioQualityTier,
-    ): Boolean = false
+    fun onInterceptSwitchTier(tier: AudioQualityTier): Boolean = false
 
     fun onInterceptTogglePlayPause(): Boolean = false
+
     fun onInterceptPause(): Boolean = false
+
     fun onInterceptResume(): Boolean = false
+
     fun onInterceptSeekTo(positionMs: Long): Boolean = false
+
     fun onInterceptPlayNext(): Boolean = false
+
     fun onInterceptPlayPrevious(): Boolean = false
+
     fun onInterceptCycleLoopMode(): Boolean = false
 }
 
@@ -96,7 +84,10 @@ object PlaybackManager {
     val remotePrevSong: StateFlow<Song?> = remoteStateHolder.remotePrevSong
     val remoteNextSong: StateFlow<Song?> = remoteStateHolder.remoteNextSong
 
-    fun setRemoteActive(active: Boolean, deviceName: String? = null) {
+    fun setRemoteActive(
+        active: Boolean,
+        deviceName: String? = null,
+    ) {
         remoteStateHolder.setRemoteActive(active, deviceName)
     }
 
@@ -215,7 +206,10 @@ object PlaybackManager {
     private var audioTrackRetryCount = 0
     private var lastCustomStreamArgs: Triple<Song, String, Map<String, String>>? = null
 
-    private fun handlePlaybackFailure(errorMsg: String, allowCurrentSongRetry: Boolean = true) {
+    private fun handlePlaybackFailure(
+        errorMsg: String,
+        allowCurrentSongRetry: Boolean = true,
+    ) {
         _isLoading.value = false
         _isTransitioning.value = false
         val curr = _currentSong.value
@@ -297,7 +291,7 @@ object PlaybackManager {
                 queueManager.playlist,
                 queueManager.currentIndex,
                 _isLoading,
-            )
+            ),
         ) { values ->
             val song = values[0] as? Song
             val playing = values[1] as Boolean
@@ -307,6 +301,7 @@ object PlaybackManager {
             val loop = values[5] as PlaybackLoopMode
             val tier = values[6] as AudioQualityTier
             val radio = values[7] as Boolean
+
             @Suppress("UNCHECKED_CAST")
             val pl = values[8] as List<Song>
             val idx = values[9] as Int
@@ -398,9 +393,9 @@ object PlaybackManager {
 
                 val isAudioTrackError =
                     error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
-                    error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED ||
-                    error.cause is AudioSink.InitializationException ||
-                    error.cause is AudioSink.WriteException
+                        error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED ||
+                        error.cause is AudioSink.InitializationException ||
+                        error.cause is AudioSink.WriteException
 
                 if (isAudioTrackError && audioTrackRetryCount < 1) {
                     audioTrackRetryCount++
@@ -421,7 +416,15 @@ object PlaybackManager {
                     return
                 }
 
-                val isDummyUriFailure = current != null && (exoPlayer?.currentMediaItem?.localConfiguration?.uri?.host == "cache.melodist.internal")
+                val isDummyUriFailure =
+                    current != null &&
+                        (
+                            exoPlayer
+                                ?.currentMediaItem
+                                ?.localConfiguration
+                                ?.uri
+                                ?.host == "cache.melodist.internal"
+                        )
                 if (isDummyUriFailure) {
                     Log.w("MelodistPlayback", "Local cache playback failed for ${current.name}, evicting cache and falling back to network")
                     MelodistCacheManager.evictIncompleteCacheAsync(current.songMid, curTier)
@@ -585,8 +588,10 @@ object PlaybackManager {
         return playerPipeline.getOrCreatePlayer(context)
     }
 
-    fun buildMediaMetadata(song: Song, remoteDeviceName: String? = null): MediaMetadata =
-        PlaybackMediaItemFactory.buildMediaMetadata(song, remoteDeviceName)
+    fun buildMediaMetadata(
+        song: Song,
+        remoteDeviceName: String? = null,
+    ): MediaMetadata = PlaybackMediaItemFactory.buildMediaMetadata(song, remoteDeviceName)
 
     private fun buildMediaItem(
         uri: android.net.Uri,
@@ -594,8 +599,10 @@ object PlaybackManager {
         tier: AudioQualityTier? = null,
     ): MediaItem = PlaybackMediaItemFactory.buildMediaItem(uri, song, tier)
 
-    fun buildMediaItemForSong(song: Song, remoteDeviceName: String? = null): MediaItem =
-        PlaybackMediaItemFactory.buildMediaItemForSong(song, remoteDeviceName)
+    fun buildMediaItemForSong(
+        song: Song,
+        remoteDeviceName: String? = null,
+    ): MediaItem = PlaybackMediaItemFactory.buildMediaItemForSong(song, remoteDeviceName)
 
     private fun updateCurrentMediaMetadata(song: Song) {
         val player = exoPlayer ?: return
@@ -679,9 +686,11 @@ object PlaybackManager {
                 if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://")) {
                     try {
                         val imageLoader = SingletonImageLoader.get(ctx)
-                        val req = ImageRequest.Builder(ctx)
-                            .data(coverUrl)
-                            .build()
+                        val req =
+                            ImageRequest
+                                .Builder(ctx)
+                                .data(coverUrl)
+                                .build()
                         imageLoader.enqueue(req)
                         Log.d("MelodistPlayback", "Prefetched next song cover: ${nextSong.name}")
                     } catch (e: Exception) {
@@ -762,12 +771,22 @@ object PlaybackManager {
     }
 
     fun setFavoriteSongMids(mids: Set<String>) = favoriteController.setFavoriteSongMids(mids)
+
     fun addFavoriteSongMids(mids: Collection<String>) = favoriteController.addFavoriteSongMids(mids)
+
     fun syncFavoriteSongsAsync(forceRefresh: Boolean = false) = favoriteController.syncFavoriteSongsAsync(forceRefresh)
+
     fun isSongFavoriteSupported(song: Song?): Boolean = favoriteController.isSongFavoriteSupported(song)
+
     fun isSongFavorite(songMid: String?): Boolean = favoriteController.isSongFavorite(songMid)
-    fun setSongFavoriteState(songMid: String, isFav: Boolean) = favoriteController.setSongFavoriteState(songMid, isFav, _currentSong.value)
+
+    fun setSongFavoriteState(
+        songMid: String,
+        isFav: Boolean,
+    ) = favoriteController.setSongFavoriteState(songMid, isFav, _currentSong.value)
+
     fun toggleSongFavorite(song: Song) = favoriteController.toggleSongFavorite(song, appContext)
+
     fun toggleCurrentSongFavorite() {
         val song = _currentSong.value ?: return
         toggleSongFavorite(song)
@@ -796,12 +815,25 @@ object PlaybackManager {
     }
 
     fun setPaginationSource(source: QueuePaginationSource?) = queueManager.setPaginationSource(source)
+
     suspend fun loadMoreForQueue(): Boolean = queueManager.loadMoreForQueue()
-    fun appendPlaylist(newSongs: List<Song>, targetTag: String? = null) = queueManager.appendPlaylist(newSongs, targetTag)
+
+    fun appendPlaylist(
+        newSongs: List<Song>,
+        targetTag: String? = null,
+    ) = queueManager.appendPlaylist(newSongs, targetTag)
+
     fun insertNextPlay(song: Song) = queueManager.insertNextPlay(song)
-    fun insertAndPlay(song: Song, seekToMs: Long = 0L) = queueManager.insertAndPlay(song, seekToMs)
+
+    fun insertAndPlay(
+        song: Song,
+        seekToMs: Long = 0L,
+    ) = queueManager.insertAndPlay(song, seekToMs)
+
     fun removeFromPlaylist(index: Int) = queueManager.removeFromPlaylist(index)
+
     fun removeFromPlaylist(songs: List<Song>) = queueManager.removeFromPlaylist(songs, _currentSong.value?.songMid)
+
     fun clearPlaylist() = queueManager.clearPlaylist()
 
     fun playSong(
@@ -842,10 +874,14 @@ object PlaybackManager {
         val isCoverInvalid = coverFile != null && (!coverFile.exists() || coverFile.length() == 0L)
         if (effectiveSong.coverUrl.isBlank() || isCoverInvalid) {
             if (effectiveSong.songMid.startsWith("webdav_")) {
-                val server = org.melodist.data.WebDavManager.getActiveServer()
+                val server =
+                    org.melodist.data.WebDavManager
+                        .getActiveServer()
                 val relativeHref = effectiveSong.mediaMid.ifBlank { effectiveSong.localFilePath ?: "" }
                 if (server != null && relativeHref.isNotBlank()) {
-                    val cachedCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref)
+                    val cachedCover =
+                        org.melodist.data.WebDavManager
+                            .getSongCoverPath(server.id, relativeHref)
                     effectiveSong = effectiveSong.copy(coverUrl = cachedCover.orEmpty())
                 } else {
                     effectiveSong = effectiveSong.copy(coverUrl = "")
@@ -877,11 +913,14 @@ object PlaybackManager {
         _isTransitioning.value = true
 
         val targetTierInit = forceTier ?: _preferredTier.value
-        val initialCachedTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
-            ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
-        val isDirectCachedInit = initialCachedTier != null ||
-            effectiveSong.isLocal || effectiveSong.songMid.startsWith("local_") ||
-            !effectiveSong.localFilePath.isNullOrBlank()
+        val initialCachedTier =
+            MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
+                ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
+        val isDirectCachedInit =
+            initialCachedTier != null ||
+                effectiveSong.isLocal ||
+                effectiveSong.songMid.startsWith("local_") ||
+                !effectiveSong.localFilePath.isNullOrBlank()
         _isCurrentTrackFromCache.value = isDirectCachedInit
         _fileCacheFraction.value = if (isDirectCachedInit) 1f else 0f
         if (initialCachedTier != null) {
@@ -891,7 +930,8 @@ object PlaybackManager {
         }
 
         updateCurrentMediaMetadata(effectiveSong)
-        org.melodist.data.RecentPlaybackManager.recordSong(effectiveSong)
+        org.melodist.data.RecentPlaybackManager
+            .recordSong(effectiveSong)
         _currentTrackSpec.value = null
 
         val list = queueManager.playlist.value
@@ -960,7 +1000,9 @@ object PlaybackManager {
 
                         launch(Dispatchers.IO) {
                             try {
-                                val rawCover = org.melodist.data.LocalMusicManager.ensureRawCover(song)
+                                val rawCover =
+                                    org.melodist.data.LocalMusicManager
+                                        .ensureRawCover(song)
                                 if (!rawCover.isNullOrBlank() && _currentSong.value?.songId == song.songId) {
                                     withContext(Dispatchers.Main) {
                                         val current = _currentSong.value
@@ -1050,8 +1092,12 @@ object PlaybackManager {
     private fun triggerWebDavMetadataAndCoverHeal(song: Song) {
         scope.launch(Dispatchers.IO) {
             try {
-                val server = org.melodist.data.WebDavManager.getActiveServer() ?: return@launch
-                val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, song)
+                val server =
+                    org.melodist.data.WebDavManager
+                        .getActiveServer() ?: return@launch
+                val meta =
+                    org.melodist.data.WebDavManager
+                        .extractPlaybackMetadata(server, song)
                 if (_currentSong.value?.songMid == song.songMid) {
                     val currentCover = _currentSong.value?.coverUrl.orEmpty()
                     val currentCoverFile =
@@ -1186,7 +1232,8 @@ object PlaybackManager {
         _currentSong.value = song
         _isTransitioning.value = true
         updateCurrentMediaMetadata(song)
-        org.melodist.data.RecentPlaybackManager.recordSong(song)
+        org.melodist.data.RecentPlaybackManager
+            .recordSong(song)
         _currentTrackSpec.value = null
 
         val list = queueManager.playlist.value
@@ -1204,19 +1251,23 @@ object PlaybackManager {
         }
 
         val player = exoPlayer ?: return
-        val baseHttpFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent("MelodistTV/1.0 ConnectStream")
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(30_000)
-            .setReadTimeoutMs(30_000)
+        val baseHttpFactory =
+            DefaultHttpDataSource
+                .Factory()
+                .setUserAgent("MelodistTV/1.0 ConnectStream")
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(30_000)
+                .setReadTimeoutMs(30_000)
         if (headers.isNotEmpty()) {
             baseHttpFactory.setDefaultRequestProperties(headers)
         }
         val ctx = appContext ?: return
         val dataSourceFactory = DefaultDataSource.Factory(ctx, baseHttpFactory)
-        val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-            .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
-            .createMediaSource(buildMediaItem(android.net.Uri.parse(streamUrl), song))
+        val mediaSource =
+            ProgressiveMediaSource
+                .Factory(dataSourceFactory)
+                .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
+                .createMediaSource(buildMediaItem(android.net.Uri.parse(streamUrl), song))
 
         if (seekToMs > 0L) {
             player.setMediaSource(mediaSource, seekToMs)
@@ -1258,8 +1309,12 @@ object PlaybackManager {
             _currentSong.value = song
             if (lyricOffsetMs != 0L) {
                 _currentLyricOffsetMs.value = lyricOffsetMs
-            } else if (org.melodist.data.LyricCacheManager.hasLyricOffsetRecord(song.songMid)) {
-                _currentLyricOffsetMs.value = org.melodist.data.LyricCacheManager.getLyricOffsetMs(song.songMid)
+            } else if (org.melodist.data.LyricCacheManager
+                    .hasLyricOffsetRecord(song.songMid)
+            ) {
+                _currentLyricOffsetMs.value =
+                    org.melodist.data.LyricCacheManager
+                        .getLyricOffsetMs(song.songMid)
             }
             if (prevLocalSong?.songMid != song.songMid) {
                 loadLyricsForSong(song)
@@ -1285,7 +1340,8 @@ object PlaybackManager {
         if (!loopModeName.isNullOrBlank()) {
             try {
                 queueManager.setLoopMode(PlaybackLoopMode.valueOf(loopModeName))
-            } catch (_: Throwable) {}
+            } catch (_: Throwable) {
+            }
         }
         if (song != null) {
             _isPlaying.value = isPlaying
@@ -1297,7 +1353,10 @@ object PlaybackManager {
         }
     }
 
-    fun syncRemoteQueue(queue: List<Song>, currentIndex: Int) {
+    fun syncRemoteQueue(
+        queue: List<Song>,
+        currentIndex: Int,
+    ) {
         if (queue.isNotEmpty()) {
             queueManager.syncRemoteQueue(queue, currentIndex)
         }
@@ -1307,7 +1366,10 @@ object PlaybackManager {
         lyricsCoordinator.loadLyricsForSong(song)
     }
 
-    fun setExternalLyrics(songMid: String, lyrics: List<LyricLine>) {
+    fun setExternalLyrics(
+        songMid: String,
+        lyrics: List<LyricLine>,
+    ) {
         lyricsCoordinator.setExternalLyrics(
             songMid = songMid,
             lyrics = lyrics,
@@ -1536,14 +1598,12 @@ object PlaybackManager {
     /**
      * 获取上一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
-    fun getPreviousSong(): Song? =
-        queueManager.getPreviousSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remotePrevSong.value)
+    fun getPreviousSong(): Song? = queueManager.getPreviousSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remotePrevSong.value)
 
     /**
      * 获取下一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
-    fun getNextSong(): Song? =
-        queueManager.getNextSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remoteNextSong.value)
+    fun getNextSong(): Song? = queueManager.getNextSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remoteNextSong.value)
 
     fun cycleLoopMode() {
         if (playbackInterceptor?.onInterceptCycleLoopMode() == true) {
@@ -1553,7 +1613,9 @@ object PlaybackManager {
         prefetchAdjacentWebDavCovers()
     }
 
-    private val prefetchingTargetMids = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val prefetchingTargetMids =
+        java.util.concurrent.ConcurrentHashMap
+            .newKeySet<String>()
 
     /**
      * 方案 B：后台静默预加载相邻曲目（优先下一首）的原始大图与歌曲信息，
@@ -1573,11 +1635,15 @@ object PlaybackManager {
                     val isLocal = target.isLocal || !target.localFilePath.isNullOrBlank() || target.songMid.startsWith("local_")
 
                     if (isWebDav) {
-                        val server = org.melodist.data.WebDavManager.getActiveServer() ?: continue
+                        val server =
+                            org.melodist.data.WebDavManager
+                                .getActiveServer() ?: continue
                         val relativeHref = target.mediaMid.ifBlank { target.localFilePath ?: "" }
                         if (relativeHref.isBlank()) continue
 
-                        val existingRaw = org.melodist.data.WebDavManager.getSongRawCoverPath(server.id, relativeHref)
+                        val existingRaw =
+                            org.melodist.data.WebDavManager
+                                .getSongRawCoverPath(server.id, relativeHref)
                         if (existingRaw != null) {
                             withContext(Dispatchers.Main) {
                                 queueManager.updateSongInPlaylist(target.copy(rawCoverUrl = existingRaw))
@@ -1585,7 +1651,9 @@ object PlaybackManager {
                             continue
                         }
 
-                        val meta = org.melodist.data.WebDavManager.extractPlaybackMetadata(server, target)
+                        val meta =
+                            org.melodist.data.WebDavManager
+                                .extractPlaybackMetadata(server, target)
                         val versionedCover = meta.coverUrl?.let { "${it.substringBefore('?')}?t=${System.currentTimeMillis()}" }
                         withContext(Dispatchers.Main) {
                             val updated =
@@ -1597,7 +1665,9 @@ object PlaybackManager {
                             queueManager.updateSongInPlaylist(updated)
                         }
                     } else if (isLocal) {
-                        val rawCover = org.melodist.data.LocalMusicManager.ensureRawCover(target)
+                        val rawCover =
+                            org.melodist.data.LocalMusicManager
+                                .ensureRawCover(target)
                         if (!rawCover.isNullOrBlank() && rawCover != target.rawCoverUrl) {
                             withContext(Dispatchers.Main) {
                                 queueManager.updateSongInPlaylist(target.copy(rawCoverUrl = rawCover))
@@ -1622,7 +1692,6 @@ object PlaybackManager {
     }
 
     fun prefetchAdjacentWebDavCovers() = prefetchAdjacentCoversAndMetadata()
-
 
     private fun handleSongEnded() {
         _isTransitioning.value = true

@@ -11,5 +11,6 @@ import org.melodist.model.Song
 interface QueuePaginationSource {
     val hasMore: Boolean
     val isLoadingMore: Boolean
+
     suspend fun loadMore(): List<Song>
 }

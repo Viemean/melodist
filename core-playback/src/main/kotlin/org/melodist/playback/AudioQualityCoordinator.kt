@@ -12,9 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.probeSongQualities
-import org.melodist.model.QualityOption
 import org.melodist.data.AppSettingsManager
 import org.melodist.model.AudioQualityTier
+import org.melodist.model.QualityOption
 import org.melodist.model.Song
 
 class AudioQualityCoordinator(
@@ -108,7 +108,10 @@ class AudioQualityCoordinator(
                         val preferred = preferredTierProvider()
                         val effective = clampCellularTier(preferred, song, context)
                         if (currentTierProvider() != effective && available.contains(effective) && currentSongMidProvider() == song.songMid) {
-                            Log.i("AudioQualityCoordinator", "Auto-upgrading to preferred tier ${AudioQualityTier.getBadge(effective)} after probe for ${song.name}")
+                            Log.i(
+                                "AudioQualityCoordinator",
+                                "Auto-upgrading to preferred tier ${AudioQualityTier.getBadge(effective)} after probe for ${song.name}",
+                            )
                             onAutoUpgrade?.invoke(effective)
                         }
                     }
@@ -156,8 +159,7 @@ class AudioQualityCoordinator(
             cellularLimit = AppSettingsManager.settings.value.cellularQualityTier,
         )
 
-    fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? =
-        PlaybackSourceResolver.getFallbackTier(current)
+    fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? = PlaybackSourceResolver.getFallbackTier(current)
 
     fun updateAvailableTiers(tiers: Set<AudioQualityTier>) {
         _availableTiers.value = tiers

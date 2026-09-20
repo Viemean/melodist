@@ -54,7 +54,9 @@ fun MelodistAsyncImage(
             if (isLocalFile && coverUrl.isNotBlank()) {
                 val normalized = if (coverUrl.startsWith("/")) "file://$coverUrl" else coverUrl
                 if (preferRawCover) {
-                    val rawCandidate = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(normalized)
+                    val rawCandidate =
+                        org.melodist.data.RawCoverHelper
+                            .findMatchingRawCoverUrl(normalized)
                     if (!rawCandidate.isNullOrBlank() && rawCandidate != normalized) {
                         list.add(rawCandidate)
                     }

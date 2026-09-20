@@ -1,7 +1,6 @@
 package org.melodist.mobile.ui.player.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +33,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
@@ -44,7 +41,6 @@ import kotlinx.coroutines.launch
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.util.MobileCoverCacheResolver
 import org.melodist.model.Song
-import org.melodist.playback.PlaybackManager
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -266,10 +262,9 @@ private fun CoverCard(
     scale: Float,
     alpha: Float,
 ) {
-    val context = LocalContext.current
     val candidates =
         remember(song) {
-            MobileCoverCacheResolver.resolveCandidates(context, song)
+            MobileCoverCacheResolver.resolveCandidates(song)
         }
 
     Box(

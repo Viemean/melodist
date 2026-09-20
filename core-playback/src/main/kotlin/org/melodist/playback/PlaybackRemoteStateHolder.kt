@@ -29,7 +29,10 @@ class PlaybackRemoteStateHolder {
 
     private fun currentMonotonicMs(): Long = System.nanoTime() / 1_000_000L
 
-    fun setRemoteActive(active: Boolean, deviceName: String? = null) {
+    fun setRemoteActive(
+        active: Boolean,
+        deviceName: String? = null,
+    ) {
         _isRemoteActive.value = active
         _remoteDeviceName.value = deviceName
         if (!active) {
@@ -37,7 +40,10 @@ class PlaybackRemoteStateHolder {
         }
     }
 
-    fun updateSyncTimeline(positionMs: Long, isPlaying: Boolean) {
+    fun updateSyncTimeline(
+        positionMs: Long,
+        isPlaying: Boolean,
+    ) {
         syncBasePositionMs = positionMs
         syncBaseElapsedRealtimeMs = currentMonotonicMs()
         syncIsPlaying = isPlaying

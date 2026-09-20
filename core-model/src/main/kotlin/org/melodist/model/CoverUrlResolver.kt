@@ -43,10 +43,13 @@ object CoverUrlResolver {
     /**
      * 将指定在线封面链接替换为指定分辨率（例如 500 -> R500x500）
      */
-    fun replaceDimension(url: String, dimension: Int): String {
+    fun replaceDimension(
+        url: String,
+        dimension: Int,
+    ): String {
         if (url.isBlank()) return ""
         return if (url.contains(REGEX_RESOLUTION)) {
-            url.replace(REGEX_RESOLUTION, "R${dimension}x${dimension}")
+            url.replace(REGEX_RESOLUTION, "R${dimension}x$dimension")
         } else {
             url
         }
@@ -77,7 +80,10 @@ object CoverUrlResolver {
     /**
      * 获取单一无损原图直链（供大图或本地加载检测）
      */
-    fun getRawUrlOnly(url: String, explicitRawUrl: String? = null): String? {
+    fun getRawUrlOnly(
+        url: String,
+        explicitRawUrl: String? = null,
+    ): String? {
         if (!explicitRawUrl.isNullOrBlank()) return explicitRawUrl
         if (url.isBlank()) return null
         if (url.startsWith("/") || url.startsWith("file://")) {
@@ -166,7 +172,10 @@ object CoverUrlResolver {
     /**
      * TV 端 QQ 音乐 CDN 超高清强升候选
      */
-    fun upgradeTvCoverUrl(url: String, dimension: Int): String {
+    fun upgradeTvCoverUrl(
+        url: String,
+        dimension: Int,
+    ): String {
         if (url.isBlank()) return ""
         return url
             .replace(REGEX_T002, "T002R${dimension}x${dimension}M000")

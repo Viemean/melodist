@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.*
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,6 @@ import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.getAlbumSongs
-import org.melodist.api.getDailyRecommendSongs
 import org.melodist.api.getFavoriteAlbums
 import org.melodist.api.getFavoriteSongsDetail
 import org.melodist.api.getGuessRecommendSongs
@@ -27,12 +27,10 @@ import org.melodist.data.UserLibraryCacheManager
 import org.melodist.model.Album
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Playlist
-import androidx.compose.ui.graphics.toArgb
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.components.TvSplitPlaybackScaffold
 import org.melodist.tv.ui.playlist.*
-import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MonetColorExtractor
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
 
@@ -129,7 +127,6 @@ private val DefaultSampleSongs =
             currentTier = AudioQualityTier.Master,
         ),
     )
-
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -508,7 +505,8 @@ fun PlaylistTvScreen(
                         if (cachedData.songs.isNotEmpty()) {
                             cachedData.songs
                         } else {
-                            org.melodist.data.MillionRecommendManager.refresh(apiService, forceRefresh = false)
+                            org.melodist.data.MillionRecommendManager
+                                .refresh(apiService, forceRefresh = false)
                             org.melodist.data.MillionRecommendManager.resultFlow.value.songs
                         }
                     playlistSongs = songs
@@ -523,7 +521,8 @@ fun PlaylistTvScreen(
                         } else {
                             if (userPlaylists.isEmpty()) {
                                 userPlaylists =
-                                    UserLibraryCacheManager.libraryFlow.value.playlists.filterNot { it.isMyFavorite }
+                                    UserLibraryCacheManager.libraryFlow.value.playlists
+                                        .filterNot { it.isMyFavorite }
                                         .ifEmpty { apiService.getPlaylists().filterNot { it.isMyFavorite } }
                             }
                             userPlaylists.getOrNull(selectedPlaylistIndex)
@@ -546,7 +545,11 @@ fun PlaylistTvScreen(
                                 try {
                                     val synced =
                                         UserLibraryCacheManager.probeAndSyncPlaylistFirstPage(
-                                            apiService, targetDirId, targetTid, targetIsFav, targetCount
+                                            apiService,
+                                            targetDirId,
+                                            targetTid,
+                                            targetIsFav,
+                                            targetCount,
                                         )
                                     if (synced != cached && synced.isNotEmpty()) {
                                         playlistSongs = synced
@@ -559,7 +562,11 @@ fun PlaylistTvScreen(
                         } else {
                             val pSongs =
                                 UserLibraryCacheManager.probeAndSyncPlaylistFirstPage(
-                                    apiService, targetDirId, targetTid, targetIsFav, targetCount
+                                    apiService,
+                                    targetDirId,
+                                    targetTid,
+                                    targetIsFav,
+                                    targetCount,
                                 )
                             playlistSongs = pSongs
                             totalCount = if (targetCount > 0) targetCount else pSongs.size
@@ -648,7 +655,9 @@ fun PlaylistTvScreen(
                     if (isLoading) {
                         "正在拉取今日推荐..."
                     } else {
-                        val updateTimeStr = org.melodist.data.DailyRecommendCacheManager.getFormattedLocalDailyRecommendUpdateTime()
+                        val updateTimeStr =
+                            org.melodist.data.DailyRecommendCacheManager
+                                .getFormattedLocalDailyRecommendUpdateTime()
                         "今日 30 首专属推荐 · 每日 $updateTimeStr 更新"
                     }
                 } else {
@@ -957,7 +966,7 @@ fun PlaylistTvScreen(
                 onNavigateToSettings = onNavigateToSettings,
             )
 
-        // 模式 2：沉浸双语逐字歌词流
+            // 模式 2：沉浸双语逐字歌词流
             PlaylistTvLyricsOverlay(
                 visible = (screenMode == PlaylistScreenMode.Player),
                 lyrics = lyrics,

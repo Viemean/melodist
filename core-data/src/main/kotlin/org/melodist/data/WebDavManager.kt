@@ -267,12 +267,13 @@ object WebDavManager {
                     val coversFolder = getSafeCoversDir()
 
                     fun saveWebDavThumbnail(bytes: ByteArray) {
-                        val path = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
-                            bytes = bytes,
-                            folder = coversFolder,
-                            baseHash = hash,
-                            prefix = "webdav_",
-                        )
+                        val path =
+                            org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
+                                bytes = bytes,
+                                folder = coversFolder,
+                                baseHash = hash,
+                                prefix = "webdav_",
+                            )
                         if (path != null) {
                             coverPath = path
                         }
@@ -304,12 +305,13 @@ object WebDavManager {
                         val retriever = android.media.MediaMetadataRetriever()
                         try {
                             retriever.setDataSource(tmpHdrFile.absolutePath)
-                            val meta = org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
-                                retriever = retriever,
-                                fallbackTitle = finalTitle,
-                                fallbackArtist = finalArtist,
-                                fallbackAlbum = finalAlbum,
-                            )
+                            val meta =
+                                org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
+                                    retriever = retriever,
+                                    fallbackTitle = finalTitle,
+                                    fallbackArtist = finalArtist,
+                                    fallbackAlbum = finalAlbum,
+                                )
                             if (meta.title.isNotBlank() && (finalTitle == rawCache.title || finalTitle.isBlank())) {
                                 finalTitle = meta.title
                             }
@@ -342,7 +344,6 @@ object WebDavManager {
                             saveWebDavThumbnail(folderCoverBytes)
                         }
                     }
-
 
                     // 1.4 歌词嗅探：优先 parsed.lyrics，次选同目录同名 .lrc，再选 extractEmbeddedLyricsFromBytes
                     var lyrics = updated.embeddedLyrics
@@ -600,7 +601,10 @@ object WebDavManager {
         saveServer(updated)
     }
 
-    fun removeSongsFromCache(songs: List<Song>, serverId: String? = null) {
+    fun removeSongsFromCache(
+        songs: List<Song>,
+        serverId: String? = null,
+    ) {
         if (songs.isEmpty()) return
         val targetServer =
             if (serverId != null) {
@@ -612,9 +616,10 @@ object WebDavManager {
         val removedHrefs = songs.mapNotNull { it.mediaMid.ifBlank { it.localFilePath }.takeIf { p -> !p.isNullOrBlank() } }.toSet()
         val removedMids = songs.map { it.songMid }.toSet()
 
-        val filtered = targetServer.cachedSongs.filterNot { cache ->
-            removedHrefs.contains(cache.href) || removedMids.contains(cache.toSong().songMid)
-        }
+        val filtered =
+            targetServer.cachedSongs.filterNot { cache ->
+                removedHrefs.contains(cache.href) || removedMids.contains(cache.toSong().songMid)
+            }
         val updated = targetServer.copy(cachedSongs = filtered)
         saveServer(updated)
     }
@@ -709,12 +714,13 @@ object WebDavManager {
                     }
                 }
                 if (finalCoverUrl.isNullOrBlank() || !File(finalCoverUrl!!.removePrefix("file://")).exists()) {
-                    val path = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
-                        bytes = bytes,
-                        folder = folder,
-                        baseHash = hash,
-                        prefix = "webdav_",
-                    )
+                    val path =
+                        org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
+                            bytes = bytes,
+                            folder = folder,
+                            baseHash = hash,
+                            prefix = "webdav_",
+                        )
                     if (path != null) {
                         finalCoverUrl = "file://$path"
                     } else if (finalRawCoverUrl != null) {
@@ -862,4 +868,3 @@ object WebDavManager {
         song: Song,
     ): String? = extractPlaybackMetadata(server, song).coverUrl
 }
-

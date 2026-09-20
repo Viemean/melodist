@@ -100,7 +100,7 @@ fun PlaylistDetailScreen(
                 MillionRecommendManager.resultFlow.value.songs
             } else {
                 emptyList()
-            }
+            },
         )
     }
     var isLoading by remember {
@@ -108,10 +108,11 @@ fun PlaylistDetailScreen(
             if (playlist.isMyFavorite) {
                 UserLibraryCacheManager.favoriteSongsFlow.value.isEmpty()
             } else if (playlist.isMillionRecommend) {
-                MillionRecommendManager.resultFlow.value.songs.isEmpty()
+                MillionRecommendManager.resultFlow.value.songs
+                    .isEmpty()
             } else {
                 false
-            }
+            },
         )
     }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -119,12 +120,15 @@ fun PlaylistDetailScreen(
     var hasMore by remember { mutableStateOf(!playlist.isMyFavorite && !playlist.isMillionRecommend) }
     var totalCount by remember {
         mutableIntStateOf(
-            if (playlist.isMillionRecommend && MillionRecommendManager.resultFlow.value.songs.isNotEmpty()) {
+            if (playlist.isMillionRecommend &&
+                MillionRecommendManager.resultFlow.value.songs
+                    .isNotEmpty()
+            ) {
                 val num = MillionRecommendManager.resultFlow.value.totalSongNum
                 if (num > 0) num else MillionRecommendManager.resultFlow.value.songs.size
             } else {
                 playlist.songCount
-            }
+            },
         )
     }
     var syncJob by remember { mutableStateOf<Job?>(null) }
@@ -236,9 +240,13 @@ fun PlaylistDetailScreen(
 
     val playlistTag =
         remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite, playlist.isMillionRecommend) {
-            if (playlist.isMyFavorite) "favorites"
-            else if (playlist.isMillionRecommend) "million_recommend"
-            else "playlist_${playlist.dirId}_${playlist.tid}"
+            if (playlist.isMyFavorite) {
+                "favorites"
+            } else if (playlist.isMillionRecommend) {
+                "million_recommend"
+            } else {
+                "playlist_${playlist.dirId}_${playlist.tid}"
+            }
         }
 
     val playlistPaginationSource =
@@ -373,9 +381,10 @@ fun PlaylistDetailScreen(
     ) { scaffoldPadding ->
         val pullRefreshState = rememberPullToRefreshState()
         PullToRefreshBox(
-            isRefreshing = isRefreshing ||
-                (playlist.isMyFavorite && isFavSongsLoading && songs.isNotEmpty()) ||
-                (playlist.isMillionRecommend && isMillionLoading && songs.isNotEmpty()),
+            isRefreshing =
+                isRefreshing ||
+                    (playlist.isMyFavorite && isFavSongsLoading && songs.isNotEmpty()) ||
+                    (playlist.isMillionRecommend && isMillionLoading && songs.isNotEmpty()),
             onRefresh = {
                 if (playlist.isMyFavorite) {
                     scope.launch {

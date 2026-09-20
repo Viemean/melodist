@@ -33,8 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
-import org.melodist.playback.PlaybackLoopMode
 import org.melodist.model.Song
+import org.melodist.playback.PlaybackLoopMode
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.components.BottomPlayerBar
 import org.melodist.tv.ui.components.CenterAlignedKaraokeLyricsView
@@ -111,14 +111,16 @@ fun PlaylistTvBottomBar(
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = slideInVertically(
-            initialOffsetY = { it },
-            animationSpec = tween(durationMillis = 300),
-        ) + fadeIn(animationSpec = tween(durationMillis = 300)),
-        exit = slideOutVertically(
-            targetOffsetY = { it },
-            animationSpec = tween(durationMillis = 300),
-        ) + fadeOut(animationSpec = tween(durationMillis = 300)),
+        enter =
+            slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(durationMillis = 300),
+            ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+        exit =
+            slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(durationMillis = 300),
+            ) + fadeOut(animationSpec = tween(durationMillis = 300)),
     ) {
         val canFavorite = PlaybackManager.isSongFavoriteSupported(activePlayingSong)
         val totalDurationMs =
@@ -169,24 +171,24 @@ fun PlaylistTvFullscreenRestoreOverlay(
             restoreRequester.requestFocus()
         }
         Box(
-            modifier = modifier
-                .fillMaxSize()
-                .focusRequester(restoreRequester)
-                .focusable()
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown) {
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .focusRequester(restoreRequester)
+                    .focusable()
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown) {
+                            onWakeControls()
+                            true
+                        } else {
+                            true
+                        }
+                    }.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
                         onWakeControls()
-                        true
-                    } else {
-                        true
-                    }
-                }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) {
-                    onWakeControls()
-                },
+                    },
         )
     }
 }

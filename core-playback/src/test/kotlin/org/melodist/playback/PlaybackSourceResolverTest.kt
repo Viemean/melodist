@@ -66,7 +66,9 @@ class PlaybackSourceResolverTest {
         assertEquals(AudioQualityTier.SQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Premium))
     }
 
-    private class TestTvContext(private val pkg: String) : android.content.ContextWrapper(null) {
+    private class TestTvContext(
+        private val pkg: String,
+    ) : android.content.ContextWrapper(null) {
         override fun getPackageName(): String = pkg
     }
 
@@ -96,12 +98,13 @@ class PlaybackSourceResolverTest {
         val onlineSong = Song(songId = 10, songMid = "003mQIjO4e38e6", name = "Test Online")
 
         // 即使请求 Master，移动网络限制为 HQ，在 TV 环境下也不应被限制
-        val clamped = PlaybackSourceResolver.clampCellularTier(
-            requestedTier = AudioQualityTier.Master,
-            song = onlineSong,
-            context = tvContext,
-            cellularLimit = AudioQualityTier.HQ,
-        )
+        val clamped =
+            PlaybackSourceResolver.clampCellularTier(
+                requestedTier = AudioQualityTier.Master,
+                song = onlineSong,
+                context = tvContext,
+                cellularLimit = AudioQualityTier.HQ,
+            )
         assertEquals(AudioQualityTier.Master, clamped)
     }
 
@@ -124,4 +127,3 @@ class PlaybackSourceResolverTest {
         assertFalse(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 60_000L, positionMs = 35_000L))
     }
 }
-

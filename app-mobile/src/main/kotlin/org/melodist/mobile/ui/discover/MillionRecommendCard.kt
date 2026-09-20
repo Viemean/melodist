@@ -57,10 +57,11 @@ fun MillionRecommendCard(
         } else if (songs.isNotEmpty()) {
             val startIndex =
                 if (activeSong != null) {
-                    songs.indexOfFirst {
-                        (it.songId > 0 && it.songId == activeSong.songId) ||
-                            (it.songMid.isNotBlank() && it.songMid == activeSong.songMid)
-                    }.coerceAtLeast(0)
+                    songs
+                        .indexOfFirst {
+                            (it.songId > 0 && it.songId == activeSong.songId) ||
+                                (it.songMid.isNotBlank() && it.songMid == activeSong.songMid)
+                        }.coerceAtLeast(0)
                 } else {
                     0
                 }

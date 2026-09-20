@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.probeSongQualities
-import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.core.connect.model.ConnectDevice
 import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.connect.components.RemoteConnectDialogs
@@ -29,9 +28,7 @@ import org.melodist.model.QualityOption
  * 移动端投屏互联与电视遥控器界面
  */
 @Composable
-fun RemoteControlMobileScreen(
-    contentPadding: PaddingValues = PaddingValues(0.dp),
-) {
+fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp)) {
     val connectionState by MobileConnectManager.connectionState.collectAsState()
     val discoveredDevices by MobileConnectManager.discoveredDevices.collectAsState()
     val pairedDevices by MobileConnectManager.pairedDevices.collectAsState()
@@ -56,9 +53,12 @@ fun RemoteControlMobileScreen(
             if (!isLocalOrWebDav) {
                 isTvProbingQuality = true
                 try {
-                    val probed = withContext<List<QualityOption>>(Dispatchers.IO) {
-                        org.melodist.api.MusicApiService().probeSongQualities(curTvSong.songMid, curTvSong.mediaMid)
-                    }
+                    val probed =
+                        withContext<List<QualityOption>>(Dispatchers.IO) {
+                            org.melodist.api
+                                .MusicApiService()
+                                .probeSongQualities(curTvSong.songMid, curTvSong.mediaMid)
+                        }
                     tvProbedQualityOptions = probed
                 } catch (_: Exception) {
                 } finally {
@@ -97,12 +97,13 @@ fun RemoteControlMobileScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = contentPadding.calculateTopPadding() + 8.dp,
-            bottom = contentPadding.calculateBottomPadding() + 80.dp,
-        ),
+        contentPadding =
+            PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = contentPadding.calculateTopPadding() + 8.dp,
+                bottom = contentPadding.calculateBottomPadding() + 80.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // 1. TV 远程控制主卡片

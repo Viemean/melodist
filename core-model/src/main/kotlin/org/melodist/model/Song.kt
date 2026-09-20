@@ -60,5 +60,3 @@ data class Song(
     val rawCoverCandidates: List<String>
         get() = CoverUrlResolver.getCandidates(coverUrl, CoverScenario.FULLSCREEN_RAW, explicitRawUrl = rawCoverUrl.ifBlank { null })
 }
-
-

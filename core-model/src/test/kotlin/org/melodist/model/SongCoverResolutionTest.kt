@@ -89,10 +89,11 @@ class SongCoverResolutionTest {
         assertEquals("/storage/emulated/0/Music/cover.jpg", localSong.thumbnailCoverUrl)
         assertEquals(listOf("/storage/emulated/0/Music/cover.jpg"), localSong.playerCoverCandidates)
 
-        val localWithRaw = Song(
-            coverUrl = "file:///cache/covers/cover_123.webp",
-            rawCoverUrl = "file:///cache/covers/cover_raw_123.jpg",
-        )
+        val localWithRaw =
+            Song(
+                coverUrl = "file:///cache/covers/cover_123.webp",
+                rawCoverUrl = "file:///cache/covers/cover_raw_123.jpg",
+            )
         assertEquals("file:///cache/covers/cover_123.webp", localWithRaw.thumbnailCoverUrl)
         assertEquals(
             listOf("file:///cache/covers/cover_raw_123.jpg", "file:///cache/covers/cover_123.webp"),

@@ -32,8 +32,7 @@ object AudioSliceExtractor {
     /**
      * 对给定的本地音频文件进行快速局部切片解码并提取声学指纹 (包含起始秒数)
      */
-    suspend fun extractSliceFeature(audioFile: File): AcousticFeature? =
-        extractSliceWithTime(audioFile)?.feature
+    suspend fun extractSliceFeature(audioFile: File): AcousticFeature? = extractSliceWithTime(audioFile)?.feature
 
     /**
      * 提取音频切片特征与精确起始秒数

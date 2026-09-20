@@ -20,14 +20,15 @@ class TimedLruCache<K : Any, V : Any>(
     private val ttlMillis: Long = 30_000L,
     private val timeProvider: () -> Long = { System.currentTimeMillis() },
 ) {
-    private data class CacheEntry<V>(val timestamp: Long, val value: V)
+    private data class CacheEntry<V>(
+        val timestamp: Long,
+        val value: V,
+    )
 
     private val lock = Any()
     private val map =
         object : LinkedHashMap<K, CacheEntry<V>>(maxSize, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, CacheEntry<V>>?): Boolean {
-                return size > maxSize
-            }
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, CacheEntry<V>>?): Boolean = size > maxSize
         }
 
     fun get(key: K): V? =

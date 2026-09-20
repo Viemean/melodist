@@ -102,21 +102,28 @@ fun RemotePlaybackControlCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f, fill = false),
                 ) {
+                    val isPaired = connectionState is MobileConnectionState.Paired
                     Icon(
-                        imageVector = if (connectionState is MobileConnectionState.Paired) Icons.Rounded.Tv else Icons.Rounded.TvOff,
+                        imageVector = if (isPaired) Icons.Rounded.Tv else Icons.Rounded.TvOff,
                         contentDescription = null,
-                        tint = if (connectionState is MobileConnectionState.Paired) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint =
+                            if (isPaired) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                         modifier = Modifier.size(22.dp),
                     )
                     Text(
-                        text = when (connectionState) {
-                            is MobileConnectionState.Paired -> connectionState.targetDevice.name
-                            is MobileConnectionState.Connecting -> "正在连接电视..."
-                            is MobileConnectionState.Connected -> "正在握手认证..."
-                            is MobileConnectionState.Reconnecting -> "正在重连 (${connectionState.attempt}/${connectionState.maxAttempts})..."
-                            is MobileConnectionState.Error -> "连接失败"
-                            else -> "TV 远程控制板 (未连接)"
-                        },
+                        text =
+                            when (connectionState) {
+                                is MobileConnectionState.Paired -> connectionState.targetDevice.name
+                                is MobileConnectionState.Connecting -> "正在连接电视..."
+                                is MobileConnectionState.Connected -> "正在握手认证..."
+                                is MobileConnectionState.Reconnecting -> "正在重连 (${connectionState.attempt}/${connectionState.maxAttempts})..."
+                                is MobileConnectionState.Error -> "连接失败"
+                                else -> "TV 远程控制板 (未连接)"
+                            },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -178,36 +185,39 @@ fun RemotePlaybackControlCard(
             if (connectionState is MobileConnectionState.Paired && curSong != null) {
                 // 2. 歌曲信息行：支持点击呼起 TV 端播放界面
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable {
-                            MobileConnectManager.tvOpenPlayer()
-                            val isAod = tvPlayerState.isAodActive
-                            if (isAod) {
-                                Toast.makeText(
-                                    context,
-                                    "TV 当前处于 AOD 息屏模式，请退出 AOD 模式查看播放界面",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "已在 TV 打开播放界面",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                            }
-                        }
-                        .padding(vertical = 4.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                MobileConnectManager.tvOpenPlayer()
+                                val isAod = tvPlayerState.isAodActive
+                                if (isAod) {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "TV 当前处于 AOD 息屏模式，请退出 AOD 模式查看播放界面",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                } else {
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            "已在 TV 打开播放界面",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                }
+                            }.padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     AsyncImage(
                         model = curSong.coverUrl.ifBlank { curSong.thumbnailCoverUrl },
                         contentDescription = null,
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(10.dp)),
+                        modifier =
+                            Modifier
+                                .size(54.dp)
+                                .clip(RoundedCornerShape(10.dp)),
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -234,11 +244,12 @@ fun RemotePlaybackControlCard(
                 var isDraggingSlider by remember { mutableStateOf(false) }
                 var draggingSliderValue by remember { mutableFloatStateOf(0f) }
 
-                val displayPosition = if (isDraggingSlider) {
-                    (draggingSliderValue * durationSafe).toLong()
-                } else {
-                    currentPosSafe
-                }
+                val displayPosition =
+                    if (isDraggingSlider) {
+                        (draggingSliderValue * durationSafe).toLong()
+                    } else {
+                        currentPosSafe
+                    }
                 val progressFraction = (displayPosition.toFloat() / durationSafe).coerceIn(0f, 1f)
 
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -253,14 +264,16 @@ fun RemotePlaybackControlCard(
                             val targetMs = (draggingSliderValue * durationSafe).toLong()
                             MobileConnectManager.tvSeekTo(targetMs)
                         },
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(24.dp),
+                        colors =
+                            SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            ),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .height(24.dp),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -286,29 +299,33 @@ fun RemotePlaybackControlCard(
                 val auxButtonBgColor = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.06f)
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     // 左侧辅助按键：TV 播放循环模式
                     val tvLoopMode = tvPlayerState.loopMode
-                    val loopIcon = when (tvLoopMode) {
-                        "SingleRepeat" -> Icons.Rounded.RepeatOne
-                        "Shuffle" -> Icons.Rounded.Shuffle
-                        else -> Icons.Rounded.Repeat
-                    }
-                    val loopDesc = when (tvLoopMode) {
-                        "SingleRepeat" -> "单曲循环"
-                        "Shuffle" -> "随机播放"
-                        else -> "列表循环"
-                    }
+                    val loopIcon =
+                        when (tvLoopMode) {
+                            "SingleRepeat" -> Icons.Rounded.RepeatOne
+                            "Shuffle" -> Icons.Rounded.Shuffle
+                            else -> Icons.Rounded.Repeat
+                        }
+                    val loopDesc =
+                        when (tvLoopMode) {
+                            "SingleRepeat" -> "单曲循环"
+                            "Shuffle" -> "随机播放"
+                            else -> "列表循环"
+                        }
                     IconButton(
                         onClick = { MobileConnectManager.tvCycleLoopMode() },
-                        modifier = Modifier
-                            .size(46.dp)
-                            .background(auxButtonBgColor, CircleShape),
+                        modifier =
+                            Modifier
+                                .size(46.dp)
+                                .background(auxButtonBgColor, CircleShape),
                     ) {
                         Icon(
                             imageVector = loopIcon,
@@ -321,9 +338,10 @@ fun RemotePlaybackControlCard(
                     // 上一首
                     IconButton(
                         onClick = { MobileConnectManager.tvPrev() },
-                        modifier = Modifier
-                            .size(46.dp)
-                            .background(auxButtonBgColor, CircleShape),
+                        modifier =
+                            Modifier
+                                .size(46.dp)
+                                .background(auxButtonBgColor, CircleShape),
                     ) {
                         Icon(
                             Icons.Rounded.SkipPrevious,
@@ -342,19 +360,21 @@ fun RemotePlaybackControlCard(
                                 MobileConnectManager.tvResume()
                             }
                         },
-                        modifier = Modifier
-                            .size(64.dp)
-                            .shadow(
-                                elevation = 4.dp,
-                                shape = CircleShape,
-                                spotColor = Color.Black.copy(alpha = if (isDark) 0.35f else 0.14f),
-                                ambientColor = Color.Black.copy(alpha = 0.08f),
-                                clip = false,
+                        modifier =
+                            Modifier
+                                .size(64.dp)
+                                .shadow(
+                                    elevation = 4.dp,
+                                    shape = CircleShape,
+                                    spotColor = Color.Black.copy(alpha = if (isDark) 0.35f else 0.14f),
+                                    ambientColor = Color.Black.copy(alpha = 0.08f),
+                                    clip = false,
+                                ),
+                        colors =
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = playPauseContainerColor,
+                                contentColor = playPauseContentColor,
                             ),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = playPauseContainerColor,
-                            contentColor = playPauseContentColor,
-                        ),
                     ) {
                         Icon(
                             imageVector = if (tvPlayerState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
@@ -366,9 +386,10 @@ fun RemotePlaybackControlCard(
                     // 下一首
                     IconButton(
                         onClick = { MobileConnectManager.tvNext() },
-                        modifier = Modifier
-                            .size(46.dp)
-                            .background(auxButtonBgColor, CircleShape),
+                        modifier =
+                            Modifier
+                                .size(46.dp)
+                                .background(auxButtonBgColor, CircleShape),
                     ) {
                         Icon(
                             Icons.Rounded.SkipNext,
@@ -408,9 +429,10 @@ fun RemotePlaybackControlCard(
             } else {
                 // 未连接状态下的引导卡片
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(

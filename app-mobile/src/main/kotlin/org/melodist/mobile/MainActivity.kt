@@ -113,7 +113,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val settings by org.melodist.data.AppSettingsManager.settings.collectAsState()
+            val settings by org.melodist.data.AppSettingsManager.settings
+                .collectAsState()
             MelodistMobileTheme(
                 themeMode = settings.themeMode,
                 dynamicColor = settings.dynamicColor,

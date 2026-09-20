@@ -99,9 +99,10 @@ fun LazyListScope.remoteDeviceListSection(
     if (discoveredDevices.isEmpty() && pairedDevices.isEmpty()) {
         item {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -191,11 +192,12 @@ fun LazyListScope.remoteDeviceListSection(
                     }
                 },
                 shape = RoundedCornerShape(12.dp),
-                color = if (isConnected) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerLow
-                },
+                color =
+                    if (isConnected) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -219,11 +221,12 @@ fun LazyListScope.remoteDeviceListSection(
                                 fontWeight = if (isConnected) FontWeight.Bold else FontWeight.Medium,
                             )
                             Text(
-                                text = if (isConnected) {
-                                    "当前已连接"
-                                } else {
-                                    "地址: ${target.host.ifBlank { "局域网已记忆" }}:${target.port}"
-                                },
+                                text =
+                                    if (isConnected) {
+                                        "当前已连接"
+                                    } else {
+                                        "地址: ${target.host.ifBlank { "局域网已记忆" }}:${target.port}"
+                                    },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             )

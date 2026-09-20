@@ -123,12 +123,24 @@ class MelodistCacheManagerTest {
 
     @Test
     fun `stereo rank ordering follows physical audio quality hierarchy`() {
-        val stdRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.Standard)
-        val hqRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.HQ)
-        val sqRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.SQ)
-        val hiResRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.HiRes)
-        val masterRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.Master)
-        val atmosRank = org.melodist.model.AudioQualityTier.getStereoRank(org.melodist.model.AudioQualityTier.Atmos)
+        val stdRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(org.melodist.model.AudioQualityTier.Standard)
+        val hqRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(org.melodist.model.AudioQualityTier.HQ)
+        val sqRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(org.melodist.model.AudioQualityTier.SQ)
+        val hiResRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(org.melodist.model.AudioQualityTier.HiRes)
+        val masterRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(org.melodist.model.AudioQualityTier.Master)
+        val atmosRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(org.melodist.model.AudioQualityTier.Atmos)
 
         assertTrue(stdRank in 1..<hqRank)
         assertTrue(hqRank < sqRank)
@@ -148,4 +160,3 @@ class MelodistCacheManagerTest {
         assertFalse(MelodistCacheManager.isUriCached("https://example.com/audio.flac"))
     }
 }
-

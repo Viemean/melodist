@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -123,11 +122,12 @@ fun PlayerSongInfoSection(
                     song?.songMid?.startsWith("local_") == true ||
                     !song?.localFilePath.isNullOrBlank()
 
-            val badgeText = if (!isLocalOrWebDav && isFromCache) {
-                "${AudioQualityTier.getBadge(currentTier)} · 缓存"
-            } else {
-                AudioQualityTier.getBadge(currentTier)
-            }
+            val badgeText =
+                if (!isLocalOrWebDav && isFromCache) {
+                    "${AudioQualityTier.getBadge(currentTier)} · 缓存"
+                } else {
+                    AudioQualityTier.getBadge(currentTier)
+                }
 
             if (isLocalOrWebDav) {
                 // 本地与 WebDAV 音乐：单一固定音源，显示静态规格标签，禁止呼出音质切换

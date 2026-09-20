@@ -219,7 +219,10 @@ object UserLibraryCacheManager {
         }
     }
 
-    private fun updateFavoriteCount(count: Int, uin: String) {
+    private fun updateFavoriteCount(
+        count: Int,
+        uin: String,
+    ) {
         val updated =
             _libraryFlow.value.copy(
                 favoriteCount = count,
@@ -266,9 +269,10 @@ object UserLibraryCacheManager {
                 if (localFirstMid == remoteFirstMid) {
                     // 头部第一首相同，进一步比对前 30 首序列
                     val checkCount = minOf(remoteSongs.size, localSongs.size)
-                    val isPrefixIdentical = (0 until checkCount).all { i ->
-                        remoteSongs[i].songMid == localSongs[i].songMid
-                    }
+                    val isPrefixIdentical =
+                        (0 until checkCount).all { i ->
+                            remoteSongs[i].songMid == localSongs[i].songMid
+                        }
                     if (isPrefixIdentical && (remoteTotal <= 0 || remoteTotal == localSongs.size)) {
                         // Case 3: 完全一致，无任何变更，仅更新时间戳
                         val updatedCache = favSongsCache.copy(fetchTimestamp = System.currentTimeMillis(), accountUin = currentUin)
@@ -286,18 +290,20 @@ object UserLibraryCacheManager {
                 if (localHeadIndexInRemote > 0) {
                     // 检查从 localHeadIndexInRemote 开始的连续子序列是否与本地头部吻合
                     val matchLength = minOf(remoteSongs.size - localHeadIndexInRemote, localSongs.size)
-                    val isSubsequenceMatch = (0 until matchLength).all { i ->
-                        remoteSongs[localHeadIndexInRemote + i].songMid == localSongs[i].songMid
-                    }
+                    val isSubsequenceMatch =
+                        (0 until matchLength).all { i ->
+                            remoteSongs[localHeadIndexInRemote + i].songMid == localSongs[i].songMid
+                        }
                     if (isSubsequenceMatch) {
                         // Case 4: 确认为头部新增了 N 首歌
                         val newSongs = remoteSongs.take(localHeadIndexInRemote)
                         val merged = newSongs + localSongs
-                        val updatedCache = FavoriteSongsCache(
-                            songs = merged,
-                            fetchTimestamp = System.currentTimeMillis(),
-                            accountUin = currentUin,
-                        )
+                        val updatedCache =
+                            FavoriteSongsCache(
+                                songs = merged,
+                                fetchTimestamp = System.currentTimeMillis(),
+                                accountUin = currentUin,
+                            )
                         favSongsCache = updatedCache
                         _favoriteSongsFlow.value = merged
                         saveFavSongsToDisk(updatedCache)
@@ -550,12 +556,18 @@ object UserLibraryCacheManager {
         }
     }
 
-    private fun getPlaylistCacheFile(dirId: Long, tid: Long): File? {
+    private fun getPlaylistCacheFile(
+        dirId: Long,
+        tid: Long,
+    ): File? {
         val dir = playlistCacheDir ?: return null
-        return File(dir, "${dirId}_${tid}.json")
+        return File(dir, "${dirId}_$tid.json")
     }
 
-    fun getCachedPlaylistSongs(dirId: Long, tid: Long): List<Song>? {
+    fun getCachedPlaylistSongs(
+        dirId: Long,
+        tid: Long,
+    ): List<Song>? {
         try {
             val file = getPlaylistCacheFile(dirId, tid) ?: return null
             if (file.exists() && file.length() > 0) {
@@ -570,7 +582,12 @@ object UserLibraryCacheManager {
         return null
     }
 
-    fun savePlaylistSongsCache(dirId: Long, tid: Long, songs: List<Song>, totalCount: Int = songs.size) {
+    fun savePlaylistSongsCache(
+        dirId: Long,
+        tid: Long,
+        songs: List<Song>,
+        totalCount: Int = songs.size,
+    ) {
         scope.launch {
             try {
                 val file = getPlaylistCacheFile(dirId, tid) ?: return@launch
@@ -623,9 +640,10 @@ object UserLibraryCacheManager {
 
                 if (localFirstMid == remoteFirstMid) {
                     val checkCount = minOf(remoteSongs.size, localSongs.size)
-                    val isPrefixIdentical = (0 until checkCount).all { i ->
-                        remoteSongs[i].songMid == localSongs[i].songMid
-                    }
+                    val isPrefixIdentical =
+                        (0 until checkCount).all { i ->
+                            remoteSongs[i].songMid == localSongs[i].songMid
+                        }
                     if (isPrefixIdentical && (targetTotalCount <= 0 || targetTotalCount == localSongs.size)) {
                         return@withContext localSongs
                     } else {
@@ -638,9 +656,10 @@ object UserLibraryCacheManager {
                 val localHeadIndexInRemote = remoteSongs.indexOfFirst { it.songMid == localFirstMid }
                 if (localHeadIndexInRemote > 0) {
                     val matchLength = minOf(remoteSongs.size - localHeadIndexInRemote, localSongs.size)
-                    val isSubsequenceMatch = (0 until matchLength).all { i ->
-                        remoteSongs[localHeadIndexInRemote + i].songMid == localSongs[i].songMid
-                    }
+                    val isSubsequenceMatch =
+                        (0 until matchLength).all { i ->
+                            remoteSongs[localHeadIndexInRemote + i].songMid == localSongs[i].songMid
+                        }
                     if (isSubsequenceMatch) {
                         val newSongs = remoteSongs.take(localHeadIndexInRemote)
                         val merged = newSongs + localSongs

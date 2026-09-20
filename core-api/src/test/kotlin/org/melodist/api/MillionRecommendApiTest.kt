@@ -41,7 +41,13 @@ class MillionRecommendApiTest {
             """.trimIndent()
 
         val root = Json.parseToJsonElement(feedRespJson).jsonObject
-        val shelves = root["feed"]?.jsonObject?.get("data")?.jsonObject?.get("v_shelf")?.jsonArray
+        val shelves =
+            root["feed"]
+                ?.jsonObject
+                ?.get("data")
+                ?.jsonObject
+                ?.get("v_shelf")
+                ?.jsonArray
         assertNotNull(shelves)
 
         var foundDisstid = 0L
@@ -53,10 +59,18 @@ class MillionRecommendApiTest {
             for (niche in niches) {
                 val cards = niche.jsonObject["v_card"]?.jsonArray ?: continue
                 for (card in cards) {
-                    val title = card.jsonObject["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val title =
+                        card.jsonObject["title"]
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
                     if (title.contains("百万") || title == "百万收藏") {
                         foundDisstid = card.jsonObject["id"]?.jsonPrimitive?.longOrNull ?: 0L
-                        foundCover = card.jsonObject["cover"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                        foundCover =
+                            card.jsonObject["cover"]
+                                ?.jsonPrimitive
+                                ?.contentOrNull
+                                .orEmpty()
                         foundTitle = title
                         if (foundDisstid > 0L) break@shelfLoop
                     }
@@ -111,9 +125,24 @@ class MillionRecommendApiTest {
         assertNotNull(data)
 
         val dirinfo = data!!["dirinfo"]?.jsonObject
-        val desc = dirinfo?.get("desc")?.jsonPrimitive?.contentOrNull.orEmpty()
-        val picUrl = dirinfo?.get("picurl")?.jsonPrimitive?.contentOrNull.orEmpty()
-        val title = dirinfo?.get("title")?.jsonPrimitive?.contentOrNull.orEmpty()
+        val desc =
+            dirinfo
+                ?.get("desc")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                .orEmpty()
+        val picUrl =
+            dirinfo
+                ?.get("picurl")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                .orEmpty()
+        val title =
+            dirinfo
+                ?.get("title")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                .orEmpty()
 
         val songArray = data["songlist"]?.jsonArray
         assertNotNull(songArray)

@@ -31,10 +31,11 @@ import org.melodist.playback.PlaybackManager
 
 object MobileConnectManager {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     private var storageManager: ConnectStorageManager? = null
     private var connectClient: MobileConnectClient? = null
@@ -147,18 +148,19 @@ object MobileConnectManager {
 
         scope.launch {
             client.playerState.collect { state ->
-                val resolvedState = if (state != null) {
-                    val resolvedSong = state.currentSong?.let { resolveWebDavCoverLocally(it) }
-                    val resolvedPrev = state.prevSong?.let { resolveWebDavCoverLocally(it) }
-                    val resolvedNext = state.nextSong?.let { resolveWebDavCoverLocally(it) }
-                    state.copy(
-                        currentSong = resolvedSong,
-                        prevSong = resolvedPrev,
-                        nextSong = resolvedNext,
-                    )
-                } else {
-                    null
-                }
+                val resolvedState =
+                    if (state != null) {
+                        val resolvedSong = state.currentSong?.let { resolveWebDavCoverLocally(it) }
+                        val resolvedPrev = state.prevSong?.let { resolveWebDavCoverLocally(it) }
+                        val resolvedNext = state.nextSong?.let { resolveWebDavCoverLocally(it) }
+                        state.copy(
+                            currentSong = resolvedSong,
+                            prevSong = resolvedPrev,
+                            nextSong = resolvedNext,
+                        )
+                    } else {
+                        null
+                    }
                 _tvPlayerState.value = resolvedState
                 if (remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
                     if (resolvedState != null) {
@@ -286,7 +288,10 @@ object MobileConnectManager {
         scope.launch {
             PlaybackManager.lyricsLoadedFlow.collect { (song, lyrics) ->
                 val c = connectClient ?: return@collect
-                if (!org.melodist.data.LyricCacheManager.isRemoteSynced(song.songMid) && isTvOnline) {
+                if (!org.melodist.data.LyricCacheManager
+                        .isRemoteSynced(song.songMid) &&
+                    isTvOnline
+                ) {
                     c.sendLyricsSync(
                         org.melodist.core.connect.model.LyricsSyncPayload(
                             songMid = song.songMid,
@@ -329,7 +334,11 @@ object MobileConnectManager {
         startAutoConnectLoop()
     }
 
-    private suspend fun isPortReachable(host: String, port: Int, timeoutMs: Int = 500): Boolean =
+    private suspend fun isPortReachable(
+        host: String,
+        port: Int,
+        timeoutMs: Int = 500,
+    ): Boolean =
         withContext(Dispatchers.IO) {
             if (host.isBlank() || port <= 0) return@withContext false
             try {
@@ -342,7 +351,11 @@ object MobileConnectManager {
             }
         }
 
-    private suspend fun findReachablePort(host: String, basePort: Int = 8765, timeoutMs: Int = 400): Int? =
+    private suspend fun findReachablePort(
+        host: String,
+        basePort: Int = 8765,
+        timeoutMs: Int = 400,
+    ): Int? =
         withContext(Dispatchers.IO) {
             if (host.isBlank()) return@withContext null
             if (isPortReachable(host, basePort, timeoutMs)) {
@@ -364,76 +377,84 @@ object MobileConnectManager {
 
     private fun startAutoConnectLoop() {
         autoConnectJob?.cancel()
-        autoConnectJob = scope.launch {
-            // 1. 监听 NSD 发现的设备：当监听到最近成功连接的设备或已配对设备时，主动发起连接
-            launch {
-                nsdHelper?.discoveredDevices?.collect { devices ->
-                    if (userManuallyDisconnected) return@collect
+        autoConnectJob =
+            scope.launch {
+                // 1. 监听 NSD 发现的设备：当监听到最近成功连接的设备或已配对设备时，主动发起连接
+                launch {
+                    nsdHelper?.discoveredDevices?.collect { devices ->
+                        if (userManuallyDisconnected) return@collect
+                        val state = connectionState.value
+                        if (state is MobileConnectionState.Connected || state is MobileConnectionState.Paired || state is MobileConnectionState.Connecting) {
+                            return@collect
+                        }
+                        val lastDevice = storageManager?.getLastConnectedDevice()
+                        val matched =
+                            if (lastDevice != null) {
+                                devices.find { it.id == lastDevice.id }
+                            } else {
+                                devices.find { storageManager?.isDevicePaired(it.id) == true }
+                            }
+                        if (matched != null) {
+                            autoConnectFailureCount = 0
+                            android.util.Log.i(
+                                "MobileConnectManager",
+                                "Auto-connecting to discovered device: ${matched.name} (${matched.host}:${matched.port})",
+                            )
+                            connectClient?.connect(matched)
+                        }
+                    }
+                }
+
+                // 2. 自适应探测重连：带轻量 TCP 端口多候选探测、指数退避与失败上限停止
+                var isFirstCheck = true
+                while (isActive) {
+                    if (isFirstCheck) {
+                        delay(1500L)
+                        isFirstCheck = false
+                    }
+                    if (userManuallyDisconnected) {
+                        delay(5000L)
+                        continue
+                    }
                     val state = connectionState.value
                     if (state is MobileConnectionState.Connected || state is MobileConnectionState.Paired || state is MobileConnectionState.Connecting) {
-                        return@collect
-                    }
-                    val lastDevice = storageManager?.getLastConnectedDevice()
-                    val matched = if (lastDevice != null) {
-                        devices.find { it.id == lastDevice.id }
-                    } else {
-                        devices.find { storageManager?.isDevicePaired(it.id) == true }
-                    }
-                    if (matched != null) {
                         autoConnectFailureCount = 0
-                        android.util.Log.i("MobileConnectManager", "Auto-connecting to discovered device: ${matched.name} (${matched.host}:${matched.port})")
-                        connectClient?.connect(matched)
+                        delay(6000L)
+                        continue
+                    }
+
+                    // 达到最大失败次数后停止无休止探测，避免能耗与网络开销
+                    if (autoConnectFailureCount >= MAX_AUTO_CONNECT_FAILURES) {
+                        android.util.Log.i("MobileConnectManager", "Auto-connect stopped after reaching maximum failure attempts ($autoConnectFailureCount).")
+                        break
+                    }
+
+                    val lastDevice = storageManager?.getLastConnectedDevice()
+                    if (lastDevice == null || lastDevice.host.isBlank() || lastDevice.port <= 0) {
+                        delay(6000L)
+                        continue
+                    }
+
+                    // 多端口探测（8765..8775），在线才尝试建立 WebSocket 握手
+                    val startPort = if (lastDevice.port in 8765..8775) 8765 else lastDevice.port
+                    val reachablePort = findReachablePort(lastDevice.host, startPort, timeoutMs = 400)
+                    if (reachablePort != null) {
+                        val target = if (reachablePort != lastDevice.port) lastDevice.copy(port = reachablePort) else lastDevice
+                        android.util.Log.i("MobileConnectManager", "Device port reachable ($reachablePort), auto-connecting: ${target.name}")
+                        connectClient?.connect(target)
+                        // 等待连接握手结果
+                        delay(4000L)
+                    } else {
+                        autoConnectFailureCount++
+                        val backoff = AUTO_CONNECT_BACKOFF_DELAYS.getOrElse(autoConnectFailureCount - 1) { 60000L }
+                        android.util.Log.d(
+                            "MobileConnectManager",
+                            "Device ${lastDevice.host} unreachable on ports $startPort..${startPort + 10}, probeFailure=$autoConnectFailureCount, nextBackoff=${backoff}ms",
+                        )
+                        delay(backoff)
                     }
                 }
             }
-
-            // 2. 自适应探测重连：带轻量 TCP 端口多候选探测、指数退避与失败上限停止
-            var isFirstCheck = true
-            while (isActive) {
-                if (isFirstCheck) {
-                    delay(1500L)
-                    isFirstCheck = false
-                }
-                if (userManuallyDisconnected) {
-                    delay(5000L)
-                    continue
-                }
-                val state = connectionState.value
-                if (state is MobileConnectionState.Connected || state is MobileConnectionState.Paired || state is MobileConnectionState.Connecting) {
-                    autoConnectFailureCount = 0
-                    delay(6000L)
-                    continue
-                }
-
-                // 达到最大失败次数后停止无休止探测，避免能耗与网络开销
-                if (autoConnectFailureCount >= MAX_AUTO_CONNECT_FAILURES) {
-                    android.util.Log.i("MobileConnectManager", "Auto-connect stopped after reaching maximum failure attempts ($autoConnectFailureCount).")
-                    break
-                }
-
-                val lastDevice = storageManager?.getLastConnectedDevice()
-                if (lastDevice == null || lastDevice.host.isBlank() || lastDevice.port <= 0) {
-                    delay(6000L)
-                    continue
-                }
-
-                // 多端口探测（8765..8775），在线才尝试建立 WebSocket 握手
-                val startPort = if (lastDevice.port in 8765..8775) 8765 else lastDevice.port
-                val reachablePort = findReachablePort(lastDevice.host, startPort, timeoutMs = 400)
-                if (reachablePort != null) {
-                    val target = if (reachablePort != lastDevice.port) lastDevice.copy(port = reachablePort) else lastDevice
-                    android.util.Log.i("MobileConnectManager", "Device port reachable ($reachablePort), auto-connecting: ${target.name}")
-                    connectClient?.connect(target)
-                    // 等待连接握手结果
-                    delay(4000L)
-                } else {
-                    autoConnectFailureCount++
-                    val backoff = AUTO_CONNECT_BACKOFF_DELAYS.getOrElse(autoConnectFailureCount - 1) { 60000L }
-                    android.util.Log.d("MobileConnectManager", "Device ${lastDevice.host} unreachable on ports $startPort..${startPort + 10}, probeFailure=$autoConnectFailureCount, nextBackoff=${backoff}ms")
-                    delay(backoff)
-                }
-            }
-        }
     }
 
     fun startDiscovery() {
@@ -447,7 +468,10 @@ object MobileConnectManager {
         nsdHelper?.stopDiscovery()
     }
 
-    fun connectTo(device: ConnectDevice, pinCode: String = "") {
+    fun connectTo(
+        device: ConnectDevice,
+        pinCode: String = "",
+    ) {
         userManuallyDisconnected = false
         scope.launch {
             val startPort = if (device.port in 8765..8775) 8765 else device.port
@@ -457,23 +481,23 @@ object MobileConnectManager {
         }
     }
 
-    fun connectByQrJson(qrJson: String): Boolean {
-        return try {
+    fun connectByQrJson(qrJson: String): Boolean =
+        try {
             val data = json.decodeFromString<QrPairData>(qrJson)
-            val device = ConnectDevice(
-                id = data.deviceId,
-                name = data.deviceName,
-                type = DeviceType.TV,
-                host = data.host,
-                port = data.port,
-                token = data.token,
-            )
+            val device =
+                ConnectDevice(
+                    id = data.deviceId,
+                    name = data.deviceName,
+                    type = DeviceType.TV,
+                    host = data.host,
+                    port = data.port,
+                    token = data.token,
+                )
             connectTo(device, data.pinCode)
             true
         } catch (_: Exception) {
             false
         }
-    }
 
     fun disconnect() {
         userManuallyDisconnected = true
@@ -575,11 +599,16 @@ object MobileConnectManager {
         playOnTv(song, startPositionMs = pos)
     }
 
-    fun playOnTv(song: Song, startPositionMs: Long = 0L, forceTier: AudioQualityTier? = null) {
+    fun playOnTv(
+        song: Song,
+        startPositionMs: Long = 0L,
+        forceTier: AudioQualityTier? = null,
+    ) {
         scope.launch(Dispatchers.Main) {
-            val audioSource = withContext(Dispatchers.IO) {
-                resolveAudioSource(song)
-            }
+            val audioSource =
+                withContext(Dispatchers.IO) {
+                    resolveAudioSource(song)
+                }
             val currentPlaylist = PlaybackManager.playlist.value
             val idx = currentPlaylist.indexOfFirst { it.songMid == song.songMid }.coerceAtLeast(0)
             val effectiveTier = forceTier ?: PlaybackManager.preferredTier.value
@@ -670,7 +699,10 @@ object MobileConnectManager {
 
     private var lastLyricsScrollSendTime = 0L
 
-    fun sendLyricsScroll(lineIndex: Int, isUserScrolling: Boolean) {
+    fun sendLyricsScroll(
+        lineIndex: Int,
+        isUserScrolling: Boolean,
+    ) {
         if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) return
         val now = System.currentTimeMillis()
         if (isUserScrolling) {
@@ -683,128 +715,130 @@ object MobileConnectManager {
     }
 
     private fun setupPlaybackInterceptor() {
-        PlaybackManager.playbackInterceptor = object : PlaybackInterceptor {
-            override fun onInterceptPlaySong(
-                song: Song,
-                forceTier: AudioQualityTier?,
-                seekToMs: Long,
-            ): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
-                }
-                val localSong = PlaybackManager.currentSong.value
-                val effectiveSeekMs = if (seekToMs > 0L) {
-                    seekToMs
-                } else if (!PlaybackManager.isRemoteActive.value && localSong?.songMid == song.songMid) {
-                    PlaybackManager.currentPositionMs.value
-                } else {
-                    0L
-                }
-                playOnTv(song, startPositionMs = effectiveSeekMs, forceTier = forceTier)
-                return true
-            }
-
-            override fun onInterceptSwitchTier(tier: AudioQualityTier): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
-                }
-                connectClient?.switchTier(tier)
-                return true
-            }
-
-            override fun onInterceptTogglePlayPause(): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
-                }
-                if (PlaybackManager.isRemoteActive.value) {
-                    val isPlaying = tvPlayerState.value?.isPlaying == true
-                    if (isPlaying) {
-                        tvPause()
-                    } else {
-                        tvResume()
+        PlaybackManager.playbackInterceptor =
+            object : PlaybackInterceptor {
+                override fun onInterceptPlaySong(
+                    song: Song,
+                    forceTier: AudioQualityTier?,
+                    seekToMs: Long,
+                ): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
                     }
-                } else {
                     val localSong = PlaybackManager.currentSong.value
-                    if (localSong != null) {
-                        val localPos = PlaybackManager.currentPositionMs.value
-                        playOnTv(localSong, startPositionMs = localPos)
+                    val effectiveSeekMs =
+                        if (seekToMs > 0L) {
+                            seekToMs
+                        } else if (!PlaybackManager.isRemoteActive.value && localSong?.songMid == song.songMid) {
+                            PlaybackManager.currentPositionMs.value
+                        } else {
+                            0L
+                        }
+                    playOnTv(song, startPositionMs = effectiveSeekMs, forceTier = forceTier)
+                    return true
+                }
+
+                override fun onInterceptSwitchTier(tier: AudioQualityTier): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
+                    }
+                    connectClient?.switchTier(tier)
+                    return true
+                }
+
+                override fun onInterceptTogglePlayPause(): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
+                    }
+                    if (PlaybackManager.isRemoteActive.value) {
+                        val isPlaying = tvPlayerState.value?.isPlaying == true
+                        if (isPlaying) {
+                            tvPause()
+                        } else {
+                            tvResume()
+                        }
                     } else {
-                        val tvSong = tvPlayerState.value?.currentSong
-                        if (tvSong != null) {
+                        val localSong = PlaybackManager.currentSong.value
+                        if (localSong != null) {
+                            val localPos = PlaybackManager.currentPositionMs.value
+                            playOnTv(localSong, startPositionMs = localPos)
+                        } else {
+                            val tvSong = tvPlayerState.value?.currentSong
+                            if (tvSong != null) {
+                                tvResume()
+                            }
+                        }
+                    }
+                    return true
+                }
+
+                override fun onInterceptPause(): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
+                    }
+                    tvPause()
+                    return true
+                }
+
+                override fun onInterceptResume(): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
+                    }
+                    if (PlaybackManager.isRemoteActive.value) {
+                        tvResume()
+                    } else {
+                        val localSong = PlaybackManager.currentSong.value
+                        if (localSong != null) {
+                            val localPos = PlaybackManager.currentPositionMs.value
+                            playOnTv(localSong, startPositionMs = localPos)
+                        } else {
                             tvResume()
                         }
                     }
+                    return true
                 }
-                return true
-            }
 
-            override fun onInterceptPause(): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
-                }
-                tvPause()
-                return true
-            }
-
-            override fun onInterceptResume(): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
-                }
-                if (PlaybackManager.isRemoteActive.value) {
-                    tvResume()
-                } else {
-                    val localSong = PlaybackManager.currentSong.value
-                    if (localSong != null) {
-                        val localPos = PlaybackManager.currentPositionMs.value
-                        playOnTv(localSong, startPositionMs = localPos)
-                    } else {
-                        tvResume()
+                override fun onInterceptSeekTo(positionMs: Long): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
                     }
+                    tvSeekTo(positionMs)
+                    return true
                 }
-                return true
-            }
 
-            override fun onInterceptSeekTo(positionMs: Long): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
+                override fun onInterceptPlayNext(): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
+                    }
+                    tvNext()
+                    return true
                 }
-                tvSeekTo(positionMs)
-                return true
-            }
 
-            override fun onInterceptPlayNext(): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
+                override fun onInterceptPlayPrevious(): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
+                    }
+                    tvPrev()
+                    return true
                 }
-                tvNext()
-                return true
-            }
 
-            override fun onInterceptPlayPrevious(): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
+                override fun onInterceptCycleLoopMode(): Boolean {
+                    if (isSyncingFromTv) return false
+                    if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
+                        return false
+                    }
+                    tvCycleLoopMode()
+                    return true
                 }
-                tvPrev()
-                return true
             }
-
-            override fun onInterceptCycleLoopMode(): Boolean {
-                if (isSyncingFromTv) return false
-                if (!isTvOnline || remoteControlMode.value != RemoteControlMode.TAKEOVER) {
-                    return false
-                }
-                tvCycleLoopMode()
-                return true
-            }
-        }
     }
 
     private fun prepareSongForTv(song: Song): Song {
@@ -815,15 +849,19 @@ object MobileConnectManager {
             updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
         }
         if (updated.isLocal || updated.songMid.startsWith("local_")) {
-            val localPath = updated.localFilePath.takeIf { !it.isNullOrBlank() }
-                ?: org.melodist.data.LocalMusicManager.getScannedSongs()
-                    .find { it.songMid == song.songMid }?.localFilePath
+            val localPath =
+                updated.localFilePath.takeIf { !it.isNullOrBlank() }
+                    ?: org.melodist.data.LocalMusicManager
+                        .getScannedSongs()
+                        .find { it.songMid == song.songMid }
+                        ?.localFilePath
             if (!localPath.isNullOrBlank()) {
                 val streamUrl = server.buildLocalAudioStreamUrl(localPath)
-                updated = updated.copy(
-                    localFilePath = localPath,
-                    mediaMid = streamUrl,
-                )
+                updated =
+                    updated.copy(
+                        localFilePath = localPath,
+                        mediaMid = streamUrl,
+                    )
             }
         }
         return updated
@@ -841,13 +879,19 @@ object MobileConnectManager {
         }
         val serverId = song.songMid.removePrefix("webdav_").substringBeforeLast('_')
         val href = song.mediaMid.ifBlank { song.localFilePath.orEmpty() }
-        val servers = org.melodist.data.WebDavManager.getServers()
-        val server = servers.find { it.id == serverId }
-            ?: org.melodist.data.WebDavManager.getActiveServer()
-            ?: servers.firstOrNull()
-            ?: return song
+        val servers =
+            org.melodist.data.WebDavManager
+                .getServers()
+        val server =
+            servers.find { it.id == serverId }
+                ?: org.melodist.data.WebDavManager
+                    .getActiveServer()
+                ?: servers.firstOrNull()
+                ?: return song
         if (href.isNotBlank()) {
-            val cachedCover = org.melodist.data.WebDavManager.getSongCoverPath(server.id, href)
+            val cachedCover =
+                org.melodist.data.WebDavManager
+                    .getSongCoverPath(server.id, href)
             if (!cachedCover.isNullOrBlank()) {
                 return song.copy(coverUrl = cachedCover)
             }
@@ -859,11 +903,16 @@ object MobileConnectManager {
         val isOfflineMode = tvOfflineProxy.value
         val server = streamServer
 
-        val filePath = song.localFilePath
-            ?: if (song.isLocal || song.songMid.startsWith("local_")) {
-                org.melodist.data.LocalMusicManager.getScannedSongs()
-                    .find { it.songMid == song.songMid }?.localFilePath
-            } else null
+        val filePath =
+            song.localFilePath
+                ?: if (song.isLocal || song.songMid.startsWith("local_")) {
+                    org.melodist.data.LocalMusicManager
+                        .getScannedSongs()
+                        .find { it.songMid == song.songMid }
+                        ?.localFilePath
+                } else {
+                    null
+                }
 
         if ((song.isLocal || song.songMid.startsWith("local_") || !filePath.isNullOrBlank()) && !filePath.isNullOrBlank() && server != null) {
             return AudioSourceDescriptor(

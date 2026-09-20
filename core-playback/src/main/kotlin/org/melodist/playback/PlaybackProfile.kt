@@ -43,8 +43,8 @@ data class PlaybackProfile(
                 allowMasterDiskCache = true,
             )
 
-        fun detect(context: Context): PlaybackProfile {
-            return try {
+        fun detect(context: Context): PlaybackProfile =
+            try {
                 val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
                 val isTvUi = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
                 val hasLeanback = context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
@@ -52,6 +52,5 @@ data class PlaybackProfile(
             } catch (_: Exception) {
                 Mobile
             }
-        }
     }
 }

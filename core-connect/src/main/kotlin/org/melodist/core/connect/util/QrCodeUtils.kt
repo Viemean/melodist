@@ -16,18 +16,20 @@ object QrCodeUtils {
     ): Bitmap? {
         if (content.isBlank()) return null
         return try {
-            val hints = mapOf(
-                EncodeHintType.CHARACTER_SET to "UTF-8",
-                EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
-                EncodeHintType.MARGIN to 1,
-            )
-            val matrix = QRCodeWriter().encode(
-                content,
-                BarcodeFormat.QR_CODE,
-                sizePx,
-                sizePx,
-                hints,
-            )
+            val hints =
+                mapOf(
+                    EncodeHintType.CHARACTER_SET to "UTF-8",
+                    EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
+                    EncodeHintType.MARGIN to 1,
+                )
+            val matrix =
+                QRCodeWriter().encode(
+                    content,
+                    BarcodeFormat.QR_CODE,
+                    sizePx,
+                    sizePx,
+                    hints,
+                )
             val width = matrix.width
             val height = matrix.height
             val pixels = IntArray(width * height)
@@ -45,23 +47,30 @@ object QrCodeUtils {
         }
     }
 
-    fun decodeQrFromBitmap(bitmap: Bitmap): String? {
-        return try {
+    fun decodeQrFromBitmap(bitmap: Bitmap): String? =
+        try {
             val width = bitmap.width
             val height = bitmap.height
             val pixels = IntArray(width * height)
             bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
             val source = com.google.zxing.RGBLuminanceSource(width, height, pixels)
-            val binaryBitmap = com.google.zxing.BinaryBitmap(com.google.zxing.common.HybridBinarizer(source))
-            val hints = mapOf<com.google.zxing.DecodeHintType, Any>(
-                com.google.zxing.DecodeHintType.CHARACTER_SET to "UTF-8",
-                com.google.zxing.DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
-                com.google.zxing.DecodeHintType.TRY_HARDER to true,
-            )
-            val result = com.google.zxing.MultiFormatReader().decode(binaryBitmap, hints)
+            val binaryBitmap =
+                com.google.zxing.BinaryBitmap(
+                    com.google.zxing.common
+                        .HybridBinarizer(source),
+                )
+            val hints =
+                mapOf<com.google.zxing.DecodeHintType, Any>(
+                    com.google.zxing.DecodeHintType.CHARACTER_SET to "UTF-8",
+                    com.google.zxing.DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
+                    com.google.zxing.DecodeHintType.TRY_HARDER to true,
+                )
+            val result =
+                com.google.zxing
+                    .MultiFormatReader()
+                    .decode(binaryBitmap, hints)
             result.text
         } catch (_: Exception) {
             null
         }
-    }
 }

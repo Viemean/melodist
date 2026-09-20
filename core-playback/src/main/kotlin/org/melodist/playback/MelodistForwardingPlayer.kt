@@ -24,8 +24,9 @@ class MelodistForwardingPlayer(
     }
 
     private val isRemoteVirtual: Boolean
-        get() = PlaybackManager.isRemoteActive.value &&
-            (!super.getPlayWhenReady() || super.getPlaybackState() == Player.STATE_IDLE)
+        get() =
+            PlaybackManager.isRemoteActive.value &&
+                (!super.getPlayWhenReady() || super.getPlaybackState() == Player.STATE_IDLE)
 
     fun notifyRemoteStateChanged() {
         val song = PlaybackManager.currentSong.value
@@ -61,14 +62,11 @@ class MelodistForwardingPlayer(
             super.getCurrentTimeline()
         }
 
-    override fun getCurrentPeriodIndex(): Int =
-        if (isRemoteVirtual) 0 else super.getCurrentPeriodIndex()
+    override fun getCurrentPeriodIndex(): Int = if (isRemoteVirtual) 0 else super.getCurrentPeriodIndex()
 
-    override fun getContentPosition(): Long =
-        if (isRemoteVirtual) PlaybackManager.currentPositionMs.value else super.getContentPosition()
+    override fun getContentPosition(): Long = if (isRemoteVirtual) PlaybackManager.currentPositionMs.value else super.getContentPosition()
 
-    override fun getContentDuration(): Long =
-        if (isRemoteVirtual) PlaybackManager.durationMs.value.coerceAtLeast(0L) else super.getContentDuration()
+    override fun getContentDuration(): Long = if (isRemoteVirtual) PlaybackManager.durationMs.value.coerceAtLeast(0L) else super.getContentDuration()
 
     override fun getPlaybackState(): Int =
         if (isRemoteVirtual) {
@@ -123,8 +121,7 @@ class MelodistForwardingPlayer(
             super.getDuration()
         }
 
-    override fun getCurrentMediaItemIndex(): Int =
-        if (isRemoteVirtual) 0 else super.getCurrentMediaItemIndex()
+    override fun getCurrentMediaItemIndex(): Int = if (isRemoteVirtual) 0 else super.getCurrentMediaItemIndex()
 
     override fun getMediaItemCount(): Int =
         if (isRemoteVirtual) {
@@ -196,7 +193,10 @@ class MelodistForwardingPlayer(
         }
     }
 
-    override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+    override fun seekTo(
+        mediaItemIndex: Int,
+        positionMs: Long,
+    ) {
         if (isRemoteVirtual) {
             PlaybackManager.seekTo(positionMs)
         } else {

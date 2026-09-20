@@ -11,8 +11,10 @@ import org.melodist.api.MusicApiService
 import org.melodist.model.Song
 
 class PlaybackQueueNextPlayTest {
-
-    private fun createDummySong(mid: String, name: String = mid): Song =
+    private fun createDummySong(
+        mid: String,
+        name: String = mid,
+    ): Song =
         Song(
             songId = mid.hashCode().toLong(),
             songMid = mid,
@@ -25,13 +27,14 @@ class PlaybackQueueNextPlayTest {
     fun `test insertNextPlay in Shuffle mode ensures next track is the inserted one`() {
         val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         var requestedSong: Song? = null
-        val queueManager = PlaybackQueueManager(
-            scope = scope,
-            apiService = MusicApiService(),
-            onStateChanged = {},
-            onPlaySongRequest = { song, _, _ -> requestedSong = song },
-            onStopPlaybackRequest = {},
-        )
+        val queueManager =
+            PlaybackQueueManager(
+                scope = scope,
+                apiService = MusicApiService(),
+                onStateChanged = {},
+                onPlaySongRequest = { song, _, _ -> requestedSong = song },
+                onStopPlaybackRequest = {},
+            )
 
         val initialSongs = (0 until 10).map { createDummySong("mid_$it") }
         queueManager.setPlaylist(initialSongs, startIndex = 0)
@@ -53,13 +56,14 @@ class PlaybackQueueNextPlayTest {
     fun `test insertNextPlay in SingleRepeat mode guides getNextSong and playNext`() {
         val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         var requestedSong: Song? = null
-        val queueManager = PlaybackQueueManager(
-            scope = scope,
-            apiService = MusicApiService(),
-            onStateChanged = {},
-            onPlaySongRequest = { song, _, _ -> requestedSong = song },
-            onStopPlaybackRequest = {},
-        )
+        val queueManager =
+            PlaybackQueueManager(
+                scope = scope,
+                apiService = MusicApiService(),
+                onStateChanged = {},
+                onPlaySongRequest = { song, _, _ -> requestedSong = song },
+                onStopPlaybackRequest = {},
+            )
 
         val initialSongs = listOf(createDummySong("mid_0"), createDummySong("mid_1"))
         queueManager.setPlaylist(initialSongs, startIndex = 0)
@@ -81,20 +85,22 @@ class PlaybackQueueNextPlayTest {
     fun `test insertNextPlay with item before current index keeps playing track stable`() {
         val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         var requestedSong: Song? = null
-        val queueManager = PlaybackQueueManager(
-            scope = scope,
-            apiService = MusicApiService(),
-            onStateChanged = {},
-            onPlaySongRequest = { song, _, _ -> requestedSong = song },
-            onStopPlaybackRequest = {},
-        )
+        val queueManager =
+            PlaybackQueueManager(
+                scope = scope,
+                apiService = MusicApiService(),
+                onStateChanged = {},
+                onPlaySongRequest = { song, _, _ -> requestedSong = song },
+                onStopPlaybackRequest = {},
+            )
 
-        val songs = listOf(
-            createDummySong("mid_0"),
-            createDummySong("mid_1"),
-            createDummySong("mid_2"),
-            createDummySong("mid_3"),
-        )
+        val songs =
+            listOf(
+                createDummySong("mid_0"),
+                createDummySong("mid_1"),
+                createDummySong("mid_2"),
+                createDummySong("mid_3"),
+            )
         // 当前播放 mid_2 (下标 2)
         queueManager.setPlaylist(songs, startIndex = 2)
 

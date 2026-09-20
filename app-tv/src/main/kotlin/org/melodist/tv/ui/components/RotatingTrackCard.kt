@@ -190,17 +190,23 @@ fun RotatingTrackCard(
                 AnimatedContent(
                     targetState = item,
                     transitionSpec = {
-                        (slideInHorizontally(
-                            animationSpec = tween(durationMillis = 900, delayMillis = (slotIndex * 80).coerceAtMost(400), easing = FastOutSlowInEasing),
-                            initialOffsetX = { fullWidth -> (fullWidth * 0.45f).toInt() },
-                        ) + fadeIn(
-                            animationSpec = tween(durationMillis = 800, delayMillis = (slotIndex * 80).coerceAtMost(400)),
-                        )) togetherWith (slideOutHorizontally(
-                            animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
-                            targetOffsetX = { fullWidth -> -(fullWidth * 0.45f).toInt() },
-                        ) + fadeOut(
-                            animationSpec = tween(durationMillis = 700),
-                        ))
+                        (
+                            slideInHorizontally(
+                                animationSpec = tween(durationMillis = 900, delayMillis = (slotIndex * 80).coerceAtMost(400), easing = FastOutSlowInEasing),
+                                initialOffsetX = { fullWidth -> (fullWidth * 0.45f).toInt() },
+                            ) +
+                                fadeIn(
+                                    animationSpec = tween(durationMillis = 800, delayMillis = (slotIndex * 80).coerceAtMost(400)),
+                                )
+                        ) togetherWith (
+                            slideOutHorizontally(
+                                animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+                                targetOffsetX = { fullWidth -> -(fullWidth * 0.45f).toInt() },
+                            ) +
+                                fadeOut(
+                                    animationSpec = tween(durationMillis = 700),
+                                )
+                        )
                     },
                     label = "RotatingCoverTransition",
                 ) { currentItem ->
@@ -252,8 +258,7 @@ fun RotatingTrackCard(
                                         animatedCardBg.toMonetContainer(0.04f).copy(alpha = 0.96f),
                                     ),
                             ),
-                        )
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        ).padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -263,17 +268,23 @@ fun RotatingTrackCard(
                     AnimatedContent(
                         targetState = item,
                         transitionSpec = {
-                            (slideInHorizontally(
-                                animationSpec = tween(durationMillis = 850, delayMillis = (slotIndex * 80).coerceAtMost(400), easing = FastOutSlowInEasing),
-                                initialOffsetX = { fullWidth -> (fullWidth * 0.35f).toInt() },
-                            ) + fadeIn(
-                                animationSpec = tween(durationMillis = 750, delayMillis = (slotIndex * 80).coerceAtMost(400)),
-                            )) togetherWith (slideOutHorizontally(
-                                animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing),
-                                targetOffsetX = { fullWidth -> -(fullWidth * 0.35f).toInt() },
-                            ) + fadeOut(
-                                animationSpec = tween(durationMillis = 650),
-                            ))
+                            (
+                                slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 850, delayMillis = (slotIndex * 80).coerceAtMost(400), easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> (fullWidth * 0.35f).toInt() },
+                                ) +
+                                    fadeIn(
+                                        animationSpec = tween(durationMillis = 750, delayMillis = (slotIndex * 80).coerceAtMost(400)),
+                                    )
+                            ) togetherWith (
+                                slideOutHorizontally(
+                                    animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { fullWidth -> -(fullWidth * 0.35f).toInt() },
+                                ) +
+                                    fadeOut(
+                                        animationSpec = tween(durationMillis = 650),
+                                    )
+                            )
                         },
                         modifier = Modifier.weight(1f),
                         label = "RotatingTextTransition",

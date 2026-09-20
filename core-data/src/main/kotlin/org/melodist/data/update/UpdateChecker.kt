@@ -106,11 +106,12 @@ object UpdateChecker {
         val localClean = localVersion.removePrefix("v").trim()
         if (remoteClean.isBlank() || remoteClean == localClean) return false
 
-        val localEffective = if (localClean.startsWith("20.") && localClean.count { it == '.' } >= 3) {
-            localClean.removePrefix("20.")
-        } else {
-            localClean
-        }
+        val localEffective =
+            if (localClean.startsWith("20.") && localClean.count { it == '.' } >= 3) {
+                localClean.removePrefix("20.")
+            } else {
+                localClean
+            }
         if (remoteClean == localEffective) return false
 
         val remoteParts = remoteClean.split(".").mapNotNull { it.toIntOrNull() }
@@ -144,10 +145,11 @@ object UpdateChecker {
         }
 
         if (keywordLower == "mobile") {
-            val standardMobileMatch = apkAssets.firstOrNull {
-                val lower = it.first.lowercase()
-                lower.contains("mobile") && !lower.contains("originos")
-            }
+            val standardMobileMatch =
+                apkAssets.firstOrNull {
+                    val lower = it.first.lowercase()
+                    lower.contains("mobile") && !lower.contains("originos")
+                }
             if (standardMobileMatch != null) {
                 return standardMobileMatch.second
             }
@@ -167,4 +169,3 @@ object UpdateChecker {
         return universalApk?.second
     }
 }
-

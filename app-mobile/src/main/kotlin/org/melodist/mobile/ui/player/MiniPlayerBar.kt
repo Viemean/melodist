@@ -15,9 +15,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -34,8 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import org.melodist.core.connect.client.MobileConnectionState
-import org.melodist.mobile.connect.MobileConnectManager
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -64,6 +62,8 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.melodist.core.connect.client.MobileConnectionState
+import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
@@ -369,13 +369,19 @@ fun MiniPlayerBar(
                             if (isTakeover) {
                                 if (!isRemoteActive) {
                                     MobileConnectManager.relayCurrentPlaybackToTv()
-                                    android.widget.Toast.makeText(localCtx, "已将当前播放接力至 TV", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast
+                                        .makeText(localCtx, "已将当前播放接力至 TV", android.widget.Toast.LENGTH_SHORT)
+                                        .show()
                                 } else {
-                                    android.widget.Toast.makeText(localCtx, "全面接管模式生效中：播放直通 TV", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast
+                                        .makeText(localCtx, "全面接管模式生效中：播放直通 TV", android.widget.Toast.LENGTH_SHORT)
+                                        .show()
                                 }
                             } else {
                                 MobileConnectManager.relayCurrentPlaybackToTv()
-                                android.widget.Toast.makeText(localCtx, "正在接力至 TV 播放", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast
+                                    .makeText(localCtx, "正在接力至 TV 播放", android.widget.Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         },
                         modifier = Modifier.size(36.dp),
@@ -412,7 +418,7 @@ fun MiniPlayerBar(
                         transitionSpec = {
                             (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.75f, animationSpec = tween(180)))
                                 .togetherWith(
-                                    fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.75f, animationSpec = tween(140))
+                                    fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.75f, animationSpec = tween(140)),
                                 )
                         },
                         label = "MiniPlayPauseIconAnim",
@@ -452,9 +458,7 @@ fun MiniPlayerBar(
 }
 
 @Composable
-private fun MiniPlayerProgressBar(
-    modifier: Modifier = Modifier,
-) {
+private fun MiniPlayerProgressBar(modifier: Modifier = Modifier) {
     val currentPositionMs by PlaybackManager.currentPositionMs.collectAsState()
     val durationMs by PlaybackManager.durationMs.collectAsState()
 

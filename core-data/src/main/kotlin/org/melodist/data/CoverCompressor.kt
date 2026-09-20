@@ -12,7 +12,10 @@ object CoverCompressor {
     const val TARGET_DIMENSION = 500
     private const val COMPRESS_QUALITY = 85
 
-    fun isLowResolution(file: File, minDimension: Int = TARGET_DIMENSION): Boolean {
+    fun isLowResolution(
+        file: File,
+        minDimension: Int = TARGET_DIMENSION,
+    ): Boolean {
         if (!file.exists() || file.length() == 0L) return true
         return try {
             val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }

@@ -74,7 +74,6 @@ data class Playlist(
         get() = CoverUrlResolver.getCandidates(picUrl, CoverScenario.DETAIL)
 }
 
-
 @Serializable
 data class QualityOption(
     val tier: AudioQualityTier,

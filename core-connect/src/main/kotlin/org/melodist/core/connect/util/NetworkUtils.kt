@@ -5,18 +5,41 @@ import java.net.NetworkInterface
 import java.util.Collections
 
 object NetworkUtils {
-    internal val VIRTUAL_INTERFACE_PATTERNS = listOf(
-        "tun", "tap", "ppp", "p2p", "virbr", "docker", "dummy", "vbox",
-        "mihomo", "clash", "tailscale", "wireguard", "wg", "zt", "br-",
-    )
+    internal val VIRTUAL_INTERFACE_PATTERNS =
+        listOf(
+            "tun",
+            "tap",
+            "ppp",
+            "p2p",
+            "virbr",
+            "docker",
+            "dummy",
+            "vbox",
+            "mihomo",
+            "clash",
+            "tailscale",
+            "wireguard",
+            "wg",
+            "zt",
+            "br-",
+        )
 
     fun isEmulator(): Boolean {
-        val fp = android.os.Build.FINGERPRINT.lowercase()
-        val model = android.os.Build.MODEL.lowercase()
-        val hw = android.os.Build.HARDWARE.lowercase()
-        return fp.startsWith("generic") || fp.contains("emulator") ||
-            model.contains("sdk") || model.contains("emulator") ||
-            hw.contains("goldfish") || hw.contains("ranchu")
+        val fp =
+            android.os.Build.FINGERPRINT
+                .lowercase()
+        val model =
+            android.os.Build.MODEL
+                .lowercase()
+        val hw =
+            android.os.Build.HARDWARE
+                .lowercase()
+        return fp.startsWith("generic") ||
+            fp.contains("emulator") ||
+            model.contains("sdk") ||
+            model.contains("emulator") ||
+            hw.contains("goldfish") ||
+            hw.contains("ranchu")
     }
 
     // 判断 IP 地址是否属于需要过滤的范围（回环、APIPA、FakeIP、Docker 等）
@@ -28,15 +51,19 @@ object NetworkUtils {
             host.startsWith("172.18.")
 
     // 判断网络接口名是否属于虚拟/隧道接口
-    internal fun isVirtualInterface(name: String): Boolean =
-        VIRTUAL_INTERFACE_PATTERNS.any { name.lowercase().contains(it) }
+    internal fun isVirtualInterface(name: String): Boolean = VIRTUAL_INTERFACE_PATTERNS.any { name.lowercase().contains(it) }
 
     // 计算 IP 地址的优先级得分（越高越优先推荐为本机地址）
-    internal fun scoreIp(host: String, interfaceName: String): Int {
+    internal fun scoreIp(
+        host: String,
+        interfaceName: String,
+    ): Int {
         var score = 0
         val name = interfaceName.lowercase()
-        if (name.startsWith("wlan") || name.startsWith("eth") ||
-            name.startsWith("en") || name.startsWith("wl")
+        if (name.startsWith("wlan") ||
+            name.startsWith("eth") ||
+            name.startsWith("en") ||
+            name.startsWith("wl")
         ) {
             score += 50
         }
@@ -70,12 +97,11 @@ object NetworkUtils {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         return results.sortedByDescending { it.second }.map { it.first }.distinct()
     }
 
-    fun getLocalIpv4Address(): String? {
-        return getAvailableIpv4Addresses().firstOrNull()
-    }
+    fun getLocalIpv4Address(): String? = getAvailableIpv4Addresses().firstOrNull()
 }

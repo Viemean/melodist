@@ -5,7 +5,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,14 +33,11 @@ import androidx.tv.material3.*
 import org.melodist.core.connect.model.ConnectDevice
 import org.melodist.tv.connect.TvConnectManager
 import org.melodist.tv.ui.theme.MelodistColors
-import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun ConnectTvScreen(
-    onBack: () -> Unit = {},
-) {
+fun ConnectTvScreen(onBack: () -> Unit = {}) {
     BackHandler {
         onBack()
     }
@@ -64,19 +60,24 @@ fun ConnectTvScreen(
     // 切换网卡 IP 弹窗
     if (showIpConfigDialog) {
         val availableIps = remember { TvConnectManager.getAvailableIps() }
-        val isEmulator = remember { org.melodist.core.connect.util.NetworkUtils.isEmulator() }
+        val isEmulator =
+            remember {
+                org.melodist.core.connect.util.NetworkUtils
+                    .isEmulator()
+            }
         var manualIpText by remember {
             mutableStateOf(if (localIp != "10.0.2.15" && localIp != "127.0.0.1") localIp else "")
         }
 
         Dialog(onDismissRequest = { showIpConfigDialog = false }) {
             Box(
-                modifier = Modifier
-                    .width(500.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF1E1E24))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(16.dp))
-                    .padding(24.dp),
+                modifier =
+                    Modifier
+                        .width(500.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF1E1E24))
+                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(16.dp))
+                        .padding(24.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(
@@ -110,23 +111,27 @@ fun ConnectTvScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                             ) {
                                 androidx.compose.foundation.text.BasicTextField(
                                     value = manualIpText,
                                     onValueChange = { manualIpText = it.trim() },
                                     singleLine = true,
-                                    textStyle = androidx.compose.ui.text.TextStyle(
-                                        color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                    ),
-                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(MelodistColors.FocusTeal),
+                                    textStyle =
+                                        androidx.compose.ui.text.TextStyle(
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                        ),
+                                    cursorBrush =
+                                        androidx.compose.ui.graphics
+                                            .SolidColor(MelodistColors.FocusTeal),
                                     modifier = Modifier.fillMaxWidth(),
                                 )
                                 if (manualIpText.isBlank()) {
@@ -146,10 +151,11 @@ fun ConnectTvScreen(
                                         showIpConfigDialog = false
                                     }
                                 },
-                                colors = ButtonDefaults.colors(
-                                    containerColor = MelodistColors.FocusTeal,
-                                    focusedContainerColor = Color.White,
-                                ),
+                                colors =
+                                    ButtonDefaults.colors(
+                                        containerColor = MelodistColors.FocusTeal,
+                                        focusedContainerColor = Color.White,
+                                    ),
                             ) {
                                 Text("应用", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
@@ -159,9 +165,10 @@ fun ConnectTvScreen(
                     if (availableIps.isNotEmpty()) {
                         Text("自动检测到的可用候选网卡：", fontSize = 13.sp, color = MelodistColors.TextSecondary)
                         LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 140.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 140.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             items(availableIps) { ip ->
@@ -172,10 +179,11 @@ fun ConnectTvScreen(
                                         showIpConfigDialog = false
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.colors(
-                                        containerColor = if (isSelected) Color(0xFF2E7D32).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
-                                        focusedContainerColor = MelodistColors.FocusTeal,
-                                    ),
+                                    colors =
+                                        ButtonDefaults.colors(
+                                            containerColor = if (isSelected) Color(0xFF2E7D32).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
+                                            focusedContainerColor = MelodistColors.FocusTeal,
+                                        ),
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -202,20 +210,22 @@ fun ConnectTvScreen(
                                 showIpConfigDialog = false
                             },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.colors(
-                                containerColor = Color.White.copy(alpha = 0.08f),
-                                focusedContainerColor = MelodistColors.FocusTeal,
-                            ),
+                            colors =
+                                ButtonDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.08f),
+                                    focusedContainerColor = MelodistColors.FocusTeal,
+                                ),
                         ) {
                             Text("恢复自动选择", fontSize = 13.sp)
                         }
                         Button(
                             onClick = { showIpConfigDialog = false },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.colors(
-                                containerColor = Color.White.copy(alpha = 0.08f),
-                                focusedContainerColor = MelodistColors.FocusTeal,
-                            ),
+                            colors =
+                                ButtonDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.08f),
+                                    focusedContainerColor = MelodistColors.FocusTeal,
+                                ),
                         ) {
                             Text("关闭", fontSize = 13.sp)
                         }
@@ -232,12 +242,13 @@ fun ConnectTvScreen(
                 acceptRequester.requestFocus()
             }
             Box(
-                modifier = Modifier
-                    .width(480.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF1E1E24))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(16.dp))
-                    .padding(28.dp),
+                modifier =
+                    Modifier
+                        .width(480.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF1E1E24))
+                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)), RoundedCornerShape(16.dp))
+                        .padding(28.dp),
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -268,13 +279,15 @@ fun ConnectTvScreen(
                     ) {
                         Button(
                             onClick = { TvConnectManager.acceptPairRequest(req.requestId) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(acceptRequester),
-                            colors = ButtonDefaults.colors(
-                                containerColor = MelodistColors.AccentGreen,
-                                focusedContainerColor = Color.White,
-                            ),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .focusRequester(acceptRequester),
+                            colors =
+                                ButtonDefaults.colors(
+                                    containerColor = MelodistColors.AccentGreen,
+                                    focusedContainerColor = Color.White,
+                                ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -287,10 +300,11 @@ fun ConnectTvScreen(
                         Button(
                             onClick = { TvConnectManager.rejectPairRequest(req.requestId) },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.colors(
-                                containerColor = Color.White.copy(alpha = 0.1f),
-                                focusedContainerColor = MelodistColors.FavoriteRed,
-                            ),
+                            colors =
+                                ButtonDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.1f),
+                                    focusedContainerColor = MelodistColors.FavoriteRed,
+                                ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -307,12 +321,13 @@ fun ConnectTvScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = metrics.horizontalSafePadding,
-                vertical = metrics.verticalSafePadding,
-            ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(
+                    horizontal = metrics.horizontalSafePadding,
+                    vertical = metrics.verticalSafePadding,
+                ),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         // 顶部标题栏
@@ -336,11 +351,12 @@ fun ConnectTvScreen(
             }
             if (connectedDevice != null) {
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2E7D32).copy(alpha = 0.2f))
-                        .border(BorderStroke(1.dp, Color(0xFF4CAF50)), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF2E7D32).copy(alpha = 0.2f))
+                            .border(BorderStroke(1.dp, Color(0xFF4CAF50)), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -370,13 +386,14 @@ fun ConnectTvScreen(
         ) {
             // 左栏：二维码与配对信息
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.04f))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(16.dp))
-                    .padding(24.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.04f))
+                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(16.dp))
+                        .padding(24.dp),
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -385,11 +402,12 @@ fun ConnectTvScreen(
                 ) {
                     if (qrBitmap != null) {
                         Box(
-                            modifier = Modifier
-                                .size(220.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White)
-                                .padding(8.dp),
+                            modifier =
+                                Modifier
+                                    .size(220.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White)
+                                    .padding(8.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Image(
@@ -400,10 +418,11 @@ fun ConnectTvScreen(
                         }
                     } else {
                         Box(
-                            modifier = Modifier
-                                .size(220.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.1f)),
+                            modifier =
+                                Modifier
+                                    .size(220.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text("正在生成配对二维码...", color = MelodistColors.TextMuted)
@@ -426,10 +445,11 @@ fun ConnectTvScreen(
                         Button(
                             onClick = { TvConnectManager.refreshPinCode() },
                             modifier = Modifier.focusRequester(refreshButtonRequester),
-                            colors = ButtonDefaults.colors(
-                                containerColor = Color.White.copy(alpha = 0.1f),
-                                focusedContainerColor = Color.White,
-                            ),
+                            colors =
+                                ButtonDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.1f),
+                                    focusedContainerColor = Color.White,
+                                ),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -444,10 +464,11 @@ fun ConnectTvScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = { showIpConfigDialog = true },
-                        colors = ButtonDefaults.colors(
-                            containerColor = Color.White.copy(alpha = 0.06f),
-                            focusedContainerColor = Color.White.copy(alpha = 0.2f),
-                        ),
+                        colors =
+                            ButtonDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.06f),
+                                focusedContainerColor = Color.White.copy(alpha = 0.2f),
+                            ),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -471,13 +492,14 @@ fun ConnectTvScreen(
 
             // 右栏：已配对设备管理
             Box(
-                modifier = Modifier
-                    .weight(1.1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.04f))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(16.dp))
-                    .padding(24.dp),
+                modifier =
+                    Modifier
+                        .weight(1.1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.04f))
+                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(16.dp))
+                        .padding(24.dp),
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -497,10 +519,11 @@ fun ConnectTvScreen(
                         if (pairedDevices.isNotEmpty()) {
                             Button(
                                 onClick = { TvConnectManager.clearAllPairedDevices() },
-                                colors = ButtonDefaults.colors(
-                                    containerColor = Color.White.copy(alpha = 0.08f),
-                                    focusedContainerColor = MelodistColors.FavoriteRed,
-                                ),
+                                colors =
+                                    ButtonDefaults.colors(
+                                        containerColor = Color.White.copy(alpha = 0.08f),
+                                        focusedContainerColor = MelodistColors.FavoriteRed,
+                                    ),
                             ) {
                                 Text("全部解除", fontSize = 12.sp)
                             }
@@ -509,9 +532,10 @@ fun ConnectTvScreen(
 
                     if (pairedDevices.isEmpty()) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -523,9 +547,10 @@ fun ConnectTvScreen(
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             items(pairedDevices, key = { it.id }) { device ->
@@ -552,15 +577,15 @@ private fun PairedDeviceRowItem(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isFocused) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.04f))
-            .border(
-                BorderStroke(1.dp, if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.06f)),
-                RoundedCornerShape(10.dp),
-            )
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isFocused) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.04f))
+                .border(
+                    BorderStroke(1.dp, if (isFocused) MelodistColors.FocusTeal else Color.White.copy(alpha = 0.06f)),
+                    RoundedCornerShape(10.dp),
+                ).padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -592,10 +617,11 @@ private fun PairedDeviceRowItem(
         Button(
             onClick = onRemove,
             modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
-            colors = ButtonDefaults.colors(
-                containerColor = Color.Transparent,
-                focusedContainerColor = MelodistColors.FavoriteRed,
-            ),
+            colors =
+                ButtonDefaults.colors(
+                    containerColor = Color.Transparent,
+                    focusedContainerColor = MelodistColors.FavoriteRed,
+                ),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

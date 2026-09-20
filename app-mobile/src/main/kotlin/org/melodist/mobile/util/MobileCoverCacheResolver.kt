@@ -6,6 +6,7 @@ import coil3.request.ImageRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.melodist.data.RawCoverHelper
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 import java.io.File
@@ -14,30 +15,34 @@ import java.io.File
  * 移动端封面缓存与网络策略解析器
  */
 object MobileCoverCacheResolver {
+    private const val MIN_VALID_COVER_SIZE = 512L
+
+    private fun isLocalCoverValid(url: String): Boolean {
+        if (url.isBlank()) return false
+        val clean = url.substringBefore('?')
+        val path = if (clean.startsWith("file://")) clean.removePrefix("file://") else clean
+        val file = File(path)
+        return file.exists() && file.length() > MIN_VALID_COVER_SIZE
+    }
+
     /**
      * 探测指定歌曲是否在本地具备无损原画大图（本地文件已存在或已被 Coil 写入磁盘缓存）
      */
-    fun hasRawCoverCache(context: Context, song: Song?): Boolean {
+    fun hasRawCoverCache(
+        context: Context,
+        song: Song?,
+    ): Boolean {
         if (song == null) return false
 
         // 1. 本地音频或 WebDAV 本地大图文件探测
-        if (song.rawCoverUrl.isNotBlank()) {
-            val clean = song.rawCoverUrl.substringBefore('?')
-            val path = if (clean.startsWith("file://")) clean.removePrefix("file://") else clean
-            if (File(path).exists() && File(path).length() > 512L) return true
-        }
-        val matchingRaw = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl)
-        if (!matchingRaw.isNullOrBlank()) {
-            val path = matchingRaw.removePrefix("file://")
-            if (File(path).exists() && File(path).length() > 512L) return true
-        }
+        if (isLocalCoverValid(song.rawCoverUrl)) return true
+        val matchingRaw = RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl)
+        if (!matchingRaw.isNullOrBlank() && isLocalCoverValid(matchingRaw)) return true
 
         // 2. 在线音乐无损原图在 Coil 磁盘缓存中是否存在
-        val rawUrl = song.rawCoverUrlOnly ?: return false
-        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
-            val imageLoader = SingletonImageLoader.get(context)
-            val diskCache = imageLoader.diskCache ?: return false
-            val snapshot = diskCache.openSnapshot(rawUrl)
+        val rawUrl = song.rawCoverUrlOnly
+        if (rawUrl != null && (rawUrl.startsWith("http://") || rawUrl.startsWith("https://"))) {
+            val snapshot = SingletonImageLoader.get(context).diskCache?.openSnapshot(rawUrl)
             if (snapshot != null) {
                 snapshot.close()
                 return true
@@ -52,11 +57,20 @@ object MobileCoverCacheResolver {
      * - 移动网络下已有原图缓存：直接加载原图；
      * - WiFi 或有线网络下：首选原图直出。
      */
-    fun resolveCandidates(context: Context, song: Song?): List<String> {
+    fun resolveCandidates(song: Song?): List<String> {
         if (song == null) return emptyList()
         val isCellular = PlaybackManager.isCellularNetwork()
         return song.resolvePlayerCoverCandidates(isCellular = isCellular)
     }
+
+    /**
+     * 兼容保留重载
+     */
+    @Deprecated("使用单参数 resolveCandidates(song)", ReplaceWith("resolveCandidates(song)"))
+    fun resolveCandidates(
+        @Suppress("UNUSED_PARAMETER") context: Context,
+        song: Song?,
+    ): List<String> = resolveCandidates(song)
 
     /**
      * 当在 WiFi 环境下播放该音乐时，若原图尚未写入磁盘缓存，自动在后台加载并升级原图缓存
@@ -67,19 +81,19 @@ object MobileCoverCacheResolver {
         scope: CoroutineScope? = null,
         onUpgraded: (() -> Unit)? = null,
     ) {
-        if (song == null) return
-        val isCellular = PlaybackManager.isCellularNetwork()
-        if (isCellular) return // 蜂窝移动网络下绝不静默下载原图
-
-        val rawUrl = song.rawCoverUrlOnly ?: return
-        if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) return
+        val rawUrl = song?.rawCoverUrlOnly
+        val shouldSkip =
+            song == null ||
+                PlaybackManager.isCellularNetwork() ||
+                rawUrl.isNullOrBlank() ||
+                (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://"))
+        if (shouldSkip) return
 
         val imageLoader = SingletonImageLoader.get(context)
-        val diskCache = imageLoader.diskCache
-        val snapshot = diskCache?.openSnapshot(rawUrl)
+        val snapshot = imageLoader.diskCache?.openSnapshot(rawUrl.orEmpty())
         if (snapshot != null) {
             snapshot.close()
-            return // 本地磁盘已有原图缓存，无需重复下载
+            return
         }
 
         val action = {
@@ -87,11 +101,8 @@ object MobileCoverCacheResolver {
                 ImageRequest
                     .Builder(context)
                     .data(rawUrl)
-                    .listener(
-                        onSuccess = { _, _ ->
-                            onUpgraded?.invoke()
-                        },
-                    ).build()
+                    .listener(onSuccess = { _, _ -> onUpgraded?.invoke() })
+                    .build()
             imageLoader.enqueue(request)
         }
 

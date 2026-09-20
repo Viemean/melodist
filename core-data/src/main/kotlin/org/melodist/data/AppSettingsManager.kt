@@ -46,11 +46,12 @@ data class CacheUsageDetail(
     val mediaQuotaFormatted: String get() = formatBytes(mediaQuotaBytes)
 
     val mediaUsageFraction: Float
-        get() = if (mediaQuotaBytes > 0L) {
-            (mediaCacheBytes.toFloat() / mediaQuotaBytes.toFloat()).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
+        get() =
+            if (mediaQuotaBytes > 0L) {
+                (mediaCacheBytes.toFloat() / mediaQuotaBytes.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
 
     fun formattedTotal(): String = formatBytes(totalBytes)
 
@@ -100,13 +101,18 @@ enum class ScreenSaverBrightness(
     Bright("明亮", 0.85f),
 }
 
-enum class ThemeMode(val label: String) {
+enum class ThemeMode(
+    val label: String,
+) {
     System("跟随系统"),
     Light("浅色"),
     Dark("深色"),
 }
 
-enum class AppColorTheme(val label: String, val seedColor: Long) {
+enum class AppColorTheme(
+    val label: String,
+    val seedColor: Long,
+) {
     Default("青蓝 (默认)", 0xFF5CAFC4),
     Violet("极光紫", 0xFF7E57C2),
     Emerald("翡翠绿", 0xFF26A69A),
@@ -427,7 +433,8 @@ object AppSettingsManager {
                 customColorHex = formatted,
                 colorTheme = AppColorTheme.Custom,
             )
-        prefs?.edit()
+        prefs
+            ?.edit()
             ?.putString(KEY_CUSTOM_COLOR_HEX, formatted)
             ?.putString(KEY_COLOR_THEME, AppColorTheme.Custom.name)
             ?.apply()

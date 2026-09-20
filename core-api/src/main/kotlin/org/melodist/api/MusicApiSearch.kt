@@ -8,7 +8,7 @@ import org.melodist.model.Album
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 
-/**
+/*
  * 搜索领域扩展：单曲、专辑、歌单检索
  */
 

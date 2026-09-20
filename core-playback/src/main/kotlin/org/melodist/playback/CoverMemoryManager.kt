@@ -18,7 +18,10 @@ object CoverMemoryManager {
     /**
      * 针对指定封面 URL，将其从 Coil 内存缓存中即时卸载释放
      */
-    fun evictCoverFromMemory(context: Context, url: String) {
+    fun evictCoverFromMemory(
+        context: Context,
+        url: String,
+    ) {
         if (url.isBlank()) return
         try {
             val memCache = SingletonImageLoader.get(context).memoryCache ?: return
@@ -45,12 +48,14 @@ object CoverMemoryManager {
             val memCache = SingletonImageLoader.get(context).memoryCache ?: return
             val activeSongs = listOfNotNull(prevSong, currSong, nextSong)
             val keepUrls =
-                activeSongs.flatMap { song ->
-                    listOfNotNull(
-                        song.rawCoverUrl.takeIf { it.isNotBlank() }?.substringBefore('?'),
-                        song.coverUrl.takeIf { it.isNotBlank() }?.substringBefore('?'),
-                    )
-                }.filter { it.isNotBlank() }.toSet()
+                activeSongs
+                    .flatMap { song ->
+                        listOfNotNull(
+                            song.rawCoverUrl.takeIf { it.isNotBlank() }?.substringBefore('?'),
+                            song.coverUrl.takeIf { it.isNotBlank() }?.substringBefore('?'),
+                        )
+                    }.filter { it.isNotBlank() }
+                    .toSet()
 
             val keysToEvict =
                 memCache.keys.filter { key ->

@@ -1,7 +1,6 @@
 package org.melodist.playback
 
 import android.content.Context
-import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -32,6 +31,7 @@ object PlaybackEngineFactory {
                 val settings = AppSettingsManager.settings.value
                 val isExclusive = settings.enableUsbExclusive
                 val isPassthrough = settings.enableAudioPassthrough || isExclusive
+
                 @Suppress("DEPRECATION")
                 val audioCapabilities =
                     if (isPassthrough) {
@@ -39,6 +39,7 @@ object PlaybackEngineFactory {
                     } else {
                         AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES
                     }
+
                 @Suppress("DEPRECATION")
                 val builder =
                     DefaultAudioSink

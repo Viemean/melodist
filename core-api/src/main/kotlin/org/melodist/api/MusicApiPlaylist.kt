@@ -304,7 +304,13 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
                         ?: 0L
                 Triple(true, dirId, "创建成功")
             } else {
-                val msg = obj["data"]?.jsonObject?.get("msg")?.jsonPrimitive?.contentOrNull.orEmpty()
+                val msg =
+                    obj["data"]
+                        ?.jsonObject
+                        ?.get("msg")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
                 Triple(false, 0L, if (msg.isNotBlank()) msg else "创建失败(code=$code)")
             }
         } catch (e: Exception) {
@@ -461,7 +467,14 @@ suspend fun MusicApiService.addSongsToPlaylist(
         if (!UserSession.isLoggedIn || dirId <= 0L || songs.isEmpty()) return@withContext AddSongResult.Failed
         val resolvedSongInfos =
             songs.mapNotNull { s ->
-                val id = if (s.songId > 0L) s.songId else if (s.songMid.isNotBlank()) resolveSongId(s.songMid) else 0L
+                val id =
+                    if (s.songId > 0L) {
+                        s.songId
+                    } else if (s.songMid.isNotBlank()) {
+                        resolveSongId(s.songMid)
+                    } else {
+                        0L
+                    }
                 if (id > 0L) id else null
             }
         if (resolvedSongInfos.isEmpty()) return@withContext AddSongResult.Failed
@@ -516,7 +529,14 @@ suspend fun MusicApiService.deleteSongsFromPlaylist(
         if (!UserSession.isLoggedIn || dirId <= 0L || songs.isEmpty()) return@withContext false
         val resolvedSongInfos =
             songs.mapNotNull { s ->
-                val id = if (s.songId > 0L) s.songId else if (s.songMid.isNotBlank()) resolveSongId(s.songMid) else 0L
+                val id =
+                    if (s.songId > 0L) {
+                        s.songId
+                    } else if (s.songMid.isNotBlank()) {
+                        resolveSongId(s.songMid)
+                    } else {
+                        0L
+                    }
                 if (id > 0L) id else null
             }
         if (resolvedSongInfos.isEmpty()) return@withContext false

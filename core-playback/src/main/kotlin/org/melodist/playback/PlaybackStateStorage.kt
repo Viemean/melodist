@@ -25,13 +25,13 @@ data class RestoredPlaybackState(
 
 object PlaybackStateStorage {
     private const val PREFS_NAME = "melodist_playback_prefs"
-    private val jsonHelper = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val jsonHelper =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
-    fun getPrefs(context: Context?): SharedPreferences? =
-        context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun getPrefs(context: Context?): SharedPreferences? = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun sanitizeSongCover(song: Song): Song {
         val url = song.coverUrl
@@ -103,7 +103,10 @@ object PlaybackStateStorage {
         }
     }
 
-    fun savePlaybackProgress(context: Context?, posMs: Long) {
+    fun savePlaybackProgress(
+        context: Context?,
+        posMs: Long,
+    ) {
         val prefs = getPrefs(context) ?: return
         try {
             prefs.edit().putLong("current_position_ms", posMs).apply()

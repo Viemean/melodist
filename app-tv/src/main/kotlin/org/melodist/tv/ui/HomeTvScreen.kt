@@ -21,10 +21,19 @@ import org.melodist.tv.ui.theme.MonetColorExtractor
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
 
 sealed interface HomeFocusTarget {
-    data class TopNav(val index: Int) : HomeFocusTarget
+    data class TopNav(
+        val index: Int,
+    ) : HomeFocusTarget
+
     data object HeroCard : HomeFocusTarget
-    data class CoreCard(val index: Int) : HomeFocusTarget
-    data class FeedCard(val index: Int) : HomeFocusTarget
+
+    data class CoreCard(
+        val index: Int,
+    ) : HomeFocusTarget
+
+    data class FeedCard(
+        val index: Int,
+    ) : HomeFocusTarget
 }
 
 object HomeFocusMemory {
@@ -56,11 +65,12 @@ fun HomeTvScreen(
     val currentTier by PlaybackManager.currentTier.collectAsState()
     val durationMs by PlaybackManager.durationMs.collectAsState()
     val favoriteCount by UserSession.favoriteSongCount.collectAsState()
-    val connectedPhone by org.melodist.tv.connect.TvConnectManager.connectedDevice.collectAsState()
+    val connectedPhone by org.melodist.tv.connect.TvConnectManager.connectedDevice
+        .collectAsState()
 
     var selectedNavIndex by remember {
         mutableIntStateOf(
-            (HomeFocusMemory.lastTarget as? HomeFocusTarget.TopNav)?.index ?: 0
+            (HomeFocusMemory.lastTarget as? HomeFocusTarget.TopNav)?.index ?: 0,
         )
     }
     val favoriteSongMids by PlaybackManager.favoriteSongMids.collectAsState()

@@ -6,7 +6,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.melodist.model.LyricLine
@@ -45,7 +44,10 @@ object LyricCacheManager {
      * 1. 是否包含逐行中文翻译（优先级最高）
      * 2. 歌词总行数（更完整者胜）
      */
-    fun isBetterQuality(candidate: List<LyricLine>, current: List<LyricLine>): Boolean {
+    fun isBetterQuality(
+        candidate: List<LyricLine>,
+        current: List<LyricLine>,
+    ): Boolean {
         if (candidate.isEmpty()) return false
         if (current.isEmpty()) return true
 
@@ -124,7 +126,10 @@ object LyricCacheManager {
         return offsetMap[songKey] ?: 0L
     }
 
-    fun saveLyricOffsetMs(songKey: String, offsetMs: Long) {
+    fun saveLyricOffsetMs(
+        songKey: String,
+        offsetMs: Long,
+    ) {
         if (songKey.isBlank()) return
         offsetMap[songKey] = offsetMs
         scope.launch {
@@ -169,6 +174,5 @@ object LyricCacheManager {
         }
     }
 
-    private fun sanitizeFileName(name: String): String =
-        name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+    private fun sanitizeFileName(name: String): String = name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
 }

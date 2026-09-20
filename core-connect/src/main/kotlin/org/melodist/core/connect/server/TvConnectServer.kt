@@ -18,7 +18,6 @@ import org.java_websocket.server.WebSocketServer
 import org.melodist.core.connect.model.ConnectActions
 import org.melodist.core.connect.model.ConnectDevice
 import org.melodist.core.connect.model.ConnectMessage
-import org.melodist.core.connect.model.DeviceType
 import org.melodist.core.connect.model.EnqueueNextCommand
 import org.melodist.core.connect.model.PairRequestPayload
 import org.melodist.core.connect.model.PairResponsePayload
@@ -32,24 +31,59 @@ import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
 
 sealed interface TvIncomingCommand {
-    data class PlaySong(val command: PlaySongCommand) : TvIncomingCommand
-    data class EnqueueNext(val command: EnqueueNextCommand) : TvIncomingCommand
+    data class PlaySong(
+        val command: PlaySongCommand,
+    ) : TvIncomingCommand
+
+    data class EnqueueNext(
+        val command: EnqueueNextCommand,
+    ) : TvIncomingCommand
+
     data object Pause : TvIncomingCommand
+
     data object Resume : TvIncomingCommand
+
     data object Previous : TvIncomingCommand
+
     data object Next : TvIncomingCommand
-    data class Seek(val positionMs: Long) : TvIncomingCommand
-    data class SetVolume(val volume: Float) : TvIncomingCommand
-    data class SwitchTier(val command: org.melodist.core.connect.model.SwitchTierCommand) : TvIncomingCommand
+
+    data class Seek(
+        val positionMs: Long,
+    ) : TvIncomingCommand
+
+    data class SetVolume(
+        val volume: Float,
+    ) : TvIncomingCommand
+
+    data class SwitchTier(
+        val command: org.melodist.core.connect.model.SwitchTierCommand,
+    ) : TvIncomingCommand
+
     data object TriggerAod : TvIncomingCommand
+
     data object CycleLoopMode : TvIncomingCommand
+
     data object OpenPlayer : TvIncomingCommand
-    data class GestureSwipe(val payload: org.melodist.core.connect.model.GestureSwipePayload) : TvIncomingCommand
-    data class ToggleFavorite(val command: org.melodist.core.connect.model.ToggleFavoriteCommand) : TvIncomingCommand
-    data class SyncLyricsScroll(val payload: org.melodist.core.connect.model.LyricsScrollPayload) : TvIncomingCommand
+
+    data class GestureSwipe(
+        val payload: org.melodist.core.connect.model.GestureSwipePayload,
+    ) : TvIncomingCommand
+
+    data class ToggleFavorite(
+        val command: org.melodist.core.connect.model.ToggleFavoriteCommand,
+    ) : TvIncomingCommand
+
+    data class SyncLyricsScroll(
+        val payload: org.melodist.core.connect.model.LyricsScrollPayload,
+    ) : TvIncomingCommand
+
     data object RequestGetPlayerState : TvIncomingCommand
+
     data object RequestGetQueueState : TvIncomingCommand
-    data class SyncLyrics(val payload: org.melodist.core.connect.model.LyricsSyncPayload) : TvIncomingCommand
+
+    data class SyncLyrics(
+        val payload: org.melodist.core.connect.model.LyricsSyncPayload,
+    ) : TvIncomingCommand
 }
 
 data class PendingPairRequest(
@@ -66,10 +100,11 @@ class TvConnectServer(
     var actualPort: Int = port
         private set
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     private var server: InternalWebSocketServer? = null
 
@@ -91,7 +126,8 @@ class TvConnectServer(
                 java.net.ServerSocket(candidate).use {
                     return candidate
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         return startPort
     }
@@ -109,7 +145,8 @@ class TvConnectServer(
     fun stop() {
         try {
             server?.stop()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         server = null
         activeClients.clear()
         pendingRequests.clear()
@@ -151,7 +188,8 @@ class TvConnectServer(
         )
         try {
             request.socket.close()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     fun broadcastPlayerState(event: PlayerStateEvent) {
@@ -182,13 +220,17 @@ class TvConnectServer(
         broadcastAction(ConnectActions.CMD_CYCLE_LOOP_MODE)
     }
 
-    private inline fun <reified T> broadcastData(action: String, data: T) {
+    private inline fun <reified T> broadcastData(
+        action: String,
+        data: T,
+    ) {
         val message = json.encodeToString(ConnectMessage.create(action, data, json))
         activeClients.keys.forEach { ws ->
             if (ws.isOpen) {
                 try {
                     ws.send(message)
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
             }
         }
     }
@@ -199,33 +241,53 @@ class TvConnectServer(
             if (ws.isOpen) {
                 try {
                     ws.send(message)
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
             }
         }
     }
 
-    private inline fun <reified T> sendData(socket: WebSocket, action: String, data: T) {
+    private inline fun <reified T> sendData(
+        socket: WebSocket,
+        action: String,
+        data: T,
+    ) {
         if (!socket.isOpen) return
         val message = json.encodeToString(ConnectMessage.create(action, data, json))
         try {
             socket.send(message)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
-    private fun sendAction(socket: WebSocket, action: String) {
+    private fun sendAction(
+        socket: WebSocket,
+        action: String,
+    ) {
         if (!socket.isOpen) return
         val message = json.encodeToString(ConnectMessage(action = action))
         try {
             socket.send(message)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
-    private inner class InternalWebSocketServer(address: InetSocketAddress) : WebSocketServer(address) {
-        override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
+    private inner class InternalWebSocketServer(
+        address: InetSocketAddress,
+    ) : WebSocketServer(address) {
+        override fun onOpen(
+            conn: WebSocket,
+            handshake: ClientHandshake,
+        ) {
             android.util.Log.i("MelodistConnectServer", "Client socket opened from ${conn.remoteSocketAddress}")
         }
 
-        override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
+        override fun onClose(
+            conn: WebSocket,
+            code: Int,
+            reason: String,
+            remote: Boolean,
+        ) {
             android.util.Log.i("MelodistConnectServer", "Client socket closed: code=$code, reason=$reason, remote=$remote")
             val device = activeClients.remove(conn)
             if (device != null && _connectedDeviceFlow.value?.id == device.id) {
@@ -233,12 +295,18 @@ class TvConnectServer(
             }
         }
 
-        override fun onMessage(conn: WebSocket, text: String) {
+        override fun onMessage(
+            conn: WebSocket,
+            text: String,
+        ) {
             android.util.Log.d("MelodistConnectServer", "Received message from client: $text")
             handleIncomingMessage(conn, text)
         }
 
-        override fun onError(conn: WebSocket?, ex: Exception) {
+        override fun onError(
+            conn: WebSocket?,
+            ex: Exception,
+        ) {
             android.util.Log.e("MelodistConnectServer", "WebSocket error: ${ex.message}", ex)
         }
 
@@ -247,12 +315,16 @@ class TvConnectServer(
         }
     }
 
-    private fun handleIncomingMessage(conn: WebSocket, text: String) {
-        val msg = try {
-            json.decodeFromString<ConnectMessage>(text)
-        } catch (_: Exception) {
-            return
-        }
+    private fun handleIncomingMessage(
+        conn: WebSocket,
+        text: String,
+    ) {
+        val msg =
+            try {
+                json.decodeFromString<ConnectMessage>(text)
+            } catch (_: Exception) {
+                return
+            }
 
         when (msg.action) {
             ConnectActions.PING -> {
@@ -266,8 +338,9 @@ class TvConnectServer(
             }
             ConnectActions.PAIR_REQUEST -> {
                 val req = msg.decodeData<PairRequestPayload>(json) ?: return
-                val isTrusted = storageManager.isDevicePaired(req.device.id) &&
-                    storageManager.isTokenTrusted(req.device.token)
+                val isTrusted =
+                    storageManager.isDevicePaired(req.device.id) &&
+                        storageManager.isTokenTrusted(req.device.token)
 
                 if (isTrusted) {
                     activeClients[conn] = req.device
@@ -287,12 +360,13 @@ class TvConnectServer(
                         _commandsFlow.emit(TvIncomingCommand.RequestGetQueueState)
                     }
                 } else {
-                    val pending = PendingPairRequest(
-                        requestId = msg.id,
-                        device = req.device,
-                        pinCode = req.pinCode,
-                        socket = conn,
-                    )
+                    val pending =
+                        PendingPairRequest(
+                            requestId = msg.id,
+                            device = req.device,
+                            pinCode = req.pinCode,
+                            socket = conn,
+                        )
                     pendingRequests[msg.id] = pending
                     scope.launch {
                         _pendingPairFlow.emit(pending)
@@ -306,7 +380,8 @@ class TvConnectServer(
                 }
                 try {
                     conn.close()
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
             }
             ConnectActions.CMD_PLAY_SONG -> {
                 val cmd = msg.decodeData<PlaySongCommand>(json)

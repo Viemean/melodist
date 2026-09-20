@@ -150,7 +150,10 @@ class PlaybackQueueManager(
         }
     }
 
-    fun appendPlaylist(newSongs: List<Song>, targetTag: String? = null) {
+    fun appendPlaylist(
+        newSongs: List<Song>,
+        targetTag: String? = null,
+    ) {
         if (newSongs.isEmpty()) return
         if (targetTag != null && _queueTag.value != targetTag) return
         val current = _playlist.value
@@ -254,7 +257,10 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
-    fun removeFromPlaylist(songs: List<Song>, currentPlayingMid: String?) {
+    fun removeFromPlaylist(
+        songs: List<Song>,
+        currentPlayingMid: String?,
+    ) {
         if (songs.isEmpty()) return
         val current = _playlist.value.toMutableList()
         val removeMids = songs.map { it.songMid }.toSet()
@@ -329,7 +335,10 @@ class PlaybackQueueManager(
         }
     }
 
-    fun getPreviousSong(isRemoteActive: Boolean, remotePrevSong: Song?): Song? {
+    fun getPreviousSong(
+        isRemoteActive: Boolean,
+        remotePrevSong: Song?,
+    ): Song? {
         if (isRemoteActive) {
             return remotePrevSong
         }
@@ -343,12 +352,17 @@ class PlaybackQueueManager(
             when (_loopMode.value) {
                 PlaybackLoopMode.Shuffle -> shuffleQueue.peekPrevious() ?: if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
                 PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                PlaybackLoopMode.ListRepeat,
+                ->
+                    if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
             }
         return if (prevIndex in list.indices) list[prevIndex] else null
     }
 
-    fun getNextSong(isRemoteActive: Boolean, remoteNextSong: Song?): Song? {
+    fun getNextSong(
+        isRemoteActive: Boolean,
+        remoteNextSong: Song?,
+    ): Song? {
         if (isRemoteActive) {
             return remoteNextSong
         }
@@ -369,7 +383,8 @@ class PlaybackQueueManager(
             when (_loopMode.value) {
                 PlaybackLoopMode.Shuffle -> shuffleQueue.peekNext() ?: ((_currentIndex.value + 1) % list.size)
                 PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> (_currentIndex.value + 1) % list.size
+                PlaybackLoopMode.ListRepeat,
+                -> (_currentIndex.value + 1) % list.size
             }
         return if (nextIndex in list.indices) list[nextIndex] else null
     }
@@ -437,7 +452,8 @@ class PlaybackQueueManager(
                     if (idx in list.indices) idx else ((_currentIndex.value + 1) % list.size)
                 }
                 PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> (_currentIndex.value + 1) % list.size
+                PlaybackLoopMode.ListRepeat,
+                -> (_currentIndex.value + 1) % list.size
             }
         if (nextIndex in list.indices) {
             _currentIndex.value = nextIndex
@@ -463,10 +479,18 @@ class PlaybackQueueManager(
             when (_loopMode.value) {
                 PlaybackLoopMode.Shuffle -> {
                     val idx = shuffleQueue.previous()
-                    if (idx in list.indices) idx else if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                    if (idx in list.indices) {
+                        idx
+                    } else if (_currentIndex.value - 1 < 0) {
+                        list.size - 1
+                    } else {
+                        _currentIndex.value - 1
+                    }
                 }
                 PlaybackLoopMode.SingleRepeat,
-                PlaybackLoopMode.ListRepeat -> if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                PlaybackLoopMode.ListRepeat,
+                ->
+                    if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
             }
         if (prevIndex in list.indices) {
             _currentIndex.value = prevIndex
@@ -474,7 +498,10 @@ class PlaybackQueueManager(
         }
     }
 
-    fun syncRemoteQueue(queue: List<Song>, currentIndex: Int) {
+    fun syncRemoteQueue(
+        queue: List<Song>,
+        currentIndex: Int,
+    ) {
         _playlist.value = queue
         _currentIndex.value = currentIndex
         _isRadioMode.value = false

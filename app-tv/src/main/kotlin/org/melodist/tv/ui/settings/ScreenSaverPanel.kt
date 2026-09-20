@@ -360,7 +360,10 @@ fun ScreenSaverOverlay(
                             }
                         }
 
-                        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+                        override fun onAccuracyChanged(
+                            sensor: Sensor?,
+                            accuracy: Int,
+                        ) {}
                     }
                 sensorManager.registerListener(listener, lightSensor, SensorManager.SENSOR_DELAY_NORMAL)
                 onDispose {
@@ -788,4 +791,3 @@ private tailrec fun Context.findActivity(): Activity? =
         is ContextWrapper -> baseContext.findActivity()
         else -> null
     }
-

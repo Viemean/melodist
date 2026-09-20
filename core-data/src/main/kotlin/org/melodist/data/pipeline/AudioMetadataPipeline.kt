@@ -149,11 +149,18 @@ object AudioMetadataPipeline {
      */
     fun detectCompanionCover(audioFile: File): File? {
         val parent = audioFile.parentFile ?: return null
-        val candidates = listOf(
-            "cover.jpg", "cover.png", "cover.webp",
-            "folder.jpg", "folder.png", "folder.webp",
-            "front.jpg", "front.png", "front.webp"
-        )
+        val candidates =
+            listOf(
+                "cover.jpg",
+                "cover.png",
+                "cover.webp",
+                "folder.jpg",
+                "folder.png",
+                "folder.webp",
+                "front.jpg",
+                "front.png",
+                "front.webp",
+            )
         for (name in candidates) {
             val f = File(parent, name)
             if (f.exists() && f.isFile && f.length() > 512L) return f

@@ -60,7 +60,10 @@ object MusicApiVisual {
 
     fun getSingleCoverUrl(visualMid: String): String = getSingleCoverCandidates(visualMid).firstOrNull().orEmpty()
 
-    fun cacheVisualMid(songMid: String, visualMid: String) {
+    fun cacheVisualMid(
+        songMid: String,
+        visualMid: String,
+    ) {
         visualMidCache[songMid] = visualMid
     }
 

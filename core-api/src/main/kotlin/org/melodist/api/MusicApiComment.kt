@@ -83,7 +83,11 @@ private suspend fun MusicApiService.fetchModernComments(
         val dataObj = reqObj["data"]?.jsonObject ?: return null
         val totalCount =
             dataObj["TotalCmNum"]?.jsonPrimitive?.intOrNull
-                ?: dataObj["CommentList"]?.jsonObject?.get("Total")?.jsonPrimitive?.intOrNull
+                ?: dataObj["CommentList"]
+                    ?.jsonObject
+                    ?.get("Total")
+                    ?.jsonPrimitive
+                    ?.intOrNull
                 ?: 0
 
         val hotList = mutableListOf<SongComment>()
@@ -175,7 +179,12 @@ internal fun parseModernCommentElement(
             return null
         }
     val commentId = obj["CmId"]?.jsonPrimitive?.contentOrNull.orEmpty()
-    val nick = obj["Nick"]?.jsonPrimitive?.contentOrNull.orEmpty().removePrefix("@")
+    val nick =
+        obj["Nick"]
+            ?.jsonPrimitive
+            ?.contentOrNull
+            .orEmpty()
+            .removePrefix("@")
     val avatarUrl = obj["Avatar"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val rawContent = obj["Content"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val content = decodeHtmlEntities(rawContent)
@@ -230,7 +239,11 @@ internal fun parseCommentElement(
             ?: obj["rootcommentid"]?.jsonPrimitive?.contentOrNull ?: ""
     val nick =
         obj["nick"]?.jsonPrimitive?.contentOrNull
-            ?: obj["rootcommentnick"]?.jsonPrimitive?.contentOrNull.orEmpty().removePrefix("@")
+            ?: obj["rootcommentnick"]
+                ?.jsonPrimitive
+                ?.contentOrNull
+                .orEmpty()
+                .removePrefix("@")
     val avatarUrl = obj["avatarurl"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val content =
         obj["rootcommentcontent"]?.jsonPrimitive?.contentOrNull

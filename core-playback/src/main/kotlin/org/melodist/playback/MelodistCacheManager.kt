@@ -6,19 +6,13 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
-import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
@@ -42,7 +36,11 @@ object MelodistCacheManager {
     const val STORAGE_SAFE_RATIO = 0.20
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            prettyPrint = false
+        }
 
     @Volatile
     private var simpleCache: SimpleCache? = null
@@ -94,7 +92,10 @@ object MelodistCacheManager {
      * 初始化全局缓存池与播放统计（线程安全）
      */
     @Synchronized
-    fun init(context: Context, profile: PlaybackProfile? = null) {
+    fun init(
+        context: Context,
+        profile: PlaybackProfile? = null,
+    ) {
         if (profile != null) {
             currentProfile = profile
         } else if (!isInitialized) {
@@ -115,7 +116,12 @@ object MelodistCacheManager {
 
         val quotaBytes = calculateAdaptiveCacheQuotaBytes(appContext.cacheDir, currentProfile.maxCacheQuotaBytes)
         activeCacheQuotaBytes = quotaBytes
-        Log.i(TAG, "Initializing media cache (${if (currentProfile.isTvDevice) "TV" else "Mobile"}) at ${cacheFolder.absolutePath} with quota: ${formatBytes(quotaBytes)}")
+        Log.i(
+            TAG,
+            "Initializing media cache (${if (currentProfile.isTvDevice) "TV" else "Mobile"}) at ${cacheFolder.absolutePath} with quota: ${formatBytes(
+                quotaBytes,
+            )}",
+        )
 
         try {
             val dbProvider = StandaloneDatabaseProvider(appContext).also { databaseProvider = it }
@@ -154,7 +160,8 @@ object MelodistCacheManager {
                         org.melodist.model.AudioQualityTier.fromTierName(tierName)?.let {
                             cachedSongTiers[mid] = it
                         }
-                    } catch (_: Exception) {}
+                    } catch (_: Exception) {
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to read cached tiers from disk", e)
@@ -185,7 +192,10 @@ object MelodistCacheManager {
         }
     }
 
-    fun recordCachedSongTier(songMid: String, tier: org.melodist.model.AudioQualityTier) {
+    fun recordCachedSongTier(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier,
+    ) {
         if (songMid.isBlank()) return
         cachedSongTiers[songMid] = tier
         saveStatsAsync()
@@ -206,7 +216,11 @@ object MelodistCacheManager {
     /**
      * 记录当前曲目播放进度（当播放完整度 >= 80% 或累计播放满 180 秒时累计有效播放 1 次）
      */
-    fun recordPlayProgress(songMid: String, positionMs: Long, durationMs: Long) {
+    fun recordPlayProgress(
+        songMid: String,
+        positionMs: Long,
+        durationMs: Long,
+    ) {
         if (songMid.isBlank() || durationMs <= 0L) return
         if (currentSessionMarkedSongMid == songMid) return
 
@@ -228,13 +242,15 @@ object MelodistCacheManager {
     /**
      * 生成标准业务 CacheKey，规避 CDN URL 携带动态 Token 导致缓存失效
      */
-    fun getCacheKey(songMid: String, tier: org.melodist.model.AudioQualityTier? = null): String {
-        return if (tier != null) {
+    fun getCacheKey(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier? = null,
+    ): String =
+        if (tier != null) {
             "melodist_${songMid}_${tier.name}"
         } else {
-            "melodist_${songMid}"
+            "melodist_$songMid"
         }
-    }
 
     /**
      * 检查某个业务 CacheKey 是否已经在磁盘缓存中 100% 完整落盘
@@ -262,7 +278,10 @@ object MelodistCacheManager {
     /**
      * 获取指定曲目指定音质的磁盘文件缓存进度与完成状态
      */
-    fun getSongFileCacheProgress(songMid: String, tier: org.melodist.model.AudioQualityTier?): FileCacheProgress {
+    fun getSongFileCacheProgress(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier?,
+    ): FileCacheProgress {
         if (songMid.isBlank()) return FileCacheProgress()
         val cache = simpleCache ?: return FileCacheProgress()
         val targetTier = tier ?: cachedSongTiers[songMid]
@@ -292,7 +311,10 @@ object MelodistCacheManager {
     /**
      * 判断指定曲目的指定音质是否已在本地磁盘 100% 完整落盘
      */
-    fun isSongTierFullyCached(songMid: String, tier: org.melodist.model.AudioQualityTier?): Boolean {
+    fun isSongTierFullyCached(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier?,
+    ): Boolean {
         if (songMid.isBlank()) return false
         val targetTier = tier ?: cachedSongTiers[songMid] ?: return false
         val key = getCacheKey(songMid, targetTier)
@@ -302,7 +324,10 @@ object MelodistCacheManager {
     /**
      * 判断指定曲目的指定音质是否已有本地完整缓存
      */
-    fun isSongTierCached(songMid: String, tier: org.melodist.model.AudioQualityTier?): Boolean {
+    fun isSongTierCached(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier?,
+    ): Boolean {
         if (songMid.isBlank()) return false
         val targetTier = tier ?: cachedSongTiers[songMid] ?: return false
         return isSongTierFullyCached(songMid, targetTier)
@@ -359,11 +384,15 @@ object MelodistCacheManager {
         targetTier: org.melodist.model.AudioQualityTier,
     ): org.melodist.model.AudioQualityTier? {
         if (songMid.isBlank()) return null
-        val targetStereoRank = org.melodist.model.AudioQualityTier.getStereoRank(targetTier)
+        val targetStereoRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(targetTier)
         if (targetStereoRank <= 0) return null // 仅针对立体声轨道收敛
 
         val cachedTier = cachedSongTiers[songMid] ?: return null
-        val cachedStereoRank = org.melodist.model.AudioQualityTier.getStereoRank(cachedTier)
+        val cachedStereoRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(cachedTier)
         if (cachedStereoRank >= targetStereoRank) {
             val cacheKey = getCacheKey(songMid, cachedTier)
             if (isKeyFullyCached(cacheKey)) {
@@ -390,7 +419,10 @@ object MelodistCacheManager {
     /**
      * 异步清理未达收听门槛曲目的残片数据
      */
-    fun evictIncompleteCacheAsync(songMid: String, tier: org.melodist.model.AudioQualityTier? = null) {
+    fun evictIncompleteCacheAsync(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier? = null,
+    ) {
         if (songMid.isBlank()) return
         val cache = simpleCache ?: return
         scope.launch {
@@ -414,16 +446,23 @@ object MelodistCacheManager {
     /**
      * 向上升级替换：更高音质完整留存后，异步清理同曲目的低音质旧文件，立体声只保留一份
      */
-    fun pruneLowerTierCacheAsync(songMid: String, currentTier: org.melodist.model.AudioQualityTier) {
+    fun pruneLowerTierCacheAsync(
+        songMid: String,
+        currentTier: org.melodist.model.AudioQualityTier,
+    ) {
         if (songMid.isBlank()) return
         val cache = simpleCache ?: return
-        val currentRank = org.melodist.model.AudioQualityTier.getStereoRank(currentTier)
+        val currentRank =
+            org.melodist.model.AudioQualityTier
+                .getStereoRank(currentTier)
         if (currentRank <= 0) return
 
         scope.launch {
             try {
                 org.melodist.model.AudioQualityTier.entries.forEach { otherTier ->
-                    val otherRank = org.melodist.model.AudioQualityTier.getStereoRank(otherTier)
+                    val otherRank =
+                        org.melodist.model.AudioQualityTier
+                            .getStereoRank(otherTier)
                     if (otherRank in 1 until currentRank) {
                         val lowerKey = getCacheKey(songMid, otherTier)
                         if (cache.keys.contains(lowerKey)) {
@@ -441,7 +480,10 @@ object MelodistCacheManager {
     /**
      * 确认收听达标持久留存，并触发同曲目旧版本淘汰
      */
-    fun confirmCacheRetention(songMid: String, tier: org.melodist.model.AudioQualityTier) {
+    fun confirmCacheRetention(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier,
+    ) {
         if (songMid.isBlank()) return
         if (cachedSongTiers[songMid] == tier) return
         recordCachedSongTier(songMid, tier)
@@ -541,4 +583,3 @@ object MelodistCacheManager {
         return DecimalFormat("#,##0.#", symbols).format(value) + " " + units[digitGroups]
     }
 }
-

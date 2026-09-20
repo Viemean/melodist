@@ -168,7 +168,13 @@ suspend fun MusicApiService.probeSongQualities(
                 val isHiRes = tier == AudioQualityTier.HiRes
                 val sampleRateHz =
                     if (isHiRes || isMaster) {
-                        if (hiresSample > 0) hiresSample else if (isMaster) 96000 else 0
+                        if (hiresSample > 0) {
+                            hiresSample
+                        } else if (isMaster) {
+                            96000
+                        } else {
+                            0
+                        }
                     } else {
                         0
                     }
@@ -181,14 +187,20 @@ suspend fun MusicApiService.probeSongQualities(
 
                 var resolvedSize = sizeMap[tier] ?: 0L
                 val needsCorrection =
-                    isAvailable && playUrl != null && (
-                        (tier == AudioQualityTier.HiRes && (resolvedSize <= 0L || (flacSize > 0L && resolvedSize <= flacSize))) ||
-                            resolvedSize <= 0L
-                    )
+                    isAvailable &&
+                        playUrl != null &&
+                        (
+                            (tier == AudioQualityTier.HiRes && (resolvedSize <= 0L || (flacSize > 0L && resolvedSize <= flacSize))) ||
+                                resolvedSize <= 0L
+                        )
 
                 if (needsCorrection) {
                     try {
-                        val conn = java.net.URI.create(playUrl).toURL().openConnection() as java.net.HttpURLConnection
+                        val conn =
+                            java.net.URI
+                                .create(playUrl)
+                                .toURL()
+                                .openConnection() as java.net.HttpURLConnection
                         conn.requestMethod = "HEAD"
                         conn.setRequestProperty("Referer", "https://y.qq.com/")
                         conn.setRequestProperty("User-Agent", "Mozilla/5.0")
@@ -373,9 +385,11 @@ suspend fun MusicApiService.getPlayUrl(
                     val newUin = PlaybackCredentialsManager.getActiveUin()
                     val newAuthst = PlaybackCredentialsManager.getActiveAuthst()
                     val newCookieHeader = PlaybackCredentialsManager.getActiveCookieHeader()
-                    val retryPayload = sb.toString()
-                        .replace(""""uin":"$uin"""", """"uin":"$newUin"""")
-                        .replace(""""authst":"$authst"""", """"authst":"$newAuthst"""")
+                    val retryPayload =
+                        sb
+                            .toString()
+                            .replace(""""uin":"$uin"""", """"uin":"$newUin"""")
+                            .replace(""""authst":"$authst"""", """"authst":"$newAuthst"""")
                     try {
                         val retryResp = postGateway(retryPayload, customCookieHeader = newCookieHeader)
                         val retryRoot = Json.parseToJsonElement(retryResp).jsonObject
@@ -404,7 +418,8 @@ suspend fun MusicApiService.getPlayUrl(
                                 availableMap[tier] = sip + purl
                             }
                         }
-                    } catch (_: Exception) {}
+                    } catch (_: Exception) {
+                    }
                 }
             }
 
@@ -494,4 +509,3 @@ suspend fun MusicApiService.getPlayUrl(
             QualityResult(null, AudioQualityTier.Standard, "解析失败")
         }
     }
-

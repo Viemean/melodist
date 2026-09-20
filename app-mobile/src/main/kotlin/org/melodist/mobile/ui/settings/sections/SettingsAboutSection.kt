@@ -328,4 +328,3 @@ fun SettingsAboutSection(
         )
     }
 }
-

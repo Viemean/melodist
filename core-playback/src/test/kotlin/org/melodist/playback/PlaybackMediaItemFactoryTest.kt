@@ -8,17 +8,17 @@ import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 
 class PlaybackMediaItemFactoryTest {
-
     @Test
     fun `test buildMediaMetadata generates correct metadata with remote device annotation`() {
-        val song = Song(
-            songId = 101L,
-            songMid = "mid_101",
-            name = "Test Title",
-            singer = "Test Artist",
-            album = "Test Album",
-            coverUrl = "https://example.com/cover.jpg",
-        )
+        val song =
+            Song(
+                songId = 101L,
+                songMid = "mid_101",
+                name = "Test Title",
+                singer = "Test Artist",
+                album = "Test Album",
+                coverUrl = "https://example.com/cover.jpg",
+            )
 
         val localMeta = PlaybackMediaItemFactory.buildMediaMetadata(song)
         assertEquals("Test Title", localMeta.title?.toString())
@@ -31,13 +31,14 @@ class PlaybackMediaItemFactoryTest {
 
     @Test
     fun `test buildMediaItem creates item with custom cache key and metadata`() {
-        val song = Song(
-            songId = 202L,
-            songMid = "mid_202",
-            name = "Cache Song",
-            singer = "Singer",
-            album = "Album",
-        )
+        val song =
+            Song(
+                songId = 202L,
+                songMid = "mid_202",
+                name = "Cache Song",
+                singer = "Singer",
+                album = "Album",
+            )
         val item = PlaybackMediaItemFactory.buildMediaItem(null, song, AudioQualityTier.HiRes)
 
         assertNotNull(item)

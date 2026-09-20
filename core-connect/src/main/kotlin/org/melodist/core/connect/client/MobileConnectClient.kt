@@ -37,37 +37,56 @@ import java.util.concurrent.TimeUnit
 
 sealed interface MobileConnectionState {
     data object Disconnected : MobileConnectionState
+
     data object Connecting : MobileConnectionState
+
     data object Connected : MobileConnectionState
-    data class Paired(val targetDevice: ConnectDevice) : MobileConnectionState
+
+    data class Paired(
+        val targetDevice: ConnectDevice,
+    ) : MobileConnectionState
+
     data class Reconnecting(
         val targetDevice: ConnectDevice,
         val attempt: Int,
         val maxAttempts: Int = 5,
     ) : MobileConnectionState
-    data class Error(val message: String) : MobileConnectionState
+
+    data class Error(
+        val message: String,
+    ) : MobileConnectionState
 }
 
 sealed interface MobileIncomingCommand {
     data object Next : MobileIncomingCommand
+
     data object Previous : MobileIncomingCommand
-    data class PlaySong(val song: Song?) : MobileIncomingCommand
+
+    data class PlaySong(
+        val song: Song?,
+    ) : MobileIncomingCommand
+
     data object CycleLoopMode : MobileIncomingCommand
+
     data object Pause : MobileIncomingCommand
+
     data object Resume : MobileIncomingCommand
 }
 
 class MobileConnectClient(
     private val storageManager: ConnectStorageManager,
-    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .pingInterval(10, TimeUnit.SECONDS)
-        .build(),
+    private val okHttpClient: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .pingInterval(10, TimeUnit.SECONDS)
+            .build(),
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     private var activeSocket: WebSocket? = null
     private var currentTarget: ConnectDevice? = null
@@ -92,7 +111,10 @@ class MobileConnectClient(
     private val _lyricsSyncFlow = MutableSharedFlow<org.melodist.core.connect.model.LyricsSyncPayload>(extraBufferCapacity = 16)
     val lyricsSyncFlow: SharedFlow<org.melodist.core.connect.model.LyricsSyncPayload> = _lyricsSyncFlow.asSharedFlow()
 
-    fun connect(targetDevice: ConnectDevice, pinCode: String = "") {
+    fun connect(
+        targetDevice: ConnectDevice,
+        pinCode: String = "",
+    ) {
         isManualDisconnect = false
         reconnectAttempt = 0
         reconnectJob?.cancel()
@@ -104,51 +126,70 @@ class MobileConnectClient(
         startSocket(targetDevice, pinCode)
     }
 
-    private fun startSocket(targetDevice: ConnectDevice, pinCode: String) {
+    private fun startSocket(
+        targetDevice: ConnectDevice,
+        pinCode: String,
+    ) {
         val url = "ws://${targetDevice.host}:${targetDevice.port}"
         android.util.Log.i("MelodistConnectClient", "Connecting to $url (deviceName: ${targetDevice.name})")
         val request = Request.Builder().url(url).build()
 
-        activeSocket = okHttpClient.newWebSocket(
-            request,
-            object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: Response) {
-                    android.util.Log.i("MelodistConnectClient", "Connected to $url successfully")
-                    reconnectAttempt = 0
-                    reconnectJob?.cancel()
-                    reconnectJob = null
-                    _connectionState.value = MobileConnectionState.Connected
-                    val local = storageManager.getOrCreateLocalDevice()
-                    sendData(
-                        ConnectActions.PAIR_REQUEST,
-                        PairRequestPayload(
-                            device = local,
-                            pinCode = pinCode,
-                        ),
-                    )
-                }
-
-                override fun onMessage(webSocket: WebSocket, text: String) {
-                    android.util.Log.d("MelodistConnectClient", "Received message from TV: $text")
-                    handleIncomingMessage(text)
-                }
-
-                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    android.util.Log.i("MelodistConnectClient", "WebSocket closed: $code, reason: $reason")
-                    handleDisconnectionOrScheduleReconnect(targetDevice, isFailure = false, errorMsg = null)
-                }
-
-                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    android.util.Log.e("MelodistConnectClient", "WebSocket connect failed to $url: ${t.message}", t)
-                    val friendlyMsg = if (targetDevice.host.startsWith("10.0.2.")) {
-                        "目标 IP (${targetDevice.host}) 是模拟器私有地址，外部手机无法直连。请在 TV 端切换物理网卡 IP 或使用手动连接输入电脑 Wi-Fi IP"
-                    } else {
-                        t.message ?: "连接失败"
+        activeSocket =
+            okHttpClient.newWebSocket(
+                request,
+                object : WebSocketListener() {
+                    override fun onOpen(
+                        webSocket: WebSocket,
+                        response: Response,
+                    ) {
+                        android.util.Log.i("MelodistConnectClient", "Connected to $url successfully")
+                        reconnectAttempt = 0
+                        reconnectJob?.cancel()
+                        reconnectJob = null
+                        _connectionState.value = MobileConnectionState.Connected
+                        val local = storageManager.getOrCreateLocalDevice()
+                        sendData(
+                            ConnectActions.PAIR_REQUEST,
+                            PairRequestPayload(
+                                device = local,
+                                pinCode = pinCode,
+                            ),
+                        )
                     }
-                    handleDisconnectionOrScheduleReconnect(targetDevice, isFailure = true, errorMsg = friendlyMsg)
-                }
-            },
-        )
+
+                    override fun onMessage(
+                        webSocket: WebSocket,
+                        text: String,
+                    ) {
+                        android.util.Log.d("MelodistConnectClient", "Received message from TV: $text")
+                        handleIncomingMessage(text)
+                    }
+
+                    override fun onClosed(
+                        webSocket: WebSocket,
+                        code: Int,
+                        reason: String,
+                    ) {
+                        android.util.Log.i("MelodistConnectClient", "WebSocket closed: $code, reason: $reason")
+                        handleDisconnectionOrScheduleReconnect(targetDevice, isFailure = false, errorMsg = null)
+                    }
+
+                    override fun onFailure(
+                        webSocket: WebSocket,
+                        t: Throwable,
+                        response: Response?,
+                    ) {
+                        android.util.Log.e("MelodistConnectClient", "WebSocket connect failed to $url: ${t.message}", t)
+                        val friendlyMsg =
+                            if (targetDevice.host.startsWith("10.0.2.")) {
+                                "目标 IP (${targetDevice.host}) 是模拟器私有地址，外部手机无法直连。请在 TV 端切换物理网卡 IP 或使用手动连接输入电脑 Wi-Fi IP"
+                            } else {
+                                t.message ?: "连接失败"
+                            }
+                        handleDisconnectionOrScheduleReconnect(targetDevice, isFailure = true, errorMsg = friendlyMsg)
+                    }
+                },
+            )
     }
 
     private fun handleDisconnectionOrScheduleReconnect(
@@ -166,20 +207,22 @@ class MobileConnectClient(
         if (reconnectAttempt < maxReconnectAttempts && hasPairedBefore) {
             reconnectAttempt++
             val currentAttempt = reconnectAttempt
-            _connectionState.value = MobileConnectionState.Reconnecting(
-                targetDevice = targetDevice,
-                attempt = currentAttempt,
-                maxAttempts = maxReconnectAttempts,
-            )
+            _connectionState.value =
+                MobileConnectionState.Reconnecting(
+                    targetDevice = targetDevice,
+                    attempt = currentAttempt,
+                    maxAttempts = maxReconnectAttempts,
+                )
             val delayMs = (1L shl (currentAttempt - 1)) * 1000L
             android.util.Log.i("MelodistConnectClient", "Scheduling reconnect attempt $currentAttempt in ${delayMs}ms to ${targetDevice.name}")
             reconnectJob?.cancel()
-            reconnectJob = scope.launch {
-                delay(delayMs)
-                if (!isManualDisconnect && currentTarget?.id == targetDevice.id) {
-                    startSocket(targetDevice, lastPinCode)
+            reconnectJob =
+                scope.launch {
+                    delay(delayMs)
+                    if (!isManualDisconnect && currentTarget?.id == targetDevice.id) {
+                        startSocket(targetDevice, lastPinCode)
+                    }
                 }
-            }
         } else {
             reconnectAttempt = 0
             if (isFailure && errorMsg != null) {
@@ -195,7 +238,8 @@ class MobileConnectClient(
         activeSocket?.let {
             try {
                 it.close(1000, "Normal closure")
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         activeSocket = null
     }
@@ -208,12 +252,14 @@ class MobileConnectClient(
         activeSocket?.let {
             val local = storageManager.getOrCreateLocalDevice()
             try {
-                val msg = json.encodeToString(
-                    ConnectMessage(action = ConnectActions.DISCONNECT, payload = local.id),
-                )
+                val msg =
+                    json.encodeToString(
+                        ConnectMessage(action = ConnectActions.DISCONNECT, payload = local.id),
+                    )
                 it.send(msg)
                 it.close(1000, "Disconnect requested")
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         activeSocket = null
         currentTarget = null
@@ -242,24 +288,30 @@ class MobileConnectClient(
         audioSource: AudioSourceDescriptor? = null,
         qualityTier: org.melodist.model.AudioQualityTier? = null,
     ) {
-        val cmd = PlaySongCommand(
-            song = song,
-            queue = queue,
-            index = index,
-            startPositionMs = startPositionMs,
-            audioSource = audioSource,
-            qualityTier = qualityTier,
-        )
+        val cmd =
+            PlaySongCommand(
+                song = song,
+                queue = queue,
+                index = index,
+                startPositionMs = startPositionMs,
+                audioSource = audioSource,
+                qualityTier = qualityTier,
+            )
         sendData(ConnectActions.CMD_PLAY_SONG, cmd)
     }
 
-    fun enqueueNext(song: Song, audioSource: AudioSourceDescriptor? = null) {
+    fun enqueueNext(
+        song: Song,
+        audioSource: AudioSourceDescriptor? = null,
+    ) {
         val cmd = EnqueueNextCommand(song = song, audioSource = audioSource)
         sendData(ConnectActions.CMD_ENQUEUE_NEXT, cmd)
     }
 
     fun switchTier(tier: org.melodist.model.AudioQualityTier) {
-        val cmd = org.melodist.core.connect.model.SwitchTierCommand(tier = tier)
+        val cmd =
+            org.melodist.core.connect.model
+                .SwitchTierCommand(tier = tier)
         sendData(ConnectActions.CMD_SWITCH_TIER, cmd)
     }
 
@@ -307,12 +359,13 @@ class MobileConnectClient(
         targetFraction: Float = 0f,
         durationMs: Long = 200L,
     ) {
-        val payload = org.melodist.core.connect.model.GestureSwipePayload(
-            state = state,
-            fraction = fraction,
-            targetFraction = targetFraction,
-            durationMs = durationMs,
-        )
+        val payload =
+            org.melodist.core.connect.model.GestureSwipePayload(
+                state = state,
+                fraction = fraction,
+                targetFraction = targetFraction,
+                durationMs = durationMs,
+            )
         sendData(ConnectActions.CMD_GESTURE_SWIPE, payload)
     }
 
@@ -322,28 +375,37 @@ class MobileConnectClient(
         isFavorite: Boolean = false,
     ) {
         val effectiveMid = songMid.ifBlank { song?.songMid.orEmpty() }
-        val cmd = org.melodist.core.connect.model.ToggleFavoriteCommand(
-            song = song,
-            songMid = effectiveMid,
-            isFavorite = isFavorite,
-        )
+        val cmd =
+            org.melodist.core.connect.model.ToggleFavoriteCommand(
+                song = song,
+                songMid = effectiveMid,
+                isFavorite = isFavorite,
+            )
         sendData(ConnectActions.CMD_TOGGLE_FAVORITE, cmd)
     }
 
-    fun syncLyricsScroll(lineIndex: Int, isUserScrolling: Boolean) {
-        val payload = org.melodist.core.connect.model.LyricsScrollPayload(
-            lineIndex = lineIndex,
-            isUserScrolling = isUserScrolling,
-        )
+    fun syncLyricsScroll(
+        lineIndex: Int,
+        isUserScrolling: Boolean,
+    ) {
+        val payload =
+            org.melodist.core.connect.model.LyricsScrollPayload(
+                lineIndex = lineIndex,
+                isUserScrolling = isUserScrolling,
+            )
         sendData(ConnectActions.CMD_SYNC_LYRICS_SCROLL, payload)
     }
 
-    private inline fun <reified T> sendData(action: String, data: T) {
+    private inline fun <reified T> sendData(
+        action: String,
+        data: T,
+    ) {
         val socket = activeSocket ?: return
         val message = json.encodeToString(ConnectMessage.create(action, data, json))
         try {
             socket.send(message)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun sendAction(action: String) {
@@ -351,15 +413,17 @@ class MobileConnectClient(
         val message = json.encodeToString(ConnectMessage(action = action))
         try {
             socket.send(message)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun handleIncomingMessage(text: String) {
-        val msg = try {
-            json.decodeFromString<ConnectMessage>(text)
-        } catch (_: Exception) {
-            return
-        }
+        val msg =
+            try {
+                json.decodeFromString<ConnectMessage>(text)
+            } catch (_: Exception) {
+                return
+            }
 
         when (msg.action) {
             ConnectActions.PAIR_RESPONSE -> {

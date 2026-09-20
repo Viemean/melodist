@@ -2,13 +2,11 @@ package org.melodist.tv.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -39,14 +36,12 @@ import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.components.AudioQualityDialog
 import org.melodist.tv.ui.components.BottomPlayerBar
 import org.melodist.tv.ui.components.CenterAlignedKaraokeLyricsView
-import org.melodist.tv.ui.components.MelodistElevatedCover
 import org.melodist.tv.ui.components.PlayerQueueSidebar
 import org.melodist.tv.ui.components.TakeoverGestureCoverCarousel
+import org.melodist.tv.ui.components.TvSplitPlaybackScaffold
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MonetColorExtractor
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
-
-import org.melodist.tv.ui.components.TvSplitPlaybackScaffold
 
 @Composable
 fun PlayerTvScreen(

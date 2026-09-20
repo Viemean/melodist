@@ -8,7 +8,10 @@ import android.view.KeyEvent
 import org.melodist.playback.PlaybackManager
 
 class MediaButtonReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
+    override fun onReceive(
+        context: Context?,
+        intent: Intent?,
+    ) {
         if (intent == null) return
         val action = intent.action
         Log.i(TAG, "MediaButtonReceiver onReceive: action=$action")
@@ -20,7 +23,8 @@ class MediaButtonReceiver : BroadcastReceiver() {
                     KeyEvent.KEYCODE_MEDIA_PLAY -> PlaybackManager.play()
                     KeyEvent.KEYCODE_MEDIA_PAUSE -> PlaybackManager.pause()
                     KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                    KeyEvent.KEYCODE_HEADSETHOOK -> PlaybackManager.togglePlayPause()
+                    KeyEvent.KEYCODE_HEADSETHOOK,
+                    -> PlaybackManager.togglePlayPause()
                     KeyEvent.KEYCODE_MEDIA_NEXT -> PlaybackManager.playNext()
                     KeyEvent.KEYCODE_MEDIA_PREVIOUS -> PlaybackManager.playPrevious()
                 }

@@ -55,9 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.data.FavoriteArtistsManager
@@ -335,52 +333,130 @@ fun ArtistDetailScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 when (contentTab) {
-                ArtistContentTab.Songs -> {
-                    if (isLoadingSongs && songs.isEmpty()) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            ArtistHeader(
-                                avatarUrl = avatarUrl,
-                                displayName = displayName,
-                                totalSongs = totalSongs,
-                                songCount = songs.size,
-                                brief = artistDetail?.brief.orEmpty(),
-                                isBriefExpanded = isBriefExpanded,
-                                onToggleBrief = { isBriefExpanded = !isBriefExpanded },
-                                contentTab = contentTab,
-                                onTabChange = { contentTab = it },
-                                isHotOrder = isHotOrder,
-                                onOrderChange = { isHotOrder = it },
-                                totalAlbums = totalAlbums,
-                                isFollowed = isFollowed,
-                                onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
-                            )
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    } else {
-                        CommonSongList(
-                            songs = songs,
-                            state = songListState,
-                            paginationSource = artistSongPaginationSource,
-                            contentPadding =
-                                PaddingValues(
-                                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                ),
-                            onSongClick = { list, index ->
-                                PlaybackManager.setPlaylist(
-                                    list,
-                                    startIndex = index,
-                                    paginationSource = artistSongPaginationSource,
+                    ArtistContentTab.Songs -> {
+                        if (isLoadingSongs && songs.isEmpty()) {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                ArtistHeader(
+                                    avatarUrl = avatarUrl,
+                                    displayName = displayName,
+                                    totalSongs = totalSongs,
+                                    songCount = songs.size,
+                                    brief = artistDetail?.brief.orEmpty(),
+                                    isBriefExpanded = isBriefExpanded,
+                                    onToggleBrief = { isBriefExpanded = !isBriefExpanded },
+                                    contentTab = contentTab,
+                                    onTabChange = { contentTab = it },
+                                    isHotOrder = isHotOrder,
+                                    onOrderChange = { isHotOrder = it },
+                                    totalAlbums = totalAlbums,
+                                    isFollowed = isFollowed,
+                                    onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
                                 )
-                            },
-                            headerItems = {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        } else {
+                            CommonSongList(
+                                songs = songs,
+                                state = songListState,
+                                paginationSource = artistSongPaginationSource,
+                                contentPadding =
+                                    PaddingValues(
+                                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                    ),
+                                onSongClick = { list, index ->
+                                    PlaybackManager.setPlaylist(
+                                        list,
+                                        startIndex = index,
+                                        paginationSource = artistSongPaginationSource,
+                                    )
+                                },
+                                headerItems = {
+                                    item(key = "artist_header") {
+                                        ArtistHeader(
+                                            avatarUrl = avatarUrl,
+                                            displayName = displayName,
+                                            totalSongs = totalSongs,
+                                            songCount = songs.size,
+                                            brief = artistDetail?.brief.orEmpty(),
+                                            isBriefExpanded = isBriefExpanded,
+                                            onToggleBrief = { isBriefExpanded = !isBriefExpanded },
+                                            contentTab = contentTab,
+                                            onTabChange = { contentTab = it },
+                                            isHotOrder = isHotOrder,
+                                            onOrderChange = { isHotOrder = it },
+                                            totalAlbums = totalAlbums,
+                                            isFollowed = isFollowed,
+                                            onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
+                                        )
+                                    }
+                                },
+                                footerItems = {
+                                    if (isLoadingMoreSongs) {
+                                        item(key = "loading_more_songs") {
+                                            Box(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            }
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    }
+                    ArtistContentTab.Albums -> {
+                        if (isLoadingAlbums && albums.isEmpty()) {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                ArtistHeader(
+                                    avatarUrl = avatarUrl,
+                                    displayName = displayName,
+                                    totalSongs = totalSongs,
+                                    songCount = songs.size,
+                                    brief = artistDetail?.brief.orEmpty(),
+                                    isBriefExpanded = isBriefExpanded,
+                                    onToggleBrief = { isBriefExpanded = !isBriefExpanded },
+                                    contentTab = contentTab,
+                                    onTabChange = { contentTab = it },
+                                    isHotOrder = isHotOrder,
+                                    onOrderChange = { isHotOrder = it },
+                                    totalAlbums = totalAlbums,
+                                    isFollowed = isFollowed,
+                                    onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
+                                )
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                state = albumListState,
+                                contentPadding =
+                                    PaddingValues(
+                                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                    ),
+                                modifier = Modifier.fillMaxSize(),
+                            ) {
                                 item(key = "artist_header") {
                                     ArtistHeader(
                                         avatarUrl = avatarUrl,
@@ -399,126 +475,49 @@ fun ArtistDetailScreen(
                                         onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
                                     )
                                 }
-                            },
-                            footerItems = {
-                                if (isLoadingMoreSongs) {
-                                    item(key = "loading_more_songs") {
+                                if (albums.isEmpty()) {
+                                    item(key = "empty_albums") {
                                         Box(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
-                                                    .padding(16.dp),
+                                                    .padding(vertical = 48.dp),
                                             contentAlignment = Alignment.Center,
                                         ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                strokeWidth = 2.dp,
+                                            Text(
+                                                text = "暂无专辑",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
-                                }
-                            },
-                        )
-                    }
-                }
-                ArtistContentTab.Albums -> {
-                    if (isLoadingAlbums && albums.isEmpty()) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            ArtistHeader(
-                                avatarUrl = avatarUrl,
-                                displayName = displayName,
-                                totalSongs = totalSongs,
-                                songCount = songs.size,
-                                brief = artistDetail?.brief.orEmpty(),
-                                isBriefExpanded = isBriefExpanded,
-                                onToggleBrief = { isBriefExpanded = !isBriefExpanded },
-                                contentTab = contentTab,
-                                onTabChange = { contentTab = it },
-                                isHotOrder = isHotOrder,
-                                onOrderChange = { isHotOrder = it },
-                                totalAlbums = totalAlbums,
-                                isFollowed = isFollowed,
-                                onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
-                            )
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            state = albumListState,
-                            contentPadding =
-                                PaddingValues(
-                                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                ),
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            item(key = "artist_header") {
-                                ArtistHeader(
-                                    avatarUrl = avatarUrl,
-                                    displayName = displayName,
-                                    totalSongs = totalSongs,
-                                    songCount = songs.size,
-                                    brief = artistDetail?.brief.orEmpty(),
-                                    isBriefExpanded = isBriefExpanded,
-                                    onToggleBrief = { isBriefExpanded = !isBriefExpanded },
-                                    contentTab = contentTab,
-                                    onTabChange = { contentTab = it },
-                                    isHotOrder = isHotOrder,
-                                    onOrderChange = { isHotOrder = it },
-                                    totalAlbums = totalAlbums,
-                                    isFollowed = isFollowed,
-                                    onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
-                                )
-                            }
-                            if (albums.isEmpty()) {
-                                item(key = "empty_albums") {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 48.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(
-                                            text = "暂无专辑",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                } else {
+                                    items(
+                                        count = albums.size,
+                                        key = { albums[it].mid.ifBlank { albums[it].id.toString() } },
+                                    ) { index ->
+                                        val album = albums[index]
+                                        AlbumListItem(
+                                            album = album,
+                                            onClick = {
+                                                navController.navigateToAlbum(album.mid, album.name)
+                                            },
                                         )
                                     }
-                                }
-                            } else {
-                                items(
-                                    count = albums.size,
-                                    key = { albums[it].mid.ifBlank { albums[it].id.toString() } },
-                                ) { index ->
-                                    val album = albums[index]
-                                    AlbumListItem(
-                                        album = album,
-                                        onClick = {
-                                            navController.navigateToAlbum(album.mid, album.name)
-                                        },
-                                    )
-                                }
-                                if (isLoadingMoreAlbums) {
-                                    item(key = "loading_more_albums") {
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(16.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                strokeWidth = 2.dp,
-                                            )
+                                    if (isLoadingMoreAlbums) {
+                                        item(key = "loading_more_albums") {
+                                            Box(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -526,7 +525,6 @@ fun ArtistDetailScreen(
                         }
                     }
                 }
-            }
             }
         }
     }

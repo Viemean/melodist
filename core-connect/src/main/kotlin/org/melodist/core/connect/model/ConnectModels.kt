@@ -40,7 +40,10 @@ data class AudioSourceDescriptor(
 
 @Serializable
 data class ConnectMessage(
-    val id: String = java.util.UUID.randomUUID().toString(),
+    val id: String =
+        java.util.UUID
+            .randomUUID()
+            .toString(),
     val action: String,
     val payload: String = "",
     val data: JsonElement? = null,
@@ -69,18 +72,23 @@ data class ConnectMessage(
             action: String,
             data: T,
             json: Json,
-            id: String = java.util.UUID.randomUUID().toString(),
+            id: String =
+                java.util.UUID
+                    .randomUUID()
+                    .toString(),
         ): ConnectMessage {
-            val element = try {
-                json.encodeToJsonElement(data)
-            } catch (_: Exception) {
-                null
-            }
-            val str = try {
-                json.encodeToString(data)
-            } catch (_: Exception) {
-                ""
-            }
+            val element =
+                try {
+                    json.encodeToJsonElement(data)
+                } catch (_: Exception) {
+                    null
+                }
+            val str =
+                try {
+                    json.encodeToString(data)
+                } catch (_: Exception) {
+                    ""
+                }
             return ConnectMessage(
                 id = id,
                 action = action,
@@ -125,7 +133,7 @@ object ConnectActions {
 
 enum class RemoteControlMode {
     TAKEOVER, // 全面接管模式：所有播放、歌单、切歌与音质切换均直接在 TV 上执行
-    BROWSE,   // 浏览模式：手机本地独立播放，仅在主动点击接力或菜单发送时在 TV 播放
+    BROWSE, // 浏览模式：手机本地独立播放，仅在主动点击接力或菜单发送时在 TV 播放
 }
 
 @Serializable

@@ -1,35 +1,15 @@
 package org.melodist.tv.ui.components
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,12 +18,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
-import org.melodist.api.getRecommendFeed
-import org.melodist.model.RecommendShelf
 import org.melodist.model.Song
 import org.melodist.tv.ui.theme.MelodistColors
-import org.melodist.tv.ui.theme.MelodistShapes
-import org.melodist.tv.ui.theme.MonetColorExtractor
 
 @Composable
 fun FeedRecommendRow(
@@ -58,7 +34,8 @@ fun FeedRecommendRow(
     val userProfile by UserSession.profileFlow.collectAsState()
     val apiService = remember { MusicApiService() }
 
-    val shelves by org.melodist.data.RecommendFeedManager.shelvesFlow.collectAsState()
+    val shelves by org.melodist.data.RecommendFeedManager.shelvesFlow
+        .collectAsState()
     val currentShelf =
         remember(shelves) {
             val targetShelf = shelves.firstOrNull()
@@ -71,7 +48,8 @@ fun FeedRecommendRow(
 
     LaunchedEffect(userProfile) {
         if (UserSession.isLoggedIn) {
-            org.melodist.data.RecommendFeedManager.refresh(apiService, forceRefresh = false)
+            org.melodist.data.RecommendFeedManager
+                .refresh(apiService, forceRefresh = false)
         }
     }
     val songs = currentShelf?.songs.orEmpty()

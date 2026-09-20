@@ -36,24 +36,23 @@ class PlaybackExoPlayerPipeline(
             }
         }
 
-    fun buildExoPlayer(context: Context): ExoPlayer {
-        return PlaybackEngineFactory.buildExoPlayer(
-            context = context,
-            listener = playerListener,
-            analyticsListener = analyticsListener,
-        ).also {
-            updateUsbExclusiveRouting()
-        }
-    }
+    fun buildExoPlayer(context: Context): ExoPlayer =
+        PlaybackEngineFactory
+            .buildExoPlayer(
+                context = context,
+                listener = playerListener,
+                analyticsListener = analyticsListener,
+            ).also {
+                updateUsbExclusiveRouting()
+            }
 
-    fun getOrCreatePlayer(context: Context): ExoPlayer {
-        return exoPlayer ?: synchronized(this) {
+    fun getOrCreatePlayer(context: Context): ExoPlayer =
+        exoPlayer ?: synchronized(this) {
             exoPlayer ?: buildExoPlayer(context).also {
                 exoPlayer = it
                 onPlayerCreated(it)
             }
         }
-    }
 
     fun applyAudioOffloadPreferences(enabled: Boolean) {
         val p = exoPlayer ?: return

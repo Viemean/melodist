@@ -18,7 +18,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -35,7 +34,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Computer
-import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -45,8 +43,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import org.melodist.core.connect.client.MobileConnectionState
-import org.melodist.mobile.connect.MobileConnectManager
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -77,6 +73,8 @@ import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.melodist.core.connect.client.MobileConnectionState
+import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.components.AudioQualityBottomSheet
 import org.melodist.mobile.ui.components.FullScreenCoverViewer
 import org.melodist.mobile.ui.components.SongActionSheet
@@ -87,6 +85,7 @@ import org.melodist.mobile.ui.player.components.PlayerMonetColors
 import org.melodist.mobile.ui.player.components.PlayerProgressSlider
 import org.melodist.mobile.ui.player.components.PlayerSongInfoSection
 import org.melodist.mobile.ui.player.components.resolveMonetColors
+import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import org.melodist.model.LyricLine
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackLoopMode
@@ -355,18 +354,20 @@ fun FullPlayerSheet(
                                 onClick = {
                                     showTvMenu = false
                                     if (isTakeover) {
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            "当前处于全面接管模式，播放直通 TV",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
+                                        android.widget.Toast
+                                            .makeText(
+                                                context,
+                                                "当前处于全面接管模式，播放直通 TV",
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
                                     } else {
                                         MobileConnectManager.relayCurrentPlaybackToTv()
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            "已接力至 TV 播放",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
+                                        android.widget.Toast
+                                            .makeText(
+                                                context,
+                                                "已接力至 TV 播放",
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
                                     }
                                 },
                             )
@@ -375,7 +376,9 @@ fun FullPlayerSheet(
                                 onClick = {
                                     showTvMenu = false
                                     MobileConnectManager.disconnect()
-                                    android.widget.Toast.makeText(context, "已断开与 TV 的连接", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast
+                                        .makeText(context, "已断开与 TV 的连接", android.widget.Toast.LENGTH_SHORT)
+                                        .show()
                                 },
                             )
                         }
@@ -395,19 +398,21 @@ fun FullPlayerSheet(
                     targetState = displayMode,
                     transitionSpec = {
                         if (targetState == PlayerDisplayMode.Lyrics) {
-                            (fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
-                                scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing)))
-                                .togetherWith(
-                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                                        scaleOut(targetScale = 1.04f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
-                                )
+                            (
+                                fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                    scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                            ).togetherWith(
+                                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                    scaleOut(targetScale = 1.04f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                            )
                         } else {
-                            (fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
-                                scaleIn(initialScale = 1.04f, animationSpec = tween(280, easing = FastOutSlowInEasing)))
-                                .togetherWith(
-                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                                        scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
-                                )
+                            (
+                                fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                    scaleIn(initialScale = 1.04f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                            ).togetherWith(
+                                fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                    scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                            )
                         }
                     },
                     label = "PlayerCoverLyricsTransition",

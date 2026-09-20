@@ -9,7 +9,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.melodist.api.WebDavService
 import org.melodist.core.connect.util.NetworkUtils
 import org.melodist.data.WebDavManager
 import java.io.BufferedInputStream
@@ -20,7 +19,6 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.URLDecoder
 
 class LocalAudioStreamServer(
     private val context: Context,
@@ -29,7 +27,8 @@ class LocalAudioStreamServer(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var serverSocket: ServerSocket? = null
     private val okHttpClient =
-        OkHttpClient.Builder()
+        OkHttpClient
+            .Builder()
             .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
@@ -49,11 +48,12 @@ class LocalAudioStreamServer(
                 val ss = ServerSocket(port)
                 serverSocket = ss
                 while (isActive) {
-                    val client = try {
-                        ss.accept()
-                    } catch (_: Exception) {
-                        break
-                    }
+                    val client =
+                        try {
+                            ss.accept()
+                        } catch (_: Exception) {
+                            break
+                        }
                     scope.launch {
                         handleClient(client)
                     }
@@ -67,7 +67,8 @@ class LocalAudioStreamServer(
     fun stop() {
         try {
             serverSocket?.close()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         serverSocket = null
     }
 
@@ -82,7 +83,10 @@ class LocalAudioStreamServer(
         return "$serverUrl/cover/local?path=$encoded"
     }
 
-    fun buildWebDavStreamUrl(serverId: String, href: String): String {
+    fun buildWebDavStreamUrl(
+        serverId: String,
+        href: String,
+    ): String {
         val encServer = Uri.encode(serverId)
         val encHref = Uri.encode(href)
         return "$serverUrl/stream/webdav?server=$encServer&href=$encHref"
@@ -165,11 +169,17 @@ class LocalAudioStreamServer(
                         sendNotFound(output)
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
-    private fun serveFileWithRange(file: File, rangeHeader: String?, output: OutputStream, isHead: Boolean = false) {
+    private fun serveFileWithRange(
+        file: File,
+        rangeHeader: String?,
+        output: OutputStream,
+        isHead: Boolean = false,
+    ) {
         val fileLength = file.length()
         var start = 0L
         var end = fileLength - 1
@@ -199,15 +209,16 @@ class LocalAudioStreamServer(
         val isPartial = !rangeHeader.isNullOrBlank()
 
         val ext = file.extension.lowercase()
-        val mimeType = when (ext) {
-            "flac" -> "audio/flac"
-            "wav" -> "audio/wav"
-            "ogg", "oga" -> "audio/ogg"
-            "m4a", "aac", "mp4" -> "audio/mp4"
-            "opus" -> "audio/opus"
-            "mp3" -> "audio/mpeg"
-            else -> "audio/mpeg"
-        }
+        val mimeType =
+            when (ext) {
+                "flac" -> "audio/flac"
+                "wav" -> "audio/wav"
+                "ogg", "oga" -> "audio/ogg"
+                "m4a", "aac", "mp4" -> "audio/mp4"
+                "opus" -> "audio/opus"
+                "mp3" -> "audio/mpeg"
+                else -> "audio/mpeg"
+            }
 
         val headerBuilder = StringBuilder()
         if (isPartial) {
@@ -242,19 +253,25 @@ class LocalAudioStreamServer(
         output.flush()
     }
 
-    private fun serveCoverImage(file: File, output: OutputStream, isHead: Boolean = false) {
+    private fun serveCoverImage(
+        file: File,
+        output: OutputStream,
+        isHead: Boolean = false,
+    ) {
         val ext = file.extension.lowercase()
-        val mimeType = when (ext) {
-            "jpg", "jpeg" -> "image/jpeg"
-            "png" -> "image/png"
-            "webp" -> "image/webp"
-            else -> "image/jpeg"
-        }
+        val mimeType =
+            when (ext) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "png" -> "image/png"
+                "webp" -> "image/webp"
+                else -> "image/jpeg"
+            }
         val fileLength = file.length()
-        val header = "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: $mimeType\r\n" +
-            "Content-Length: $fileLength\r\n" +
-            "Connection: close\r\n\r\n"
+        val header =
+            "HTTP/1.1 200 OK\r\n" +
+                "Content-Type: $mimeType\r\n" +
+                "Content-Length: $fileLength\r\n" +
+                "Connection: close\r\n\r\n"
         output.write(header.toByteArray())
         if (isHead) {
             output.flush()
@@ -270,15 +287,21 @@ class LocalAudioStreamServer(
         output.flush()
     }
 
-    private suspend fun serveWebDavStream(serverId: String, href: String, rangeHeader: String?, output: OutputStream) {
+    private suspend fun serveWebDavStream(
+        serverId: String,
+        href: String,
+        rangeHeader: String?,
+        output: OutputStream,
+    ) {
         val servers = WebDavManager.getServers()
-        val server = servers.find { it.id == serverId }
-            ?: WebDavManager.getActiveServer()
-            ?: servers.firstOrNull()
-            ?: run {
-                sendNotFound(output)
-                return
-            }
+        val server =
+            servers.find { it.id == serverId }
+                ?: WebDavManager.getActiveServer()
+                ?: servers.firstOrNull()
+                ?: run {
+                    sendNotFound(output)
+                    return
+                }
         val (streamUrl, authHeader) = WebDavManager.resolvePlaybackUrl(server, href)
         val reqBuilder = Request.Builder().url(streamUrl)
         if (!authHeader.isNullOrBlank()) {
@@ -292,10 +315,11 @@ class LocalAudioStreamServer(
         val resp = call.execute()
         resp.use { r ->
             val status = r.code
-            val body = r.body ?: run {
-                sendNotFound(output)
-                return
-            }
+            val body =
+                r.body ?: run {
+                    sendNotFound(output)
+                    return
+                }
             val headerBuilder = StringBuilder("HTTP/1.1 $status ${r.message}\r\n")
             headerBuilder.append("Content-Type: ${r.header("Content-Type", "audio/mpeg")}\r\n")
             r.header("Content-Length")?.let { headerBuilder.append("Content-Length: $it\r\n") }
@@ -310,7 +334,11 @@ class LocalAudioStreamServer(
         }
     }
 
-    private fun serveHttpProxy(targetUrl: String, rangeHeader: String?, output: OutputStream) {
+    private fun serveHttpProxy(
+        targetUrl: String,
+        rangeHeader: String?,
+        output: OutputStream,
+    ) {
         val reqBuilder = Request.Builder().url(targetUrl)
         if (!rangeHeader.isNullOrBlank()) {
             reqBuilder.header("Range", rangeHeader)
@@ -332,7 +360,10 @@ class LocalAudioStreamServer(
         }
     }
 
-    private fun pipeStream(input: InputStream, output: OutputStream) {
+    private fun pipeStream(
+        input: InputStream,
+        output: OutputStream,
+    ) {
         val buf = ByteArray(32 * 1024)
         var bytes: Int
         while (input.read(buf).also { bytes = it } != -1) {
@@ -380,13 +411,18 @@ class LocalAudioStreamServer(
         return headers
     }
 
-    private fun extractQueryParam(url: String, key: String): String? {
+    private fun extractQueryParam(
+        url: String,
+        key: String,
+    ): String? {
         val query = url.substringAfter('?', "")
         if (query.isBlank()) return null
-        return query.split("&").mapNotNull {
-            val keyPart = it.substringBefore('=')
-            val valPart = it.substringAfter('=', "")
-            if (keyPart == key && it.contains('=')) valPart else null
-        }.firstOrNull()
+        return query
+            .split("&")
+            .mapNotNull {
+                val keyPart = it.substringBefore('=')
+                val valPart = it.substringAfter('=', "")
+                if (keyPart == key && it.contains('=')) valPart else null
+            }.firstOrNull()
     }
 }

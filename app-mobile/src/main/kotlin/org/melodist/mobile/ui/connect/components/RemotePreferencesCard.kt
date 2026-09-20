@@ -66,11 +66,12 @@ fun RemotePreferencesCard(
             ) {
                 val isTakeover = remoteControlMode == RemoteControlMode.TAKEOVER
                 Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            MobileConnectManager.setRemoteControlMode(RemoteControlMode.TAKEOVER)
-                        },
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clickable {
+                                MobileConnectManager.setRemoteControlMode(RemoteControlMode.TAKEOVER)
+                            },
                     shape = RoundedCornerShape(12.dp),
                     color = if (isTakeover) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     border = if (isTakeover) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
@@ -97,18 +98,26 @@ fun RemotePreferencesCard(
                             text = "选歌、歌单、切音质直接调度在 TV 播放",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
-                            color = if (isTakeover) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color =
+                                if (isTakeover) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                        alpha = 0.8f,
+                                    )
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                         )
                     }
                 }
 
                 val isBrowse = remoteControlMode == RemoteControlMode.BROWSE
                 Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            MobileConnectManager.setRemoteControlMode(RemoteControlMode.BROWSE)
-                        },
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clickable {
+                                MobileConnectManager.setRemoteControlMode(RemoteControlMode.BROWSE)
+                            },
                     shape = RoundedCornerShape(12.dp),
                     color = if (isBrowse) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     border = if (isBrowse) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
@@ -135,7 +144,14 @@ fun RemotePreferencesCard(
                             text = "手机本地播放，点击接力或菜单时在 TV 播放",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
-                            color = if (isBrowse) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color =
+                                if (isBrowse) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                        alpha = 0.8f,
+                                    )
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
                         )
                     }
                 }

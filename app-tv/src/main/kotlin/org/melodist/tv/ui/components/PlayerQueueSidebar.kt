@@ -86,7 +86,10 @@ fun PlayerQueueSidebar(
         derivedStateOf {
             if (isRadioMode) return@derivedStateOf false
             val totalCount = listState.layoutInfo.totalItemsCount
-            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val lastVisibleIndex =
+                listState.layoutInfo.visibleItemsInfo
+                    .lastOrNull()
+                    ?.index ?: 0
             totalCount > 0 && lastVisibleIndex >= totalCount - 4
         }
     }
@@ -238,9 +241,10 @@ fun PlayerQueueSidebar(
                         if (isLoadingMoreForQueue) {
                             item {
                                 Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 12.dp),
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(

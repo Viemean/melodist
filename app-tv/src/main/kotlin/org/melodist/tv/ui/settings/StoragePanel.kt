@@ -127,7 +127,7 @@ fun StoragePanel(menuRequester: FocusRequester) {
                         val percent = (cacheUsage.mediaUsageFraction * 100).toInt()
                         val trackDesc = if (cacheUsage.cachedTrackCount > 0) "，已缓存 ${cacheUsage.cachedTrackCount} 首歌曲" else ""
                         Text(
-                            text = "${cacheUsage.mediaFormatted} / ${cacheUsage.mediaQuotaFormatted} (${percent}%$trackDesc)",
+                            text = "${cacheUsage.mediaFormatted} / ${cacheUsage.mediaQuotaFormatted} ($percent%$trackDesc)",
                             fontSize = 13.sp,
                             color = Color.White.copy(alpha = 0.9f),
                             fontWeight = FontWeight.Medium,

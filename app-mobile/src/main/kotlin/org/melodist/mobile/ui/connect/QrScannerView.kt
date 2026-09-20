@@ -1,10 +1,8 @@
 package org.melodist.mobile.ui.connect
 
-import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -19,7 +17,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Image
@@ -27,7 +24,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -64,11 +60,12 @@ fun QrScannerDialog(
         )
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { isGranted ->
-        hasCameraPermission = isGranted
-    }
+    val permissionLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { isGranted ->
+            hasCameraPermission = isGranted
+        }
 
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
@@ -77,37 +74,43 @@ fun QrScannerDialog(
     }
 
     // 从相册选图识别
-    val pickImageLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent(),
-    ) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-                if (bitmap != null) {
-                    val text = QrCodeUtils.decodeQrFromBitmap(bitmap)
-                    if (!text.isNullOrBlank()) {
-                        onQrDecoded(text)
-                        onDismissRequest()
-                    } else {
-                        android.widget.Toast.makeText(context, "未能在图片中识别出有效二维码", android.widget.Toast.LENGTH_SHORT).show()
+    val pickImageLauncher =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.GetContent(),
+        ) { uri: Uri? ->
+            if (uri != null) {
+                try {
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+                    inputStream?.close()
+                    if (bitmap != null) {
+                        val text = QrCodeUtils.decodeQrFromBitmap(bitmap)
+                        if (!text.isNullOrBlank()) {
+                            onQrDecoded(text)
+                            onDismissRequest()
+                        } else {
+                            android.widget.Toast
+                                .makeText(context, "未能在图片中识别出有效二维码", android.widget.Toast.LENGTH_SHORT)
+                                .show()
+                        }
                     }
+                } catch (e: Exception) {
+                    android.widget.Toast
+                        .makeText(context, "解析图片失败: ${e.message}", android.widget.Toast.LENGTH_SHORT)
+                        .show()
                 }
-            } catch (e: Exception) {
-                android.widget.Toast.makeText(context, "解析图片失败: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
-    }
 
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
         ) {
             if (hasCameraPermission) {
                 CameraPreviewView(
@@ -146,18 +149,20 @@ fun QrScannerDialog(
 
             // 顶部关闭与操作按钮
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
                     onClick = onDismissRequest,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape),
+                    modifier =
+                        Modifier
+                            .size(42.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape),
                 ) {
                     Icon(Icons.Rounded.Close, contentDescription = "关闭", tint = Color.White)
                 }
@@ -174,10 +179,11 @@ fun QrScannerDialog(
 
             // 底部提示与相册入口
             Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 32.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -212,12 +218,14 @@ private fun CameraPreviewView(
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
-            val previewView = PreviewView(ctx).apply {
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
-            }
+            val previewView =
+                PreviewView(ctx).apply {
+                    layoutParams =
+                        ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
+                }
 
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
             val cameraExecutor = Executors.newSingleThreadExecutor()
@@ -225,13 +233,16 @@ private fun CameraPreviewView(
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
 
-                val preview = Preview.Builder().build().also {
-                    it.surfaceProvider = previewView.surfaceProvider
-                }
+                val preview =
+                    Preview.Builder().build().also {
+                        it.surfaceProvider = previewView.surfaceProvider
+                    }
 
-                val imageAnalysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
+                val imageAnalysis =
+                    ImageAnalysis
+                        .Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
 
                 val reader = MultiFormatReader()
 
@@ -269,7 +280,10 @@ private fun CameraPreviewView(
     )
 }
 
-private fun decodeImageProxy(image: ImageProxy, reader: MultiFormatReader): String? {
+private fun decodeImageProxy(
+    image: ImageProxy,
+    reader: MultiFormatReader,
+): String? {
     val plane = image.planes.firstOrNull() ?: return null
     val buffer = plane.buffer
     val data = ByteArray(buffer.remaining())
@@ -279,16 +293,17 @@ private fun decodeImageProxy(image: ImageProxy, reader: MultiFormatReader): Stri
     val height = image.height
 
     return try {
-        val source = PlanarYUVLuminanceSource(
-            data,
-            width,
-            height,
-            0,
-            0,
-            width,
-            height,
-            false,
-        )
+        val source =
+            PlanarYUVLuminanceSource(
+                data,
+                width,
+                height,
+                0,
+                0,
+                width,
+                height,
+                false,
+            )
         val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
         val result = reader.decodeWithState(binaryBitmap)
         result.text
@@ -305,10 +320,11 @@ private fun ScannerOverlay(modifier: Modifier = Modifier) {
     val lineOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 2000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
         label = "line_offset",
     )
 

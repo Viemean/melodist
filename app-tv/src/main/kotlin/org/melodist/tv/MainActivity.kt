@@ -18,12 +18,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.flow.collect
 import org.melodist.api.MusicApiService
 import org.melodist.data.UserSessionManager
 import org.melodist.playback.DeviceAudioCapability
 import org.melodist.playback.PlaybackManager
+import org.melodist.tv.connect.TvConnectManager
 import org.melodist.tv.screensaver.ScreenSaverManager
 import org.melodist.tv.ui.AcrTvScreen
 import org.melodist.tv.ui.AlbumTvScreen
@@ -37,11 +39,9 @@ import org.melodist.tv.ui.PlaylistTvScreen
 import org.melodist.tv.ui.SearchTvScreen
 import org.melodist.tv.ui.SettingsTvScreen
 import org.melodist.tv.ui.WebDavTvScreen
-import org.melodist.tv.connect.TvConnectManager
 import org.melodist.tv.ui.connect.ConnectTvScreen
 import org.melodist.tv.ui.settings.ScreenSaverOverlay
 import org.melodist.tv.ui.theme.MelodistTvTheme
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import org.melodist.tv.ui.theme.rememberMonetSurfaceColor
 
 private const val MAX_BACK_DEPTH = 3
@@ -52,12 +52,15 @@ sealed interface TvScreenDestination {
     data object Home : TvScreenDestination {
         override val key: String = "home"
     }
+
     data object Player : TvScreenDestination {
         override val key: String = "player"
     }
+
     data object Settings : TvScreenDestination {
         override val key: String = "settings"
     }
+
     data class Playlist(
         val categoryId: String = "favorites",
         val title: String = "我喜欢的音乐",
@@ -70,27 +73,44 @@ sealed interface TvScreenDestination {
     ) : TvScreenDestination {
         override val key: String = "playlist_${categoryId}_${dirId}_${tid}_$albumMid"
     }
-    data class MediaCollection(val type: String = "playlists") : TvScreenDestination {
+
+    data class MediaCollection(
+        val type: String = "playlists",
+    ) : TvScreenDestination {
         override val key: String = "media_collection_$type"
     }
-    data class Artist(val mid: String, val name: String) : TvScreenDestination {
+
+    data class Artist(
+        val mid: String,
+        val name: String,
+    ) : TvScreenDestination {
         override val key: String = "artist_$mid"
     }
-    data class Album(val mid: String, val name: String, val coverUrl: String = "") : TvScreenDestination {
+
+    data class Album(
+        val mid: String,
+        val name: String,
+        val coverUrl: String = "",
+    ) : TvScreenDestination {
         override val key: String = "album_$mid"
     }
+
     data object Search : TvScreenDestination {
         override val key: String = "search"
     }
+
     data object Acr : TvScreenDestination {
         override val key: String = "acr"
     }
+
     data object WebDav : TvScreenDestination {
         override val key: String = "webdav"
     }
+
     data object LocalMusic : TvScreenDestination {
         override val key: String = "local_music"
     }
+
     data object Connect : TvScreenDestination {
         override val key: String = "connect"
     }
@@ -99,7 +119,10 @@ sealed interface TvScreenDestination {
 class MainActivity : ComponentActivity() {
     private val screenPowerReceiver =
         object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
+            override fun onReceive(
+                context: Context?,
+                intent: Intent?,
+            ) {
                 if (intent?.action == Intent.ACTION_SCREEN_OFF) {
                     // 电视机休眠息屏：主动暂停并保存播放进度，防止开机继续播放惊吓用户
                     PlaybackManager.pause()
@@ -123,11 +146,16 @@ class MainActivity : ComponentActivity() {
             .init(this)
         org.melodist.data.LocalMusicManager
             .init(this)
-        org.melodist.data.AppSettingsManager.init(this)
-        org.melodist.data.DailyRecommendCacheManager.init(this)
-        org.melodist.data.MillionRecommendManager.init(this)
-        org.melodist.data.UserLibraryCacheManager.init(this)
-        org.melodist.data.RecommendFeedManager.init(this)
+        org.melodist.data.AppSettingsManager
+            .init(this)
+        org.melodist.data.DailyRecommendCacheManager
+            .init(this)
+        org.melodist.data.MillionRecommendManager
+            .init(this)
+        org.melodist.data.UserLibraryCacheManager
+            .init(this)
+        org.melodist.data.RecommendFeedManager
+            .init(this)
         ScreenSaverManager.init()
         TvConnectManager.init(this)
         checkAndRequestStoragePermissions()
@@ -157,7 +185,10 @@ class MainActivity : ComponentActivity() {
                         val routeStack = remember { mutableStateListOf<TvScreenDestination>() }
                         var isReturningFromPlayer by remember { mutableStateOf(false) }
 
-                        fun navigateTo(destination: TvScreenDestination, clearStack: Boolean = false) {
+                        fun navigateTo(
+                            destination: TvScreenDestination,
+                            clearStack: Boolean = false,
+                        ) {
                             if (clearStack || destination is TvScreenDestination.Home) {
                                 routeStack.forEach { saveableStateHolder.removeState(it.key) }
                                 routeStack.clear()
@@ -192,8 +223,10 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(Unit) {
                             PlaybackManager.songFavoriteToggledEvent.collect { (song, isFav) ->
                                 PlaylistScreenCache.onSongFavoriteChanged(song, isFav)
-                                org.melodist.tv.ui.components.HomeCardsCache.onSongFavoriteChanged(song, isFav)
-                                org.melodist.data.UserLibraryCacheManager.onFavoriteToggled(song, isFav)
+                                org.melodist.tv.ui.components.HomeCardsCache
+                                    .onSongFavoriteChanged(song, isFav)
+                                org.melodist.data.UserLibraryCacheManager
+                                    .onFavoriteToggled(song, isFav)
                             }
                         }
 
@@ -217,272 +250,272 @@ class MainActivity : ComponentActivity() {
                         }
                         saveableStateHolder.SaveableStateProvider(key = currentDestination.key) {
                             when (val dest = currentDestination) {
-                            is TvScreenDestination.Home -> {
-                                HomeTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    onNavigateToPlayer = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
-                                    onNavigateToSettings = {
-                                        navigateTo(TvScreenDestination.Settings)
-                                    },
-                                    onNavigateToAcr = {
-                                        navigateTo(TvScreenDestination.Acr)
-                                    },
-                                    onNavigateToSearch = {
-                                        navigateTo(TvScreenDestination.Search)
-                                    },
-                                    onNavigateToWebDav = {
-                                        navigateTo(TvScreenDestination.WebDav)
-                                    },
-                                    onNavigateToLocalMusic = {
-                                        navigateTo(TvScreenDestination.LocalMusic)
-                                    },
-                                    onNavigateToConnect = {
-                                        navigateTo(TvScreenDestination.Connect)
-                                    },
-                                    onNavigateToDetail = { categoryId ->
-                                        when (categoryId) {
-                                            "favorites" -> {
-                                                navigateTo(
-                                                    TvScreenDestination.Playlist(
-                                                        categoryId = "favorites",
-                                                        title = "我喜欢的音乐",
-                                                        subtitle = "已收藏单曲列表",
-                                                        isFav = true,
-                                                        coverUrl = org.melodist.tv.ui.components.HomeCardsCache.favCover,
-                                                    ),
-                                                )
+                                is TvScreenDestination.Home -> {
+                                    HomeTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        onNavigateToPlayer = {
+                                            navigateTo(TvScreenDestination.Player)
+                                        },
+                                        onNavigateToSettings = {
+                                            navigateTo(TvScreenDestination.Settings)
+                                        },
+                                        onNavigateToAcr = {
+                                            navigateTo(TvScreenDestination.Acr)
+                                        },
+                                        onNavigateToSearch = {
+                                            navigateTo(TvScreenDestination.Search)
+                                        },
+                                        onNavigateToWebDav = {
+                                            navigateTo(TvScreenDestination.WebDav)
+                                        },
+                                        onNavigateToLocalMusic = {
+                                            navigateTo(TvScreenDestination.LocalMusic)
+                                        },
+                                        onNavigateToConnect = {
+                                            navigateTo(TvScreenDestination.Connect)
+                                        },
+                                        onNavigateToDetail = { categoryId ->
+                                            when (categoryId) {
+                                                "favorites" -> {
+                                                    navigateTo(
+                                                        TvScreenDestination.Playlist(
+                                                            categoryId = "favorites",
+                                                            title = "我喜欢的音乐",
+                                                            subtitle = "已收藏单曲列表",
+                                                            isFav = true,
+                                                            coverUrl = org.melodist.tv.ui.components.HomeCardsCache.favCover,
+                                                        ),
+                                                    )
+                                                }
+                                                "daily" -> {
+                                                    navigateTo(
+                                                        TvScreenDestination.Playlist(
+                                                            categoryId = "daily",
+                                                            title = "每日推荐",
+                                                            subtitle = "依据收听记录每日推荐",
+                                                            isFav = false,
+                                                            coverUrl = org.melodist.tv.ui.components.HomeCardsCache.dailyCover,
+                                                        ),
+                                                    )
+                                                }
+                                                "radar" -> {
+                                                    navigateTo(
+                                                        TvScreenDestination.Playlist(
+                                                            categoryId = "radar",
+                                                            title = "猜你喜欢",
+                                                            subtitle = "雷达推演",
+                                                            isFav = false,
+                                                            coverUrl = org.melodist.tv.ui.components.HomeCardsCache.radarCover,
+                                                            albumMid = org.melodist.tv.ui.components.HomeCardsCache.radarAlbumMid,
+                                                        ),
+                                                    )
+                                                }
+                                                "million" -> {
+                                                    navigateTo(
+                                                        TvScreenDestination.Playlist(
+                                                            categoryId = "million",
+                                                            title = "百万推荐",
+                                                            subtitle = "官方高赞好歌专栏",
+                                                            isFav = false,
+                                                            coverUrl = org.melodist.tv.ui.components.HomeCardsCache.millionCover,
+                                                        ),
+                                                    )
+                                                }
+                                                "playlists" -> {
+                                                    navigateTo(TvScreenDestination.MediaCollection("playlists"))
+                                                }
+                                                "collections" -> {
+                                                    navigateTo(TvScreenDestination.MediaCollection("collections"))
+                                                }
+                                                else -> {
+                                                    navigateTo(
+                                                        TvScreenDestination.Playlist(
+                                                            categoryId = categoryId,
+                                                            title = "歌单详情",
+                                                            subtitle = "曲目列表",
+                                                            isFav = false,
+                                                            coverUrl = "",
+                                                        ),
+                                                    )
+                                                }
                                             }
-                                            "daily" -> {
-                                                navigateTo(
-                                                    TvScreenDestination.Playlist(
-                                                        categoryId = "daily",
-                                                        title = "每日推荐",
-                                                        subtitle = "依据收听记录每日推荐",
-                                                        isFav = false,
-                                                        coverUrl = org.melodist.tv.ui.components.HomeCardsCache.dailyCover,
-                                                    ),
-                                                )
-                                            }
-                                            "radar" -> {
-                                                navigateTo(
-                                                    TvScreenDestination.Playlist(
-                                                        categoryId = "radar",
-                                                        title = "猜你喜欢",
-                                                        subtitle = "雷达推演",
-                                                        isFav = false,
-                                                        coverUrl = org.melodist.tv.ui.components.HomeCardsCache.radarCover,
-                                                        albumMid = org.melodist.tv.ui.components.HomeCardsCache.radarAlbumMid,
-                                                    ),
-                                                )
-                                            }
-                                            "million" -> {
-                                                navigateTo(
-                                                    TvScreenDestination.Playlist(
-                                                        categoryId = "million",
-                                                        title = "百万推荐",
-                                                        subtitle = "官方高赞好歌专栏",
-                                                        isFav = false,
-                                                        coverUrl = org.melodist.tv.ui.components.HomeCardsCache.millionCover,
-                                                    ),
-                                                )
-                                            }
-                                            "playlists" -> {
-                                                navigateTo(TvScreenDestination.MediaCollection("playlists"))
-                                            }
-                                            "collections" -> {
-                                                navigateTo(TvScreenDestination.MediaCollection("collections"))
-                                            }
-                                            else -> {
-                                                navigateTo(
-                                                    TvScreenDestination.Playlist(
-                                                        categoryId = categoryId,
-                                                        title = "歌单详情",
-                                                        subtitle = "曲目列表",
-                                                        isFav = false,
-                                                        coverUrl = "",
-                                                    ),
-                                                )
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Player -> {
-                                PlayerTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    onNavigateToArtist = { mid, name ->
-                                        navigateTo(TvScreenDestination.Artist(mid, name))
-                                    },
-                                    onNavigateToAlbum = { mid, name ->
-                                        navigateTo(TvScreenDestination.Album(mid, name))
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Settings -> {
-                                SettingsTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.MediaCollection -> {
-                                MediaCollectionTvScreen(
-                                    type = dest.type,
-                                    onSelectPlaylist = { playlist ->
-                                        navigateTo(
-                                            TvScreenDestination.Playlist(
-                                                categoryId = "playlist_detail",
-                                                title = playlist.name,
-                                                subtitle = "共 ${playlist.songCount} 首单曲",
-                                                dirId = playlist.dirId,
-                                                tid = playlist.tid,
-                                                isFav = playlist.isFav,
-                                                albumMid = "",
-                                                coverUrl = playlist.picUrl,
-                                            ),
-                                        )
-                                    },
-                                    onSelectAlbum = { album ->
-                                        navigateTo(TvScreenDestination.Album(album.mid, album.title, album.coverUrl))
-                                    },
-                                    onNavigateToSettings = {
-                                        navigateTo(TvScreenDestination.Settings)
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Playlist -> {
-                                PlaylistTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    categoryId = dest.categoryId,
-                                    title = dest.title,
-                                    subtitle = dest.subtitle,
-                                    coverUrl = dest.coverUrl,
-                                    dirId = dest.dirId,
-                                    tid = dest.tid,
-                                    isFav = dest.isFav,
-                                    albumMid = dest.albumMid,
-                                    isFavoritePlaylist = (dest.categoryId == "favorites"),
-                                    isReturningFromPlayer = isReturningFromPlayer,
-                                    onPlayAll = {},
-                                    onPlayShuffle = {},
-                                    onSongClick = {},
-                                    onNavigateToArtist = { mid, name ->
-                                        navigateTo(TvScreenDestination.Artist(mid, name))
-                                    },
-                                    onNavigateToAlbum = { mid, name ->
-                                        navigateTo(TvScreenDestination.Album(mid, name))
-                                    },
-                                    onNavigateToSettings = {
-                                        navigateTo(TvScreenDestination.Settings)
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Artist -> {
-                                ArtistTvScreen(
-                                    artistMid = dest.mid,
-                                    artistName = dest.name,
-                                    surfaceColor = globalMonetBg,
-                                    onNavigateToPlayer = {},
-                                    onNavigateToArtist = { mid, name ->
-                                        navigateTo(TvScreenDestination.Artist(mid, name))
-                                    },
-                                    onNavigateToAlbum = { mid, name ->
-                                        navigateTo(TvScreenDestination.Album(mid, name))
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Album -> {
-                                AlbumTvScreen(
-                                    albumMid = dest.mid,
-                                    albumName = dest.name,
-                                    surfaceColor = globalMonetBg,
-                                    isReturningFromPlayer = isReturningFromPlayer,
-                                    onNavigateToPlayer = {},
-                                    onNavigateToArtist = { mid, name ->
-                                        navigateTo(TvScreenDestination.Artist(mid, name))
-                                    },
-                                    onNavigateToAlbum = { mid, name ->
-                                        navigateTo(TvScreenDestination.Album(mid, name))
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Acr -> {
-                                AcrTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    onNavigateToPlayer = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Search -> {
-                                SearchTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    onNavigateToPlayer = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
-                                    onNavigateToArtist = { mid, name ->
-                                        navigateTo(TvScreenDestination.Artist(mid, name))
-                                    },
-                                    onNavigateToAlbum = { mid, name ->
-                                        navigateTo(TvScreenDestination.Album(mid, name))
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.WebDav -> {
-                                WebDavTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    onNavigateToPlayer = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.LocalMusic -> {
-                                LocalMusicTvScreen(
-                                    surfaceColor = globalMonetBg,
-                                    onNavigateToPlayer = {
-                                        navigateTo(TvScreenDestination.Player)
-                                    },
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
-                            }
-                            is TvScreenDestination.Connect -> {
-                                ConnectTvScreen(
-                                    onBack = {
-                                        navigateBack()
-                                    },
-                                )
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Player -> {
+                                    PlayerTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        onNavigateToArtist = { mid, name ->
+                                            navigateTo(TvScreenDestination.Artist(mid, name))
+                                        },
+                                        onNavigateToAlbum = { mid, name ->
+                                            navigateTo(TvScreenDestination.Album(mid, name))
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Settings -> {
+                                    SettingsTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.MediaCollection -> {
+                                    MediaCollectionTvScreen(
+                                        type = dest.type,
+                                        onSelectPlaylist = { playlist ->
+                                            navigateTo(
+                                                TvScreenDestination.Playlist(
+                                                    categoryId = "playlist_detail",
+                                                    title = playlist.name,
+                                                    subtitle = "共 ${playlist.songCount} 首单曲",
+                                                    dirId = playlist.dirId,
+                                                    tid = playlist.tid,
+                                                    isFav = playlist.isFav,
+                                                    albumMid = "",
+                                                    coverUrl = playlist.picUrl,
+                                                ),
+                                            )
+                                        },
+                                        onSelectAlbum = { album ->
+                                            navigateTo(TvScreenDestination.Album(album.mid, album.title, album.coverUrl))
+                                        },
+                                        onNavigateToSettings = {
+                                            navigateTo(TvScreenDestination.Settings)
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Playlist -> {
+                                    PlaylistTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        categoryId = dest.categoryId,
+                                        title = dest.title,
+                                        subtitle = dest.subtitle,
+                                        coverUrl = dest.coverUrl,
+                                        dirId = dest.dirId,
+                                        tid = dest.tid,
+                                        isFav = dest.isFav,
+                                        albumMid = dest.albumMid,
+                                        isFavoritePlaylist = (dest.categoryId == "favorites"),
+                                        isReturningFromPlayer = isReturningFromPlayer,
+                                        onPlayAll = {},
+                                        onPlayShuffle = {},
+                                        onSongClick = {},
+                                        onNavigateToArtist = { mid, name ->
+                                            navigateTo(TvScreenDestination.Artist(mid, name))
+                                        },
+                                        onNavigateToAlbum = { mid, name ->
+                                            navigateTo(TvScreenDestination.Album(mid, name))
+                                        },
+                                        onNavigateToSettings = {
+                                            navigateTo(TvScreenDestination.Settings)
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Artist -> {
+                                    ArtistTvScreen(
+                                        artistMid = dest.mid,
+                                        artistName = dest.name,
+                                        surfaceColor = globalMonetBg,
+                                        onNavigateToPlayer = {},
+                                        onNavigateToArtist = { mid, name ->
+                                            navigateTo(TvScreenDestination.Artist(mid, name))
+                                        },
+                                        onNavigateToAlbum = { mid, name ->
+                                            navigateTo(TvScreenDestination.Album(mid, name))
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Album -> {
+                                    AlbumTvScreen(
+                                        albumMid = dest.mid,
+                                        albumName = dest.name,
+                                        surfaceColor = globalMonetBg,
+                                        isReturningFromPlayer = isReturningFromPlayer,
+                                        onNavigateToPlayer = {},
+                                        onNavigateToArtist = { mid, name ->
+                                            navigateTo(TvScreenDestination.Artist(mid, name))
+                                        },
+                                        onNavigateToAlbum = { mid, name ->
+                                            navigateTo(TvScreenDestination.Album(mid, name))
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Acr -> {
+                                    AcrTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        onNavigateToPlayer = {
+                                            navigateTo(TvScreenDestination.Player)
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Search -> {
+                                    SearchTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        onNavigateToPlayer = {
+                                            navigateTo(TvScreenDestination.Player)
+                                        },
+                                        onNavigateToArtist = { mid, name ->
+                                            navigateTo(TvScreenDestination.Artist(mid, name))
+                                        },
+                                        onNavigateToAlbum = { mid, name ->
+                                            navigateTo(TvScreenDestination.Album(mid, name))
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.WebDav -> {
+                                    WebDavTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        onNavigateToPlayer = {
+                                            navigateTo(TvScreenDestination.Player)
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.LocalMusic -> {
+                                    LocalMusicTvScreen(
+                                        surfaceColor = globalMonetBg,
+                                        onNavigateToPlayer = {
+                                            navigateTo(TvScreenDestination.Player)
+                                        },
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
+                                is TvScreenDestination.Connect -> {
+                                    ConnectTvScreen(
+                                        onBack = {
+                                            navigateBack()
+                                        },
+                                    )
+                                }
                             }
                         }
-                    }
 
                         // 全局屏幕保护覆盖层：应用任何界面在无操作超时后自动触发
                         val isScreenSaverActive by ScreenSaverManager.isScreenSaverActive.collectAsState()

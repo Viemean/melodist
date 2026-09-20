@@ -148,15 +148,52 @@ suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model
                 } ?: emptyList()
 
             val firstSong = songList.firstOrNull()
-            val rawName = basicInfo?.get("albumName")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val rawName =
+                basicInfo
+                    ?.get("albumName")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
             val name = rawName.ifBlank { firstSong?.album.orEmpty().ifBlank { "专辑曲目" } }
             val artist = firstSong?.singer.orEmpty()
-            val publishDate = basicInfo?.get("publishDate")?.jsonPrimitive?.contentOrNull.orEmpty()
-            val company = companyObj?.get("name")?.jsonPrimitive?.contentOrNull.orEmpty()
-            val desc = basicInfo?.get("desc")?.jsonPrimitive?.contentOrNull.orEmpty()
-            val rawLanguage = basicInfo?.get("language")?.jsonPrimitive?.contentOrNull.orEmpty()
-            val language = rawLanguage.ifBlank { basicInfo?.get("lan")?.jsonPrimitive?.contentOrNull.orEmpty() }
-            val albumType = basicInfo?.get("albumType")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val publishDate =
+                basicInfo
+                    ?.get("publishDate")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
+            val company =
+                companyObj
+                    ?.get("name")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
+            val desc =
+                basicInfo
+                    ?.get("desc")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
+            val rawLanguage =
+                basicInfo
+                    ?.get("language")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
+            val language =
+                rawLanguage.ifBlank {
+                    basicInfo
+                        ?.get("lan")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+                }
+            val albumType =
+                basicInfo
+                    ?.get("albumType")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
 
             val parsedSingers =
                 singerObj?.get("singerList")?.jsonArray?.mapNotNull { item ->

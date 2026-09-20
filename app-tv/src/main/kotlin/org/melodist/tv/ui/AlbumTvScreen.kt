@@ -3,8 +3,6 @@ package org.melodist.tv.ui
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.model.AlbumDetail

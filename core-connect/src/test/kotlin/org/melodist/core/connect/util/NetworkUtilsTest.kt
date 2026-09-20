@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class NetworkUtilsTest {
-
     // ── isBlockedIp ────────────────────────────────────────────────
 
     @Test
@@ -150,11 +149,12 @@ class NetworkUtilsTest {
 
     @Test
     fun `高优先 IP 优先于低优先 IP 排序`() {
-        val addresses = listOf(
-            "10.0.2.15" to NetworkUtils.scoreIp("10.0.2.15", "eth0"),
-            "192.168.1.100" to NetworkUtils.scoreIp("192.168.1.100", "wlan0"),
-            "10.8.0.1" to NetworkUtils.scoreIp("10.8.0.1", "wlan0"),
-        )
+        val addresses =
+            listOf(
+                "10.0.2.15" to NetworkUtils.scoreIp("10.0.2.15", "eth0"),
+                "192.168.1.100" to NetworkUtils.scoreIp("192.168.1.100", "wlan0"),
+                "10.8.0.1" to NetworkUtils.scoreIp("10.8.0.1", "wlan0"),
+            )
         val sorted = addresses.sortedByDescending { it.second }.map { it.first }
         assertEquals("192.168.1.100", sorted[0])
         assertEquals("10.8.0.1", sorted[1])

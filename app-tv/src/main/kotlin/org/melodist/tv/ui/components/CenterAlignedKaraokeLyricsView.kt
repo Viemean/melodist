@@ -30,7 +30,10 @@ fun CenterAlignedKaraokeLyricsView(
     lyrics: List<LyricLine>,
     currentPositionMs: Long,
     modifier: Modifier = Modifier,
-    lyricOffsetMs: Long = org.melodist.playback.PlaybackManager.currentLyricOffsetMs.collectAsState().value,
+    lyricOffsetMs: Long =
+        org.melodist.playback.PlaybackManager.currentLyricOffsetMs
+            .collectAsState()
+            .value,
     highlightColor: Color = MelodistColors.AccentGreen,
 ) {
     val settings by AppSettingsManager.settings.collectAsState()
@@ -63,7 +66,8 @@ fun CenterAlignedKaraokeLyricsView(
         }
 
     val listState = rememberLazyListState()
-    val takeoverScroll by org.melodist.tv.connect.TakeoverLyricsState.scrollFlow.collectAsState()
+    val takeoverScroll by org.melodist.tv.connect.TakeoverLyricsState.scrollFlow
+        .collectAsState()
 
     // 自动平滑居中滚动至当前行 / 接收接管端歌词滚动同步
     LaunchedEffect(activeIndex, takeoverScroll) {

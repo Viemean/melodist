@@ -75,7 +75,8 @@ object MillionRecommendManager {
     private fun deleteCurrentCacheFile() {
         try {
             getTodayCacheFile()?.delete()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun cleanupOldCacheFiles(currentDateStr: String) {
@@ -86,11 +87,12 @@ object MillionRecommendManager {
                     name.startsWith("million_recommend_") && name.endsWith(".json")
                 } ?: return
             for (file in files) {
-                if (file.name != "million_recommend_${currentDateStr}.json") {
+                if (file.name != "million_recommend_$currentDateStr.json") {
                     file.delete()
                 }
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     private fun loadFromDisk() {

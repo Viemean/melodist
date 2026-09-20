@@ -8,7 +8,6 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 class AudioMetadataPipelineTest {
-
     @Test
     fun `inferTitleArtist splits standard artist and title patterns`() {
         val (title1, artist1) = AudioMetadataPipeline.inferTitleArtist("周杰伦 - 晴天.flac")
@@ -29,7 +28,9 @@ class AudioMetadataPipelineTest {
     }
 
     @Test
-    fun `detectCompanionLrc identifies same-name lrc file`(@TempDir tempDir: File) {
+    fun `detectCompanionLrc identifies same-name lrc file`(
+        @TempDir tempDir: File,
+    ) {
         val audioFile = File(tempDir, "test_track.flac").apply { writeBytes(ByteArray(1024)) }
         val lrcFile = File(tempDir, "test_track.lrc").apply { writeText("[00:01.00]Hello Lyric") }
 
@@ -42,7 +43,9 @@ class AudioMetadataPipelineTest {
     }
 
     @Test
-    fun `detectCompanionCover locates folder and cover image files`(@TempDir tempDir: File) {
+    fun `detectCompanionCover locates folder and cover image files`(
+        @TempDir tempDir: File,
+    ) {
         val audioFile = File(tempDir, "song.flac").apply { writeBytes(ByteArray(1024)) }
 
         // 初始无图片
@@ -56,7 +59,9 @@ class AudioMetadataPipelineTest {
     }
 
     @Test
-    fun `saveThumbnailWebp rejects undersized byte arrays`(@TempDir tempDir: File) {
+    fun `saveThumbnailWebp rejects undersized byte arrays`(
+        @TempDir tempDir: File,
+    ) {
         val undersized = ByteArray(100)
         val result = AudioMetadataPipeline.saveThumbnailWebp(undersized, tempDir, "hash_test")
         assertNull(result)

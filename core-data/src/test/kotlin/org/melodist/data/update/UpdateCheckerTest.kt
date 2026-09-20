@@ -95,4 +95,3 @@ class UpdateCheckerTest {
         assertFalse(UpdateChecker.isNewerVersion("v1.3.6", "20.1.3.7"))
     }
 }
-

@@ -35,10 +35,11 @@ import kotlin.random.Random
 
 object TvConnectManager {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     private var storageManager: ConnectStorageManager? = null
     private var connectServer: TvConnectServer? = null
@@ -120,7 +121,10 @@ object TvConnectManager {
         scope.launch {
             PlaybackManager.lyricsLoadedFlow.collect { (song, lyrics) ->
                 val s = connectServer ?: return@collect
-                if (!org.melodist.data.LyricCacheManager.isRemoteSynced(song.songMid) && s.connectedDeviceFlow.value != null) {
+                if (!org.melodist.data.LyricCacheManager
+                        .isRemoteSynced(song.songMid) &&
+                    s.connectedDeviceFlow.value != null
+                ) {
                     s.broadcastLyrics(
                         org.melodist.core.connect.model.LyricsSyncPayload(
                             songMid = song.songMid,
@@ -168,7 +172,15 @@ object TvConnectManager {
                     val isRadio = PlaybackManager.isRadioMode.value
 
                     val songMid = currentSong?.songMid.orEmpty()
-                    if (pos != lastPosition || isPlaying != lastIsPlaying || songMid != lastSongMid || loopMode != lastLoopMode || isAod != lastAod || currentTier != lastTier || isFav != lastIsFav || isRadio != lastIsRadio) {
+                    if (pos != lastPosition ||
+                        isPlaying != lastIsPlaying ||
+                        songMid != lastSongMid ||
+                        loopMode != lastLoopMode ||
+                        isAod != lastAod ||
+                        currentTier != lastTier ||
+                        isFav != lastIsFav ||
+                        isRadio != lastIsRadio
+                    ) {
                         lastPosition = pos
                         lastIsPlaying = isPlaying
                         lastSongMid = songMid
@@ -234,14 +246,15 @@ object TvConnectManager {
         val localDevice = storage.getOrCreateLocalDevice(fallbackHost = ip)
         val actualPort = connectServer?.actualPort ?: SERVER_PORT
 
-        val qrData = QrPairData(
-            deviceId = localDevice.id,
-            deviceName = localDevice.name,
-            host = ip,
-            port = actualPort,
-            token = localDevice.token,
-            pinCode = _currentPinCode.value,
-        )
+        val qrData =
+            QrPairData(
+                deviceId = localDevice.id,
+                deviceName = localDevice.name,
+                host = ip,
+                port = actualPort,
+                token = localDevice.token,
+                pinCode = _currentPinCode.value,
+            )
         val qrJson = json.encodeToString(qrData)
         val bitmap = QrCodeUtils.generateQrBitmap(qrJson, sizePx = 480)
         _qrBitmapFlow.value = bitmap
@@ -329,9 +342,11 @@ object TvConnectManager {
                 }
                 is TvIncomingCommand.TriggerAod -> {
                     if (org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
-                        org.melodist.tv.screensaver.ScreenSaverManager.dismissScreenSaver()
+                        org.melodist.tv.screensaver.ScreenSaverManager
+                            .dismissScreenSaver()
                     } else {
-                        org.melodist.tv.screensaver.ScreenSaverManager.triggerScreenSaver()
+                        org.melodist.tv.screensaver.ScreenSaverManager
+                            .triggerScreenSaver()
                     }
                 }
                 is TvIncomingCommand.CycleLoopMode -> {
@@ -406,53 +421,53 @@ object TvConnectManager {
         )
     }
 
-    private fun generateRandomPin(): String {
-        return "%06d".format(Random.nextInt(100000, 999999))
-    }
+    private fun generateRandomPin(): String = "%06d".format(Random.nextInt(100000, 999999))
 
     private fun setupPlaybackInterceptor() {
-        PlaybackManager.playbackInterceptor = object : org.melodist.playback.PlaybackInterceptor {
-            override fun onInterceptPlayNext(): Boolean {
-                if (isSyncingFromMobile) return false
-                val server = connectServer ?: return false
-                if (server.connectedDeviceFlow.value == null) return false
-                server.broadcastNext()
-                return true
-            }
-
-            override fun onInterceptPlayPrevious(): Boolean {
-                if (isSyncingFromMobile) return false
-                val server = connectServer ?: return false
-                if (server.connectedDeviceFlow.value == null) return false
-                server.broadcastPrevious()
-                return true
-            }
-
-            override fun onInterceptPlaySong(
-                song: org.melodist.model.Song,
-                forceTier: AudioQualityTier?,
-                seekToMs: Long,
-            ): Boolean {
-                if (isSyncingFromMobile) return false
-                val server = connectServer ?: return false
-                if (server.connectedDeviceFlow.value == null) return false
-                val isLocalSong = song.isLocal || (!song.localFilePath.isNullOrBlank() && !song.isWebDav)
-                val localPath = song.localFilePath
-                val directFileExists = if (isLocalSong && !localPath.isNullOrBlank()) {
-                    try {
-                        java.io.File(localPath).exists()
-                    } catch (_: Exception) {
-                        false
-                    }
-                } else {
-                    false
-                }
-                if (isLocalSong && !directFileExists) {
-                    server.broadcastPlaySong(song)
+        PlaybackManager.playbackInterceptor =
+            object : org.melodist.playback.PlaybackInterceptor {
+                override fun onInterceptPlayNext(): Boolean {
+                    if (isSyncingFromMobile) return false
+                    val server = connectServer ?: return false
+                    if (server.connectedDeviceFlow.value == null) return false
+                    server.broadcastNext()
                     return true
                 }
-                return false
+
+                override fun onInterceptPlayPrevious(): Boolean {
+                    if (isSyncingFromMobile) return false
+                    val server = connectServer ?: return false
+                    if (server.connectedDeviceFlow.value == null) return false
+                    server.broadcastPrevious()
+                    return true
+                }
+
+                override fun onInterceptPlaySong(
+                    song: org.melodist.model.Song,
+                    forceTier: AudioQualityTier?,
+                    seekToMs: Long,
+                ): Boolean {
+                    if (isSyncingFromMobile) return false
+                    val server = connectServer ?: return false
+                    if (server.connectedDeviceFlow.value == null) return false
+                    val isLocalSong = song.isLocal || (!song.localFilePath.isNullOrBlank() && !song.isWebDav)
+                    val localPath = song.localFilePath
+                    val directFileExists =
+                        if (isLocalSong && !localPath.isNullOrBlank()) {
+                            try {
+                                java.io.File(localPath).exists()
+                            } catch (_: Exception) {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    if (isLocalSong && !directFileExists) {
+                        server.broadcastPlaySong(song)
+                        return true
+                    }
+                    return false
+                }
             }
-        }
     }
 }

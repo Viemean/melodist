@@ -11,14 +11,17 @@ import java.io.File
  * 负责构建 Android Media3 所需的 MediaItem 与 MediaMetadata
  */
 object PlaybackMediaItemFactory {
-
-    fun buildMediaMetadata(song: Song, remoteDeviceName: String? = null): MediaMetadata {
-        val albumDesc = if (!remoteDeviceName.isNullOrBlank()) {
-            val base = if (song.album.isNotBlank()) song.album else "单曲"
-            "$base · 正在 $remoteDeviceName 播放"
-        } else {
-            song.album
-        }
+    fun buildMediaMetadata(
+        song: Song,
+        remoteDeviceName: String? = null,
+    ): MediaMetadata {
+        val albumDesc =
+            if (!remoteDeviceName.isNullOrBlank()) {
+                val base = if (song.album.isNotBlank()) song.album else "单曲"
+                "$base · 正在 $remoteDeviceName 播放"
+            } else {
+                song.album
+            }
 
         val builder =
             MediaMetadata
@@ -61,16 +64,20 @@ object PlaybackMediaItemFactory {
         return builder.build()
     }
 
-    fun buildMediaItemForSong(song: Song, remoteDeviceName: String? = null): MediaItem {
-        val uri = if (song.coverUrl.isNotBlank()) {
-            try {
-                Uri.parse(song.coverUrl)
-            } catch (_: Exception) {
+    fun buildMediaItemForSong(
+        song: Song,
+        remoteDeviceName: String? = null,
+    ): MediaItem {
+        val uri =
+            if (song.coverUrl.isNotBlank()) {
+                try {
+                    Uri.parse(song.coverUrl)
+                } catch (_: Exception) {
+                    Uri.EMPTY
+                }
+            } else {
                 Uri.EMPTY
             }
-        } else {
-            Uri.EMPTY
-        }
         return MediaItem
             .Builder()
             .setUri(uri)

@@ -34,13 +34,13 @@ import androidx.tv.material3.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.melodist.data.update.UpdateChecker
+import org.melodist.data.update.UpdateResult
 import org.melodist.tv.BuildConfig
 import org.melodist.tv.ui.theme.LocalMonetSurface
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.toMonetContainer
-import org.melodist.data.update.UpdateChecker
-import org.melodist.data.update.UpdateResult
 
 private data class CodecItem(
     val formatName: String,

@@ -100,7 +100,7 @@ fun SettingsStorageSection(
                         val percent = (cacheUsage.mediaUsageFraction * 100).toInt()
                         val trackDesc = if (cacheUsage.cachedTrackCount > 0) "，已缓存 ${cacheUsage.cachedTrackCount} 首歌曲" else ""
                         Text(
-                            text = "音频配额: ${cacheUsage.mediaFormatted} / ${cacheUsage.mediaQuotaFormatted} (${percent}%$trackDesc)",
+                            text = "音频配额: ${cacheUsage.mediaFormatted} / ${cacheUsage.mediaQuotaFormatted} ($percent%$trackDesc)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
                         )

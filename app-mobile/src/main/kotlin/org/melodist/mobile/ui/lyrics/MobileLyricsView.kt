@@ -55,7 +55,10 @@ fun MobileLyricsView(
     currentPositionMs: Long,
     onSeekTo: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    lyricOffsetMs: Long = org.melodist.playback.PlaybackManager.currentLyricOffsetMs.collectAsState().value,
+    lyricOffsetMs: Long =
+        org.melodist.playback.PlaybackManager.currentLyricOffsetMs
+            .collectAsState()
+            .value,
     highlightColor: Color = MaterialTheme.colorScheme.primary,
     textColor: Color = Color.White.copy(alpha = 0.88f),
     transColor: Color = Color.White.copy(alpha = 0.60f),
@@ -123,9 +126,10 @@ fun MobileLyricsView(
                 val layoutInfo = listState.layoutInfo
                 if (layoutInfo.visibleItemsInfo.isEmpty()) return@derivedStateOf activeIndex
                 val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
-                val centerItem = layoutInfo.visibleItemsInfo.minByOrNull { item ->
-                    abs((item.offset + item.size / 2) - viewportCenter)
-                }
+                val centerItem =
+                    layoutInfo.visibleItemsInfo.minByOrNull { item ->
+                        abs((item.offset + item.size / 2) - viewportCenter)
+                    }
                 val lineIndex = centerItem?.index?.minus(1) ?: activeIndex
                 lineIndex.coerceIn(0, lyrics.size - 1)
             }

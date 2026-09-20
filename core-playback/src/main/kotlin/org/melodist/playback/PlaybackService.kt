@@ -45,6 +45,7 @@ class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_TOGGLE_FAVORITE, Bundle.EMPTY))
                         .build()
                 val isFav = isCurrentSongFavorite()
+
                 @Suppress("DEPRECATION")
                 val result =
                     MediaSession.ConnectionResult

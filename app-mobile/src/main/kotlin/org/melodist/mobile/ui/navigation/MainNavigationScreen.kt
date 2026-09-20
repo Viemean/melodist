@@ -17,8 +17,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.ui.graphics.TransformOrigin
-import java.util.Locale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -67,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -102,6 +101,7 @@ import org.melodist.mobile.ui.webdav.WebDavMobileScreen
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
+import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 
 enum class HomeFilter(
@@ -140,7 +140,6 @@ data class MobileAcrSuccessData(
     val durationText: String,
 )
 
-
 private const val MAX_BACK_DEPTH = 3
 
 @Composable
@@ -148,7 +147,10 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
     val screenStack = remember { mutableStateListOf<ScreenDestination>() }
     var isSearching by remember { mutableStateOf(false) }
 
-    fun pushDestination(destination: ScreenDestination, clearStack: Boolean) {
+    fun pushDestination(
+        destination: ScreenDestination,
+        clearStack: Boolean,
+    ) {
         if (clearStack) {
             isSearching = false
             screenStack.clear()
@@ -381,15 +383,15 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                             modifier =
                                 Modifier
                                     .fillMaxSize()
-                                     .graphicsLayer {
-                                         val progress = pageBackAnimatable.value
-                                         val scale = 0.92f + (progress * 0.08f)
-                                         scaleX = scale
-                                         scaleY = scale
-                                         alpha = 0.6f + (progress * 0.4f)
-                                         val sign = if (backSwipeEdge == BackEventCompat.EDGE_RIGHT) 1f else -1f
-                                         translationX = sign * size.width * (1f - progress) * 0.08f
-                                     },
+                                    .graphicsLayer {
+                                        val progress = pageBackAnimatable.value
+                                        val scale = 0.92f + (progress * 0.08f)
+                                        scaleX = scale
+                                        scaleY = scale
+                                        alpha = 0.6f + (progress * 0.4f)
+                                        val sign = if (backSwipeEdge == BackEventCompat.EDGE_RIGHT) 1f else -1f
+                                        translationX = sign * size.width * (1f - progress) * 0.08f
+                                    },
                         ) {
                             RenderAppScreen(
                                 screen = previousScreen,
@@ -798,20 +800,22 @@ private fun RenderAppScreen(
                             slideInVertically(
                                 initialOffsetY = { -it },
                                 animationSpec = tween(380, easing = FastOutSlowInEasing),
-                            ) + scaleIn(
-                                initialScale = 0.88f,
-                                transformOrigin = TransformOrigin(0.5f, 0f),
-                                animationSpec = tween(380, easing = FastOutSlowInEasing),
-                            ) + fadeIn(tween(280)),
+                            ) +
+                                scaleIn(
+                                    initialScale = 0.88f,
+                                    transformOrigin = TransformOrigin(0.5f, 0f),
+                                    animationSpec = tween(380, easing = FastOutSlowInEasing),
+                                ) + fadeIn(tween(280)),
                         exit =
                             slideOutVertically(
                                 targetOffsetY = { -it },
                                 animationSpec = tween(380, easing = FastOutSlowInEasing),
-                            ) + scaleOut(
-                                targetScale = 0.88f,
-                                transformOrigin = TransformOrigin(0.5f, 0f),
-                                animationSpec = tween(380, easing = FastOutSlowInEasing),
-                            ) + fadeOut(tween(240)),
+                            ) +
+                                scaleOut(
+                                    targetScale = 0.88f,
+                                    transformOrigin = TransformOrigin(0.5f, 0f),
+                                    animationSpec = tween(380, easing = FastOutSlowInEasing),
+                                ) + fadeOut(tween(240)),
                     ) {
                         val song = acrSuccessData?.song
                         if (song != null) {

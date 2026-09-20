@@ -17,7 +17,6 @@ import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,8 +48,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -68,8 +65,8 @@ import androidx.compose.ui.window.DialogProperties
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import coil3.request.SuccessResult
+import coil3.request.crossfade
 import coil3.size.Precision
 import coil3.size.Size
 import coil3.toBitmap
@@ -101,31 +98,38 @@ fun FullScreenCoverViewer(
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     @Suppress("DEPRECATION")
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 4f)
-        if (scale > 1f) {
-            offset += panChange
-        } else {
-            offset = Offset.Zero
+    val transformState =
+        rememberTransformableState { zoomChange, panChange, _ ->
+            scale = (scale * zoomChange).coerceIn(1f, 4f)
+            if (scale > 1f) {
+                offset += panChange
+            } else {
+                offset = Offset.Zero
+            }
         }
-    }
 
     var extractedRawUrl by remember(song) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(song) {
         withContext(Dispatchers.IO) {
-            val matchingRaw = org.melodist.data.RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl)
+            val matchingRaw =
+                org.melodist.data.RawCoverHelper
+                    .findMatchingRawCoverUrl(song.coverUrl)
             if (!matchingRaw.isNullOrBlank()) {
                 extractedRawUrl = matchingRaw
                 return@withContext
             }
             if (song.isLocal || !song.localFilePath.isNullOrBlank()) {
-                val raw = org.melodist.data.LocalMusicManager.ensureRawCover(song)
+                val raw =
+                    org.melodist.data.LocalMusicManager
+                        .ensureRawCover(song)
                 if (!raw.isNullOrBlank()) {
                     extractedRawUrl = raw
                 }
             } else if (song.songMid.startsWith("webdav_")) {
-                val raw = org.melodist.data.WebDavManager.ensureRawCover(song)
+                val raw =
+                    org.melodist.data.WebDavManager
+                        .ensureRawCover(song)
                 if (!raw.isNullOrBlank()) {
                     extractedRawUrl = raw
                 }
@@ -133,19 +137,20 @@ fun FullScreenCoverViewer(
         }
     }
 
-    val candidates = remember(song, extractedRawUrl) {
-        val list = mutableListOf<String>()
-        if (!extractedRawUrl.isNullOrBlank()) {
-            list.add(extractedRawUrl!!)
+    val candidates =
+        remember(song, extractedRawUrl) {
+            val list = mutableListOf<String>()
+            if (!extractedRawUrl.isNullOrBlank()) {
+                list.add(extractedRawUrl!!)
+            }
+            song.rawCoverCandidates.forEach { u ->
+                if (!list.contains(u)) list.add(u)
+            }
+            if (song.coverUrl.isNotBlank() && !list.contains(song.coverUrl)) {
+                list.add(song.coverUrl)
+            }
+            list
         }
-        song.rawCoverCandidates.forEach { u ->
-            if (!list.contains(u)) list.add(u)
-        }
-        if (song.coverUrl.isNotBlank() && !list.contains(song.coverUrl)) {
-            list.add(song.coverUrl)
-        }
-        list
-    }
     var candidateIndex by remember(candidates) { mutableIntStateOf(0) }
     val coverUrl = candidates.getOrNull(candidateIndex).orEmpty()
 
@@ -154,84 +159,90 @@ fun FullScreenCoverViewer(
     var fileSizeBytes by remember(coverUrl) { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(coverUrl) {
-        fileSizeBytes = withContext(Dispatchers.IO) {
-            if (coverUrl.isBlank()) return@withContext null
-            if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
-                try {
-                    val path = coverUrl.removePrefix("file://")
-                    val file = java.io.File(path)
-                    if (file.exists() && file.isFile) return@withContext file.length()
-                } catch (e: Exception) {
-                    android.util.Log.w(TAG, "Failed to read local cover file size: $coverUrl", e)
+        fileSizeBytes =
+            withContext(Dispatchers.IO) {
+                if (coverUrl.isBlank()) return@withContext null
+                if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
+                    try {
+                        val path = coverUrl.removePrefix("file://")
+                        val file = java.io.File(path)
+                        if (file.exists() && file.isFile) return@withContext file.length()
+                    } catch (e: Exception) {
+                        android.util.Log.w(TAG, "Failed to read local cover file size: $coverUrl", e)
+                    }
                 }
+                getDiskCachedCoverSize(context, coverUrl)
             }
-            getDiskCachedCoverSize(context, coverUrl)
-        }
     }
 
     DisposableEffect(Unit) {
         onDispose {
             candidates.forEach { url ->
-                org.melodist.playback.CoverMemoryManager.evictCoverFromMemory(context, url)
+                org.melodist.playback.CoverMemoryManager
+                    .evictCoverFromMemory(context, url)
             }
         }
     }
 
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            ),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.94f))
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { onDismissRequest() },
-                    )
-                },
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.94f))
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { onDismissRequest() },
+                        )
+                    },
             contentAlignment = Alignment.Center,
         ) {
             // 封面图片主图（原始直角图片，无圆角与比例裁剪）
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                        translationX = offset.x
-                        translationY = offset.y
-                    }
-                .transformable(state = transformState)
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { onDismissRequest() },
-                        onDoubleTap = {
-                            if (scale > 1.2f) {
-                                scale = 1f
-                                offset = Offset.Zero
-                            } else {
-                                scale = 2.5f
-                            }
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = offset.x
+                            translationY = offset.y
+                        }.transformable(state = transformState)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { onDismissRequest() },
+                                onDoubleTap = {
+                                    if (scale > 1.2f) {
+                                        scale = 1f
+                                        offset = Offset.Zero
+                                    } else {
+                                        scale = 2.5f
+                                    }
+                                },
+                                onLongPress = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    showSaveConfirmDialog = true
+                                },
+                            )
                         },
-                        onLongPress = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showSaveConfirmDialog = true
-                        },
-                    )
-                },
                 contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(coverUrl)
-                        .size(Size.ORIGINAL)
-                        .precision(Precision.EXACT)
-                        .crossfade(true)
-                        .build(),
+                    model =
+                        ImageRequest
+                            .Builder(context)
+                            .data(coverUrl)
+                            .size(Size.ORIGINAL)
+                            .precision(Precision.EXACT)
+                            .crossfade(true)
+                            .build(),
                     contentDescription = song.name,
                     contentScale = ContentScale.Fit,
                     filterQuality = FilterQuality.High,
@@ -259,17 +270,19 @@ fun FullScreenCoverViewer(
 
             // 顶部操作栏
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .align(Alignment.TopCenter),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .align(Alignment.TopCenter),
             ) {
                 IconButton(
                     onClick = onDismissRequest,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .background(Color.Black.copy(alpha = 0.35f), CircleShape),
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .background(Color.Black.copy(alpha = 0.35f), CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
@@ -282,27 +295,30 @@ fun FullScreenCoverViewer(
             // 底部规格信息与长按保存提示
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 28.dp),
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 28.dp),
             ) {
                 if (imageWidth > 0 && imageHeight > 0) {
                     val sizeStr = fileSizeBytes?.let { formatFileSize(it) }.orEmpty()
-                    val infoText = if (sizeStr.isNotBlank()) {
-                        "$imageWidth × $imageHeight  •  $sizeStr"
-                    } else {
-                        "$imageWidth × $imageHeight"
-                    }
+                    val infoText =
+                        if (sizeStr.isNotBlank()) {
+                            "$imageWidth × $imageHeight  •  $sizeStr"
+                        } else {
+                            "$imageWidth × $imageHeight"
+                        }
                     Text(
                         text = infoText,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = Color.White.copy(alpha = 0.9f),
                         textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        modifier =
+                            Modifier
+                                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -323,9 +339,10 @@ fun FullScreenCoverViewer(
                 modifier = Modifier.align(Alignment.Center),
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(16.dp)),
+                    modifier =
+                        Modifier
+                            .size(88.dp)
+                            .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(
@@ -380,9 +397,10 @@ fun FullScreenCoverViewer(
                         showSaveConfirmDialog = false
                         isSaving = true
                         coroutineScope.launch {
-                            val success = withContext(Dispatchers.IO) {
-                                saveCoverToGallery(context, coverUrl, song)
-                            }
+                            val success =
+                                withContext(Dispatchers.IO) {
+                                    saveCoverToGallery(context, coverUrl, song)
+                                }
                             isSaving = false
                             if (success) {
                                 Toast.makeText(context, "封面已保存至系统相册", Toast.LENGTH_SHORT).show()
@@ -416,47 +434,52 @@ private suspend fun saveCoverToGallery(
 ): Boolean {
     return try {
         val loader = SingletonImageLoader.get(context)
-        val request = ImageRequest.Builder(context)
-            .data(coverUrl)
-            .size(Size.ORIGINAL)
-            .precision(Precision.EXACT)
-            .build()
+        val request =
+            ImageRequest
+                .Builder(context)
+                .data(coverUrl)
+                .size(Size.ORIGINAL)
+                .precision(Precision.EXACT)
+                .build()
         val result = loader.execute(request)
         if (result !is SuccessResult) {
             return false
         }
 
-        val rawName = "${song.name}_${song.singer}"
-            .replace(Regex("[\\\\/:*?\"<>|]"), "_")
-            .trim()
+        val rawName =
+            "${song.name}_${song.singer}"
+                .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                .trim()
         val fileName = "${rawName.ifBlank { "cover" }}_${System.currentTimeMillis()}.jpg"
 
-        val values = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Melodist")
-                put(MediaStore.Images.Media.IS_PENDING, 1)
+        val values =
+            ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Melodist")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
             }
-        }
 
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return false
 
-        val written = resolver.openOutputStream(uri)?.use { stream ->
-            val snapshot = loader.diskCache?.openSnapshot(coverUrl)
-            if (snapshot != null) {
-                snapshot.use { snap ->
-                    java.io.FileInputStream(snap.data.toFile()).use { input ->
-                        input.copyTo(stream)
+        val written =
+            resolver.openOutputStream(uri)?.use { stream ->
+                val snapshot = loader.diskCache?.openSnapshot(coverUrl)
+                if (snapshot != null) {
+                    snapshot.use { snap ->
+                        java.io.FileInputStream(snap.data.toFile()).use { input ->
+                            input.copyTo(stream)
+                        }
                     }
+                    true
+                } else {
+                    val bitmap = result.image.toBitmap()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
                 }
-                true
-            } else {
-                val bitmap = result.image.toBitmap()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
-            }
-        } ?: false
+            } ?: false
 
         if (!written) return false
 
@@ -472,7 +495,10 @@ private suspend fun saveCoverToGallery(
     }
 }
 
-private fun getDiskCachedCoverSize(context: Context, coverUrl: String): Long? {
+private fun getDiskCachedCoverSize(
+    context: Context,
+    coverUrl: String,
+): Long? {
     if (coverUrl.isBlank()) return null
     return try {
         val diskCache = SingletonImageLoader.get(context).diskCache

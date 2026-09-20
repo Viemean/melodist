@@ -30,12 +30,12 @@ import androidx.tv.material3.Text
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import kotlinx.coroutines.delay
-import kotlin.math.abs
 import org.melodist.core.connect.model.GestureSwipeState
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.connect.TakeoverGestureState
 import org.melodist.tv.ui.theme.MelodistColors
+import kotlin.math.abs
 
 /**
  * TV 端支持手机全面接管（TAKEOVER）手势实时跟手联动的封面走马灯组件
@@ -60,13 +60,15 @@ fun TakeoverGestureCoverCarousel(
     val actualCoverUrl = coverUrl.ifBlank { actualCurrentSong?.coverUrl.orEmpty() }
 
     // 获取前后歌曲
-    val prevSong = remember(playlist, currentIndex, loopMode, actualCurrentSong?.songMid) {
-        PlaybackManager.getPreviousSong()
-    }
+    val prevSong =
+        remember(playlist, currentIndex, loopMode, actualCurrentSong?.songMid) {
+            PlaybackManager.getPreviousSong()
+        }
 
-    val nextSong = remember(playlist, currentIndex, loopMode, actualCurrentSong?.songMid) {
-        PlaybackManager.getNextSong()
-    }
+    val nextSong =
+        remember(playlist, currentIndex, loopMode, actualCurrentSong?.songMid) {
+            PlaybackManager.getNextSong()
+        }
 
     // 后台预加载前后歌曲封面并在缺少封面时触发 WebDAV 预提取
     LaunchedEffect(prevSong?.songMid, nextSong?.songMid, prevSong?.coverUrl, nextSong?.coverUrl) {
@@ -104,10 +106,11 @@ fun TakeoverGestureCoverCarousel(
                 if (animFraction.value != 0f) {
                     animFraction.animateTo(
                         targetValue = 0f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow,
-                        ),
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow,
+                            ),
                     )
                     TakeoverGestureState.reset()
                 }
@@ -124,10 +127,11 @@ fun TakeoverGestureCoverCarousel(
                 if (animFraction.value != 0f) {
                     animFraction.animateTo(
                         targetValue = 0f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow,
-                        ),
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow,
+                            ),
                     )
                     TakeoverGestureState.reset()
                 }
@@ -135,10 +139,11 @@ fun TakeoverGestureCoverCarousel(
             GestureSwipeState.CANCEL -> {
                 animFraction.animateTo(
                     targetValue = 0f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow,
-                    ),
+                    animationSpec =
+                        spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow,
+                        ),
                 )
             }
             GestureSwipeState.IDLE -> {
@@ -157,10 +162,11 @@ fun TakeoverGestureCoverCarousel(
 
         if (actualCoverUrl.isEmpty() && actualCurrentSong == null) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(shape)
-                    .background(MelodistColors.ContainerDark),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clip(shape)
+                        .background(MelodistColors.ContainerDark),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -178,25 +184,30 @@ fun TakeoverGestureCoverCarousel(
                     albumMid = nextSong.albumMid,
                     visualMid = nextSong.visualMid,
                     songMid = nextSong.songMid,
-                    artistMid = nextSong.singerList.firstOrNull()?.mid.orEmpty(),
+                    artistMid =
+                        nextSong.singerList
+                            .firstOrNull()
+                            ?.mid
+                            .orEmpty(),
                     shape = shape,
                     elevation = elevation,
                     preferRawCover = true,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val f = animFraction.value
-                            if (f < -0.001f) {
-                                val absFrac = -f
-                                translationX = (1f + f) * widthPx
-                                scaleX = (0.88f + 0.12f * absFrac).coerceIn(0.88f, 1f)
-                                scaleY = scaleX
-                                alpha = (0.60f + 0.40f * absFrac).coerceIn(0.60f, 1f)
-                            } else {
-                                alpha = 0f
-                                translationX = widthPx * 2
-                            }
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val f = animFraction.value
+                                if (f < -0.001f) {
+                                    val absFrac = -f
+                                    translationX = (1f + f) * widthPx
+                                    scaleX = (0.88f + 0.12f * absFrac).coerceIn(0.88f, 1f)
+                                    scaleY = scaleX
+                                    alpha = (0.60f + 0.40f * absFrac).coerceIn(0.60f, 1f)
+                                } else {
+                                    alpha = 0f
+                                    translationX = widthPx * 2
+                                }
+                            },
                 )
             }
 
@@ -207,24 +218,29 @@ fun TakeoverGestureCoverCarousel(
                     albumMid = prevSong.albumMid,
                     visualMid = prevSong.visualMid,
                     songMid = prevSong.songMid,
-                    artistMid = prevSong.singerList.firstOrNull()?.mid.orEmpty(),
+                    artistMid =
+                        prevSong.singerList
+                            .firstOrNull()
+                            ?.mid
+                            .orEmpty(),
                     shape = shape,
                     elevation = elevation,
                     preferRawCover = true,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val f = animFraction.value
-                            if (f > 0.001f) {
-                                translationX = (-1f + f) * widthPx
-                                scaleX = (0.88f + 0.12f * f).coerceIn(0.88f, 1f)
-                                scaleY = scaleX
-                                alpha = (0.60f + 0.40f * f).coerceIn(0.60f, 1f)
-                            } else {
-                                alpha = 0f
-                                translationX = -widthPx * 2
-                            }
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val f = animFraction.value
+                                if (f > 0.001f) {
+                                    translationX = (-1f + f) * widthPx
+                                    scaleX = (0.88f + 0.12f * f).coerceIn(0.88f, 1f)
+                                    scaleY = scaleX
+                                    alpha = (0.60f + 0.40f * f).coerceIn(0.60f, 1f)
+                                } else {
+                                    alpha = 0f
+                                    translationX = -widthPx * 2
+                                }
+                            },
                 )
             }
 
@@ -234,21 +250,27 @@ fun TakeoverGestureCoverCarousel(
                 albumMid = actualCurrentSong?.albumMid.orEmpty(),
                 visualMid = actualCurrentSong?.visualMid.orEmpty(),
                 songMid = actualCurrentSong?.songMid.orEmpty(),
-                artistMid = actualCurrentSong?.singerList?.firstOrNull()?.mid.orEmpty(),
+                artistMid =
+                    actualCurrentSong
+                        ?.singerList
+                        ?.firstOrNull()
+                        ?.mid
+                        .orEmpty(),
                 shape = shape,
                 elevation = elevation,
                 preferRawCover = true,
                 onClick = onClick,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        val f = animFraction.value
-                        val absF = abs(f)
-                        translationX = f * widthPx
-                        scaleX = (1f - 0.12f * absF).coerceIn(0.88f, 1f)
-                        scaleY = scaleX
-                        alpha = (1f - 0.35f * absF).coerceIn(0.65f, 1f)
-                    },
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val f = animFraction.value
+                            val absF = abs(f)
+                            translationX = f * widthPx
+                            scaleX = (1f - 0.12f * absF).coerceIn(0.88f, 1f)
+                            scaleY = scaleX
+                            alpha = (1f - 0.35f * absF).coerceIn(0.65f, 1f)
+                        },
             )
         }
     }

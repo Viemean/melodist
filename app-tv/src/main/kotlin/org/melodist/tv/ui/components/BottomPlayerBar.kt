@@ -338,7 +338,7 @@ private fun TvIconButton(
             transitionSpec = {
                 (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.8f, animationSpec = tween(180)))
                     .togetherWith(
-                        fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.8f, animationSpec = tween(140))
+                        fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.8f, animationSpec = tween(140)),
                     )
             },
             label = "TvIconButtonAnim",

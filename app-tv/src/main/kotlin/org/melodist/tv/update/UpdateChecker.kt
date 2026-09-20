@@ -1,8 +1,8 @@
 package org.melodist.tv.update
 
+import org.melodist.tv.BuildConfig
 import org.melodist.data.update.UpdateChecker as CoreUpdateChecker
 import org.melodist.data.update.UpdateResult as CoreUpdateResult
-import org.melodist.tv.BuildConfig
 
 typealias UpdateResult = CoreUpdateResult
 
@@ -20,4 +20,3 @@ object UpdateChecker {
         localVersion: String,
     ): Boolean = CoreUpdateChecker.isNewerVersion(remoteTag, localVersion)
 }
-

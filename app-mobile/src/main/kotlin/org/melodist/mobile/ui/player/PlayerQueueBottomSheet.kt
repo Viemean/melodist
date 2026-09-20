@@ -86,7 +86,10 @@ fun PlayerQueueBottomSheet(
         derivedStateOf {
             if (isRadioMode) return@derivedStateOf false
             val totalCount = listState.layoutInfo.totalItemsCount
-            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val lastVisibleIndex =
+                listState.layoutInfo.visibleItemsInfo
+                    .lastOrNull()
+                    ?.index ?: 0
             totalCount > 0 && lastVisibleIndex >= totalCount - 3
         }
     }

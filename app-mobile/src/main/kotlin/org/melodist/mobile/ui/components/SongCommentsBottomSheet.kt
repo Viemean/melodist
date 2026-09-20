@@ -1,9 +1,5 @@
 package org.melodist.mobile.ui.components
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,9 +24,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
@@ -47,7 +40,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -60,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -68,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -99,7 +94,10 @@ fun SongCommentsBottomSheet(
     var isLoadingMore by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
 
-    fun loadComments(page: Int, isInitial: Boolean) {
+    fun loadComments(
+        page: Int,
+        isInitial: Boolean,
+    ) {
         if (isInitial) {
             isLoading = true
             isError = false
@@ -109,12 +107,13 @@ fun SongCommentsBottomSheet(
         }
         scope.launch {
             try {
-                val pageResult = apiService.getSongComments(
-                    songId = song.songId,
-                    songMid = song.songMid,
-                    pageNum = page,
-                    pageSize = 25,
-                )
+                val pageResult =
+                    apiService.getSongComments(
+                        songId = song.songId,
+                        songMid = song.songMid,
+                        pageNum = page,
+                        pageSize = 25,
+                    )
                 if (pageResult != null) {
                     if (isInitial) {
                         hotComments.clear()
@@ -168,16 +167,18 @@ fun SongCommentsBottomSheet(
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.92f)
-                .navigationBarsPadding(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.92f)
+                    .navigationBarsPadding(),
         ) {
             // 顶栏：标题与评论数统计（无冗余关闭按钮，支持返回键与下拉关闭）
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -214,9 +215,10 @@ fun SongCommentsBottomSheet(
             when {
                 isLoading -> {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
@@ -228,9 +230,10 @@ fun SongCommentsBottomSheet(
                 }
                 isError -> {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -253,9 +256,10 @@ fun SongCommentsBottomSheet(
                 }
                 hotComments.isEmpty() && normalComments.isEmpty() -> {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -275,8 +279,7 @@ fun SongCommentsBottomSheet(
                             val totalItems = layoutInfo.totalItemsCount
                             val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
                             hasMore && !isLoading && !isLoadingMore && totalItems > 0 && lastVisibleItemIndex >= totalItems - 2
-                        }
-                            .distinctUntilChanged()
+                        }.distinctUntilChanged()
                             .collect { shouldLoad ->
                                 if (shouldLoad) {
                                     loadComments(page = currentPage + 1, isInitial = false)
@@ -285,28 +288,29 @@ fun SongCommentsBottomSheet(
                     }
 
                     // 拦截底部未消费的向上滑动手势，阻止冒泡到父级 ModalBottomSheet 导致窗口被过度上拉或抖动
-                    val listNestedScrollConnection = remember {
-                        object : NestedScrollConnection {
-                            override fun onPostScroll(
-                                consumed: Offset,
-                                available: Offset,
-                                source: NestedScrollSource,
-                            ): Offset {
-                                return if (available.y < 0f) {
-                                    Offset(0f, available.y)
-                                } else {
-                                    Offset.Zero
-                                }
+                    val listNestedScrollConnection =
+                        remember {
+                            object : NestedScrollConnection {
+                                override fun onPostScroll(
+                                    consumed: Offset,
+                                    available: Offset,
+                                    source: NestedScrollSource,
+                                ): Offset =
+                                    if (available.y < 0f) {
+                                        Offset(0f, available.y)
+                                    } else {
+                                        Offset.Zero
+                                    }
                             }
                         }
-                    }
 
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .nestedScroll(listNestedScrollConnection),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .nestedScroll(listNestedScrollConnection),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
@@ -354,9 +358,10 @@ fun SongCommentsBottomSheet(
 
                         item(key = "footer_loading") {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (isLoadingMore) {
@@ -387,19 +392,21 @@ fun SongCommentsBottomSheet(
             properties = DialogProperties(usePlatformDefaultWidth = false),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.92f))
-                    .clickable { previewImageUrl = null },
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.92f))
+                        .clickable { previewImageUrl = null },
                 contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(
                     model = imgUrl,
                     contentDescription = "评论图片大图预览",
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
                 )
             }
         }
@@ -422,16 +429,18 @@ private fun SongCommentItem(
                 model = comment.avatarUrl,
                 contentDescription = comment.nick,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape),
+                modifier =
+                    Modifier
+                        .size(36.dp)
+                        .clip(CircleShape),
             )
         } else {
             Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                modifier =
+                    Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -507,12 +516,13 @@ private fun SongCommentItem(
             // 时间与属地
             val timeText = if (comment.timeSec > 0L) formatTimestamp(comment.timeSec) else ""
             val locText = comment.location.ifBlank { "" }
-            val metaText = when {
-                timeText.isNotBlank() && locText.isNotBlank() -> "$timeText · 来自$locText"
-                timeText.isNotBlank() -> timeText
-                locText.isNotBlank() -> "来自$locText"
-                else -> ""
-            }
+            val metaText =
+                when {
+                    timeText.isNotBlank() && locText.isNotBlank() -> "$timeText · 来自$locText"
+                    timeText.isNotBlank() -> timeText
+                    locText.isNotBlank() -> "来自$locText"
+                    else -> ""
+                }
             if (metaText.isNotBlank()) {
                 Text(
                     text = metaText,
@@ -540,30 +550,29 @@ private fun SongCommentItem(
                     model = comment.picUrl,
                     contentDescription = "评论图片",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .widthIn(max = 220.dp)
-                        .heightIn(max = 200.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onImageClick?.invoke(comment.picUrl) },
+                    modifier =
+                        Modifier
+                            .widthIn(max = 220.dp)
+                            .heightIn(max = 200.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onImageClick?.invoke(comment.picUrl) },
                 )
             }
         }
     }
 }
 
-private fun formatCount(count: Int): String {
-    return when {
+private fun formatCount(count: Int): String =
+    when {
         count >= 100_000_000 -> "%.1f亿".format(count / 100_000_000.0)
         count >= 10_000 -> "%.1f万".format(count / 10_000.0)
         else -> count.toString()
     }
-}
 
-private fun formatTimestamp(timestampSec: Long): String {
-    return try {
+private fun formatTimestamp(timestampSec: Long): String =
+    try {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
         sdf.format(Date(timestampSec * 1000L))
     } catch (_: Exception) {
         ""
     }
-}

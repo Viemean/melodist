@@ -105,7 +105,11 @@ class PlaybackFavoriteController(
         return _favoriteSongMids.value.contains(songMid)
     }
 
-    fun setSongFavoriteState(songMid: String, isFav: Boolean, currentSong: Song?) {
+    fun setSongFavoriteState(
+        songMid: String,
+        isFav: Boolean,
+        currentSong: Song?,
+    ) {
         if (songMid.isBlank()) return
         val currentSet = _favoriteSongMids.value
         val updated = if (isFav) currentSet + songMid else currentSet - songMid
@@ -118,14 +122,18 @@ class PlaybackFavoriteController(
         }
     }
 
-    fun toggleSongFavorite(song: Song, appContext: Context?) {
+    fun toggleSongFavorite(
+        song: Song,
+        appContext: Context?,
+    ) {
         if (!isSongFavoriteSupported(song)) {
             if (appContext != null) {
-                val msg = if (song.songMid.startsWith("webdav_")) {
-                    "WebDAV 音乐不支持收藏"
-                } else {
-                    "本地音乐不支持收藏"
-                }
+                val msg =
+                    if (song.songMid.startsWith("webdav_")) {
+                        "WebDAV 音乐不支持收藏"
+                    } else {
+                        "本地音乐不支持收藏"
+                    }
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(appContext, msg, Toast.LENGTH_SHORT).show()
                 }

@@ -60,9 +60,19 @@ object AppLifecycleManager : Application.ActivityLifecycleCallbacks, ComponentCa
         onTrimMemoryAction?.invoke(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
     }
 
-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+    override fun onActivityCreated(
+        activity: Activity,
+        savedInstanceState: Bundle?,
+    ) {}
+
     override fun onActivityResumed(activity: Activity) {}
+
     override fun onActivityPaused(activity: Activity) {}
-    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+
+    override fun onActivitySaveInstanceState(
+        activity: Activity,
+        outState: Bundle,
+    ) {}
+
     override fun onActivityDestroyed(activity: Activity) {}
 }

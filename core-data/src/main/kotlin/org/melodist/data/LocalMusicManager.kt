@@ -162,9 +162,10 @@ object LocalMusicManager {
     suspend fun ensureRawCover(song: Song): String? =
         withContext(Dispatchers.IO) {
             val path = song.localFilePath ?: return@withContext null
-            val existing = resolveRawCoverUrl(path, "").ifBlank {
-                RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl) ?: ""
-            }
+            val existing =
+                resolveRawCoverUrl(path, "").ifBlank {
+                    RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl) ?: ""
+                }
             if (existing.isNotBlank()) return@withContext existing
 
             val folder = getSafeCoversDir()
@@ -220,7 +221,9 @@ object LocalMusicManager {
                     val picBytes = retriever.embeddedPicture
                     if (picBytes != null && picBytes.isNotEmpty()) {
                         val hash = md5(s.path)
-                        val webpPath = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(picBytes, folder, hash)
+                        val webpPath =
+                            org.melodist.data.pipeline.AudioMetadataPipeline
+                                .saveThumbnailWebp(picBytes, folder, hash)
                         if (webpPath != null) {
                             healedMap[s.path] = webpPath
                         }
@@ -246,7 +249,6 @@ object LocalMusicManager {
             }
         }
     }
-
 
     private fun loadConfig() {
         val raw = prefs?.getString(KEY_CONFIG, null)
@@ -286,14 +288,20 @@ object LocalMusicManager {
         return removed
     }
 
-    fun deleteSongs(songs: List<Song>, context: Context) {
+    fun deleteSongs(
+        songs: List<Song>,
+        context: Context,
+    ) {
         if (songs.isEmpty()) return
         val paths = mutableListOf<String>()
         val removedPaths = mutableSetOf<String>()
         for (song in songs) {
             val path =
                 song.localFilePath?.takeIf { it.isNotBlank() }
-                    ?: inMemoryConfig.scannedSongs.find { "local_${it.id}" == song.songMid }?.path.orEmpty()
+                    ?: inMemoryConfig.scannedSongs
+                        .find { "local_${it.id}" == song.songMid }
+                        ?.path
+                        .orEmpty()
             if (path.isNotBlank()) {
                 val file = File(path)
                 if (file.exists()) {
@@ -305,8 +313,10 @@ object LocalMusicManager {
                 }
                 paths.add(path)
                 removedPaths.add(path)
-                org.melodist.data.download.DownloadManager.deleteDownloadedByPath(path)
-                org.melodist.data.download.DownloadManager.deleteDownloadedBySongMid(song.songMid, deleteFile = false)
+                org.melodist.data.download.DownloadManager
+                    .deleteDownloadedByPath(path)
+                org.melodist.data.download.DownloadManager
+                    .deleteDownloadedBySongMid(song.songMid, deleteFile = false)
             }
         }
         if (removedPaths.isNotEmpty()) {
@@ -527,7 +537,8 @@ object LocalMusicManager {
      * 从文件名推断 (歌曲名, 歌手名)
      */
     fun inferTitleArtist(fileName: String): Pair<String, String> =
-        org.melodist.data.pipeline.AudioMetadataPipeline.inferTitleArtist(fileName)
+        org.melodist.data.pipeline.AudioMetadataPipeline
+            .inferTitleArtist(fileName)
 
     /**
      * 递归扫描指定目录，解析 ID3 元数据并持久化
@@ -604,31 +615,36 @@ object LocalMusicManager {
     ): LocalSongCache {
         val (inferredTitle, inferredArtist) = inferTitleArtist(file.name)
         val defaultAlbum = file.parentFile?.name ?: "本地音乐"
-        val parsed = try {
-            retriever.setDataSource(file.absolutePath)
-            org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
-                retriever = retriever,
-                fallbackTitle = inferredTitle,
-                fallbackArtist = inferredArtist,
-                fallbackAlbum = defaultAlbum,
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "Error extracting metadata for ${file.name}", e)
-            org.melodist.data.pipeline.ParsedAudioMetadata(
-                title = inferredTitle,
-                artist = inferredArtist,
-                album = defaultAlbum,
-                durationSeconds = 0,
-            )
-        }
+        val parsed =
+            try {
+                retriever.setDataSource(file.absolutePath)
+                org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
+                    retriever = retriever,
+                    fallbackTitle = inferredTitle,
+                    fallbackArtist = inferredArtist,
+                    fallbackAlbum = defaultAlbum,
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "Error extracting metadata for ${file.name}", e)
+                org.melodist.data.pipeline.ParsedAudioMetadata(
+                    title = inferredTitle,
+                    artist = inferredArtist,
+                    album = defaultAlbum,
+                    durationSeconds = 0,
+                )
+            }
 
         val folder = getSafeCoversDir()
         val hash = md5(file.absolutePath)
-        val coverPath = parsed.pictureBytes?.let { bytes ->
-            org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(bytes, folder, hash)
-        } ?: ""
+        val coverPath =
+            parsed.pictureBytes?.let { bytes ->
+                org.melodist.data.pipeline.AudioMetadataPipeline
+                    .saveThumbnailWebp(bytes, folder, hash)
+            } ?: ""
 
-        val lrcFile = org.melodist.data.pipeline.AudioMetadataPipeline.detectCompanionLrc(file)
+        val lrcFile =
+            org.melodist.data.pipeline.AudioMetadataPipeline
+                .detectCompanionLrc(file)
         val hasLrc = lrcFile != null
 
         return LocalSongCache(

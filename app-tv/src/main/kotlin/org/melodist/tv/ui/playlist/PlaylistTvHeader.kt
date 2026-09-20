@@ -293,9 +293,10 @@ fun PlaylistFilterChipsBar(
 ) {
     if (categoryId == "playlists" && userPlaylists.isNotEmpty()) {
         LazyRow(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             itemsIndexed(userPlaylists) { pIdx, pl ->
@@ -308,9 +309,10 @@ fun PlaylistFilterChipsBar(
         }
     } else if (categoryId == "collections" && userAlbums.isNotEmpty()) {
         LazyRow(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             itemsIndexed(userAlbums) { aIdx, alb ->
