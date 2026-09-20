@@ -1,6 +1,9 @@
 package org.melodist.mobile.ui.playlist
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,10 +36,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.ui.platform.LocalContext
-import org.melodist.api.deleteSongsFromPlaylist
-import org.melodist.mobile.ui.components.SongListDeleteType
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,11 +64,13 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
+import org.melodist.api.deleteSongsFromPlaylist
 import org.melodist.api.getPlaylistSongs
 import org.melodist.data.MillionRecommendManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
@@ -130,6 +134,11 @@ fun PlaylistDetailScreen(
     val isMillionLoading by MillionRecommendManager.isLoadingFlow.collectAsState()
 
     val listState = rememberLazyListState()
+    val showTopBarTitle by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 200
+        }
+    }
 
     // Favorite playlist: subscribe to cache flow; fall back to full network load when empty
     if (playlist.isMyFavorite) {
@@ -325,7 +334,15 @@ fun PlaylistDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = {
+                    AnimatedVisibility(
+                        visible = showTopBarTitle,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -451,41 +468,74 @@ fun PlaylistDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    AlbumArtImage(
-                                        coverUrl = playlist.thumbnailPicUrl.ifBlank {
-                                            if (playlist.isMillionRecommend) millionResult.coverUrl.ifBlank { songs.firstOrNull()?.coverUrl.orEmpty() } else ""
-                                        },
-                                        contentDescription = playlist.name,
-                                        shape = RoundedCornerShape(14.dp),
-                                        elevation = 8.dp,
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                                        placeholderIconSize = 48.dp,
-                                        placeholderContent = {
-                                            val icon =
-                                                if (playlist.isMyFavorite) {
-                                                    Icons.Rounded.Favorite
-                                                } else if (playlist.isMillionRecommend) {
-                                                    Icons.Rounded.Whatshot
+                                    val effectiveCoverUrl =
+                                        remember(playlist.thumbnailPicUrl, playlist.isMillionRecommend, playlist.isMyFavorite, millionResult.coverUrl, songs) {
+                                            playlist.thumbnailPicUrl.ifBlank {
+                                                if (playlist.isMillionRecommend) {
+                                                    millionResult.coverUrl.ifBlank { songs.firstOrNull { it.coverUrl.isNotBlank() }?.coverUrl.orEmpty() }
                                                 } else {
-                                                    Icons.Rounded.MusicNote
+                                                    songs.firstOrNull { it.coverUrl.isNotBlank() }?.coverUrl.orEmpty()
                                                 }
-                                            val tint =
-                                                if (playlist.isMyFavorite) {
-                                                    MaterialTheme.colorScheme.error
-                                                } else if (playlist.isMillionRecommend) {
-                                                    MaterialTheme.colorScheme.tertiary
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                }
-                                            Icon(
-                                                imageVector = icon,
-                                                contentDescription = null,
-                                                tint = tint,
-                                                modifier = Modifier.size(48.dp),
-                                            )
-                                        },
-                                        modifier = Modifier.size(110.dp),
-                                    )
+                                            }
+                                        }
+
+                                    Box(modifier = Modifier.size(110.dp)) {
+                                        AlbumArtImage(
+                                            coverUrl = effectiveCoverUrl,
+                                            contentDescription = playlist.name,
+                                            shape = RoundedCornerShape(14.dp),
+                                            elevation = 8.dp,
+                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                                            placeholderIconSize = 48.dp,
+                                            placeholderContent = {
+                                                val icon =
+                                                    if (playlist.isMyFavorite) {
+                                                        Icons.Rounded.Favorite
+                                                    } else if (playlist.isMillionRecommend) {
+                                                        Icons.Rounded.Whatshot
+                                                    } else {
+                                                        Icons.Rounded.MusicNote
+                                                    }
+                                                val tint =
+                                                    if (playlist.isMyFavorite) {
+                                                        MaterialTheme.colorScheme.error
+                                                    } else if (playlist.isMillionRecommend) {
+                                                        MaterialTheme.colorScheme.tertiary
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                    }
+                                                Icon(
+                                                    imageVector = icon,
+                                                    contentDescription = null,
+                                                    tint = tint,
+                                                    modifier = Modifier.size(48.dp),
+                                                )
+                                            },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+
+                                        if (playlist.isMyFavorite && effectiveCoverUrl.isNotBlank()) {
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                                shadowElevation = 2.dp,
+                                                modifier =
+                                                    Modifier
+                                                        .align(Alignment.BottomEnd)
+                                                        .padding(6.dp),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Favorite,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier =
+                                                        Modifier
+                                                            .padding(4.dp)
+                                                            .size(16.dp),
+                                                )
+                                            }
+                                        }
+                                    }
 
                                     Spacer(modifier = Modifier.width(16.dp))
 
