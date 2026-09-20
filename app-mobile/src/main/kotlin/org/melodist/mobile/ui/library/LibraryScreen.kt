@@ -154,19 +154,6 @@ fun LibraryScreen(
                     bottom = contentPadding.calculateBottomPadding() + 16.dp,
                 ),
         ) {
-            item {
-                Text(
-                    text = "我的音乐",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            }
-
             // “我喜欢的音乐”特色卡片
             item {
                 val effectiveFavCount = if (favoriteCount > 0) favoriteCount else favoriteMids.size
