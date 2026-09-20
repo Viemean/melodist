@@ -24,12 +24,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -283,6 +278,53 @@ object PlaybackManager {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    val playbackSnapshot: StateFlow<PlaybackSnapshot> =
+        combine(
+            listOf<Flow<Any?>>(
+                _currentSong,
+                _isPlaying,
+                _currentPositionMs,
+                _durationMs,
+                _bufferedPositionMs,
+                queueManager.loopMode,
+                _currentTier,
+                queueManager.isRadioMode,
+                queueManager.playlist,
+                queueManager.currentIndex,
+                _isLoading,
+            )
+        ) { values ->
+            val song = values[0] as? Song
+            val playing = values[1] as Boolean
+            val pos = values[2] as Long
+            val dur = values[3] as Long
+            val buf = values[4] as Long
+            val loop = values[5] as PlaybackLoopMode
+            val tier = values[6] as AudioQualityTier
+            val radio = values[7] as Boolean
+            @Suppress("UNCHECKED_CAST")
+            val pl = values[8] as List<Song>
+            val idx = values[9] as Int
+            val loading = values[10] as Boolean
+            PlaybackSnapshot(
+                currentSong = song,
+                isPlaying = playing,
+                currentPositionMs = pos,
+                durationMs = dur,
+                bufferedPositionMs = buf,
+                loopMode = loop,
+                currentTier = tier,
+                isRadioMode = radio,
+                queueSize = pl.size,
+                currentIndex = idx,
+                isLoading = loading,
+            )
+        }.stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = PlaybackSnapshot(),
+        )
 
     private val usbRouter =
         UsbAudioRouter(

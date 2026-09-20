@@ -41,6 +41,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import kotlinx.coroutines.launch
 import org.melodist.model.Song
+import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
@@ -76,6 +77,25 @@ fun PlayerQueueSidebar(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val firstRequester = remember { FocusRequester() }
+
+    val paginationSource by PlaybackManager.paginationSource.collectAsState()
+    val isLoadingMoreForQueue by PlaybackManager.isLoadingMoreForQueue.collectAsState()
+    val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
+
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            if (isRadioMode) return@derivedStateOf false
+            val totalCount = listState.layoutInfo.totalItemsCount
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalCount > 0 && lastVisibleIndex >= totalCount - 4
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore, paginationSource, isLoadingMoreForQueue) {
+        if (shouldLoadMore && paginationSource?.hasMore == true && !isLoadingMoreForQueue && paginationSource?.isLoadingMore == false) {
+            PlaybackManager.loadMoreForQueue()
+        }
+    }
 
     // 打开时自动定位至当前在播歌曲位置
     LaunchedEffect(isOpen) {
@@ -213,6 +233,23 @@ fun PlayerQueueSidebar(
                                     }
                                 },
                             )
+                        }
+
+                        if (isLoadingMoreForQueue) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "正在加载更多曲目...",
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 12.sp,
+                                    )
+                                }
+                            }
                         }
                     }
                 }

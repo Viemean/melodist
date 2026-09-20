@@ -84,6 +84,7 @@ class PlaybackQueueManager(
                 shuffleQueue.syncTo(index, list.size, list)
             }
         }
+        checkPrefetchQueueNextPage()
     }
 
     fun setPlaylist(
@@ -106,11 +107,25 @@ class PlaybackQueueManager(
             }
             onPlaySongRequest(songs[startIndex], forceTier, initialSeekToMs)
         }
+        checkPrefetchQueueNextPage()
         onStateChanged()
     }
 
     fun setPaginationSource(source: QueuePaginationSource?) {
         _paginationSource.value = source
+        checkPrefetchQueueNextPage()
+    }
+
+    fun checkPrefetchQueueNextPage() {
+        if (_isRadioMode.value) return
+        val source = _paginationSource.value ?: return
+        if (!source.hasMore || source.isLoadingMore || _isLoadingMoreForQueue.value) return
+        val currentList = _playlist.value
+        if (currentList.isNotEmpty() && _currentIndex.value >= currentList.size - 3) {
+            scope.launch(Dispatchers.IO) {
+                loadMoreForQueue()
+            }
+        }
     }
 
     suspend fun loadMoreForQueue(): Boolean {
@@ -375,6 +390,7 @@ class PlaybackQueueManager(
         if (nextIndex in list.indices) {
             _currentIndex.value = nextIndex
             onPlaySongRequest(list[nextIndex], null, 0L)
+            checkPrefetchQueueNextPage()
         }
     }
 
