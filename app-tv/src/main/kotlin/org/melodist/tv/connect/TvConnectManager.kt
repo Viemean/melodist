@@ -70,13 +70,14 @@ object TvConnectManager {
 
     fun init(context: Context) {
         if (storageManager != null) return
-        val storage = ConnectStorageManager(context, DeviceType.TV)
+        val appContext = context.applicationContext
+        val storage = ConnectStorageManager(appContext, DeviceType.TV)
         storageManager = storage
 
         val server = TvConnectServer(storage, port = SERVER_PORT)
         connectServer = server
 
-        val nsd = ConnectNsdHelper(context)
+        val nsd = ConnectNsdHelper(appContext)
         nsdHelper = nsd
 
         setupPlaybackInterceptor()
