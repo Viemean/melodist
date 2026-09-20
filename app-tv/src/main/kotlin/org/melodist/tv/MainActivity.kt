@@ -136,7 +136,9 @@ class MainActivity : ComponentActivity() {
                 val currentPlayingSong by PlaybackManager.currentSong.collectAsState()
                 val activeMonetCoverUrl =
                     remember(currentPlayingSong) {
-                        currentPlayingSong?.coverUrl?.ifBlank { null }
+                        currentPlayingSong?.playerCoverCandidates?.firstOrNull { it.isNotBlank() }
+                            ?: currentPlayingSong?.rawCoverUrl?.ifBlank { null }
+                            ?: currentPlayingSong?.coverUrl?.ifBlank { null }
                             ?: currentPlayingSong?.albumMid?.takeIf { it.isNotBlank() }?.let {
                                 MusicApiService.getAlbumCoverUrl(it)
                             }

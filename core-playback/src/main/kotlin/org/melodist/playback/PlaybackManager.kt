@@ -1254,7 +1254,11 @@ object PlaybackManager {
                                     withContext(Dispatchers.Main) {
                                         val current = _currentSong.value
                                         if (current != null && current.songId == song.songId && current.rawCoverUrl != rawCover) {
-                                            val updated = current.copy(rawCoverUrl = rawCover)
+                                            val updated =
+                                                current.copy(
+                                                    rawCoverUrl = rawCover,
+                                                    coverUrl = if (current.coverUrl.isBlank()) rawCover else current.coverUrl,
+                                                )
                                             _currentSong.value = updated
                                             queueManager.updateSongInPlaylist(updated)
                                         }

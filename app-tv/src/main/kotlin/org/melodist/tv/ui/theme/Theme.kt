@@ -1,5 +1,6 @@
 package org.melodist.tv.ui.theme
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.animation.animateColorAsState
@@ -7,14 +8,20 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLDecoder
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -44,22 +51,31 @@ object MonetColorExtractor {
         return colorCache.get(url)
     }
 
-    suspend fun extractFromUrl(url: String): Color {
+    suspend fun extractFromUrl(
+        context: Context? = null,
+        url: String,
+    ): Color {
         if (url.isBlank()) return DefaultSurfaceColor
         colorCache.get(url)?.let { return it }
 
         return withContext(Dispatchers.IO) {
             try {
-                val localFile =
-                    when {
-                        url.startsWith("file://") -> File(url.removePrefix("file://"))
-                        url.startsWith("/") -> File(url)
-                        else -> null
+                val cleanUrl = url.substringBefore('?')
+                val decodedPath =
+                    try {
+                        URLDecoder.decode(
+                            if (cleanUrl.startsWith("file://")) cleanUrl.removePrefix("file://") else cleanUrl,
+                            "UTF-8",
+                        )
+                    } catch (_: Exception) {
+                        if (cleanUrl.startsWith("file://")) cleanUrl.removePrefix("file://") else cleanUrl
                     }
+
+                val localFile = if (decodedPath.startsWith("/")) File(decodedPath) else null
                 if (localFile != null && localFile.exists() && localFile.length() > 0) {
                     val options =
                         BitmapFactory.Options().apply {
-                            inSampleSize = 8
+                            inSampleSize = 4
                         }
                     val bitmap = BitmapFactory.decodeFile(localFile.absolutePath, options)
                     if (bitmap != null) {
@@ -70,35 +86,60 @@ object MonetColorExtractor {
                     }
                 }
 
-                val conn = URL(url).openConnection() as? HttpURLConnection ?: return@withContext DefaultSurfaceColor
-                conn.connectTimeout = 3000
-                conn.readTimeout = 3000
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                conn.setRequestProperty("Referer", "https://y.qq.com/")
-                conn.instanceFollowRedirects = true
-                conn.connect()
-                val inputStream = conn.inputStream
-                val options =
-                    BitmapFactory.Options().apply {
-                        inSampleSize = 8
+                if (context != null) {
+                    try {
+                        val loader = SingletonImageLoader.get(context)
+                        val request =
+                            ImageRequest
+                                .Builder(context)
+                                .data(url)
+                                .size(128, 128)
+                                .precision(coil3.size.Precision.INEXACT)
+                                .build()
+                        val result = loader.execute(request)
+                        if (result is SuccessResult) {
+                            val bitmap = result.image.toBitmap()
+                            val color = extractMonetDarkSurface(bitmap)
+                            colorCache.put(url, color)
+                            return@withContext color
+                        }
+                    } catch (_: Throwable) {
                     }
-                val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
-                inputStream.close()
-                conn.disconnect()
-
-                if (bitmap != null) {
-                    val color = extractMonetDarkSurface(bitmap)
-                    bitmap.recycle()
-                    colorCache.put(url, color)
-                    color
-                } else {
-                    DefaultSurfaceColor
                 }
+
+                if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+                    val conn = URL(cleanUrl).openConnection() as? HttpURLConnection ?: return@withContext DefaultSurfaceColor
+                    conn.connectTimeout = 3000
+                    conn.readTimeout = 3000
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    conn.setRequestProperty("Referer", "https://y.qq.com/")
+                    conn.instanceFollowRedirects = true
+                    conn.connect()
+                    val inputStream = conn.inputStream
+                    val options =
+                        BitmapFactory.Options().apply {
+                            inSampleSize = 8
+                        }
+                    val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
+                    inputStream.close()
+                    conn.disconnect()
+
+                    if (bitmap != null) {
+                        val color = extractMonetDarkSurface(bitmap)
+                        bitmap.recycle()
+                        colorCache.put(url, color)
+                        return@withContext color
+                    }
+                }
+
+                DefaultSurfaceColor
             } catch (_: Exception) {
                 DefaultSurfaceColor
             }
         }
     }
+
+    suspend fun extractFromUrl(url: String): Color = extractFromUrl(null, url)
 
     /**
      * 全局统一莫奈调色规则：温和饱和度、舒适暗色大屏氛围、防刺眼
@@ -212,12 +253,13 @@ object MonetColorExtractor {
  */
 @Composable
 fun rememberMonetSurfaceColor(coverUrl: String? = null): Color {
+    val context = LocalContext.current
     val cached = remember(coverUrl) { MonetColorExtractor.getCachedColor(coverUrl) }
     var targetColor by remember(coverUrl) { mutableStateOf(cached ?: MonetColorExtractor.DefaultSurfaceColor) }
 
     LaunchedEffect(coverUrl) {
         if (!coverUrl.isNullOrBlank()) {
-            targetColor = MonetColorExtractor.extractFromUrl(coverUrl)
+            targetColor = MonetColorExtractor.extractFromUrl(context, coverUrl)
         } else {
             targetColor = MonetColorExtractor.DefaultSurfaceColor
         }
