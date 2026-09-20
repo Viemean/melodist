@@ -831,7 +831,11 @@ object PlaybackManager {
                 var prefetchCounter = 0
                 while (isActive) {
                     if (remoteStateHolder.isRemoteActive.value) {
-                        delay(200L)
+                        val estimated = remoteStateHolder.getEstimatedPositionMs(_durationMs.value)
+                        if (estimated != null) {
+                            _currentPositionMs.value = estimated
+                        }
+                        delay(50L)
                         continue
                     }
                     exoPlayer?.let { player ->
@@ -1640,6 +1644,7 @@ object PlaybackManager {
         if (song != null) {
             _isPlaying.value = isPlaying
             _currentPositionMs.value = positionMs
+            remoteStateHolder.updateSyncTimeline(positionMs, isPlaying)
             if (durationMs > 0L) {
                 _durationMs.value = durationMs
             }

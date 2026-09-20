@@ -18,9 +18,38 @@ class PlaybackRemoteStateHolder {
     private val _remoteNextSong = MutableStateFlow<Song?>(null)
     val remoteNextSong: StateFlow<Song?> = _remoteNextSong.asStateFlow()
 
+    @Volatile
+    private var syncBasePositionMs: Long = 0L
+
+    @Volatile
+    private var syncBaseElapsedRealtimeMs: Long = 0L
+
+    @Volatile
+    private var syncIsPlaying: Boolean = false
+
+    private fun currentMonotonicMs(): Long = System.nanoTime() / 1_000_000L
+
     fun setRemoteActive(active: Boolean, deviceName: String? = null) {
         _isRemoteActive.value = active
         _remoteDeviceName.value = deviceName
+        if (!active) {
+            syncIsPlaying = false
+        }
+    }
+
+    fun updateSyncTimeline(positionMs: Long, isPlaying: Boolean) {
+        syncBasePositionMs = positionMs
+        syncBaseElapsedRealtimeMs = currentMonotonicMs()
+        syncIsPlaying = isPlaying
+    }
+
+    fun getEstimatedPositionMs(durationMs: Long = 0L): Long? {
+        if (!_isRemoteActive.value) return null
+        if (!syncIsPlaying) return syncBasePositionMs
+        val now = currentMonotonicMs()
+        val elapsed = (now - syncBaseElapsedRealtimeMs).coerceAtLeast(0L)
+        val estimated = syncBasePositionMs + elapsed
+        return if (durationMs > 0L) estimated.coerceAtMost(durationMs) else estimated
     }
 
     fun setRemotePrevSong(song: Song?) {
@@ -37,5 +66,8 @@ class PlaybackRemoteStateHolder {
         _remoteDeviceName.value = null
         _remotePrevSong.value = null
         _remoteNextSong.value = null
+        syncBasePositionMs = 0L
+        syncBaseElapsedRealtimeMs = 0L
+        syncIsPlaying = false
     }
 }

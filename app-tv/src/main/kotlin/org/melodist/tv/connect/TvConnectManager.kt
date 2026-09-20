@@ -198,7 +198,8 @@ object TvConnectManager {
                         )
                     }
                 }
-                delay(1000)
+                val syncIntervalMs = if (PlaybackManager.isPlaying.value) 500L else 1000L
+                delay(syncIntervalMs)
             }
         }
     }
