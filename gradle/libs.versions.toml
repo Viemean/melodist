@@ -22,8 +22,10 @@ ktlint = "14.2.0"
 java-websocket = "1.6.0"
 zxing = "3.5.4"
 camerax = "1.6.2"
+leakcanary = "2.14"
 
 [libraries]
+leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
 camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }

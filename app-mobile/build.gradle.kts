@@ -137,6 +137,9 @@ dependencies {
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+
+    // LeakCanary 运行时内存泄漏自动检测
+    debugImplementation(libs.leakcanary)
 }
 
 tasks.withType<Test> {
@@ -145,4 +148,6 @@ tasks.withType<Test> {
 
 composeCompiler {
     stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose_compiler_config.conf"))
+    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+    metricsDestination = layout.buildDirectory.dir("compose_compiler")
 }
