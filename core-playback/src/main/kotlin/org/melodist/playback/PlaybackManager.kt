@@ -553,14 +553,15 @@ object PlaybackManager {
                 .setIsSpeedChangeSupportRequired(false)
                 .build()
 
+        val profile = PlaybackProfile.detect(context)
         val loadControl =
             DefaultLoadControl
                 .Builder()
                 .setBufferDurationsMs(
-                    // minBufferMs =
-                    30_000,
-                    // maxBufferMs =
-                    90_000,
+                    // minBufferMs
+                    profile.minBufferMs,
+                    // maxBufferMs
+                    profile.maxBufferMs,
                     // bufferForPlaybackMs =
                     2_000,
                     // bufferForPlaybackAfterRebufferMs =
@@ -693,7 +694,8 @@ object PlaybackManager {
     fun init(context: Context) {
         if (appContext == null) {
             appContext = context.applicationContext
-            MelodistCacheManager.init(context)
+            val profile = PlaybackProfile.detect(context)
+            MelodistCacheManager.init(context, profile)
             org.melodist.data.AppSettingsManager.mediaCacheSizeProvider = { MelodistCacheManager.getCacheSizeBytes() }
             org.melodist.data.AppSettingsManager.mediaCacheClearAction = { MelodistCacheManager.clearAllCache() }
             LocalLyricAutoMatcher.init(context)
@@ -951,6 +953,13 @@ object PlaybackManager {
         seekToMs: Long = 0L,
     ) {
         lastCustomStreamArgs = null
+        val prevSong = _currentSong.value
+        val prevPos = _currentPositionMs.value
+        val prevDur = _durationMs.value
+        val prevTier = _currentTier.value
+        if (prevSong != null && prevSong.songMid != song.songMid) {
+            MelodistCacheManager.handleTrackSwitchEviction(prevSong.songMid, prevPos, prevDur, prevTier)
+        }
         MelodistCacheManager.onNewSongStarted(song.songMid)
         if (_currentSong.value?.songMid != song.songMid) {
             currentSongRetryCount = 0
@@ -1375,10 +1384,9 @@ object PlaybackManager {
                     val player = exoPlayer ?: return@launch
                     val ctx = appContext ?: return@launch
                     val isFav = isSongFavorite(song.songMid)
-                    val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav)
+                    val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav, playUrlInfo.tier)
                     val isCached = MelodistCacheManager.isUriCached(rawUrl) || MelodistCacheManager.getCachedSongTier(song.songMid) != null
                     _isCurrentTrackFromCache.value = isCached
-                    MelodistCacheManager.recordCachedSongTier(song.songMid, playUrlInfo.tier)
                     Log.i(
                         "MelodistPlayback",
                         "Admission cache check for ${song.name}: shouldCache=$shouldCache (fav=$isFav, plays=${MelodistCacheManager.getPlayCount(song.songMid)}, isCached=$isCached)",

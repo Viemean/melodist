@@ -74,6 +74,47 @@ class MelodistCacheManagerTest {
     }
 
     @Test
+    fun `playback profile calculates trial thresholds and adheres to quotas`() {
+        // TV 试探期：min(15s, 20%)
+        val tv = PlaybackProfile.TV
+        assertEquals(2L * 1024 * 1024 * 1024, tv.maxCacheQuotaBytes)
+        assertFalse(tv.allowMasterDiskCache)
+        // 歌曲 200s: 200 * 20% = 40s > 15s -> 15s
+        assertEquals(15_000L, tv.getTrialThresholdMs(200_000L))
+        // 歌曲 50s: 50 * 20% = 10s < 15s -> 10s
+        assertEquals(10_000L, tv.getTrialThresholdMs(50_000L))
+
+        // Mobile 试探期：min(10s, 15%)
+        val mobile = PlaybackProfile.Mobile
+        assertEquals(6L * 1024 * 1024 * 1024, mobile.maxCacheQuotaBytes)
+        assertTrue(mobile.allowMasterDiskCache)
+        // 歌曲 200s: 200 * 15% = 30s > 10s -> 10s
+        assertEquals(10_000L, mobile.getTrialThresholdMs(200_000L))
+        // 歌曲 50s: 50 * 15% = 7.5s < 10s -> 7500ms
+        assertEquals(7_500L, mobile.getTrialThresholdMs(50_000L))
+    }
+
+    @Test
+    fun `master tier is strictly stream-only when allowMasterDiskCache is false`() {
+        val songMid = "test_master_song"
+        MelodistCacheManager.onNewSongStarted(songMid)
+        MelodistCacheManager.recordPlayProgress(songMid, positionMs = 180_000L, durationMs = 200_000L)
+        MelodistCacheManager.onNewSongStarted(songMid)
+        MelodistCacheManager.recordPlayProgress(songMid, positionMs = 180_000L, durationMs = 200_000L)
+        assertEquals(2, MelodistCacheManager.getPlayCount(songMid))
+
+        // 切换为 TV Profile（禁止 Master 落盘）
+        MelodistCacheManager.currentProfile = PlaybackProfile.TV
+        assertFalse(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true, tier = org.melodist.model.AudioQualityTier.Master))
+        // 非 Master 音质在 TV 端准入成功
+        assertTrue(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true, tier = org.melodist.model.AudioQualityTier.HiRes))
+
+        // 切换为 Mobile Profile（允许 Master 落盘）
+        MelodistCacheManager.currentProfile = PlaybackProfile.Mobile
+        assertTrue(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true, tier = org.melodist.model.AudioQualityTier.Master))
+    }
+
+    @Test
     fun `uninitialized cache manager returns safe defaults`() {
         assertEquals(0L, MelodistCacheManager.getCacheSizeBytes())
         assertEquals(0, MelodistCacheManager.getCachedKeyCount())

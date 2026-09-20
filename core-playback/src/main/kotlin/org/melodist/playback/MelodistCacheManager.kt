@@ -54,10 +54,16 @@ object MelodistCacheManager {
     @Volatile
     private var currentSessionMarkedSongMid: String? = null
 
+    @Volatile
+    var currentProfile: PlaybackProfile = PlaybackProfile.TV
+
     /**
-     * 根据电视设备实际可用 ROM 空间动态计算缓存安全配额（上限 2GB）
+     * 根据设备环境 Profile 与实际可用 ROM 空间动态计算缓存安全配额
      */
-    fun calculateAdaptiveCacheQuotaBytes(cacheDir: File): Long {
+    fun calculateAdaptiveCacheQuotaBytes(
+        cacheDir: File,
+        maxLimit: Long = currentProfile.maxCacheQuotaBytes,
+    ): Long {
         val availableBytes =
             try {
                 if (cacheDir.exists()) cacheDir.usableSpace else 0L
@@ -68,7 +74,7 @@ object MelodistCacheManager {
         return when {
             safeQuota <= 0L -> MIN_PROTECT_QUOTA_BYTES
             safeQuota < MIN_PROTECT_QUOTA_BYTES -> MIN_PROTECT_QUOTA_BYTES
-            safeQuota > DEFAULT_MAX_QUOTA_BYTES -> DEFAULT_MAX_QUOTA_BYTES
+            safeQuota > maxLimit -> maxLimit
             else -> safeQuota
         }
     }
@@ -77,7 +83,13 @@ object MelodistCacheManager {
      * 初始化全局缓存池与播放统计（线程安全）
      */
     @Synchronized
-    fun init(context: Context) {
+    fun init(context: Context, profile: PlaybackProfile? = null) {
+        if (profile != null) {
+            currentProfile = profile
+        } else if (!isInitialized) {
+            currentProfile = PlaybackProfile.detect(context)
+        }
+
         if (isInitialized && simpleCache != null) return
 
         val appContext = context.applicationContext
@@ -90,8 +102,8 @@ object MelodistCacheManager {
         tiersFile = File(appContext.filesDir, "media_cache_tiers.json")
         loadStatsFromDisk()
 
-        val quotaBytes = calculateAdaptiveCacheQuotaBytes(appContext.cacheDir)
-        Log.i(TAG, "Initializing TV media cache at ${cacheFolder.absolutePath} with quota: ${formatBytes(quotaBytes)}")
+        val quotaBytes = calculateAdaptiveCacheQuotaBytes(appContext.cacheDir, currentProfile.maxCacheQuotaBytes)
+        Log.i(TAG, "Initializing media cache (${if (currentProfile.isTvDevice) "TV" else "Mobile"}) at ${cacheFolder.absolutePath} with quota: ${formatBytes(quotaBytes)}")
 
         try {
             val dbProvider = StandaloneDatabaseProvider(appContext).also { databaseProvider = it }
@@ -202,14 +214,62 @@ object MelodistCacheManager {
     fun getPlayCount(songMid: String): Int = playCountMap[songMid] ?: 0
 
     /**
-     * 智能准入判定：
-     * 收藏曲目需要有效播放大于等于 1 次；普通曲目需要有效播放大于等于 2 次。
+     * 切歌事件触发：若切走的曲目在试探期内被切走（播放时长未达门槛），异步清理其磁盘残片，防磁盘碎片堆积
      */
-    fun shouldCacheSong(songMid: String, isFavorite: Boolean): Boolean {
+    fun handleTrackSwitchEviction(
+        songMid: String,
+        playedMs: Long,
+        durationMs: Long,
+        tier: org.melodist.model.AudioQualityTier? = null,
+    ) {
+        if (songMid.isBlank()) return
+        // 若已经达标确认为完整留存曲目，则无需清理
+        if (cachedSongTiers.containsKey(songMid)) return
+
+        val thresholdMs = currentProfile.getTrialThresholdMs(durationMs)
+        if (playedMs < thresholdMs) {
+            Log.i(TAG, "Track switched before trial threshold ($playedMs ms < $thresholdMs ms), evicting incomplete cache for $songMid")
+            evictIncompleteCacheAsync(songMid, tier)
+        }
+    }
+
+    /**
+     * 智能准入判定：
+     * 1. 若当前 Profile 禁止母带落盘且当前为 Master 音质，直接返回 false（只播不存）；
+     * 2. 收藏曲目需要有效播放大于等于 1 次；普通曲目需要有效播放大于等于 2 次。
+     */
+    fun shouldCacheSong(
+        songMid: String,
+        isFavorite: Boolean,
+        tier: org.melodist.model.AudioQualityTier? = null,
+    ): Boolean {
         if (songMid.isBlank()) return false
+        if (tier == org.melodist.model.AudioQualityTier.Master && !currentProfile.allowMasterDiskCache) {
+            Log.i(TAG, "Master tier stream-only on current profile, bypassing disk cache: songMid=$songMid")
+            return false
+        }
         val count = getPlayCount(songMid)
         val threshold = if (isFavorite) 1 else 2
         return count >= threshold
+    }
+
+    /**
+     * 异步清理未达收听门槛曲目的残片数据
+     */
+    fun evictIncompleteCacheAsync(songMid: String, tier: org.melodist.model.AudioQualityTier? = null) {
+        if (songMid.isBlank()) return
+        val cache = simpleCache ?: return
+        scope.launch {
+            try {
+                val keysToEvict = cache.keys.filter { it.contains(songMid) }
+                for (key in keysToEvict) {
+                    cache.removeResource(key)
+                    Log.i(TAG, "Evicted incomplete cache span for key: $key")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to evict incomplete cache for songMid=$songMid", e)
+            }
+        }
     }
 
     /**
