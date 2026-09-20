@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
@@ -111,6 +112,7 @@ fun SongActionSheet(
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showSongInfoSheet by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var showCommentsSheet by remember { mutableStateOf(false) }
 
     val localFilePath =
         remember(song) {
@@ -440,6 +442,17 @@ fun SongActionSheet(
                 )
             }
 
+            if (!song.isLocal && !song.isWebDav) {
+                ActionSheetItem(
+                    icon = Icons.AutoMirrored.Filled.Comment,
+                    title = "查看评论",
+                    subtitle = "精彩热评与最新讨论",
+                    onClick = {
+                        showCommentsSheet = true
+                    },
+                )
+            }
+
             ActionSheetItem(
                 icon = Icons.Default.Info,
                 title = "查看歌曲信息",
@@ -449,6 +462,13 @@ fun SongActionSheet(
                 },
             )
         }
+    }
+
+    if (showCommentsSheet) {
+        SongCommentsBottomSheet(
+            song = song,
+            onDismissRequest = { showCommentsSheet = false },
+        )
     }
 
     if (showSongInfoSheet) {
