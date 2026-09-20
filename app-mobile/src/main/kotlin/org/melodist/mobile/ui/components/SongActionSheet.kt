@@ -22,20 +22,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Comment
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.automirrored.rounded.Comment
+import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Tv
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.mobile.connect.MobileConnectManager
 import androidx.compose.material3.AlertDialog
@@ -268,7 +268,7 @@ fun SongActionSheet(
 
             if (showNextPlay) {
                 ActionSheetItem(
-                    icon = Icons.AutoMirrored.Filled.PlaylistPlay,
+                    icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
                     title = "下一首播放",
                     onClick = {
                         PlaybackManager.insertNextPlay(song)
@@ -280,7 +280,7 @@ fun SongActionSheet(
 
             if (isTvOnline) {
                 ActionSheetItem(
-                    icon = Icons.Filled.Tv,
+                    icon = Icons.Rounded.Tv,
                     title = "在 TV 上立即播放",
                     tint = MaterialTheme.colorScheme.primary,
                     onClick = {
@@ -290,7 +290,7 @@ fun SongActionSheet(
                     },
                 )
                 ActionSheetItem(
-                    icon = Icons.AutoMirrored.Filled.PlaylistPlay,
+                    icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
                     title = "在 TV 上稍后播放",
                     tint = MaterialTheme.colorScheme.primary,
                     onClick = {
@@ -303,7 +303,7 @@ fun SongActionSheet(
 
             if (onViewCover != null) {
                 ActionSheetItem(
-                    icon = Icons.Default.Image,
+                    icon = Icons.Rounded.Image,
                     title = "查看大图",
                     onClick = {
                         onDismissRequest()
@@ -314,7 +314,7 @@ fun SongActionSheet(
 
             if (showFavorite) {
                 ActionSheetItem(
-                    icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     title = if (isFavorite) "取消收藏" else "收藏到我喜欢的音乐",
                     tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     onClick = {
@@ -327,7 +327,7 @@ fun SongActionSheet(
 
             if (!song.isLocal && !song.isWebDav) {
                 ActionSheetItem(
-                    icon = Icons.AutoMirrored.Filled.QueueMusic,
+                    icon = Icons.AutoMirrored.Rounded.QueueMusic,
                     title = "添加到歌单",
                     onClick = {
                         if (!UserSession.isLoggedIn) {
@@ -340,7 +340,7 @@ fun SongActionSheet(
             }
 
             ActionSheetItem(
-                icon = Icons.Default.ContentCopy,
+                icon = Icons.Rounded.ContentCopy,
                 title = "复制歌曲信息",
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -359,7 +359,7 @@ fun SongActionSheet(
 
             if (!song.isLocal && !song.isWebDav) {
                 ActionSheetItem(
-                    icon = Icons.Default.Download,
+                    icon = Icons.Rounded.Download,
                     title = "下载歌曲",
                     subtitle = "选择音质并内嵌原图与双语歌词",
                     onClick = {
@@ -377,7 +377,7 @@ fun SongActionSheet(
                     }
 
                 ActionSheetItem(
-                    icon = Icons.Default.Person,
+                    icon = Icons.Rounded.Person,
                     title = "查看歌手",
                     subtitle = displaySubtitle,
                     onClick = {
@@ -402,7 +402,7 @@ fun SongActionSheet(
 
             if (!isWebDavOrLocal && !isCurrentAlbumPage && (song.albumMid.isNotBlank() || song.album.isNotBlank())) {
                 ActionSheetItem(
-                    icon = Icons.Default.Album,
+                    icon = Icons.Rounded.Album,
                     title = "查看专辑",
                     subtitle = song.album.ifBlank { null },
                     onClick = {
@@ -420,7 +420,7 @@ fun SongActionSheet(
 
             if (localFilePath != null) {
                 ActionSheetItem(
-                    icon = Icons.Default.DeleteForever,
+                    icon = Icons.Rounded.DeleteForever,
                     title = "删除本地文件",
                     subtitle = "永久删除设备中的音频文件",
                     tint = MaterialTheme.colorScheme.error,
@@ -432,7 +432,7 @@ fun SongActionSheet(
 
             if (onRemoveFromQueue != null) {
                 ActionSheetItem(
-                    icon = Icons.Default.DeleteOutline,
+                    icon = Icons.Rounded.DeleteOutline,
                     title = "从当前队列移除",
                     tint = MaterialTheme.colorScheme.error,
                     onClick = {
@@ -444,7 +444,7 @@ fun SongActionSheet(
 
             if (!song.isLocal && !song.isWebDav) {
                 ActionSheetItem(
-                    icon = Icons.AutoMirrored.Filled.Comment,
+                    icon = Icons.AutoMirrored.Rounded.Comment,
                     title = "查看评论",
                     subtitle = "精彩热评与最新讨论",
                     onClick = {
@@ -454,7 +454,7 @@ fun SongActionSheet(
             }
 
             ActionSheetItem(
-                icon = Icons.Default.Info,
+                icon = Icons.Rounded.Info,
                 title = "查看歌曲信息",
                 subtitle = "格式、采样率、位深与音质真伪",
                 onClick = {
@@ -483,7 +483,7 @@ fun SongActionSheet(
             onDismissRequest = { showDeleteConfirmDialog = false },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.DeleteForever,
+                    imageVector = Icons.Rounded.DeleteForever,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                 )
