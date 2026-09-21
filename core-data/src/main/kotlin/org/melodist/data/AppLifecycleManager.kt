@@ -31,6 +31,11 @@ object AppLifecycleManager : Application.ActivityLifecycleCallbacks, ComponentCa
         _isForeground.first { it }
     }
 
+    fun setForegroundForTesting(foreground: Boolean) {
+        startedActivityCount = if (foreground) 1 else 0
+        _isForeground.value = foreground
+    }
+
     override fun onActivityStarted(activity: Activity) {
         startedActivityCount++
         if (startedActivityCount == 1) {

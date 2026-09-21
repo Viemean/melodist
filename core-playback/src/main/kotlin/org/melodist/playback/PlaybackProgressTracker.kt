@@ -1,16 +1,22 @@
 package org.melodist.playback
 
+import android.os.SystemClock
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import org.melodist.data.AppLifecycleManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 
 /**
- * 负责高频播放进度轮询、边播边存文件缓存占比计算、自动预拉取触发与定期进度持久化
+ * 负责播放进度轮询、边播边存文件缓存占比计算、自动预拉取触发与定期进度持久化。
+ * 支持根据应用前后台状态自适应降频（前台 60ms 高刷，后台 1000ms 低功耗），
+ * 并在用户由后台切回前台时即刻唤醒刷新，保障 UI 零延迟响应。
  */
 class PlaybackProgressTracker(
     private val scope: CoroutineScope,
@@ -36,15 +42,22 @@ class PlaybackProgressTracker(
         progressJob?.cancel()
         progressJob =
             scope.launch {
-                var saveCounter = 0
-                var prefetchCounter = 0
+                var lastSaveTimestampMs = 0L
+                var lastPrefetchCheckTimestampMs = 0L
                 while (isActive) {
+                    val isAppForeground = AppLifecycleManager.isForeground.value
                     if (isRemoteActive()) {
                         val estimated = getEstimatedRemotePositionMs(getDurationMs())
                         if (estimated != null) {
                             onPositionUpdated(estimated)
                         }
-                        delay(50L)
+                        if (isAppForeground) {
+                            delay(50L)
+                        } else {
+                            withTimeoutOrNull(1000L) {
+                                AppLifecycleManager.isForeground.first { it }
+                            }
+                        }
                         continue
                     }
                     getPlayer()?.let { player ->
@@ -100,21 +113,27 @@ class PlaybackProgressTracker(
                                     }
                                 }
                             }
-                            saveCounter++
-                            if (saveCounter >= 250) {
-                                saveCounter = 0
+                            val now = SystemClock.elapsedRealtime()
+                            if (now - lastSaveTimestampMs >= 15_000L) {
+                                lastSaveTimestampMs = now
                                 onSavePlaybackProgressRequest(pos)
                             }
-                            prefetchCounter++
-                            if (prefetchCounter >= 16) {
-                                prefetchCounter = 0
+                            if (now - lastPrefetchCheckTimestampMs >= 1_000L) {
+                                lastPrefetchCheckTimestampMs = now
                                 if (PlaybackSourceResolver.shouldTriggerPrefetch(dur, pos)) {
                                     onTriggerPrefetchNextSongRequest()
                                 }
                             }
                         }
                     }
-                    delay(60L)
+                    if (isAppForeground) {
+                        delay(60L)
+                    } else {
+                        // 后台状态：降低轮询唤醒至 1000ms；若用户切回前台，第一时间内退出等待即刻刷新
+                        withTimeoutOrNull(1000L) {
+                            AppLifecycleManager.isForeground.first { it }
+                        }
+                    }
                 }
             }
     }
