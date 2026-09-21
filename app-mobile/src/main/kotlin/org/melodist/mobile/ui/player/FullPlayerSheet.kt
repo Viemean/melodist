@@ -484,7 +484,7 @@ fun FullPlayerSheet(
                                 lyrics = lyrics,
                                 currentPositionMs = lyricPositionMs,
                                 onSeekTo = onSeekTo,
-                                highlightColor = MaterialTheme.colorScheme.primary,
+                                highlightColor = animatedAccentColor,
                                 textColor = contentPrimary.copy(alpha = 0.72f),
                                 transColor = contentPrimary.copy(alpha = 0.55f),
                                 modifier = Modifier.fillMaxSize(),
