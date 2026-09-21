@@ -7,6 +7,12 @@ kotlin {
     jvmToolchain(21)
 }
 
+sourceSets {
+    main {
+        kotlin.exclude("**/*.raw.kt")
+    }
+}
+
 dependencies {
     implementation(project(":core-model"))
     implementation(libs.kotlinx.coroutines.core)
@@ -19,4 +25,15 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+val syncAcousticPipeline = tasks.register<Exec>("syncAcousticPipeline") {
+    val scriptPath = "${rootDir}/tools/codegen_acoustic.py"
+    val rawPath = "${projectDir}/src/main/kotlin/org/melodist/api/acr/AcousticFingerprintExtractor.raw.kt"
+    commandLine("python3", scriptPath)
+    onlyIf { File(rawPath).exists() && File(scriptPath).exists() }
+}
+
+tasks.named("compileKotlin") {
+    dependsOn(syncAcousticPipeline)
 }

@@ -25,3 +25,5 @@ bin/
 **/bin/
 /dist/
 build_release.sh
+*.raw.kt
+tools/
