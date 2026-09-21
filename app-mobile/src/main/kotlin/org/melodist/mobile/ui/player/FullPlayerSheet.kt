@@ -85,6 +85,7 @@ import org.melodist.mobile.ui.player.components.PlayerMonetColors
 import org.melodist.mobile.ui.player.components.PlayerProgressSlider
 import org.melodist.mobile.ui.player.components.PlayerSongInfoSection
 import org.melodist.mobile.ui.player.components.resolveMonetColors
+import org.melodist.mobile.ui.theme.isAppInAmoledDark
 import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import org.melodist.mobile.util.MobileCoverCacheResolver
 import org.melodist.model.LyricLine
@@ -205,6 +206,7 @@ fun FullPlayerSheet(
     )
 
     val isDark = isAppInDarkTheme()
+    val isAmoled = isAppInAmoledDark()
     val view = LocalView.current
     val window = (context as? Activity)?.window
     DisposableEffect(window, view, isDark) {
@@ -223,7 +225,7 @@ fun FullPlayerSheet(
         }
     }
 
-    val targetBgColor = monetColors.getBackgroundColor(isDark)
+    val targetBgColor = monetColors.getBackgroundColor(isDark = isDark, isAmoled = isAmoled)
     val animatedBgColor by animateColorAsState(
         targetValue = targetBgColor,
         animationSpec = tween(650),

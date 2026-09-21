@@ -263,9 +263,13 @@ private fun ColorScheme.withAmoled(): ColorScheme =
     )
 
 val LocalDarkTheme = androidx.compose.runtime.compositionLocalOf { false }
+val LocalAmoledDark = androidx.compose.runtime.compositionLocalOf { false }
 
 @Composable
 fun isAppInDarkTheme(): Boolean = LocalDarkTheme.current
+
+@Composable
+fun isAppInAmoledDark(): Boolean = LocalAmoledDark.current
 
 @Composable
 fun MelodistMobileTheme(
@@ -292,7 +296,8 @@ fun MelodistMobileTheme(
             else -> getPresetColorScheme(colorTheme, darkTheme, customColorHex)
         }
 
-    val finalScheme = if (darkTheme && amoledDark) baseScheme.withAmoled() else baseScheme
+    val isAmoled = darkTheme && amoledDark
+    val finalScheme = if (isAmoled) baseScheme.withAmoled() else baseScheme
 
     val view = androidx.compose.ui.platform.LocalView.current
     if (!view.isInEditMode) {
@@ -306,7 +311,10 @@ fun MelodistMobileTheme(
         }
     }
 
-    androidx.compose.runtime.CompositionLocalProvider(LocalDarkTheme provides darkTheme) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalDarkTheme provides darkTheme,
+        LocalAmoledDark provides isAmoled,
+    ) {
         MaterialTheme(
             colorScheme = finalScheme,
             content = content,

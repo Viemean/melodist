@@ -5,7 +5,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
 
 data class PlayerMonetColors(
-    val darkBackgroundColor: Color = Color(0xFF1E222A),
+    val darkBackgroundColor: Color = Color(0xFF141416),
     val lightBackgroundColor: Color = Color(0xFFF7F7FA),
     val accentColor: Color = Color(0xFF2DB580),
     val highlightColor: Color = Color(0xFF3EC896),
@@ -13,8 +13,12 @@ data class PlayerMonetColors(
 ) {
     val backgroundColor: Color get() = darkBackgroundColor
 
-    fun getBackgroundColor(isDark: Boolean): Color =
-        if (isDark) darkBackgroundColor else lightBackgroundColor
+    fun getBackgroundColor(isDark: Boolean, isAmoled: Boolean = false): Color =
+        if (isDark) {
+            if (isAmoled) Color.Black else darkBackgroundColor
+        } else {
+            lightBackgroundColor
+        }
 }
 
 fun resolveMonetColors(palette: Palette): PlayerMonetColors {
@@ -76,12 +80,12 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val lightBgColorInt = ColorUtils.HSLToColor(lightBgHsl)
 
-    // 2. 深色背景色：深邃通透但保留微弱色相（明度 0.11f，饱和度 0.16f..0.28f）
+    // 2. 深色背景色：沉稳纯净的黑曜石深灰色（明度 0.075f，饱和度极弱 0.04f..0.08f），避免红棕或暗彩色造成视觉疲劳
     val darkBgHsl =
         floatArrayOf(
             hue,
-            sat.coerceIn(0.16f, 0.28f),
-            0.11f,
+            sat.coerceIn(0.04f, 0.08f),
+            0.075f,
         )
     val darkBgColorInt = ColorUtils.HSLToColor(darkBgHsl)
 
