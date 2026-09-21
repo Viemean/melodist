@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
@@ -103,6 +104,7 @@ fun SongCommentsBottomSheet(
     var isLoading by remember { mutableStateOf(true) }
     var isLoadingMore by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
+    var isHotCommentsExpanded by remember { mutableStateOf(false) }
 
     fun loadComments(
         page: Int,
@@ -112,6 +114,7 @@ fun SongCommentsBottomSheet(
             isLoading = true
             isError = false
             lastCommentSeqNo = ""
+            isHotCommentsExpanded = false
         } else {
             if (isLoading || isLoadingMore || !hasMore) return
             isLoadingMore = true
@@ -345,23 +348,109 @@ fun SongCommentsBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                         if (hotComments.isNotEmpty()) {
+                            val hasMoreHot = hotComments.size > 3
+                            val displayedHot =
+                                if (isHotCommentsExpanded || !hasMoreHot) {
+                                    hotComments
+                                } else {
+                                    hotComments.take(3)
+                                }
+
                             item(key = "header_hot") {
-                                Text(
-                                    text = "精彩评论",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                                )
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp, bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = "精彩评论",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    if (hasMoreHot) {
+                                        Row(
+                                            modifier =
+                                                Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .clickable { isHotCommentsExpanded = !isHotCommentsExpanded }
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text(
+                                                text = if (isHotCommentsExpanded) "收起" else "共 ${hotComments.size} 条",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Icon(
+                                                imageVector =
+                                                    if (isHotCommentsExpanded) {
+                                                        Icons.Rounded.KeyboardArrowUp
+                                                    } else {
+                                                        Icons.Rounded.KeyboardArrowDown
+                                                    },
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                    }
+                                }
                             }
+
                             items(
-                                items = hotComments,
+                                items = displayedHot,
                                 key = { "hot_${it.commentId}" },
                             ) { comment ->
                                 SongCommentItem(
                                     comment = comment,
                                     onImageClick = { previewImageUrl = it },
                                 )
+                            }
+
+                            if (hasMoreHot) {
+                                item(key = "hot_toggle_footer") {
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                                .clickable { isHotCommentsExpanded = !isHotCommentsExpanded }
+                                                .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text =
+                                                    if (isHotCommentsExpanded) {
+                                                        "收起精彩评论"
+                                                    } else {
+                                                        "展开更多精彩评论 (还有 ${hotComments.size - 3} 条)"
+                                                    },
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector =
+                                                    if (isHotCommentsExpanded) {
+                                                        Icons.Rounded.KeyboardArrowUp
+                                                    } else {
+                                                        Icons.Rounded.KeyboardArrowDown
+                                                    },
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
