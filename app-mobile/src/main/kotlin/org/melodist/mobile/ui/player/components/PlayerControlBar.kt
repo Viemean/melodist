@@ -39,7 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.ColorUtils
 import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import org.melodist.playback.PlaybackLoopMode
 
@@ -59,9 +61,14 @@ fun PlayerControlBar(
 ) {
     val isDark = isAppInDarkTheme()
 
-    // 莫奈取色：与主界面全局动态色彩系统保持一致
-    val playPauseContainerColor = MaterialTheme.colorScheme.primary
-    val playPauseContentColor = MaterialTheme.colorScheme.onPrimary
+    // 播放/暂停按键采用与进度条高亮完全一致的莫奈强调色，强化界面色彩统一性
+    val playPauseContainerColor = animatedAccentColor
+    val playPauseContentColor =
+        if (ColorUtils.calculateLuminance(animatedAccentColor.toArgb()) < 0.45) {
+            Color.White
+        } else {
+            Color(0xFF1C1B1F)
+        }
 
     val auxButtonShape = RoundedCornerShape(16.dp)
     val auxButtonBgColor =

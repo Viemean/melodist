@@ -63,13 +63,14 @@ fun PlayerProgressSlider(
     // 真实音频文件磁盘缓存比例：若曲目已完整落盘则直接 100%，否则按已下载字节呈现
     val actualCacheFraction = if (isFromCache) 1f else fileCacheFraction.coerceIn(0f, 1f)
 
-    // 莫奈色彩：与主界面全局动态色彩系统保持一致
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val trackInactiveColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.75f)
+    // 莫奈色彩：使用传入的动态莫奈强调色，确保在动态背景下具备绝佳辨识度与色彩呼应
+    val effectiveAccent = accentColor
+    // 未播底轨：基于高对比度文本/内容色派生，保证在亮色微彩与暗色深色背景下均轮廓鲜明
+    val trackInactiveColor = textColor.copy(alpha = 0.20f)
 
     val sliderColors =
         SliderDefaults.colors(
-            thumbColor = primaryColor,
+            thumbColor = effectiveAccent,
             activeTrackColor = Color.Transparent,
             inactiveTrackColor = Color.Transparent,
         )
@@ -94,7 +95,7 @@ fun PlayerProgressSlider(
                 val isPressed by interactionSource.collectIsPressedAsState()
                 val isEngaged = isPressed || isDraggingSlider
                 val thumbRadius by animateDpAsState(
-                    targetValue = if (isEngaged) 7.5.dp else 4.dp,
+                    targetValue = if (isEngaged) 8.dp else 5.dp,
                     animationSpec =
                         spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -115,7 +116,7 @@ fun PlayerProgressSlider(
                     val activeWidth = size.width * progressFraction
                     val cachedWidth = size.width * actualCacheFraction
 
-                    // 1. 未播放平滑底轨（与主界面一致的莫奈表层色）
+                    // 1. 未播放平滑底轨（高对比度半透明凹槽）
                     drawLine(
                         color = trackInactiveColor,
                         start = Offset(0f, centerY),
@@ -127,7 +128,7 @@ fun PlayerProgressSlider(
                     // 2. 音频文件磁盘缓存进度（若文件正在下载写入，以 35% 莫奈主色实时展示已落盘范围；已全盘缓存则覆盖整轨）
                     if (cachedWidth > 0f) {
                         drawLine(
-                            color = primaryColor.copy(alpha = 0.35f),
+                            color = effectiveAccent.copy(alpha = 0.35f),
                             start = Offset(0f, centerY),
                             end = Offset(cachedWidth, centerY),
                             strokeWidth = trackHeightPx,
@@ -135,10 +136,10 @@ fun PlayerProgressSlider(
                         )
                     }
 
-                    // 3. 已播放进度线（莫奈主色平滑覆盖）
+                    // 3. 已播放进度线（莫奈强调色平滑覆盖）
                     if (activeWidth > 0f) {
                         drawLine(
-                            color = primaryColor,
+                            color = effectiveAccent,
                             start = Offset(0f, centerY),
                             end = Offset(activeWidth, centerY),
                             strokeWidth = trackHeightPx,
@@ -146,10 +147,10 @@ fun PlayerProgressSlider(
                         )
                     }
 
-                    // 3. 纯实色平滑滑块（拖拽或按压时微放大反馈，无任何外圈割裂）
+                    // 4. 纯实色平滑滑块（拖拽或按压时微放大反馈，无任何外圈割裂）
                     if (isEngaged || activeWidth > 0f) {
                         drawCircle(
-                            color = primaryColor,
+                            color = effectiveAccent,
                             radius = thumbRadiusPx,
                             center = Offset(activeWidth, centerY),
                         )

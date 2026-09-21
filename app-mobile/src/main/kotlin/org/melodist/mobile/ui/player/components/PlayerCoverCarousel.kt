@@ -6,16 +6,20 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -28,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -39,6 +44,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.melodist.mobile.ui.components.AlbumArtImage
+import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import org.melodist.mobile.util.MobileCoverCacheResolver
 import org.melodist.model.Song
 import kotlin.math.abs
@@ -54,6 +60,8 @@ fun PlayerCoverCarousel(
     onPlayPrevious: () -> Unit,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    shadowTint: Color = Color(0xFF0D1016),
+    isDark: Boolean = isAppInDarkTheme(),
     modifier: Modifier = Modifier,
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -74,7 +82,7 @@ fun PlayerCoverCarousel(
         contentAlignment = Alignment.Center,
     ) {
         val density = LocalDensity.current
-        val coverWidthDp = maxWidth * 0.98f
+        val coverWidthDp = maxWidth * 0.92f
         val coverWidthPx = with(density) { coverWidthDp.toPx() }
         val spacingPx = with(density) { 24.dp.toPx() }
         val fullStepPx = coverWidthPx + spacingPx
@@ -224,8 +232,9 @@ fun PlayerCoverCarousel(
                     song = currentPrevSong,
                     coverWidthDp = coverWidthDp,
                     translationX = prevX,
-                    scale = 0.88f + 0.12f * progress,
-                    alpha = 0.40f + 0.60f * progress,
+                    scale = 0.92f + 0.08f * progress,
+                    shadowTint = shadowTint,
+                    isDark = isDark,
                 )
             }
 
@@ -236,19 +245,20 @@ fun PlayerCoverCarousel(
                     song = currentNextSong,
                     coverWidthDp = coverWidthDp,
                     translationX = nextX,
-                    scale = 0.88f + 0.12f * progress,
-                    alpha = 0.40f + 0.60f * progress,
+                    scale = 0.92f + 0.08f * progress,
+                    shadowTint = shadowTint,
+                    isDark = isDark,
                 )
             }
 
-            val currentScale = 1f - 0.12f * (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
-            val currentAlpha = 1f - 0.40f * (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
+            val currentScale = 1f - 0.08f * (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
             CoverCard(
                 song = currentSong,
                 coverWidthDp = coverWidthDp,
                 translationX = offsetVal,
                 scale = currentScale,
-                alpha = currentAlpha,
+                shadowTint = shadowTint,
+                isDark = isDark,
             )
         }
     }
@@ -260,11 +270,51 @@ private fun CoverCard(
     coverWidthDp: androidx.compose.ui.unit.Dp,
     translationX: Float,
     scale: Float,
-    alpha: Float,
+    shadowTint: Color,
+    isDark: Boolean,
 ) {
     val candidates =
         remember(song) {
             MobileCoverCacheResolver.resolveCandidates(song)
+        }
+
+    val cardShape = RoundedCornerShape(16.dp)
+
+    // 色相匹配的平滑复合落影（消除色阶断层与摩尔纹）
+    val spotColor =
+        if (isDark) {
+            shadowTint.copy(alpha = 0.55f)
+        } else {
+            shadowTint.copy(alpha = 0.30f)
+        }
+    val ambientColor =
+        if (isDark) {
+            shadowTint.copy(alpha = 0.30f)
+        } else {
+            shadowTint.copy(alpha = 0.14f)
+        }
+
+    val borderModifier =
+        if (isDark) {
+            Modifier.border(
+                width = 0.8.dp,
+                brush =
+                    Brush.verticalGradient(
+                        colors =
+                            listOf(
+                                Color.White.copy(alpha = 0.18f),
+                                Color.White.copy(alpha = 0.05f),
+                                Color.Transparent,
+                            ),
+                    ),
+                shape = cardShape,
+            )
+        } else {
+            Modifier.border(
+                width = 0.8.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
+                shape = cardShape,
+            )
         }
 
     Box(
@@ -275,21 +325,45 @@ private fun CoverCard(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                    this.alpha = alpha
-                }.shadow(
-                    elevation = 16.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    spotColor = Color.Black.copy(alpha = 0.35f),
-                    ambientColor = Color.Black.copy(alpha = 0.18f),
-                    clip = false,
-                ).clip(RoundedCornerShape(12.dp)),
+                },
         contentAlignment = Alignment.Center,
     ) {
-        AlbumArtImage(
-            coverUrl = song?.coverUrl,
-            candidates = candidates,
-            contentDescription = song?.name ?: "封面",
-            modifier = Modifier.fillMaxSize(),
+        // 1. 底层实体圆角阴影板：无动态 alpha，阻断 Android RenderNode 离屏缓冲与矩形裁切，杜绝直角阴影与回弹闪烁
+        Spacer(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .shadow(
+                        elevation = if (isDark) 16.dp else 12.dp,
+                        shape = cardShape,
+                        spotColor = spotColor,
+                        ambientColor = ambientColor,
+                        clip = false,
+                    )
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = cardShape,
+                    ),
         )
+
+        // 2. 顶层内容容器：严格按 cardShape 裁剪图片并附带边框，显式禁用内部 AlbumArtImage 默认的 10dp 圆角与 8dp 阴影
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .then(borderModifier)
+                    .clip(cardShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            AlbumArtImage(
+                coverUrl = song?.coverUrl,
+                candidates = candidates,
+                contentDescription = song?.name ?: "封面",
+                shape = cardShape,
+                elevation = 0.dp,
+                border = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }

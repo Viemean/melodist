@@ -86,6 +86,7 @@ import org.melodist.mobile.ui.player.components.PlayerProgressSlider
 import org.melodist.mobile.ui.player.components.PlayerSongInfoSection
 import org.melodist.mobile.ui.player.components.resolveMonetColors
 import org.melodist.mobile.ui.theme.isAppInDarkTheme
+import org.melodist.mobile.util.MobileCoverCacheResolver
 import org.melodist.model.LyricLine
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackLoopMode
@@ -150,29 +151,80 @@ fun FullPlayerSheet(
     var monetColors by remember { mutableStateOf(PlayerMonetColors()) }
 
     LaunchedEffect(song?.songMid, song?.coverUrl) {
-        val cover = song?.thumbnailCoverUrl?.ifBlank { song.coverUrl } ?: song?.coverUrl
-        if (!cover.isNullOrBlank()) {
-            withContext(Dispatchers.IO) {
-                try {
-                    val loader = SingletonImageLoader.get(context)
+        if (song == null) {
+            monetColors = PlayerMonetColors()
+            return@LaunchedEffect
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                val loader = SingletonImageLoader.get(context)
+                val candidates = MobileCoverCacheResolver.resolveCandidates(song)
+                var resolved = false
+                for (source in candidates) {
                     val request =
                         ImageRequest
                             .Builder(context)
-                            .data(cover)
+                            .data(source)
                             .size(128, 128)
                             .precision(coil3.size.Precision.INEXACT)
                             .build()
                     val result = loader.execute(request)
                     if (result is SuccessResult) {
-                        val bitmap = result.image.toBitmap()
-                        val palette = Palette.from(bitmap).generate()
-                        monetColors = resolveMonetColors(palette)
+                        val rawBitmap = result.image.toBitmap()
+                        val softwareBitmap =
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                                rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE
+                            ) {
+                                rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                            } else {
+                                rawBitmap
+                            }
+                        if (softwareBitmap != null) {
+                            val palette = Palette.from(softwareBitmap).generate()
+                            monetColors = resolveMonetColors(palette)
+                            resolved = true
+                            android.util.Log.d("MonetPalette", "Successfully extracted from candidate: light=${monetColors.lightBackgroundColor}, dark=${monetColors.darkBackgroundColor}")
+                            break
+                        }
                     }
-                } catch (_: Throwable) {
                 }
+                if (!resolved) {
+                    val fallbackUrl = song.thumbnailCoverUrl.ifBlank { song.coverUrl }
+                    if (fallbackUrl.isNotBlank()) {
+                        val request =
+                            ImageRequest
+                                .Builder(context)
+                                .data(fallbackUrl)
+                                .size(128, 128)
+                                .precision(coil3.size.Precision.INEXACT)
+                                .build()
+                        val result = loader.execute(request)
+                        if (result is SuccessResult) {
+                            val rawBitmap = result.image.toBitmap()
+                            val softwareBitmap =
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                                    rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE
+                                ) {
+                                    rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                                } else {
+                                    rawBitmap
+                                }
+                            if (softwareBitmap != null) {
+                                val palette = Palette.from(softwareBitmap).generate()
+                                monetColors = resolveMonetColors(palette)
+                                resolved = true
+                                android.util.Log.d("MonetPalette", "Successfully extracted from fallback: light=${monetColors.lightBackgroundColor}")
+                            }
+                        }
+                    }
+                }
+                if (!resolved) {
+                    monetColors = PlayerMonetColors()
+                }
+            } catch (e: Throwable) {
+                android.util.Log.e("MonetPalette", "Palette extraction error", e)
+                monetColors = PlayerMonetColors()
             }
-        } else {
-            monetColors = PlayerMonetColors()
         }
     }
 
@@ -201,7 +253,13 @@ fun FullPlayerSheet(
         }
     }
 
-    val solidBgColor = if (isDark) MaterialTheme.colorScheme.surface else Color(0xFFF6F6F8)
+    val targetBgColor = monetColors.getBackgroundColor(isDark)
+    val animatedBgColor by animateColorAsState(
+        targetValue = targetBgColor,
+        animationSpec = tween(650),
+        label = "monet_bg_color",
+    )
+    val solidBgColor = animatedBgColor
     val contentPrimary = if (isDark) MaterialTheme.colorScheme.onSurface else Color(0xFF1C1B1F)
     val contentSecondary = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF49454F)
     val contentTertiary = if (isDark) MaterialTheme.colorScheme.outline else Color(0xFF79747E)
@@ -428,6 +486,8 @@ fun FullPlayerSheet(
                             onPlayPrevious = onPlayPrevious,
                             onClick = { displayMode = PlayerDisplayMode.Lyrics },
                             onLongClick = { actionTargetSong = song },
+                            shadowTint = monetColors.shadowTint,
+                            isDark = isDark,
                         )
                     } else {
                         var lyricDragX by remember { mutableFloatStateOf(0f) }
