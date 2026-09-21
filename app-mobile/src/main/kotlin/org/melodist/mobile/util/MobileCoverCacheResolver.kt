@@ -64,6 +64,36 @@ object MobileCoverCacheResolver {
     }
 
     /**
+     * 莫奈取色专用的轻量级候选链：
+     * 1. 500x500 缩略图：优先复用歌曲列表与抽屉在 Coil 中已沉淀的本地缓存，实现零网络等待与轻量级解码；
+     * 2. 1200x1200 播放器大图：若 500 图像未能解析则回退至播放器常规大图。
+     */
+    fun resolvePaletteCandidates(song: Song?): List<String> {
+        if (song == null) return emptyList()
+        val url = song.coverUrl
+        if (url.isBlank()) return emptyList()
+
+        val isLocal = url.startsWith("/") || url.startsWith("file://")
+        if (isLocal) {
+            val matchingRaw = song.rawCoverUrl.takeIf { it.isNotBlank() } ?: RawCoverHelper.findMatchingRawCoverUrl(url)
+            return if (!matchingRaw.isNullOrBlank() && matchingRaw != url) {
+                listOf(matchingRaw, url)
+            } else {
+                listOf(url)
+            }
+        }
+
+        val url500 = org.melodist.model.CoverUrlResolver.replaceDimension(url, 500)
+        val url1200 = org.melodist.model.CoverUrlResolver.replaceDimension(url, 1200)
+
+        return if (url500 == url1200) {
+            listOf(url)
+        } else {
+            listOf(url500, url1200)
+        }
+    }
+
+    /**
      * 兼容保留重载
      */
     @Deprecated("使用单参数 resolveCandidates(song)", ReplaceWith("resolveCandidates(song)"))

@@ -158,7 +158,7 @@ fun FullPlayerSheet(
         withContext(Dispatchers.IO) {
             try {
                 val loader = SingletonImageLoader.get(context)
-                val candidates = MobileCoverCacheResolver.resolveCandidates(song)
+                val candidates = MobileCoverCacheResolver.resolvePaletteCandidates(song)
                 var resolved = false
                 for (source in candidates) {
                     val request =
@@ -183,38 +183,8 @@ fun FullPlayerSheet(
                             val palette = Palette.from(softwareBitmap).generate()
                             monetColors = resolveMonetColors(palette)
                             resolved = true
-                            android.util.Log.d("MonetPalette", "Successfully extracted from candidate: light=${monetColors.lightBackgroundColor}, dark=${monetColors.darkBackgroundColor}")
+                            android.util.Log.d("MonetPalette", "Successfully extracted from palette candidate ($source): light=${monetColors.lightBackgroundColor}")
                             break
-                        }
-                    }
-                }
-                if (!resolved) {
-                    val fallbackUrl = song.thumbnailCoverUrl.ifBlank { song.coverUrl }
-                    if (fallbackUrl.isNotBlank()) {
-                        val request =
-                            ImageRequest
-                                .Builder(context)
-                                .data(fallbackUrl)
-                                .size(128, 128)
-                                .precision(coil3.size.Precision.INEXACT)
-                                .build()
-                        val result = loader.execute(request)
-                        if (result is SuccessResult) {
-                            val rawBitmap = result.image.toBitmap()
-                            val softwareBitmap =
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-                                    rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE
-                                ) {
-                                    rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
-                                } else {
-                                    rawBitmap
-                                }
-                            if (softwareBitmap != null) {
-                                val palette = Palette.from(softwareBitmap).generate()
-                                monetColors = resolveMonetColors(palette)
-                                resolved = true
-                                android.util.Log.d("MonetPalette", "Successfully extracted from fallback: light=${monetColors.lightBackgroundColor}")
-                            }
                         }
                     }
                 }
