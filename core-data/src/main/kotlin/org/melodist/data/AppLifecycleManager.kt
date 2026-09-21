@@ -43,6 +43,7 @@ object AppLifecycleManager : Application.ActivityLifecycleCallbacks, ComponentCa
         if (startedActivityCount <= 0) {
             startedActivityCount = 0
             _isForeground.value = false
+            onTrimMemoryAction?.invoke(ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN)
         }
     }
 

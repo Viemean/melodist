@@ -650,4 +650,13 @@ class MainActivity : ComponentActivity() {
             requestPermissions(needed.toTypedArray(), 1001)
         }
     }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_UI_HIDDEN) {
+            org.melodist.data.AppLifecycleManager
+                .onTrimMemoryAction
+                ?.invoke(level)
+        }
+    }
 }
