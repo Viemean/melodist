@@ -226,7 +226,7 @@ open class QQMusicApiService : Service() {
                         }
 
                         "getCurrTime" -> {
-                            val pos = PlaybackManager.getLivePositionMs()
+                            val pos = PlaybackManager.currentPositionMs.value
                             Bundle().apply {
                                 putInt("code", 0)
                                 putLong("data", pos)

@@ -588,21 +588,6 @@ object PlaybackManager {
         return playerPipeline.getOrCreatePlayer(context)
     }
 
-    fun getLivePositionMs(): Long {
-        if (remoteStateHolder.isRemoteActive.value) {
-            val estimated = remoteStateHolder.getEstimatedPositionMs(_durationMs.value)
-            if (estimated != null) return estimated
-        }
-        val player = exoPlayer
-        if (player != null && (player.isPlaying || player.playbackState == androidx.media3.common.Player.STATE_READY)) {
-            val livePos = player.currentPosition
-            if (livePos >= 0L) {
-                return livePos
-            }
-        }
-        return _currentPositionMs.value
-    }
-
     fun buildMediaMetadata(
         song: Song,
         remoteDeviceName: String? = null,
