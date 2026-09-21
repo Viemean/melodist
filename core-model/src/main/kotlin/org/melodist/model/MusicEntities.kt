@@ -124,6 +124,7 @@ data class SongComment(
     val picUrl: String = "",
     val picSize: String = "",
     val location: String = "",
+    val seqNo: String = "",
 )
 
 @Serializable
@@ -132,4 +133,5 @@ data class CommentPage(
     val hotComments: List<SongComment> = emptyList(),
     val comments: List<SongComment> = emptyList(),
     val hasMore: Boolean = false,
+    val lastSeqNo: String = "",
 )

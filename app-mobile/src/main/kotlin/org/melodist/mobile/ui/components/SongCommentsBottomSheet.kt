@@ -1,5 +1,10 @@
 package org.melodist.mobile.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ThumbUp
@@ -34,12 +40,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -86,9 +94,11 @@ fun SongCommentsBottomSheet(
 
     val hotComments = remember { mutableStateListOf<SongComment>() }
     val normalComments = remember { mutableStateListOf<SongComment>() }
+    val seenCommentIds = remember { mutableSetOf<String>() }
     var previewImageUrl by remember { mutableStateOf<String?>(null) }
     var totalCommentCount by remember { mutableIntStateOf(0) }
     var currentPage by remember { mutableIntStateOf(0) }
+    var lastCommentSeqNo by remember { mutableStateOf("") }
     var hasMore by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -101,6 +111,7 @@ fun SongCommentsBottomSheet(
         if (isInitial) {
             isLoading = true
             isError = false
+            lastCommentSeqNo = ""
         } else {
             if (isLoading || isLoadingMore || !hasMore) return
             isLoadingMore = true
@@ -113,26 +124,35 @@ fun SongCommentsBottomSheet(
                         songMid = song.songMid,
                         pageNum = page,
                         pageSize = 25,
+                        lastCommentSeqNo = if (isInitial) "" else lastCommentSeqNo,
                     )
                 if (pageResult != null) {
                     if (isInitial) {
+                        seenCommentIds.clear()
                         hotComments.clear()
-                        hotComments.addAll(pageResult.hotComments)
+                        pageResult.hotComments.forEach { hot ->
+                            seenCommentIds.add(hot.commentId)
+                            hotComments.add(hot)
+                        }
                         normalComments.clear()
-                        normalComments.addAll(pageResult.comments)
+                        val initialNormal = pageResult.comments.filter { seenCommentIds.add(it.commentId) }
+                        normalComments.addAll(initialNormal)
                         totalCommentCount = pageResult.totalCount
-                        hasMore = pageResult.hasMore && pageResult.comments.size >= 25
+                        hasMore = pageResult.hasMore
+                        lastCommentSeqNo = pageResult.lastSeqNo
                     } else {
                         if (pageResult.comments.isEmpty()) {
                             hasMore = false
                         } else {
-                            val existingIds = normalComments.map { it.commentId }.toSet()
-                            val newComments = pageResult.comments.filter { it.commentId !in existingIds }
+                            val newComments = pageResult.comments.filter { seenCommentIds.add(it.commentId) }
                             if (newComments.isEmpty()) {
                                 hasMore = false
                             } else {
                                 normalComments.addAll(newComments)
-                                hasMore = pageResult.hasMore && pageResult.comments.size >= 25
+                                hasMore = pageResult.hasMore
+                                if (pageResult.lastSeqNo.isNotBlank()) {
+                                    lastCommentSeqNo = pageResult.lastSeqNo
+                                }
                             }
                         }
                     }
@@ -271,6 +291,11 @@ fun SongCommentsBottomSheet(
                 }
                 else -> {
                     val listState = rememberLazyListState()
+                    val showScrollToTop by remember {
+                        derivedStateOf {
+                            listState.firstVisibleItemIndex > 3
+                        }
+                    }
 
                     // 滑动到底部自动加载下一页（采用 snapshotFlow 精准监听，避免重组循环振荡）
                     LaunchedEffect(listState, hasMore) {
@@ -304,16 +329,21 @@ fun SongCommentsBottomSheet(
                             }
                         }
 
-                    LazyColumn(
-                        state = listState,
+                    Box(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .weight(1f)
-                                .nestedScroll(listNestedScrollConnection),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                                .weight(1f),
                     ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(listNestedScrollConnection),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
                         if (hotComments.isNotEmpty()) {
                             item(key = "header_hot") {
                                 Text(
@@ -380,8 +410,36 @@ fun SongCommentsBottomSheet(
                             }
                         }
                     }
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showScrollToTop,
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut() + scaleOut(),
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 20.dp, bottom = 20.dp),
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                scope.launch {
+                                    listState.animateScrollToItem(0)
+                                }
+                            },
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            shape = CircleShape,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.KeyboardArrowUp,
+                                contentDescription = "返回顶部",
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
                 }
             }
+        }
         }
     }
 

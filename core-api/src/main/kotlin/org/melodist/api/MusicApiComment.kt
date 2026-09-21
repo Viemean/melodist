@@ -14,6 +14,7 @@ suspend fun MusicApiService.getSongComments(
     songMid: String = "",
     pageNum: Int = 0,
     pageSize: Int = 25,
+    lastCommentSeqNo: String = "",
 ): CommentPage? =
     withContext(Dispatchers.IO) {
         val actualId =
@@ -30,7 +31,7 @@ suspend fun MusicApiService.getSongComments(
         val size = pageSize.coerceIn(1, 50)
 
         // 优先使用支持图片富媒体与属地的现代网关接口
-        val modernResult = fetchModernComments(actualId, page, size)
+        val modernResult = fetchModernComments(actualId, page, size, lastCommentSeqNo)
         if (modernResult != null) return@withContext modernResult
 
         // 降级使用传统全局 H5 评论接口
@@ -41,6 +42,7 @@ private suspend fun MusicApiService.fetchModernComments(
     songId: Long,
     page: Int,
     size: Int,
+    lastCommentSeqNo: String = "",
 ): CommentPage? {
     val payload =
         """
@@ -62,7 +64,7 @@ private suspend fun MusicApiService.fetchModernComments(
                 "param": {
                     "BizType": 1,
                     "BizId": "$songId",
-                    "LastCommentSeqNo": "",
+                    "LastCommentSeqNo": "$lastCommentSeqNo",
                     "PageSize": $size,
                     "PageNum": $page,
                     "FromCommentId": "",
@@ -110,13 +112,18 @@ private suspend fun MusicApiService.fetchModernComments(
             parseModernCommentElement(elem, isHot = false)?.let { normalList.add(it) }
         }
 
-        val hasMore = (commentListObj?.get("HasMore")?.jsonPrimitive?.intOrNull == 1) || (normalList.size >= size)
+        val serverHasMore = commentListObj?.get("HasMore")?.jsonPrimitive?.intOrNull == 1
+        val hasMore = serverHasMore && normalList.isNotEmpty()
+        val lastSeqNo =
+            normalList.lastOrNull { it.seqNo.isNotBlank() }?.seqNo
+                ?: commentListObj?.get("Comments")?.jsonArray?.lastOrNull()?.jsonObject?.get("SeqNo")?.jsonPrimitive?.contentOrNull.orEmpty()
 
         CommentPage(
             totalCount = totalCount,
             hotComments = hotList,
             comments = normalList,
             hasMore = hasMore,
+            lastSeqNo = lastSeqNo,
         )
     } catch (_: Exception) {
         null
@@ -178,7 +185,9 @@ internal fun parseModernCommentElement(
         } catch (_: Exception) {
             return null
         }
-    val commentId = obj["CmId"]?.jsonPrimitive?.contentOrNull.orEmpty()
+    val seqNo = obj["SeqNo"]?.jsonPrimitive?.contentOrNull.orEmpty()
+    val rawCmId = obj["CmId"]?.jsonPrimitive?.contentOrNull.orEmpty()
+    val commentId = rawCmId.ifBlank { seqNo }
     val nick =
         obj["Nick"]
             ?.jsonPrimitive
@@ -207,6 +216,7 @@ internal fun parseModernCommentElement(
         picUrl = picUrl,
         picSize = picSize,
         location = location,
+        seqNo = seqNo,
     )
 }
 

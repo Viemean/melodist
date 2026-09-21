@@ -110,6 +110,7 @@ class MusicApiCommentTest {
             {
               "Avatar": "https://thirdwx.qlogo.cn/avatar_pic",
               "CmId": "mod_cmt_9001",
+              "SeqNo": "1683661934034981888",
               "Nick": "☘️みどりお",
               "Content": "谁还记得他只是一个16岁的少女？",
               "PubTime": 1712822400,
@@ -124,6 +125,7 @@ class MusicApiCommentTest {
 
         assertNotNull(comment)
         assertEquals("mod_cmt_9001", comment?.commentId)
+        assertEquals("1683661934034981888", comment?.seqNo)
         assertEquals("☘️みどりお", comment?.nick)
         assertEquals("https://thirdwx.qlogo.cn/avatar_pic", comment?.avatarUrl)
         assertEquals("谁还记得他只是一个16岁的少女？", comment?.content)
@@ -133,6 +135,24 @@ class MusicApiCommentTest {
         assertEquals("https://music-file.y.qq.com/comment/u/test/5f805198.jpeg", comment?.picUrl)
         assertEquals("900x1440", comment?.picSize)
         assertEquals("广东", comment?.location)
+    }
+
+    @Test
+    fun `parseModernCommentElement falls back to SeqNo when CmId is blank`() {
+        val rawJson =
+            """
+            {
+              "SeqNo": "1777999888111",
+              "Nick": "匿名听友",
+              "Content": "好听"
+            }
+            """.trimIndent()
+        val element = Json.parseToJsonElement(rawJson)
+        val comment = parseModernCommentElement(element, isHot = false)
+
+        assertNotNull(comment)
+        assertEquals("1777999888111", comment?.commentId)
+        assertEquals("1777999888111", comment?.seqNo)
     }
 
     @Test
