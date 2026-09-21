@@ -278,7 +278,7 @@ private fun CoverCard(
             MobileCoverCacheResolver.resolveCandidates(song)
         }
 
-    val cardShape = RoundedCornerShape(16.dp)
+    val cardShape = RoundedCornerShape(8.dp)
 
     // 色相匹配的平滑复合落影（消除色阶断层与摩尔纹）
     val spotColor =
