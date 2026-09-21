@@ -29,7 +29,7 @@ class PlaybackService : MediaSessionService() {
 
     companion object {
         const val ACTION_TOGGLE_FAVORITE = "org.melodist.playback.ACTION_TOGGLE_FAVORITE"
-        const val CHANNEL_ID = "melodist_playback_channel"
+        const val CHANNEL_ID = "melodist_playback_channel_v2"
         const val NOTIFICATION_ID = 1001
     }
 
@@ -222,16 +222,21 @@ class PlaybackService : MediaSessionService() {
 
     private fun setupNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            try {
+                manager?.deleteNotificationChannel("melodist_playback_channel")
+            } catch (_: Exception) {
+            }
             val channel =
                 NotificationChannel(
                     CHANNEL_ID,
                     "媒体播放控制",
-                    NotificationManager.IMPORTANCE_LOW,
+                    NotificationManager.IMPORTANCE_HIGH,
                 ).apply {
                     description = "显示正在播放的音乐信息与控制控件"
                     setShowBadge(false)
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 }
-            val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)
         }
     }
