@@ -532,31 +532,16 @@ fun SongCommentsBottomSheet(
         }
     }
 
-    // 评论配图全屏大图预览弹窗
+    // 评论配图全屏大图预览（复用 FullScreenImageViewer，支持手势缩放、规格信息与保存至相册）
     previewImageUrl?.let { imgUrl ->
-        Dialog(
+        FullScreenImageViewer(
+            imageUrl = imgUrl,
+            title = "保存评论图片",
+            subTitle = "${song.name} · 评论配图",
+            filePrefix = "comment_${song.name}",
+            saveTipText = "是否保存当前评论图片到系统相册？",
             onDismissRequest = { previewImageUrl = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.92f))
-                        .clickable { previewImageUrl = null },
-                contentAlignment = Alignment.Center,
-            ) {
-                AsyncImage(
-                    model = imgUrl,
-                    contentDescription = "评论图片大图预览",
-                    contentScale = ContentScale.Fit,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                )
-            }
-        }
+        )
     }
 }
 

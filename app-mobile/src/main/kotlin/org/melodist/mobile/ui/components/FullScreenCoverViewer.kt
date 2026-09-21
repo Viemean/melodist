@@ -87,27 +87,6 @@ fun FullScreenCoverViewer(
     song: Song,
     onDismissRequest: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
-    val coroutineScope = rememberCoroutineScope()
-
-    var showSaveConfirmDialog by remember { mutableStateOf(false) }
-    var isSaving by remember { mutableStateOf(false) }
-
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-
-    @Suppress("DEPRECATION")
-    val transformState =
-        rememberTransformableState { zoomChange, panChange, _ ->
-            scale = (scale * zoomChange).coerceIn(1f, 4f)
-            if (scale > 1f) {
-                offset += panChange
-            } else {
-                offset = Offset.Zero
-            }
-        }
-
     var extractedRawUrl by remember(song) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(song) {
@@ -151,33 +130,84 @@ fun FullScreenCoverViewer(
             }
             list
         }
-    var candidateIndex by remember(candidates) { mutableIntStateOf(0) }
-    val coverUrl = candidates.getOrNull(candidateIndex).orEmpty()
 
-    var imageWidth by remember(coverUrl) { mutableIntStateOf(0) }
-    var imageHeight by remember(coverUrl) { mutableIntStateOf(0) }
-    var fileSizeBytes by remember(coverUrl) { mutableStateOf<Long?>(null) }
+    FullScreenImageViewer(
+        imageUrl = candidates.firstOrNull().orEmpty(),
+        candidates = candidates,
+        title = "保存封面",
+        subTitle = "${song.name} - ${song.singer}",
+        filePrefix = "${song.name}_${song.singer}",
+        saveTipText = "是否保存当前专辑封面图片到系统相册？",
+        onDismissRequest = onDismissRequest,
+    )
+}
 
-    LaunchedEffect(coverUrl) {
+/**
+ * 全屏大图查看器。
+ * 支持双指缩放平移、点击关闭、显示分辨率与文件大小、长按保存到相册。
+ */
+@Composable
+fun FullScreenImageViewer(
+    imageUrl: String,
+    candidates: List<String> = remember(imageUrl) { if (imageUrl.isBlank()) emptyList() else listOf(imageUrl) },
+    title: String = "保存图片",
+    subTitle: String = "",
+    filePrefix: String = "image",
+    saveTipText: String = "是否保存当前图片到系统相册？",
+    onDismissRequest: () -> Unit,
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var showSaveConfirmDialog by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    @Suppress("DEPRECATION")
+    val transformState =
+        rememberTransformableState { zoomChange, panChange, _ ->
+            scale = (scale * zoomChange).coerceIn(1f, 4f)
+            if (scale > 1f) {
+                offset += panChange
+            } else {
+                offset = Offset.Zero
+            }
+        }
+
+    val actualCandidates =
+        remember(imageUrl, candidates) {
+            if (candidates.isNotEmpty()) candidates else listOf(imageUrl)
+        }
+    var candidateIndex by remember(actualCandidates) { mutableIntStateOf(0) }
+    val currentUrl = actualCandidates.getOrNull(candidateIndex) ?: imageUrl
+
+    var imageWidth by remember(currentUrl) { mutableIntStateOf(0) }
+    var imageHeight by remember(currentUrl) { mutableIntStateOf(0) }
+    var fileSizeBytes by remember(currentUrl) { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(currentUrl) {
         fileSizeBytes =
             withContext(Dispatchers.IO) {
-                if (coverUrl.isBlank()) return@withContext null
-                if (coverUrl.startsWith("/") || coverUrl.startsWith("file://")) {
+                if (currentUrl.isBlank()) return@withContext null
+                if (currentUrl.startsWith("/") || currentUrl.startsWith("file://")) {
                     try {
-                        val path = coverUrl.removePrefix("file://")
+                        val path = currentUrl.removePrefix("file://")
                         val file = java.io.File(path)
                         if (file.exists() && file.isFile) return@withContext file.length()
                     } catch (e: Exception) {
-                        android.util.Log.w(TAG, "Failed to read local cover file size: $coverUrl", e)
+                        android.util.Log.w(TAG, "Failed to read local cover file size: $currentUrl", e)
                     }
                 }
-                getDiskCachedCoverSize(context, coverUrl)
+                getDiskCachedCoverSize(context, currentUrl)
             }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            candidates.forEach { url ->
+            actualCandidates.forEach { url ->
                 org.melodist.playback.CoverMemoryManager
                     .evictCoverFromMemory(context, url)
             }
@@ -238,12 +268,12 @@ fun FullScreenCoverViewer(
                     model =
                         ImageRequest
                             .Builder(context)
-                            .data(coverUrl)
+                            .data(currentUrl)
                             .size(Size.ORIGINAL)
                             .precision(Precision.EXACT)
                             .crossfade(true)
                             .build(),
-                    contentDescription = song.name,
+                    contentDescription = subTitle.ifBlank { title },
                     contentScale = ContentScale.Fit,
                     filterQuality = FilterQuality.High,
                     onSuccess = { state ->
@@ -252,7 +282,7 @@ fun FullScreenCoverViewer(
                         imageHeight = img.height
                         if (fileSizeBytes == null || fileSizeBytes == 0L) {
                             coroutineScope.launch(Dispatchers.IO) {
-                                val cachedSize = getDiskCachedCoverSize(context, coverUrl)
+                                val cachedSize = getDiskCachedCoverSize(context, currentUrl)
                                 if (cachedSize != null && cachedSize > 0) {
                                     fileSizeBytes = cachedSize
                                 }
@@ -260,7 +290,7 @@ fun FullScreenCoverViewer(
                         }
                     },
                     onError = {
-                        if (candidateIndex + 1 < candidates.size) {
+                        if (candidateIndex + 1 < actualCandidates.size) {
                             candidateIndex++
                         }
                     },
@@ -324,7 +354,7 @@ fun FullScreenCoverViewer(
                 }
 
                 Text(
-                    text = "长按封面可保存到相册",
+                    text = "长按图片可保存到相册",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.55f),
                     textAlign = TextAlign.Center,
@@ -371,7 +401,7 @@ fun FullScreenCoverViewer(
             },
             title = {
                 Text(
-                    text = "保存封面",
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -379,16 +409,18 @@ fun FullScreenCoverViewer(
             text = {
                 Column {
                     Text(
-                        text = "是否保存当前专辑封面图片到系统相册？",
+                        text = saveTipText,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${song.name} - ${song.singer}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    )
+                    if (subTitle.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = subTitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -399,13 +431,13 @@ fun FullScreenCoverViewer(
                         coroutineScope.launch {
                             val success =
                                 withContext(Dispatchers.IO) {
-                                    saveCoverToGallery(context, coverUrl, song)
+                                    saveImageToGallery(context, currentUrl, filePrefix)
                                 }
                             isSaving = false
                             if (success) {
-                                Toast.makeText(context, "封面已保存至系统相册", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "图片已保存至系统相册", Toast.LENGTH_SHORT).show()
                             } else {
-                                Toast.makeText(context, "保存封面失败", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "保存图片失败", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
@@ -425,19 +457,19 @@ fun FullScreenCoverViewer(
 }
 
 /**
- * 将封面图片保存到系统相册。
+ * 将图片保存到系统相册。
  */
-private suspend fun saveCoverToGallery(
+private suspend fun saveImageToGallery(
     context: Context,
-    coverUrl: String,
-    song: Song,
+    imageUrl: String,
+    filePrefix: String = "image",
 ): Boolean {
     return try {
         val loader = SingletonImageLoader.get(context)
         val request =
             ImageRequest
                 .Builder(context)
-                .data(coverUrl)
+                .data(imageUrl)
                 .size(Size.ORIGINAL)
                 .precision(Precision.EXACT)
                 .build()
@@ -447,10 +479,10 @@ private suspend fun saveCoverToGallery(
         }
 
         val rawName =
-            "${song.name}_${song.singer}"
+            filePrefix
                 .replace(Regex("[\\\\/:*?\"<>|]"), "_")
                 .trim()
-        val fileName = "${rawName.ifBlank { "cover" }}_${System.currentTimeMillis()}.jpg"
+        val fileName = "${rawName.ifBlank { "image" }}_${System.currentTimeMillis()}.jpg"
 
         val values =
             ContentValues().apply {
@@ -467,7 +499,7 @@ private suspend fun saveCoverToGallery(
 
         val written =
             resolver.openOutputStream(uri)?.use { stream ->
-                val snapshot = loader.diskCache?.openSnapshot(coverUrl)
+                val snapshot = loader.diskCache?.openSnapshot(imageUrl)
                 if (snapshot != null) {
                     snapshot.use { snap ->
                         java.io.FileInputStream(snap.data.toFile()).use { input ->
@@ -490,7 +522,7 @@ private suspend fun saveCoverToGallery(
         }
         true
     } catch (e: Throwable) {
-        android.util.Log.e(TAG, "Failed to save cover image to gallery for ${song.name}", e)
+        android.util.Log.e(TAG, "Failed to save image to gallery: $filePrefix", e)
         false
     }
 }
