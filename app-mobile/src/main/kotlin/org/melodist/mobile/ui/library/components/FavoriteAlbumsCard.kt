@@ -29,13 +29,15 @@ fun FavoriteAlbumsCard(
 
     var activeAlbum by remember { mutableStateOf<Album?>(null) }
 
-    // 随机显示已收藏的专辑信息，若有多张则定时平滑轮转
-    LaunchedEffect(favoriteAlbums) {
+    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground.collectAsState()
+
+    // 随机显示已收藏的专辑信息，若有多张则定时平滑轮转（仅在应用处于前台时轮播）
+    LaunchedEffect(favoriteAlbums, isAppForeground) {
         if (favoriteAlbums.isNotEmpty()) {
             if (activeAlbum == null || favoriteAlbums.none { it.mid == activeAlbum?.mid }) {
                 activeAlbum = favoriteAlbums.randomOrNull()
             }
-            if (favoriteAlbums.size > 1) {
+            if (favoriteAlbums.size > 1 && isAppForeground) {
                 while (isActive) {
                     delay(ALBUM_ROTATION_INTERVAL_MS)
                     val candidates = favoriteAlbums.filter { it.mid != activeAlbum?.mid }.ifEmpty { favoriteAlbums }

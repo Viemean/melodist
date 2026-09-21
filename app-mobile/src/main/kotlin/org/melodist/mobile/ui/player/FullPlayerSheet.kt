@@ -150,11 +150,20 @@ fun FullPlayerSheet(
         }
 
     var monetColors by remember { mutableStateOf(PlayerMonetColors()) }
+    var resolvedMonetSongMid by remember { mutableStateOf<String?>(null) }
+    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground.collectAsState()
 
-    LaunchedEffect(song?.songMid, song?.coverUrl) {
+    LaunchedEffect(song?.songMid, song?.coverUrl, isAppForeground) {
         if (song == null) {
             monetColors = PlayerMonetColors()
+            resolvedMonetSongMid = null
             return@LaunchedEffect
+        }
+        if (resolvedMonetSongMid == song.songMid) {
+            return@LaunchedEffect
+        }
+        if (!isAppForeground) {
+            org.melodist.data.AppLifecycleManager.awaitForeground()
         }
         withContext(Dispatchers.IO) {
             try {
@@ -192,9 +201,11 @@ fun FullPlayerSheet(
                 if (!resolved) {
                     monetColors = PlayerMonetColors()
                 }
+                resolvedMonetSongMid = song.songMid
             } catch (e: Throwable) {
                 android.util.Log.e("MonetPalette", "Palette extraction error", e)
                 monetColors = PlayerMonetColors()
+                resolvedMonetSongMid = song.songMid
             }
         }
     }
