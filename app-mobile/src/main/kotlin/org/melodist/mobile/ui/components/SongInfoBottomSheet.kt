@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -120,6 +122,8 @@ fun SongInfoBottomSheet(
         runAudit(forceRefresh = false)
     }
 
+    val maxSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.72f
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
@@ -128,6 +132,7 @@ fun SongInfoBottomSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .heightIn(max = maxSheetHeight)
                     .verticalScroll(rememberScrollState())
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 8.dp),
@@ -140,7 +145,7 @@ fun SongInfoBottomSheet(
                 AlbumArtImage(
                     coverUrl = song.thumbnailCoverUrl,
                     contentDescription = song.name,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(8.dp),
                     elevation = 4.dp,
                     placeholderIconSize = 28.dp,
                     modifier = Modifier.size(56.dp),
