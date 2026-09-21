@@ -61,7 +61,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -70,8 +69,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -349,188 +346,188 @@ fun SongCommentsBottomSheet(
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                        if (hotComments.isNotEmpty()) {
-                            val hasMoreHot = hotComments.size > 3
-                            val displayedHot =
-                                if (isHotCommentsExpanded || !hasMoreHot) {
-                                    hotComments
-                                } else {
-                                    hotComments.take(3)
-                                }
-
-                            item(key = "header_hot") {
-                                Row(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp, bottom = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = "精彩评论",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                    if (hasMoreHot) {
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .clickable { isHotCommentsExpanded = !isHotCommentsExpanded }
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Text(
-                                                text = if (isHotCommentsExpanded) "收起" else "共 ${hotComments.size} 条",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                            )
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Icon(
-                                                imageVector =
-                                                    if (isHotCommentsExpanded) {
-                                                        Icons.Rounded.KeyboardArrowUp
-                                                    } else {
-                                                        Icons.Rounded.KeyboardArrowDown
-                                                    },
-                                                contentDescription = null,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
-                                        }
+                            if (hotComments.isNotEmpty()) {
+                                val hasMoreHot = hotComments.size > 3
+                                val displayedHot =
+                                    if (isHotCommentsExpanded || !hasMoreHot) {
+                                        hotComments
+                                    } else {
+                                        hotComments.take(3)
                                     }
-                                }
-                            }
 
-                            items(
-                                items = displayedHot,
-                                key = { "hot_${it.commentId}" },
-                            ) { comment ->
-                                SongCommentItem(
-                                    comment = comment,
-                                    onImageClick = { previewImageUrl = it },
-                                )
-                            }
-
-                            if (hasMoreHot) {
-                                item(key = "hot_toggle_footer") {
-                                    Box(
+                                item(key = "header_hot") {
+                                    Row(
                                         modifier =
                                             Modifier
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                                                .clickable { isHotCommentsExpanded = !isHotCommentsExpanded }
-                                                .padding(vertical = 8.dp),
-                                        contentAlignment = Alignment.Center,
+                                                .padding(top = 8.dp, bottom = 4.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text =
-                                                    if (isHotCommentsExpanded) {
-                                                        "收起精彩评论"
-                                                    } else {
-                                                        "展开更多精彩评论 (还有 ${hotComments.size - 3} 条)"
-                                                    },
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.primary,
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(
-                                                imageVector =
-                                                    if (isHotCommentsExpanded) {
-                                                        Icons.Rounded.KeyboardArrowUp
-                                                    } else {
-                                                        Icons.Rounded.KeyboardArrowDown
-                                                    },
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
+                                        Text(
+                                            text = "精彩评论",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                        if (hasMoreHot) {
+                                            Row(
+                                                modifier =
+                                                    Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .clickable { isHotCommentsExpanded = !isHotCommentsExpanded }
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Text(
+                                                    text = if (isHotCommentsExpanded) "收起" else "共 ${hotComments.size} 条",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                )
+                                                Spacer(modifier = Modifier.width(2.dp))
+                                                Icon(
+                                                    imageVector =
+                                                        if (isHotCommentsExpanded) {
+                                                            Icons.Rounded.KeyboardArrowUp
+                                                        } else {
+                                                            Icons.Rounded.KeyboardArrowDown
+                                                        },
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp),
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
                                         }
+                                    }
+                                }
+
+                                items(
+                                    items = displayedHot,
+                                    key = { "hot_${it.commentId}" },
+                                ) { comment ->
+                                    SongCommentItem(
+                                        comment = comment,
+                                        onImageClick = { previewImageUrl = it },
+                                    )
+                                }
+
+                                if (hasMoreHot) {
+                                    item(key = "hot_toggle_footer") {
+                                        Box(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                                    .clickable { isHotCommentsExpanded = !isHotCommentsExpanded }
+                                                    .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text =
+                                                        if (isHotCommentsExpanded) {
+                                                            "收起精彩评论"
+                                                        } else {
+                                                            "展开更多精彩评论 (还有 ${hotComments.size - 3} 条)"
+                                                        },
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    imageVector =
+                                                        if (isHotCommentsExpanded) {
+                                                            Icons.Rounded.KeyboardArrowUp
+                                                        } else {
+                                                            Icons.Rounded.KeyboardArrowDown
+                                                        },
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (normalComments.isNotEmpty()) {
+                                item(key = "header_normal") {
+                                    Text(
+                                        text = "最新评论",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                                    )
+                                }
+                                items(
+                                    items = normalComments,
+                                    key = { "normal_${it.commentId}" },
+                                ) { comment ->
+                                    SongCommentItem(
+                                        comment = comment,
+                                        onImageClick = { previewImageUrl = it },
+                                    )
+                                }
+                            }
+
+                            item(key = "footer_loading") {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (isLoadingMore) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    } else if (!hasMore) {
+                                        Text(
+                                            text = "已显示全部评论",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        )
                                     }
                                 }
                             }
                         }
 
-                        if (normalComments.isNotEmpty()) {
-                            item(key = "header_normal") {
-                                Text(
-                                    text = "最新评论",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                                )
-                            }
-                            items(
-                                items = normalComments,
-                                key = { "normal_${it.commentId}" },
-                            ) { comment ->
-                                SongCommentItem(
-                                    comment = comment,
-                                    onImageClick = { previewImageUrl = it },
-                                )
-                            }
-                        }
-
-                        item(key = "footer_loading") {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (isLoadingMore) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                } else if (!hasMore) {
-                                    Text(
-                                        text = "已显示全部评论",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showScrollToTop,
-                        enter = fadeIn() + scaleIn(),
-                        exit = fadeOut() + scaleOut(),
-                        modifier =
-                            Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 20.dp, bottom = 20.dp),
-                    ) {
-                        SmallFloatingActionButton(
-                            onClick = {
-                                scope.launch {
-                                    listState.animateScrollToItem(0)
-                                }
-                            },
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            shape = CircleShape,
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showScrollToTop,
+                            enter = fadeIn() + scaleIn(),
+                            exit = fadeOut() + scaleOut(),
+                            modifier =
+                                Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(end = 20.dp, bottom = 20.dp),
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowUp,
-                                contentDescription = "返回顶部",
-                                modifier = Modifier.size(20.dp),
-                            )
+                            SmallFloatingActionButton(
+                                onClick = {
+                                    scope.launch {
+                                        listState.animateScrollToItem(0)
+                                    }
+                                },
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                shape = CircleShape,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.KeyboardArrowUp,
+                                    contentDescription = "返回顶部",
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
         }
     }
 

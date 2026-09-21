@@ -32,7 +32,8 @@ fun FavoriteMusicCard(
 
     var currentDisplayIndex by remember { mutableIntStateOf(0) }
 
-    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground.collectAsState()
+    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground
+        .collectAsState()
 
     // 确保索引有效并在前 10 首曲目间按顺序平滑循环（仅在应用处于前台时轮播）
     LaunchedEffect(top10Songs, isAppForeground) {

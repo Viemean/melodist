@@ -116,7 +116,15 @@ private suspend fun MusicApiService.fetchModernComments(
         val hasMore = serverHasMore && normalList.isNotEmpty()
         val lastSeqNo =
             normalList.lastOrNull { it.seqNo.isNotBlank() }?.seqNo
-                ?: commentListObj?.get("Comments")?.jsonArray?.lastOrNull()?.jsonObject?.get("SeqNo")?.jsonPrimitive?.contentOrNull.orEmpty()
+                ?: commentListObj
+                    ?.get("Comments")
+                    ?.jsonArray
+                    ?.lastOrNull()
+                    ?.jsonObject
+                    ?.get("SeqNo")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
 
         CommentPage(
             totalCount = totalCount,

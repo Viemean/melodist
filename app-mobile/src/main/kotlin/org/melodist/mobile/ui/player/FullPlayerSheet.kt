@@ -151,7 +151,8 @@ fun FullPlayerSheet(
 
     var monetColors by remember { mutableStateOf(PlayerMonetColors()) }
     var resolvedMonetSongMid by remember { mutableStateOf<String?>(null) }
-    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground.collectAsState()
+    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground
+        .collectAsState()
 
     LaunchedEffect(song?.songMid, song?.coverUrl, isAppForeground) {
         if (song == null) {
@@ -163,7 +164,8 @@ fun FullPlayerSheet(
             return@LaunchedEffect
         }
         if (!isAppForeground) {
-            org.melodist.data.AppLifecycleManager.awaitForeground()
+            org.melodist.data.AppLifecycleManager
+                .awaitForeground()
         }
         withContext(Dispatchers.IO) {
             try {
@@ -193,7 +195,10 @@ fun FullPlayerSheet(
                             val palette = Palette.from(softwareBitmap).generate()
                             monetColors = resolveMonetColors(palette)
                             resolved = true
-                            android.util.Log.d("MonetPalette", "Successfully extracted from palette candidate ($source): light=${monetColors.lightBackgroundColor}")
+                            android.util.Log.d(
+                                "MonetPalette",
+                                "Successfully extracted from palette candidate ($source): light=${monetColors.lightBackgroundColor}",
+                            )
                             break
                         }
                     }

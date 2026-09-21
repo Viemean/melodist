@@ -29,7 +29,8 @@ fun FavoriteAlbumsCard(
 
     var activeAlbum by remember { mutableStateOf<Album?>(null) }
 
-    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground.collectAsState()
+    val isAppForeground by org.melodist.data.AppLifecycleManager.isForeground
+        .collectAsState()
 
     // 随机显示已收藏的专辑信息，若有多张则定时平滑轮转（仅在应用处于前台时轮播）
     LaunchedEffect(favoriteAlbums, isAppForeground) {

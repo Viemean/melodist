@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 class PlaybackLifecycleOptimizationTest {
-
     @Test
     fun `tracker polls frequently when in foreground`() {
         AppLifecycleManager.setForegroundForTesting(true)
@@ -20,31 +19,32 @@ class PlaybackLifecycleOptimizationTest {
         val updateCount = AtomicInteger(0)
         val currentPosition = AtomicLong(1000L)
 
-        val tracker = PlaybackProgressTracker(
-            scope = testScope,
-            getPlayer = { null },
-            isRemoteActive = { true },
-            getEstimatedRemotePositionMs = { currentPosition.addAndGet(50L) },
-            getCurrentSong = { null },
-            getCurrentTier = { AudioQualityTier.Standard },
-            isCurrentTrackFromCache = { false },
-            getDurationMs = { 200_000L },
-            isSongFavorite = { false },
-            onPositionUpdated = { updateCount.incrementAndGet() },
-            onDurationUpdated = {},
-            onBufferedPositionUpdated = {},
-            onFileCacheFractionUpdated = {},
-            onTrackFromCacheConfirmed = {},
-            onSavePlaybackProgressRequest = {},
-            onTriggerPrefetchNextSongRequest = {},
-        )
+        val tracker =
+            PlaybackProgressTracker(
+                scope = testScope,
+                getPlayer = { null },
+                isRemoteActive = { true },
+                getEstimatedRemotePositionMs = { currentPosition.addAndGet(50L) },
+                getCurrentSong = { null },
+                getCurrentTier = { AudioQualityTier.Standard },
+                isCurrentTrackFromCache = { false },
+                getDurationMs = { 200_000L },
+                isSongFavorite = { false },
+                onPositionUpdated = { updateCount.incrementAndGet() },
+                onDurationUpdated = {},
+                onBufferedPositionUpdated = {},
+                onFileCacheFractionUpdated = {},
+                onTrackFromCacheConfirmed = {},
+                onSavePlaybackProgressRequest = {},
+                onTriggerPrefetchNextSongRequest = {},
+            )
 
         try {
             tracker.start()
             Thread.sleep(180)
             assertTrue(
                 updateCount.get() >= 2,
-                "Foreground tracker should poll multiple times in 180ms (actual: ${updateCount.get()})"
+                "Foreground tracker should poll multiple times in 180ms (actual: ${updateCount.get()})",
             )
         } finally {
             tracker.stop()
@@ -60,24 +60,25 @@ class PlaybackLifecycleOptimizationTest {
         val updateCount = AtomicInteger(0)
         val currentPosition = AtomicLong(5000L)
 
-        val tracker = PlaybackProgressTracker(
-            scope = testScope,
-            getPlayer = { null },
-            isRemoteActive = { true },
-            getEstimatedRemotePositionMs = { currentPosition.addAndGet(50L) },
-            getCurrentSong = { null },
-            getCurrentTier = { AudioQualityTier.Standard },
-            isCurrentTrackFromCache = { false },
-            getDurationMs = { 200_000L },
-            isSongFavorite = { false },
-            onPositionUpdated = { updateCount.incrementAndGet() },
-            onDurationUpdated = {},
-            onBufferedPositionUpdated = {},
-            onFileCacheFractionUpdated = {},
-            onTrackFromCacheConfirmed = {},
-            onSavePlaybackProgressRequest = {},
-            onTriggerPrefetchNextSongRequest = {},
-        )
+        val tracker =
+            PlaybackProgressTracker(
+                scope = testScope,
+                getPlayer = { null },
+                isRemoteActive = { true },
+                getEstimatedRemotePositionMs = { currentPosition.addAndGet(50L) },
+                getCurrentSong = { null },
+                getCurrentTier = { AudioQualityTier.Standard },
+                isCurrentTrackFromCache = { false },
+                getDurationMs = { 200_000L },
+                isSongFavorite = { false },
+                onPositionUpdated = { updateCount.incrementAndGet() },
+                onDurationUpdated = {},
+                onBufferedPositionUpdated = {},
+                onFileCacheFractionUpdated = {},
+                onTrackFromCacheConfirmed = {},
+                onSavePlaybackProgressRequest = {},
+                onTriggerPrefetchNextSongRequest = {},
+            )
 
         try {
             tracker.start()
@@ -97,11 +98,11 @@ class PlaybackLifecycleOptimizationTest {
 
             assertTrue(
                 resumedCount > initialCount,
-                "Tracker should instantly wake up upon foreground restoration without waiting for 1000ms delay"
+                "Tracker should instantly wake up upon foreground restoration without waiting for 1000ms delay",
             )
             assertTrue(
                 elapsedMs < 500L,
-                "Instant resume should happen well within 500ms (elapsed: ${elapsedMs}ms)"
+                "Instant resume should happen well within 500ms (elapsed: ${elapsedMs}ms)",
             )
         } finally {
             tracker.stop()
@@ -117,24 +118,25 @@ class PlaybackLifecycleOptimizationTest {
         val updateCount = AtomicInteger(0)
         val currentPosition = AtomicLong(5000L)
 
-        val tracker = PlaybackProgressTracker(
-            scope = testScope,
-            getPlayer = { null },
-            isRemoteActive = { true },
-            getEstimatedRemotePositionMs = { currentPosition.addAndGet(50L) },
-            getCurrentSong = { null },
-            getCurrentTier = { AudioQualityTier.Standard },
-            isCurrentTrackFromCache = { false },
-            getDurationMs = { 200_000L },
-            isSongFavorite = { false },
-            onPositionUpdated = { updateCount.incrementAndGet() },
-            onDurationUpdated = {},
-            onBufferedPositionUpdated = {},
-            onFileCacheFractionUpdated = {},
-            onTrackFromCacheConfirmed = {},
-            onSavePlaybackProgressRequest = {},
-            onTriggerPrefetchNextSongRequest = {},
-        )
+        val tracker =
+            PlaybackProgressTracker(
+                scope = testScope,
+                getPlayer = { null },
+                isRemoteActive = { true },
+                getEstimatedRemotePositionMs = { currentPosition.addAndGet(50L) },
+                getCurrentSong = { null },
+                getCurrentTier = { AudioQualityTier.Standard },
+                isCurrentTrackFromCache = { false },
+                getDurationMs = { 200_000L },
+                isSongFavorite = { false },
+                onPositionUpdated = { updateCount.incrementAndGet() },
+                onDurationUpdated = {},
+                onBufferedPositionUpdated = {},
+                onFileCacheFractionUpdated = {},
+                onTrackFromCacheConfirmed = {},
+                onSavePlaybackProgressRequest = {},
+                onTriggerPrefetchNextSongRequest = {},
+            )
 
         try {
             tracker.start()

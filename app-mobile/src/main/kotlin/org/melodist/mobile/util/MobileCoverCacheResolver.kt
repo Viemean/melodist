@@ -83,8 +83,12 @@ object MobileCoverCacheResolver {
             }
         }
 
-        val url500 = org.melodist.model.CoverUrlResolver.replaceDimension(url, 500)
-        val url1200 = org.melodist.model.CoverUrlResolver.replaceDimension(url, 1200)
+        val url500 =
+            org.melodist.model.CoverUrlResolver
+                .replaceDimension(url, 500)
+        val url1200 =
+            org.melodist.model.CoverUrlResolver
+                .replaceDimension(url, 1200)
 
         return if (url500 == url1200) {
             listOf(url)

@@ -339,8 +339,7 @@ private fun CoverCard(
                         spotColor = spotColor,
                         ambientColor = ambientColor,
                         clip = false,
-                    )
-                    .background(
+                    ).background(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = cardShape,
                     ),

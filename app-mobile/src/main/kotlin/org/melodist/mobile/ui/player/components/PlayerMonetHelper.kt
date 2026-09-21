@@ -13,7 +13,10 @@ data class PlayerMonetColors(
 ) {
     val backgroundColor: Color get() = darkBackgroundColor
 
-    fun getBackgroundColor(isDark: Boolean, isAmoled: Boolean = false): Color =
+    fun getBackgroundColor(
+        isDark: Boolean,
+        isAmoled: Boolean = false,
+    ): Color =
         if (isDark) {
             if (isAmoled) Color.Black else darkBackgroundColor
         } else {
