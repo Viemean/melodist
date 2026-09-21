@@ -129,7 +129,7 @@ fun PlayerTvScreen(
             TakeoverGestureCoverCarousel(
                 currentSong = activeSong,
                 coverUrl = coverUrl,
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.size(coverSize),
             )
 

@@ -46,7 +46,7 @@ fun TakeoverGestureCoverCarousel(
     currentSong: Song? = null,
     coverUrl: String = "",
     elevation: Dp = 18.dp,
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = RoundedCornerShape(8.dp),
     onClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
