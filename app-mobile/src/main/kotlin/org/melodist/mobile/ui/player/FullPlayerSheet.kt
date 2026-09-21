@@ -215,8 +215,8 @@ fun FullPlayerSheet(
     val isProbingQuality by PlaybackManager.isProbingQuality.collectAsState()
     var showQualitySheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
-    var showSongActionSheet by remember { mutableStateOf(false) }
-    var showCoverPreview by remember { mutableStateOf(false) }
+    var actionTargetSong by remember { mutableStateOf<Song?>(null) }
+    var coverTargetSong by remember { mutableStateOf<Song?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
     val internalSheetOffsetY = remember { Animatable(0f) }
@@ -427,7 +427,7 @@ fun FullPlayerSheet(
                             onPlayNext = onPlayNext,
                             onPlayPrevious = onPlayPrevious,
                             onClick = { displayMode = PlayerDisplayMode.Lyrics },
-                            onLongClick = { showSongActionSheet = true },
+                            onLongClick = { actionTargetSong = song },
                         )
                     } else {
                         var lyricDragX by remember { mutableFloatStateOf(0f) }
@@ -653,26 +653,26 @@ fun FullPlayerSheet(
         }
 
         // 歌曲更多操作弹窗
-        if (showSongActionSheet && song != null) {
+        actionTargetSong?.let { targetSong ->
             SongActionSheet(
-                song = song,
-                onDismissRequest = { showSongActionSheet = false },
+                song = targetSong,
+                onDismissRequest = { actionTargetSong = null },
                 showNextPlay = false,
                 showFavorite = false,
                 isFromPlayer = true,
-                onViewCover = { showCoverPreview = true },
+                onViewCover = { coverTargetSong = targetSong },
                 onNavigate = {
-                    showSongActionSheet = false
+                    actionTargetSong = null
                     onCollapse()
                 },
             )
         }
 
         // 封面全屏大图预览
-        if (showCoverPreview && song != null) {
+        coverTargetSong?.let { targetSong ->
             FullScreenCoverViewer(
-                song = song,
-                onDismissRequest = { showCoverPreview = false },
+                song = targetSong,
+                onDismissRequest = { coverTargetSong = null },
             )
         }
     }

@@ -89,6 +89,8 @@ fun SongCommentsBottomSheet(
     song: Song,
     onDismissRequest: () -> Unit,
 ) {
+    // 锁定打开评论弹窗时的目标歌曲，防止后台自动切歌导致当前阅读的评论区被意外刷新
+    val targetSong = remember { song }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val apiService = remember { MusicApiService() }
@@ -123,8 +125,8 @@ fun SongCommentsBottomSheet(
             try {
                 val pageResult =
                     apiService.getSongComments(
-                        songId = song.songId,
-                        songMid = song.songMid,
+                        songId = targetSong.songId,
+                        songMid = targetSong.songMid,
                         pageNum = page,
                         pageSize = 25,
                         lastCommentSeqNo = if (isInitial) "" else lastCommentSeqNo,
@@ -181,7 +183,7 @@ fun SongCommentsBottomSheet(
         }
     }
 
-    LaunchedEffect(song.songMid, song.songId) {
+    LaunchedEffect(targetSong.songMid, targetSong.songId) {
         loadComments(page = 0, isInitial = true)
     }
 
@@ -221,7 +223,7 @@ fun SongCommentsBottomSheet(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${song.name} · ${song.singer.ifBlank { "未知歌手" }}",
+                    text = "${targetSong.name} · ${targetSong.singer.ifBlank { "未知歌手" }}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -537,8 +539,8 @@ fun SongCommentsBottomSheet(
         FullScreenImageViewer(
             imageUrl = imgUrl,
             title = "保存评论图片",
-            subTitle = "${song.name} · 评论配图",
-            filePrefix = "comment_${song.name}",
+            subTitle = "${targetSong.name} · 评论配图",
+            filePrefix = "comment_${targetSong.name}",
             saveTipText = "是否保存当前评论图片到系统相册？",
             onDismissRequest = { previewImageUrl = null },
         )
