@@ -199,30 +199,38 @@ fun PlaylistDetailScreen(
             }
         }
     } else {
-        // Non-favorite, non-million playlist: regular network load
+        // Non-favorite, non-million playlist: cache-first with silent background refresh matching favorites rule
         LaunchedEffect(playlist.dirId, playlist.tid) {
-            isLoading = true
-            currentPage = 1
-            hasMore = true
-            val fetched =
-                withContext(Dispatchers.IO) {
-                    try {
-                        val result =
-                            apiService.getPlaylistSongs(
-                                dirId = playlist.dirId,
-                                tid = playlist.tid,
-                                isFav = playlist.isFav,
-                                page = 1,
-                                pageSize = 100,
-                            )
-                        hasMore = result.size >= 100
-                        result
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
+            val cached = UserLibraryCacheManager.getCachedPlaylistSongs(playlist.dirId, playlist.tid)
+            if (!cached.isNullOrEmpty()) {
+                songs = cached
+                totalCount = if (playlist.songCount > 0) playlist.songCount else cached.size
+                hasMore = false
+                isLoading = false
+            }
+
+            if (!UserLibraryCacheManager.isPlaylistSongsCacheValid(playlist.dirId, playlist.tid)) {
+                if (cached.isNullOrEmpty()) {
+                    isLoading = true
                 }
-            songs = fetched
-            isLoading = false
+                val fetched =
+                    withContext(Dispatchers.IO) {
+                        UserLibraryCacheManager.loadPlaylistSongs(
+                            apiService = apiService,
+                            dirId = playlist.dirId,
+                            tid = playlist.tid,
+                            isFav = playlist.isFav,
+                            forceRefresh = false,
+                            targetTotalCount = playlist.songCount,
+                        )
+                    }
+                if (fetched.isNotEmpty()) {
+                    songs = fetched
+                    totalCount = if (playlist.songCount > 0) playlist.songCount else fetched.size
+                    hasMore = false
+                }
+                isLoading = false
+            }
         }
     }
 
@@ -405,27 +413,22 @@ fun PlaylistDetailScreen(
                 } else {
                     scope.launch {
                         isRefreshing = true
-                        isLoading = true
-                        currentPage = 1
-                        hasMore = true
                         val fetched =
                             withContext(Dispatchers.IO) {
-                                try {
-                                    val result =
-                                        apiService.getPlaylistSongs(
-                                            dirId = playlist.dirId,
-                                            tid = playlist.tid,
-                                            isFav = playlist.isFav,
-                                            page = 1,
-                                            pageSize = 100,
-                                        )
-                                    hasMore = result.size >= 100
-                                    result
-                                } catch (_: Exception) {
-                                    emptyList()
-                                }
+                                UserLibraryCacheManager.loadPlaylistSongs(
+                                    apiService = apiService,
+                                    dirId = playlist.dirId,
+                                    tid = playlist.tid,
+                                    isFav = playlist.isFav,
+                                    forceRefresh = true,
+                                    targetTotalCount = playlist.songCount,
+                                )
                             }
-                        songs = fetched
+                        if (fetched.isNotEmpty()) {
+                            songs = fetched
+                            totalCount = if (playlist.songCount > 0) playlist.songCount else fetched.size
+                            hasMore = false
+                        }
                         isLoading = false
                         isRefreshing = false
                     }

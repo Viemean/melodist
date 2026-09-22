@@ -72,9 +72,12 @@ object UserLibraryCacheManager {
     private var cacheFile: File? = null
     private var favSongsCacheFile: File? = null
     private var playlistCacheDir: File? = null
+    private val playlistCacheMap = java.util.concurrent.ConcurrentHashMap<String, PlaylistSongsCache>()
     private var isObservingUser = false
     private var periodicRefreshJob: Job? = null
     private var favSongsCache = FavoriteSongsCache()
+
+    private fun getCacheKey(dirId: Long, tid: Long): String = "${dirId}_$tid"
 
     fun init(context: Context) {
         val appContext = context.applicationContext
@@ -96,6 +99,7 @@ object UserLibraryCacheManager {
                     }
                     if (currentUin != lastUin) {
                         lastUin = currentUin
+                        playlistCacheMap.clear()
                         playlistCacheDir?.deleteRecursively()
                         playlistCacheDir?.mkdirs()
                         if (currentUin.isBlank()) {
@@ -392,6 +396,17 @@ object UserLibraryCacheManager {
                 currentFavs.addAll(0, newSongs)
                 _favoriteSongsFlow.value = currentFavs
             }
+        } else {
+            val tid = currentData.playlists.find { it.dirId == dirId }?.tid ?: 0L
+            val cached = getCachedPlaylistSongs(dirId, tid)
+            if (cached != null) {
+                val existingMids = cached.map { it.songMid }.toSet()
+                val newSongs = songs.filter { !existingMids.contains(it.songMid) }
+                if (newSongs.isNotEmpty()) {
+                    val merged = newSongs + cached
+                    savePlaylistSongsCache(dirId, tid, merged, merged.size)
+                }
+            }
         }
 
         scope.launch {
@@ -401,6 +416,9 @@ object UserLibraryCacheManager {
                 loadLibrary(MusicApiService(), forceRefresh = true)
                 if (isMyFav) {
                     loadFavoriteSongs(MusicApiService(), forceRefresh = true)
+                } else {
+                    val tid = _libraryFlow.value.playlists.find { it.dirId == dirId }?.tid ?: 0L
+                    loadPlaylistSongs(MusicApiService(), dirId, tid, forceRefresh = true)
                 }
             } catch (_: Exception) {
             }
@@ -437,6 +455,13 @@ object UserLibraryCacheManager {
         if (isMyFav) {
             val currentFavs = _favoriteSongsFlow.value.filter { !removedMids.contains(it.songMid) }
             _favoriteSongsFlow.value = currentFavs
+        } else {
+            val tid = currentData.playlists.find { it.dirId == dirId }?.tid ?: 0L
+            val cached = getCachedPlaylistSongs(dirId, tid)
+            if (cached != null) {
+                val filtered = cached.filter { !removedMids.contains(it.songMid) }
+                savePlaylistSongsCache(dirId, tid, filtered, filtered.size)
+            }
         }
 
         scope.launch {
@@ -446,6 +471,9 @@ object UserLibraryCacheManager {
                 loadLibrary(MusicApiService(), forceRefresh = true)
                 if (isMyFav) {
                     loadFavoriteSongs(MusicApiService(), forceRefresh = true)
+                } else {
+                    val tid = _libraryFlow.value.playlists.find { it.dirId == dirId }?.tid ?: 0L
+                    loadPlaylistSongs(MusicApiService(), dirId, tid, forceRefresh = true)
                 }
             } catch (_: Exception) {
             }
@@ -564,22 +592,44 @@ object UserLibraryCacheManager {
         return File(dir, "${dirId}_$tid.json")
     }
 
-    fun getCachedPlaylistSongs(
+    fun getPlaylistSongsCache(
         dirId: Long,
         tid: Long,
-    ): List<Song>? {
+    ): PlaylistSongsCache? {
+        val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
+        val key = getCacheKey(dirId, tid)
+        val inMemory = playlistCacheMap[key]
+        if (inMemory != null && inMemory.accountUin == currentUin) {
+            return inMemory
+        }
         try {
             val file = getPlaylistCacheFile(dirId, tid) ?: return null
             if (file.exists() && file.length() > 0) {
                 val cache = json.decodeFromString<PlaylistSongsCache>(file.readText())
-                val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
                 if (cache.accountUin == currentUin) {
-                    return cache.songs
+                    playlistCacheMap[key] = cache
+                    return cache
                 }
             }
         } catch (_: Exception) {
         }
         return null
+    }
+
+    fun getCachedPlaylistSongs(
+        dirId: Long,
+        tid: Long,
+    ): List<Song>? {
+        return getPlaylistSongsCache(dirId, tid)?.songs
+    }
+
+    fun isPlaylistSongsCacheValid(
+        dirId: Long,
+        tid: Long,
+    ): Boolean {
+        val cache = getPlaylistSongsCache(dirId, tid) ?: return false
+        if (cache.songs.isEmpty()) return false
+        return System.currentTimeMillis() - cache.fetchTimestamp < FAVORITE_SONGS_CACHE_TTL_MS
     }
 
     fun savePlaylistSongsCache(
@@ -588,19 +638,55 @@ object UserLibraryCacheManager {
         songs: List<Song>,
         totalCount: Int = songs.size,
     ) {
+        val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
+        val cache =
+            PlaylistSongsCache(
+                songs = songs,
+                totalCount = totalCount,
+                fetchTimestamp = System.currentTimeMillis(),
+                accountUin = currentUin,
+            )
+        playlistCacheMap[getCacheKey(dirId, tid)] = cache
         scope.launch {
             try {
                 val file = getPlaylistCacheFile(dirId, tid) ?: return@launch
-                val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
-                val cache =
-                    PlaylistSongsCache(
-                        songs = songs,
-                        totalCount = totalCount,
-                        fetchTimestamp = System.currentTimeMillis(),
-                        accountUin = currentUin,
-                    )
                 file.writeText(json.encodeToString(PlaylistSongsCache.serializer(), cache))
             } catch (_: Exception) {
+            }
+        }
+    }
+
+    suspend fun loadPlaylistSongs(
+        apiService: MusicApiService,
+        dirId: Long,
+        tid: Long,
+        isFav: Boolean = false,
+        forceRefresh: Boolean = false,
+        targetTotalCount: Int = 0,
+    ): List<Song> {
+        if (!forceRefresh && isPlaylistSongsCacheValid(dirId, tid)) {
+            val cached = getCachedPlaylistSongs(dirId, tid)
+            if (!cached.isNullOrEmpty()) {
+                return cached
+            }
+        }
+        return withContext(Dispatchers.IO) {
+            if (forceRefresh) {
+                try {
+                    val all = fetchAllPlaylistSongs(apiService, dirId, tid, isFav)
+                    savePlaylistSongsCache(dirId, tid, all, all.size)
+                    all
+                } catch (_: Exception) {
+                    getCachedPlaylistSongs(dirId, tid) ?: emptyList()
+                }
+            } else {
+                probeAndSyncPlaylistFirstPage(
+                    apiService = apiService,
+                    dirId = dirId,
+                    tid = tid,
+                    isFav = isFav,
+                    targetTotalCount = targetTotalCount,
+                )
             }
         }
     }
@@ -645,6 +731,7 @@ object UserLibraryCacheManager {
                             remoteSongs[i].songMid == localSongs[i].songMid
                         }
                     if (isPrefixIdentical && (targetTotalCount <= 0 || targetTotalCount == localSongs.size)) {
+                        savePlaylistSongsCache(dirId, tid, localSongs, localSongs.size)
                         return@withContext localSongs
                     } else {
                         val all = fetchAllPlaylistSongs(apiService, dirId, tid, isFav)
