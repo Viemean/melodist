@@ -614,7 +614,6 @@ class MainActivity : ComponentActivity() {
             unregisterReceiver(screenPowerReceiver)
         } catch (_: Exception) {
         }
-        PlaybackManager.release()
         super.onDestroy()
     }
 
