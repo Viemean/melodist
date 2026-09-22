@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -82,77 +84,86 @@ fun RecentPlaybackScreen(
                 bottom = contentPadding.calculateBottomPadding() + 16.dp,
             ),
             headerItems = {
-                // 卡片 1: 最近播放的专辑特色卡片
-                item(key = "recent_hero_album_card") {
-                    val activeAlbum = recentAlbums.firstOrNull()
-                    HeroRecommendCard(
-                        badgeText = "最近专辑",
-                        subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张专辑" else "暂无专辑",
-                        title = activeAlbum?.albumName ?: "最近播放的专辑",
-                        caption = if (activeAlbum != null) {
-                            buildString {
-                                append(activeAlbum.singerName.ifBlank { "专辑" })
-                                if (activeAlbum.listenCnt > 1) {
-                                    append(" · 听过 ${activeAlbum.listenCnt} 次")
-                                }
-                            }
-                        } else {
-                            "收听专辑曲目后将自动展示在此处"
-                        },
-                        coverUrl = activeAlbum?.coverUrl.orEmpty(),
-                        badgeIcon = Icons.Rounded.Album,
-                        accentColor = MaterialTheme.colorScheme.tertiary,
-                        accentContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        onAccentContainerColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        onPlayClick = null,
-                        onCardClick = {
-                            navigation.navigateToRecentAlbums()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 5.dp),
-                    )
-                }
+                // 特色卡片横向并排区域（“最近专辑”与“最近歌单”）
+                item(key = "recent_hero_cards_row") {
+                    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+                    val cardWidth = (screenWidth - 44.dp).coerceIn(280.dp, 360.dp)
 
-                // 卡片 2: 最近播放的歌单特色卡片
-                item(key = "recent_hero_playlist_card") {
                     val filteredPlaylists = remember(recentPlaylists) {
                         recentPlaylists.filterNot { item ->
                             val t = item.title
                             t.contains("30首") || t.contains("每日30") || t.contains("红心雷达") || t.contains("猜你喜欢")
                         }
                     }
-                    val activePlaylist = filteredPlaylists.firstOrNull()
-                    HeroRecommendCard(
-                        badgeText = "最近歌单",
-                        subtitleText = if (filteredPlaylists.isNotEmpty()) "共 ${filteredPlaylists.size} 个歌单" else "暂无歌单",
-                        title = activePlaylist?.title ?: "最近播放的歌单",
-                        caption = if (activePlaylist != null) {
-                            buildString {
-                                if (activePlaylist.creatorNick.isNotBlank()) {
-                                    append("by ${activePlaylist.creatorNick} · ")
-                                }
-                                append("${activePlaylist.songCount} 首")
-                                if (activePlaylist.listenCnt > 1) {
-                                    append(" · 听过 ${activePlaylist.listenCnt} 次")
-                                }
-                            }
-                        } else {
-                            "收听歌单曲目后将自动展示在此处"
-                        },
-                        coverUrl = activePlaylist?.coverUrl.orEmpty(),
-                        badgeIcon = Icons.AutoMirrored.Rounded.QueueMusic,
-                        accentColor = MaterialTheme.colorScheme.secondary,
-                        accentContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        onAccentContainerColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        onPlayClick = null,
-                        onCardClick = {
-                            navigation.navigateToRecentPlaylists()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 5.dp),
-                    )
+
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        // 卡片 1: 最近播放的专辑特色卡片
+                        item(key = "recent_hero_album_card") {
+                            val activeAlbum = recentAlbums.firstOrNull()
+                            HeroRecommendCard(
+                                badgeText = "最近专辑",
+                                subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张专辑" else "暂无专辑",
+                                title = activeAlbum?.albumName ?: "最近播放的专辑",
+                                caption = if (activeAlbum != null) {
+                                    buildString {
+                                        append(activeAlbum.singerName.ifBlank { "专辑" })
+                                        if (activeAlbum.listenCnt > 1) {
+                                            append(" · 听过 ${activeAlbum.listenCnt} 次")
+                                        }
+                                    }
+                                } else {
+                                    "收听专辑曲目后将自动展示在此处"
+                                },
+                                coverUrl = activeAlbum?.coverUrl.orEmpty(),
+                                badgeIcon = Icons.Rounded.Album,
+                                accentColor = MaterialTheme.colorScheme.primary,
+                                accentContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                onAccentContainerColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                onPlayClick = null,
+                                onCardClick = {
+                                    navigation.navigateToRecentAlbums()
+                                },
+                                modifier = Modifier.width(cardWidth),
+                            )
+                        }
+
+                        // 卡片 2: 最近播放的歌单特色卡片
+                        item(key = "recent_hero_playlist_card") {
+                            val activePlaylist = filteredPlaylists.firstOrNull()
+                            HeroRecommendCard(
+                                badgeText = "最近歌单",
+                                subtitleText = if (filteredPlaylists.isNotEmpty()) "共 ${filteredPlaylists.size} 个歌单" else "暂无歌单",
+                                title = activePlaylist?.title ?: "最近播放的歌单",
+                                caption = if (activePlaylist != null) {
+                                    buildString {
+                                        if (activePlaylist.creatorNick.isNotBlank()) {
+                                            append("by ${activePlaylist.creatorNick} · ")
+                                        }
+                                        append("${activePlaylist.songCount} 首")
+                                        if (activePlaylist.listenCnt > 1) {
+                                            append(" · 听过 ${activePlaylist.listenCnt} 次")
+                                        }
+                                    }
+                                } else {
+                                    "收听歌单曲目后将自动展示在此处"
+                                },
+                                coverUrl = activePlaylist?.coverUrl.orEmpty(),
+                                badgeIcon = Icons.AutoMirrored.Rounded.QueueMusic,
+                                accentColor = MaterialTheme.colorScheme.secondary,
+                                accentContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                onAccentContainerColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                onPlayClick = null,
+                                onCardClick = {
+                                    navigation.navigateToRecentPlaylists()
+                                },
+                                modifier = Modifier.width(cardWidth),
+                            )
+                        }
+                    }
                 }
 
                 // 标题与控制栏
