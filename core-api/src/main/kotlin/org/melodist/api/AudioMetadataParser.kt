@@ -16,6 +16,7 @@ data class ParsedAudioMetadata(
     val pictureBytes: ByteArray? = null,
     val pictureOffsetInFile: Long? = null,
     val pictureLength: Long? = null,
+    val metadataTotalBytes: Long? = null,
 ) {
     fun inferTier(mimeType: String? = null): AudioQualityTier? {
         if (sampleRate == null) return null
@@ -57,6 +58,7 @@ object AudioMetadataParser {
 
     private fun parseFlac(bytes: ByteArray): ParsedAudioMetadata {
         var offset = 4
+        var totalMetaBytes = 4L // "fLaC" 4 字节
         var title: String? = null
         var artist: String? = null
         var album: String? = null
@@ -78,6 +80,7 @@ object AudioMetadataParser {
                     ((bytes[offset + 2].toInt() and 0xFF) shl 8) or
                     (bytes[offset + 3].toInt() and 0xFF)
 
+            totalMetaBytes += 4 + length
             val blockStart = offset + 4
             val blockEnd = blockStart + length
 
@@ -178,6 +181,7 @@ object AudioMetadataParser {
             pictureBytes = picBytes,
             pictureOffsetInFile = picOffset,
             pictureLength = picLen,
+            metadataTotalBytes = totalMetaBytes,
         )
     }
 
@@ -288,6 +292,7 @@ object AudioMetadataParser {
             pictureBytes = picBytes,
             pictureOffsetInFile = picOffset,
             pictureLength = picLen,
+            metadataTotalBytes = 10L + tagSize,
         )
     }
 
