@@ -56,10 +56,8 @@ import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.probeSongQualities
-import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.data.AppSettingsManager
 import org.melodist.data.download.DownloadManager
-import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.mobile.ui.navigation.ScreenDestination
 import org.melodist.model.Artist

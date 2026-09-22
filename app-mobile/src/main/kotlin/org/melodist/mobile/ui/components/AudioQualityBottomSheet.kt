@@ -305,7 +305,10 @@ fun getQualityTierSpec(
                 currentTrackSpec.bitrateKbps
             }
             probedOption?.bitrate?.isNotBlank() == true && probedOption.bitrate.endsWith("kbps") -> {
-                probedOption.bitrate.removeSuffix("kbps").trim().toIntOrNull() ?: 0
+                probedOption.bitrate
+                    .removeSuffix("kbps")
+                    .trim()
+                    .toIntOrNull() ?: 0
             }
             sizeBytes > 0L && songDurationSec > 0 -> {
                 ((sizeBytes * 8.0) / songDurationSec / 1000.0).toInt()
