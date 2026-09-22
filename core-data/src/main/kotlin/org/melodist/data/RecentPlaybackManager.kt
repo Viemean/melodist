@@ -23,7 +23,14 @@ import org.melodist.api.getRecentAlbums
 import org.melodist.api.getRecentPlaylists
 import org.melodist.api.getRecentSongs
 import org.melodist.model.Song
+import kotlinx.serialization.Serializable
 import java.io.File
+
+@Serializable
+data class RecentSongEntry(
+    val song: Song,
+    val lastTime: Long = System.currentTimeMillis() / 1000,
+)
 
 object RecentPlaybackManager {
     const val MAX_RECENT_ITEMS = 500
@@ -46,6 +53,7 @@ object RecentPlaybackManager {
     private val _isSyncingFlow = MutableStateFlow(false)
     val isSyncingFlow: StateFlow<Boolean> = _isSyncingFlow.asStateFlow()
 
+    private var _recentEntries = mutableListOf<RecentSongEntry>()
     private var historyFile: File? = null
     private var lastSyncTimeMs: Long = 0L
 
@@ -62,8 +70,17 @@ object RecentPlaybackManager {
             try {
                 val content = file.readText()
                 if (content.isNotBlank()) {
-                    val list = json.decodeFromString<List<Song>>(content)
-                    _recentSongsFlow.value = list.take(MAX_RECENT_ITEMS)
+                    val entries = try {
+                        json.decodeFromString<List<RecentSongEntry>>(content)
+                    } catch (_: Exception) {
+                        val legacySongs = json.decodeFromString<List<Song>>(content)
+                        val now = System.currentTimeMillis() / 1000
+                        legacySongs.mapIndexed { idx, song ->
+                            RecentSongEntry(song = song, lastTime = now - (idx + 1) * 3600)
+                        }
+                    }
+                    _recentEntries = entries.take(MAX_RECENT_ITEMS).toMutableList()
+                    _recentSongsFlow.value = _recentEntries.map { it.song }
                 }
             } catch (_: Exception) {
             }
@@ -77,8 +94,7 @@ object RecentPlaybackManager {
         scope.launch {
             val file = historyFile ?: return@launch
             try {
-                val list = _recentSongsFlow.value
-                val content = json.encodeToString(list)
+                val content = json.encodeToString(_recentEntries)
                 file.writeText(content)
             } catch (_: Exception) {
             }
@@ -87,16 +103,18 @@ object RecentPlaybackManager {
 
     fun recordSong(song: Song) {
         if (song.songMid.isBlank() && song.name.isBlank()) return
+        val now = System.currentTimeMillis() / 1000
 
-        val current = _recentSongsFlow.value.toMutableList()
-        current.removeAll { it.songMid.isNotBlank() && it.songMid == song.songMid }
+        val current = _recentEntries.toMutableList()
+        current.removeAll { it.song.songMid.isNotBlank() && it.song.songMid == song.songMid }
         if (song.songMid.isBlank()) {
-            current.removeAll { it.name == song.name && it.singer == song.singer }
+            current.removeAll { it.song.name == song.name && it.song.singer == song.singer }
         }
 
-        current.add(0, song)
+        current.add(0, RecentSongEntry(song = song, lastTime = now))
         val trimmed = if (current.size > MAX_RECENT_ITEMS) current.take(MAX_RECENT_ITEMS) else current
-        _recentSongsFlow.value = trimmed
+        _recentEntries = trimmed.toMutableList()
+        _recentSongsFlow.value = _recentEntries.map { it.song }
         saveToDisk()
     }
 
@@ -116,29 +134,30 @@ object RecentPlaybackManager {
 
                 if (shouldSyncSongs) {
                     val songsResult = apiService.getRecentSongs()
-                    val cloudSongs = songsResult.items.map { it.song }
-                    Log.i("MelodistRecent", "getRecentSongs returned ${cloudSongs.size} songs")
-                    if (cloudSongs.isNotEmpty()) {
-                        val currentList = _recentSongsFlow.value
-                        val nonOnlineSongs = currentList.filter {
-                            it.isLocal || it.isWebDav || it.songMid.startsWith("local_") || it.songMid.startsWith("webdav_")
+                    Log.i("MelodistRecent", "getRecentSongs returned ${songsResult.items.size} songs")
+                    if (songsResult.items.isNotEmpty()) {
+                        val nonOnlineEntries = _recentEntries.filter {
+                            val s = it.song
+                            s.isLocal || s.isWebDav || s.songMid.startsWith("local_") || s.songMid.startsWith("webdav_")
                         }
 
-                        val merged = mutableListOf<Song>()
+                        val cloudEntries = songsResult.items.map {
+                            RecentSongEntry(song = it.song, lastTime = it.lastTime)
+                        }
+
+                        val mergedEntries = mutableListOf<RecentSongEntry>()
                         val seenMids = mutableSetOf<String>()
 
-                        for (song in nonOnlineSongs) {
-                            if (song.songMid.isNotBlank() && seenMids.add(song.songMid)) {
-                                merged.add(song)
+                        for (entry in nonOnlineEntries + cloudEntries) {
+                            val mid = entry.song.songMid
+                            if (mid.isNotBlank() && seenMids.add(mid)) {
+                                mergedEntries.add(entry)
                             }
                         }
-                        for (song in cloudSongs) {
-                            if (song.songMid.isNotBlank() && seenMids.add(song.songMid)) {
-                                merged.add(song)
-                            }
-                        }
-                        val finalSongs = merged.take(MAX_RECENT_ITEMS)
-                        _recentSongsFlow.value = finalSongs
+
+                        val sorted = mergedEntries.sortedByDescending { it.lastTime }.take(MAX_RECENT_ITEMS)
+                        _recentEntries = sorted.toMutableList()
+                        _recentSongsFlow.value = _recentEntries.map { it.song }
                         saveToDisk()
                     }
                 }
@@ -164,9 +183,9 @@ object RecentPlaybackManager {
 
     fun removeSong(songMid: String) {
         if (songMid.isBlank()) return
-        val current = _recentSongsFlow.value
-        val target = current.find { it.songMid == songMid }
-        _recentSongsFlow.value = current.filter { it.songMid != songMid }
+        val target = _recentEntries.find { it.song.songMid == songMid }?.song
+        _recentEntries.removeAll { it.song.songMid == songMid }
+        _recentSongsFlow.value = _recentEntries.map { it.song }
         saveToDisk()
 
         if (target != null && !target.isLocal && !target.isWebDav && !songMid.startsWith("local_") && !songMid.startsWith("webdav_") && UserSession.isLoggedIn) {
@@ -183,8 +202,8 @@ object RecentPlaybackManager {
     fun removeSongs(songs: List<Song>) {
         if (songs.isEmpty()) return
         val removedMids = songs.map { it.songMid }.toSet()
-        val current = _recentSongsFlow.value.filter { !removedMids.contains(it.songMid) }
-        _recentSongsFlow.value = current
+        _recentEntries.removeAll { removedMids.contains(it.song.songMid) }
+        _recentSongsFlow.value = _recentEntries.map { it.song }
         saveToDisk()
 
         if (UserSession.isLoggedIn) {
@@ -223,7 +242,8 @@ object RecentPlaybackManager {
         if (UserSession.isLoggedIn) {
             scope.launch {
                 try {
-                    apiService.deleteRecentHistory(item.tid.toString(), RecentHistoryType.Playlist)
+                    val id = if (item.tid > 0L) item.tid.toString() else item.tid.toString()
+                    apiService.deleteRecentHistory(id, RecentHistoryType.Playlist)
                 } catch (_: Exception) {
                 }
             }
@@ -232,6 +252,7 @@ object RecentPlaybackManager {
 
     fun clear() {
         val current = _recentSongsFlow.value
+        _recentEntries.clear()
         _recentSongsFlow.value = emptyList()
         scope.launch {
             try {
