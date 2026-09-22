@@ -1,6 +1,10 @@
 package org.melodist.mobile.ui.album
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -42,6 +46,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -98,10 +103,25 @@ fun FavoriteAlbumsScreen(
         }
     }
 
+    val listState = rememberLazyListState()
+    val showTopBarTitle by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 200
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("收藏的专辑", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = {
+                    AnimatedVisibility(
+                        visible = showTopBarTitle,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Text("收藏的专辑", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -155,6 +175,7 @@ fun FavoriteAlbumsScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding =
                             PaddingValues(
