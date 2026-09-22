@@ -48,6 +48,12 @@ object HomeCardsCache {
     var millionSubtitle: String = "官方高赞好歌专栏"
     var millionBgColor: Color? = null
 
+    var recentSongs: List<org.melodist.model.Song> = emptyList()
+    var recentCover: String = ""
+    var recentTitle: String = "最近播放"
+    var recentSubtitle: String = "历史播放足迹"
+    var recentBgColor: Color? = null
+
     var playlistItems: List<org.melodist.model.Playlist> = emptyList()
     var playlistCover: String = ""
     var playlistTitle: String = "我的歌单"
@@ -89,7 +95,7 @@ fun HomeCoreTracksRow(
     trackFocusRequester: FocusRequester? = null,
     upFocusRequester: FocusRequester? = null,
     downFocusRequester: FocusRequester? = null,
-    cardRequesters: List<FocusRequester> = remember { List(6) { FocusRequester() } },
+    cardRequesters: List<FocusRequester> = remember { List(7) { FocusRequester() } },
     initialFocusedIndex: Int = 0,
     onCardFocused: ((Int) -> Unit)? = null,
     onCardClick: (String) -> Unit = {},
@@ -103,20 +109,24 @@ fun HomeCoreTracksRow(
     val userLibraryData by UserLibraryCacheManager.libraryFlow.collectAsState()
     val millionData by org.melodist.data.MillionRecommendManager.resultFlow
         .collectAsState()
+    val recentSongsList by org.melodist.data.RecentPlaybackManager.recentSongsFlow
+        .collectAsState()
 
     var radarSongs by remember { mutableStateOf(HomeCardsCache.radarSongs) }
 
     val favSongs = favSongsList
     val dailySongs = dailyData.songs
     val millionSongs = millionData.songs
+    val recentSongs = recentSongsList
     val playlistItems = userLibraryData.playlists.filterNot { it.isMyFavorite }
     val albumItems = userLibraryData.favoriteAlbums
 
-    // 6 张卡片当前选中的候选索引
+    // 7 张卡片当前选中的候选索引
     var favIndex by remember { mutableIntStateOf(0) }
     var dailyIndex by remember { mutableIntStateOf(0) }
     var radarIndex by remember { mutableIntStateOf(0) }
     var millionIndex by remember { mutableIntStateOf(0) }
+    var recentIndex by remember { mutableIntStateOf(0) }
     var playlistIndex by remember { mutableIntStateOf(0) }
     var albumIndex by remember { mutableIntStateOf(0) }
 
@@ -181,6 +191,14 @@ fun HomeCoreTracksRow(
             } catch (_: Exception) {
             }
         }
+
+        // 6. 最近播放：后台静默同步云端记录
+        launch {
+            try {
+                org.melodist.data.RecentPlaybackManager.syncFromCloud(force = false)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
@@ -241,6 +259,10 @@ fun HomeCoreTracksRow(
             if (millionSongs.size > 1) {
                 millionIndex = pickNextRandom(millionIndex, millionSongs.size)
             }
+            val recentCandidates = recentSongs.take(15)
+            if (recentCandidates.size > 1) {
+                recentIndex = pickNextRandom(recentIndex, recentCandidates.size)
+            }
             if (playlistItems.size > 1) {
                 playlistIndex = pickNextRandom(playlistIndex, playlistItems.size)
             }
@@ -252,7 +274,7 @@ fun HomeCoreTracksRow(
 
     val currentSong by PlaybackManager.currentSong.collectAsState()
 
-    // 构建 6 张卡片当前展示的项
+    // 构建 7 张卡片当前展示的项
     val currentRadarSong =
         if (isRadioMode && currentSong != null && currentSong?.coverUrl?.isNotBlank() == true) {
             currentSong
@@ -262,6 +284,7 @@ fun HomeCoreTracksRow(
     val currentDailySong = dailySongs.getOrNull(dailyIndex)
     val currentFavSong = favSongs.getOrNull(favIndex)
     val currentMillionSong = millionSongs.getOrNull(millionIndex)
+    val currentRecentSong = recentSongs.take(15).getOrNull(recentIndex) ?: recentSongs.firstOrNull()
     val currentPlaylist = playlistItems.getOrNull(playlistIndex)
     val currentAlbum = albumItems.getOrNull(albumIndex)
 
@@ -272,8 +295,15 @@ fun HomeCoreTracksRow(
         }
     }
 
+    LaunchedEffect(currentRecentSong) {
+        if (currentRecentSong != null && currentRecentSong.coverUrl.isNotBlank()) {
+            HomeCardsCache.recentCover = currentRecentSong.coverUrl
+            HomeCardsCache.recentSongs = recentSongs
+        }
+    }
+
     val cardItems =
-        remember(currentRadarSong, currentDailySong, currentFavSong, currentMillionSong, currentPlaylist, currentAlbum, favoriteCount) {
+        remember(currentRadarSong, currentDailySong, currentFavSong, currentMillionSong, currentRecentSong, recentSongs.size, currentPlaylist, currentAlbum, favoriteCount) {
             listOf(
                 // 1. 猜你喜欢（排在第一位，唯一保留播放按钮）
                 RotatingCardItem(
@@ -319,7 +349,19 @@ fun HomeCoreTracksRow(
                     songMid = currentMillionSong?.songMid.orEmpty(),
                     defaultBgColor = Color(0xFFFFB300),
                 ),
-                // 5. 我的歌单（二级页面，无播放按钮）
+                // 5. 最近播放（二级页面，无播放按钮）
+                RotatingCardItem(
+                    id = "recent",
+                    badgeText = "最近播放",
+                    title = currentRecentSong?.name?.ifBlank { "最近播放" } ?: "最近播放",
+                    subtitle = currentRecentSong?.let { "${it.singer} · 最近播放 ${recentSongs.size} 首" }
+                        ?: (if (recentSongs.isNotEmpty()) "共 ${recentSongs.size} 首单曲" else "历史播放足迹"),
+                    coverUrl = currentRecentSong?.coverUrl.orEmpty(),
+                    albumMid = currentRecentSong?.albumMid.orEmpty(),
+                    songMid = currentRecentSong?.songMid.orEmpty(),
+                    defaultBgColor = Color(0xFF7C4DFF),
+                ),
+                // 6. 我的歌单（二级页面，无播放按钮）
                 RotatingCardItem(
                     id = "playlists",
                     badgeText = "我的歌单",

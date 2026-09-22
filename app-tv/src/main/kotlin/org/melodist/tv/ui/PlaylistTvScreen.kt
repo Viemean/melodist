@@ -514,6 +514,27 @@ fun PlaylistTvScreen(
                     hasMore = false
                     saveToCache(songs, songs.size, false)
                 }
+                "recent" -> {
+                    val recents = org.melodist.data.RecentPlaybackManager.recentSongsFlow.value
+                    playlistSongs = recents
+                    totalCount = recents.size
+                    hasMore = false
+                    saveToCache(recents, recents.size, false)
+                    if (UserSession.isLoggedIn) {
+                        launch {
+                            try {
+                                org.melodist.data.RecentPlaybackManager.syncFromCloud(force = false)
+                                val updated = org.melodist.data.RecentPlaybackManager.recentSongsFlow.value
+                                if (updated.isNotEmpty()) {
+                                    playlistSongs = updated
+                                    totalCount = updated.size
+                                    saveToCache(updated, updated.size, false)
+                                }
+                            } catch (_: Exception) {
+                            }
+                        }
+                    }
+                }
                 "playlists", "playlist_detail" -> {
                     val activePlaylist =
                         if (dirId > 0L || tid > 0L) {
@@ -684,6 +705,15 @@ fun PlaylistTvScreen(
                     }
                 } else {
                     "未登录账号 · 前往设置扫码可获取百万推荐"
+                }
+            }
+            "recent" -> {
+                if (isLoading) {
+                    "正在同步最近播放记录..."
+                } else if (playlistSongs.isNotEmpty()) {
+                    "最近收听足迹 · 共 ${playlistSongs.size} 首"
+                } else {
+                    "暂无最近播放记录"
                 }
             }
             "playlists" -> {

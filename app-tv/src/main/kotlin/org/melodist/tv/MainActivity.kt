@@ -156,6 +156,8 @@ class MainActivity : ComponentActivity() {
             .init(this)
         org.melodist.data.RecommendFeedManager
             .init(this)
+        org.melodist.data.RecentPlaybackManager
+            .init(this)
         ScreenSaverManager.init()
         TvConnectManager.init(this)
         checkAndRequestStoragePermissions()
@@ -318,6 +320,17 @@ class MainActivity : ComponentActivity() {
                                                             subtitle = "官方高赞好歌专栏",
                                                             isFav = false,
                                                             coverUrl = org.melodist.tv.ui.components.HomeCardsCache.millionCover,
+                                                        ),
+                                                    )
+                                                }
+                                                "recent" -> {
+                                                    navigateTo(
+                                                        TvScreenDestination.Playlist(
+                                                            categoryId = "recent",
+                                                            title = "最近播放",
+                                                            subtitle = "历史收听单曲列表",
+                                                            isFav = false,
+                                                            coverUrl = org.melodist.tv.ui.components.HomeCardsCache.recentCover,
                                                         ),
                                                     )
                                                 }
