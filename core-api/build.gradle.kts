@@ -27,12 +27,13 @@ tasks.test {
     useJUnitPlatform()
 }
 
-val syncAcousticPipeline = tasks.register<Exec>("syncAcousticPipeline") {
-    val scriptPath = "${rootDir}/tools/codegen_acoustic.py"
-    val rawPath = "${projectDir}/src/main/kotlin/org/melodist/api/acr/AcousticFingerprintExtractor.raw.kt"
-    commandLine("python3", scriptPath)
-    onlyIf { File(rawPath).exists() && File(scriptPath).exists() }
-}
+val syncAcousticPipeline =
+    tasks.register<Exec>("syncAcousticPipeline") {
+        val scriptPath = "$rootDir/tools/codegen_acoustic.py"
+        val rawPath = "$projectDir/src/main/kotlin/org/melodist/api/acr/AcousticFingerprintExtractor.raw.kt"
+        commandLine("python3", scriptPath)
+        onlyIf { File(rawPath).exists() && File(scriptPath).exists() }
+    }
 
 tasks.named("compileKotlin") {
     dependsOn(syncAcousticPipeline)

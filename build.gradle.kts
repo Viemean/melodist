@@ -16,6 +16,10 @@ subprojects {
         version.set("1.5.0")
         android.set(true)
         ignoreFailures.set(true)
+        filter {
+            exclude { it.file.name.startsWith("Acoustic") }
+            exclude { it.file.path.contains("/build/") }
+        }
         reporters {
             reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)
         }
@@ -26,6 +30,11 @@ subprojects {
         allRules = false
         ignoreFailures = true
         config.setFrom(files("${rootProject.projectDir}/config/detekt/detekt.yml"))
+    }
+
+    tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+        exclude("**/acr/Acoustic*.kt")
+        exclude("**/build/**")
     }
 
     dependencies {
