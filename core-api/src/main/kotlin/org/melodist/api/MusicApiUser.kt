@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -11,10 +12,7 @@ import kotlinx.serialization.json.*
 suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext false
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin
         val authst = UserSession.profile.musicKey
@@ -120,7 +118,9 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                 UserSession.profile = newProfile
             }
             changed
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiUser", "refreshCurrentUserProfile failed", e)
             false
         }
     }

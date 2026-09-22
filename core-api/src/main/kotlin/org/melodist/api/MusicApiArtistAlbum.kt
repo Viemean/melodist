@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -15,10 +16,7 @@ import org.melodist.model.Song
 suspend fun MusicApiService.getFavoriteAlbums(): List<Album> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext emptyList()
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val payload =
@@ -103,6 +101,8 @@ suspend fun MusicApiService.getAlbumSongs(albumMid: String): List<Song> =
                 MusicApiService.parseSongFromElement(sInfo)
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "getAlbumSongs failed: albumMid=$albumMid", e)
             emptyList()
         }
     }
@@ -343,6 +343,8 @@ suspend fun MusicApiService.addAlbumToFavorite(albumMid: String): Boolean =
                 ?.jsonPrimitive
                 ?.intOrNull == 0
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "addAlbumToFavorite failed: albumMid=$albumMid", e)
             false
         }
     }
@@ -372,6 +374,8 @@ suspend fun MusicApiService.removeAlbumFromFavorite(albumMid: String): Boolean =
                 ?.jsonPrimitive
                 ?.intOrNull == 0
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "removeAlbumFromFavorite failed: albumMid=$albumMid", e)
             false
         }
     }
@@ -465,7 +469,9 @@ suspend fun MusicApiService.toggleSingerFollow(
                     ?.jsonPrimitive
                     ?.intOrNull ?: -1
             outerCode == 0 && innerCode == 0
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "toggleSingerFollow failed: singerMid=$singerMid, isFollow=$isFollow", e)
             false
         }
     }
@@ -498,7 +504,9 @@ suspend fun MusicApiService.checkSingerFollowStatus(singerMid: String): Boolean 
             val mapSingerStatus = dataObj["map_singer_status"]?.jsonObject ?: return@withContext false
             val status = mapSingerStatus[singerMid]?.jsonPrimitive?.intOrNull ?: 0
             status == 1
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "checkSingerFollowStatus failed: singerMid=$singerMid", e)
             false
         }
     }

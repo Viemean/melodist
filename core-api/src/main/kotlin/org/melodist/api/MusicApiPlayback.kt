@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -16,10 +17,7 @@ suspend fun MusicApiService.probeSongQualities(
     withContext(Dispatchers.IO) {
         if (songMid.isBlank()) return@withContext emptyList()
         if (!PlaybackCredentialsManager.hasCustomCredentials) {
-            try {
-                LoginApiService().ensureMusicKey()
-            } catch (_: Exception) {
-            }
+            ensureMusicKeySafe()
         }
 
         val targetMediaMid = mediaMid.ifBlank { songMid }
@@ -241,6 +239,8 @@ suspend fun MusicApiService.probeSongQualities(
 
             resultList
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlayback", "probeSongQualities failed: songMid=$songMid", e)
             emptyList()
         }
     }
@@ -261,10 +261,7 @@ suspend fun MusicApiService.getPlayUrl(
 ): QualityResult =
     withContext(Dispatchers.IO) {
         if (!PlaybackCredentialsManager.hasCustomCredentials) {
-            try {
-                LoginApiService().ensureMusicKey()
-            } catch (_: Exception) {
-            }
+            ensureMusicKeySafe()
         }
 
         val targetMediaMid = mediaMid.ifBlank { songMid }
@@ -506,6 +503,8 @@ suspend fun MusicApiService.getPlayUrl(
 
             QualityResult(null, AudioQualityTier.Standard, "无音源")
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlayback", "getPlayUrl failed: songMid=$songMid", e)
             QualityResult(null, AudioQualityTier.Standard, "解析失败")
         }
     }

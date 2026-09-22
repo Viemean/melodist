@@ -244,4 +244,16 @@ class MusicApiService(
                 response.body.string()
             }
         }
+
+    /**
+     * 安全地确保 MusicKey 有效，自动透传协程取消并记录日志
+     */
+    suspend fun ensureMusicKeySafe(): Boolean =
+        try {
+            LoginApiService().ensureMusicKey()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.w("MusicApiService", "Failed to ensure music key", e)
+            false
+        }
 }

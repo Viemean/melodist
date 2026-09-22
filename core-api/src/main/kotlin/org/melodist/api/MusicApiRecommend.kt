@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -20,10 +21,7 @@ data class DailyRecommendResult(
 suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext DailyRecommendResult()
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
@@ -111,7 +109,9 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
 
             val songs = songArray.mapNotNull { MusicApiService.parseSongFromElement(it) }
             DailyRecommendResult(description = description, songs = songs)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiRecommend", "getDailyRecommendDetail failed", e)
             DailyRecommendResult()
         }
     }
@@ -131,10 +131,7 @@ data class MillionRecommendResult(
 suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext MillionRecommendResult()
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
@@ -244,7 +241,9 @@ suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult 
                 totalSongNum = if (songs.isNotEmpty()) songs.size else totalSongNum,
                 songs = songs,
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiRecommend", "getMillionRecommendDetail failed", e)
             MillionRecommendResult()
         }
     }
@@ -254,10 +253,7 @@ suspend fun MusicApiService.getMillionRecommendSongs(): List<Song> = getMillionR
 suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> =
     withContext(Dispatchers.IO) {
         if (UserSession.isLoggedIn) {
-            try {
-                LoginApiService().ensureMusicKey()
-            } catch (_: Exception) {
-            }
+            ensureMusicKeySafe()
         }
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
@@ -338,6 +334,8 @@ suspend fun MusicApiService.getTopList(
 
             songList.mapNotNull { MusicApiService.parseSongFromElement(it) }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiRecommend", "getGuessRecommendSongs failed", e)
             emptyList()
         }
     }
@@ -377,7 +375,9 @@ suspend fun MusicApiService.getTrackInfoBatch(songIds: List<Long>): List<Song> =
                     ?.jsonArray ?: return@withContext emptyList()
 
             tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiRecommend", "getTrackInfoBatch failed", e)
             emptyList()
         }
     }
@@ -389,10 +389,7 @@ suspend fun MusicApiService.getRecommendFeed(
 ): List<RecommendShelf> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext emptyList()
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
@@ -529,7 +526,9 @@ suspend fun MusicApiService.getRecommendFeed(
                 }
             }
             shelves
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiRecommend", "getRecommendFeed failed: direction=$direction, page=$page", e)
             emptyList()
         }
     }

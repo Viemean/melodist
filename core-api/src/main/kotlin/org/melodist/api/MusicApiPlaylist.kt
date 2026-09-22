@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -16,10 +17,7 @@ suspend fun MusicApiService.getFavoriteSongsDetail(
     pageSize: Int = 50,
 ): FavoriteSongsResult =
     withContext(Dispatchers.IO) {
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
@@ -54,6 +52,8 @@ suspend fun MusicApiService.getFavoriteSongsDetail(
             val resolvedHasMore = hasMore || (total > 0 && (page - 1) * pageSize + songs.size < total)
             FavoriteSongsResult(songs, total, resolvedHasMore)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "getFavoriteSongsDetail failed", e)
             FavoriteSongsResult(emptyList(), 0, false)
         }
     }
@@ -69,10 +69,7 @@ suspend fun MusicApiService.getFavoriteSongs(
 suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): List<Playlist> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext emptyList()
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val payload =
@@ -177,6 +174,8 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
 
             result
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "getPlaylists failed", e)
             emptyList()
         }
     }
@@ -195,10 +194,7 @@ suspend fun MusicApiService.getPlaylistSongs(
     pageSize: Int = 50,
 ): List<Song> =
     withContext(Dispatchers.IO) {
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
@@ -229,6 +225,8 @@ suspend fun MusicApiService.getPlaylistSongs(
                         ?.jsonArray ?: return@withContext emptyList()
                 list.mapNotNull { MusicApiService.parseSongFromElement(it) }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("MusicApiPlaylist", "getPlaylistSongs (dirid) failed: dirId=$dirId, tid=$tid", e)
                 emptyList()
             }
         } else {
@@ -258,6 +256,8 @@ suspend fun MusicApiService.getPlaylistSongs(
                         ?.jsonArray ?: return@withContext emptyList()
                 songList.mapNotNull { MusicApiService.parseSongFromElement(it) }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("MusicApiPlaylist", "getPlaylistSongs (uniform) failed: dirId=$dirId, tid=$tid", e)
                 emptyList()
             }
         }
@@ -266,10 +266,7 @@ suspend fun MusicApiService.getPlaylistSongs(
 suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, String> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || name.isBlank()) return@withContext Triple(false, 0L, "未登录或歌单名为空")
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
         val escaped = Json.encodeToString(name.trim())
         val payload =
             """
@@ -314,6 +311,8 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
                 Triple(false, 0L, if (msg.isNotBlank()) msg else "创建失败(code=$code)")
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "createPlaylist failed: name=$name", e)
             Triple(false, 0L, e.message ?: "创建异常")
         }
     }
@@ -321,10 +320,7 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
 suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || playlist.isMyFavorite) return@withContext false
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
         val payload =
             if (playlist.isCreated) {
                 """
@@ -361,6 +357,8 @@ suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
                 ?.jsonPrimitive
                 ?.intOrNull == 0
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "deletePlaylist failed", e)
             false
         }
     }
@@ -368,10 +366,7 @@ suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
 suspend fun MusicApiService.resolveSongId(songMid: String): Long =
     withContext(Dispatchers.IO) {
         if (songMid.isBlank()) return@withContext 0L
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
         val payload =
@@ -397,7 +392,9 @@ suspend fun MusicApiService.resolveSongId(songMid: String): Long =
                     ?.get("track_info")
                     ?.jsonObject
             trackInfo?.get("id")?.jsonPrimitive?.longOrNull ?: 0L
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "resolveSongId failed: songMid=$songMid", e)
             0L
         }
     }
@@ -418,10 +415,7 @@ suspend fun MusicApiService.addSongToPlaylist(
         val actualId = if (songId <= 0L && songMid.isNotBlank()) resolveSongId(songMid) else songId
         if (actualId <= 0L) return@withContext AddSongResult.Failed
 
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val payload =
             """
@@ -454,7 +448,9 @@ suspend fun MusicApiService.addSongToPlaylist(
             } else {
                 AddSongResult.Failed
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "addSongToPlaylist failed: dirId=$dirId", e)
             AddSongResult.Failed
         }
     }
@@ -479,10 +475,7 @@ suspend fun MusicApiService.addSongsToPlaylist(
             }
         if (resolvedSongInfos.isEmpty()) return@withContext AddSongResult.Failed
 
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val songInfoJson = resolvedSongInfos.joinToString(separator = ",") { """{ "songId": $it, "songType": 0 }""" }
         val payload =
@@ -516,7 +509,9 @@ suspend fun MusicApiService.addSongsToPlaylist(
             } else {
                 AddSongResult.Failed
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "addSongsToPlaylist failed: dirId=$dirId", e)
             AddSongResult.Failed
         }
     }
@@ -541,10 +536,7 @@ suspend fun MusicApiService.deleteSongsFromPlaylist(
             }
         if (resolvedSongInfos.isEmpty()) return@withContext false
 
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val songInfoJson = resolvedSongInfos.joinToString(separator = ",") { """{ "songId": $it, "songType": 0 }""" }
         val payload =
@@ -567,7 +559,9 @@ suspend fun MusicApiService.deleteSongsFromPlaylist(
                 delObj["code"]?.jsonPrimitive?.intOrNull
                     ?: delObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
             code == 0
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "deleteSongsFromPlaylist failed: dirId=$dirId", e)
             false
         }
     }
@@ -582,10 +576,7 @@ suspend fun MusicApiService.deleteSongFromPlaylist(
         val actualId = if (songId <= 0L && songMid.isNotBlank()) resolveSongId(songMid) else songId
         if (actualId <= 0L) return@withContext false
 
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
 
         val payload =
             """
@@ -607,7 +598,9 @@ suspend fun MusicApiService.deleteSongFromPlaylist(
                 delObj["code"]?.jsonPrimitive?.intOrNull
                     ?: delObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
             code == 0
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "deleteSongFromPlaylist failed: dirId=$dirId, songId=$actualId", e)
             false
         }
     }

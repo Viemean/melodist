@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -388,10 +389,7 @@ private fun getEffectiveAuthst(): String =
 suspend fun MusicApiService.getRecentSongs(updateTime: Long = 0L): RecentHistoryResult<RecentSongItem> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext RecentHistoryResult(emptyList(), 0L)
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
         val uin = getEffectiveUin()
         val authst = getEffectiveAuthst()
         val payload = buildGetRecentHistoryPayload(
@@ -403,7 +401,9 @@ suspend fun MusicApiService.getRecentSongs(updateTime: Long = 0L): RecentHistory
         try {
             val resp = postGateway(payload)
             parseRecentSongsResponse(resp)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiHistory", "getRecentSongs failed", e)
             RecentHistoryResult(emptyList(), updateTime)
         }
     }
@@ -414,10 +414,7 @@ suspend fun MusicApiService.getRecentSongs(updateTime: Long = 0L): RecentHistory
 suspend fun MusicApiService.getRecentAlbums(updateTime: Long = 0L): RecentHistoryResult<RecentAlbumItem> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext RecentHistoryResult(emptyList(), 0L)
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
         val uin = getEffectiveUin()
         val authst = getEffectiveAuthst()
         val payload = buildGetRecentHistoryPayload(
@@ -429,7 +426,9 @@ suspend fun MusicApiService.getRecentAlbums(updateTime: Long = 0L): RecentHistor
         try {
             val resp = postGateway(payload)
             parseRecentAlbumsResponse(resp)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiHistory", "getRecentAlbums failed", e)
             RecentHistoryResult(emptyList(), updateTime)
         }
     }
@@ -440,10 +439,7 @@ suspend fun MusicApiService.getRecentAlbums(updateTime: Long = 0L): RecentHistor
 suspend fun MusicApiService.getRecentPlaylists(updateTime: Long = 0L): RecentHistoryResult<RecentPlaylistItem> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext RecentHistoryResult(emptyList(), 0L)
-        try {
-            LoginApiService().ensureMusicKey()
-        } catch (_: Exception) {
-        }
+        ensureMusicKeySafe()
         val uin = getEffectiveUin()
         val authst = getEffectiveAuthst()
         val payload = buildGetRecentHistoryPayload(
@@ -455,7 +451,9 @@ suspend fun MusicApiService.getRecentPlaylists(updateTime: Long = 0L): RecentHis
         try {
             val resp = postGateway(payload)
             parseRecentPlaylistsResponse(resp)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiHistory", "getRecentPlaylists failed", e)
             RecentHistoryResult(emptyList(), updateTime)
         }
     }
@@ -483,7 +481,9 @@ suspend fun MusicApiService.reportRecentHistory(
         val code = root["report_recent"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull
             ?: root["code"]?.jsonPrimitive?.intOrNull ?: -1
         code == 0
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        ApiLogger.w("MusicApiHistory", "reportRecentHistory failed: id=$id, type=$type", e)
         false
     }
 }
@@ -495,10 +495,7 @@ suspend fun MusicApiService.deleteRecentHistoryBatch(
     items: List<RecentDeleteItem>,
 ): Boolean = withContext(Dispatchers.IO) {
     if (!UserSession.isLoggedIn || items.isEmpty()) return@withContext false
-    try {
-        LoginApiService().ensureMusicKey()
-    } catch (_: Exception) {
-    }
+    ensureMusicKeySafe()
     val uin = getEffectiveUin()
     val authst = getEffectiveAuthst()
     val payload = buildDeleteRecentHistoryBatchPayload(
@@ -512,7 +509,9 @@ suspend fun MusicApiService.deleteRecentHistoryBatch(
         val code = root["del_recent"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull
             ?: root["code"]?.jsonPrimitive?.intOrNull ?: -1
         code == 0
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        ApiLogger.w("MusicApiHistory", "deleteRecentHistoryBatch failed: itemsCount=${items.size}", e)
         false
     }
 }
