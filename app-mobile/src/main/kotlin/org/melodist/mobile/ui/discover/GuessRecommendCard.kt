@@ -32,7 +32,7 @@ fun GuessRecommendCard(
     val primaryContainer = MaterialTheme.colorScheme.primaryContainer
 
     val triggerPlay: () -> Unit = {
-        if (isRadioMode) {
+        if (isRadioMode && currentSong != null) {
             PlaybackManager.togglePlayPause()
         } else {
             val listToPlay = guessSongs
@@ -73,7 +73,7 @@ fun GuessRecommendCard(
         playIcon = if (isCurrentRadioPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
         playContentDescription = if (isCurrentRadioPlaying) "暂停" else "播放",
         onPlayClick = triggerPlay,
-        onCardClick = null,
+        onCardClick = triggerPlay,
         modifier = modifier,
     )
 }
