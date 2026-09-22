@@ -67,6 +67,10 @@ class MusicApiService(
                     ?: albumObj?.get("pmid")?.jsonPrimitive?.contentOrNull
                     ?: track["albummid"]?.jsonPrimitive?.contentOrNull
                     ?: ""
+            val albumId =
+                albumObj?.get("id")?.jsonPrimitive?.longOrNull
+                    ?: track["albumid"]?.jsonPrimitive?.longOrNull
+                    ?: 0L
 
             val duration = track["interval"]?.jsonPrimitive?.intOrNull ?: 0
 
@@ -130,6 +134,7 @@ class MusicApiService(
                 singer = singers,
                 album = albumName,
                 albumMid = albumMid,
+                albumId = albumId,
                 durationSeconds = duration,
                 currentTier = AudioQualityTier.SQ,
                 coverUrl = coverUrl,

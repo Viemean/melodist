@@ -30,6 +30,7 @@ class PlaybackProgressTracker(
     private val onSavePlaybackProgressRequest: (posMs: Long) -> Unit,
     private val onTriggerPrefetchNextSongRequest: () -> Unit,
     private val onSongActivePlaybackQualified: ((Song) -> Unit)? = null,
+    private val onContextActivePlaybackQualified: (() -> Unit)? = null,
 ) {
     private var progressJob: Job? = null
 
@@ -97,6 +98,9 @@ class PlaybackProgressTracker(
                             if (activePlayDurationMs >= 5000L && !hasReportedCurrentSong) {
                                 hasReportedCurrentSong = true
                                 currSong?.let { onSongActivePlaybackQualified?.invoke(it) }
+                            }
+                            if (activePlayDurationMs >= 15000L) {
+                                onContextActivePlaybackQualified?.invoke()
                             }
 
                             val pos = player.currentPosition.coerceAtLeast(0L)

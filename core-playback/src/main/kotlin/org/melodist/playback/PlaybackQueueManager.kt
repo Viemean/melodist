@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.getGuessRecommendSongs
 import org.melodist.model.AudioQualityTier
+import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.Song
 
 class PlaybackQueueManager(
@@ -39,6 +40,9 @@ class PlaybackQueueManager(
 
     private val _queueTag = MutableStateFlow<String?>(null)
     val queueTag: StateFlow<String?> = _queueTag.asStateFlow()
+
+    private val _sourceContext = MutableStateFlow<PlaybackSourceContext?>(null)
+    val sourceContext: StateFlow<PlaybackSourceContext?> = _sourceContext.asStateFlow()
 
     val shuffleQueue = ShuffleQueueManager()
 
@@ -99,10 +103,12 @@ class PlaybackQueueManager(
         forceTier: AudioQualityTier? = null,
         paginationSource: QueuePaginationSource? = null,
         queueTag: String? = null,
+        sourceContext: PlaybackSourceContext? = null,
     ) {
         _isRadioMode.value = isRadio
         _paginationSource.value = paginationSource
         _queueTag.value = queueTag
+        _sourceContext.value = sourceContext
         _playlist.value = songs
         pendingNextSongMid = null
         if (songs.isNotEmpty() && startIndex in songs.indices) {
@@ -294,6 +300,7 @@ class PlaybackQueueManager(
         pendingNextSongMid = null
         _paginationSource.value = null
         _queueTag.value = null
+        _sourceContext.value = null
         _playlist.value = emptyList()
         _currentIndex.value = -1
         onStopPlaybackRequest()

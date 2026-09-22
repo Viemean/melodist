@@ -27,6 +27,7 @@ data class AlbumDetail(
     val language: String = "",
     val albumType: String = "",
     val singerList: List<String> = emptyList(),
+    val id: Long = 0L,
 )
 
 @Serializable

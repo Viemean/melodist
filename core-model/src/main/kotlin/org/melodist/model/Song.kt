@@ -10,6 +10,7 @@ data class Song(
     val singer: String = "",
     val album: String = "",
     val albumMid: String = "",
+    val albumId: Long = 0L,
     val durationSeconds: Int = 0,
     val currentTier: AudioQualityTier = AudioQualityTier.Standard,
     val availableTiers: List<AudioQualityTier> = emptyList(),

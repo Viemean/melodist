@@ -223,6 +223,14 @@ suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model
                     emptyList()
                 }
 
+            val albumId =
+                basicInfo?.get("albumId")?.jsonPrimitive?.longOrNull
+                    ?: basicInfo?.get("albumID")?.jsonPrimitive?.longOrNull
+                    ?: basicInfo?.get("id")?.jsonPrimitive?.longOrNull
+                    ?: albumInfoObj?.get("id")?.jsonPrimitive?.longOrNull
+                    ?: songList.firstOrNull()?.albumId
+                    ?: 0L
+
             org.melodist.model.AlbumDetail(
                 mid = albumMid,
                 name = name,
@@ -234,6 +242,7 @@ suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model
                 language = language,
                 albumType = albumType,
                 singerList = singerList,
+                id = albumId,
             )
         } catch (e: Exception) {
             null

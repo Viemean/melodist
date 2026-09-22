@@ -30,6 +30,7 @@ import org.melodist.api.getSongVisualMid
 import org.melodist.api.reportRecentHistory
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
+import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.QualityOption
 import org.melodist.model.Song
 
@@ -137,6 +138,7 @@ object PlaybackManager {
     val loopMode: StateFlow<PlaybackLoopMode> = queueManager.loopMode
     val isRadioMode: StateFlow<Boolean> = queueManager.isRadioMode
     val queueTag: StateFlow<String?> = queueManager.queueTag
+    val sourceContext: StateFlow<PlaybackSourceContext?> = queueManager.sourceContext
     val paginationSource: StateFlow<QueuePaginationSource?> = queueManager.paginationSource
     val isLoadingMoreForQueue: StateFlow<Boolean> = queueManager.isLoadingMoreForQueue
 
@@ -623,6 +625,8 @@ object PlaybackManager {
             },
         )
 
+    private var hasReportedCurrentContext = false
+
     private val progressTracker: PlaybackProgressTracker =
         PlaybackProgressTracker(
             scope = scope,
@@ -642,6 +646,7 @@ object PlaybackManager {
             onSavePlaybackProgressRequest = { pos -> savePlaybackProgress(pos) },
             onTriggerPrefetchNextSongRequest = { triggerPrefetchNextSong() },
             onSongActivePlaybackQualified = { song -> handleSongActivePlaybackQualified(song) },
+            onContextActivePlaybackQualified = { handleContextActivePlaybackQualified() },
         )
 
     private fun handleSongActivePlaybackQualified(song: Song) {
@@ -663,6 +668,40 @@ object PlaybackManager {
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w("MelodistPlayback", "Failed to report recent history for song: ${song.songMid}", e)
+            }
+        }
+    }
+
+    private fun handleContextActivePlaybackQualified() {
+        if (hasReportedCurrentContext) return
+        val context = queueManager.sourceContext.value ?: return
+        val currSong = _currentSong.value
+        if (currSong == null || currSong.isLocal || currSong.isWebDav || currSong.songMid.startsWith("local_") || currSong.songMid.startsWith("webdav_")) {
+            return
+        }
+        if (!UserSession.isLoggedIn) {
+            return
+        }
+        hasReportedCurrentContext = true
+        scope.launch(Dispatchers.IO) {
+            try {
+                when (context) {
+                    is PlaybackSourceContext.Album -> {
+                        val id = if (context.albumId > 0L) context.albumId.toString() else context.albumMid
+                        if (id.isNotBlank() && !id.startsWith("local_") && !id.startsWith("webdav_")) {
+                            apiService.reportRecentHistory(id = id, type = RecentHistoryType.Album)
+                        }
+                    }
+                    is PlaybackSourceContext.Playlist -> {
+                        val id = context.id
+                        if (id.isNotBlank() && !id.startsWith("local_") && !id.startsWith("webdav_")) {
+                            apiService.reportRecentHistory(id = id, type = RecentHistoryType.Playlist)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MelodistPlayback", "Failed to report recent context: $context", e)
             }
         }
     }
@@ -891,7 +930,9 @@ object PlaybackManager {
         forceTier: AudioQualityTier? = null,
         paginationSource: QueuePaginationSource? = null,
         queueTag: String? = null,
+        sourceContext: PlaybackSourceContext? = null,
     ) {
+        hasReportedCurrentContext = false
         setMuted(startMuted)
         queueManager.setPlaylist(
             songs = songs,
@@ -901,6 +942,7 @@ object PlaybackManager {
             forceTier = forceTier,
             paginationSource = paginationSource,
             queueTag = queueTag,
+            sourceContext = sourceContext,
         )
     }
 
@@ -924,7 +966,10 @@ object PlaybackManager {
 
     fun removeFromPlaylist(songs: List<Song>) = queueManager.removeFromPlaylist(songs, _currentSong.value?.songMid)
 
-    fun clearPlaylist() = queueManager.clearPlaylist()
+    fun clearPlaylist() {
+        hasReportedCurrentContext = false
+        queueManager.clearPlaylist()
+    }
 
     fun playSong(
         song: Song,
