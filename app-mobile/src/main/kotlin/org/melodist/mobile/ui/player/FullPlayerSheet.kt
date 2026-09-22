@@ -69,14 +69,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.palette.graphics.Palette
-import coil3.SingletonImageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.toBitmap
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.components.AudioQualityBottomSheet
@@ -89,10 +82,8 @@ import org.melodist.mobile.ui.player.components.PlayerMonetCacheManager
 import org.melodist.mobile.ui.player.components.PlayerMonetColors
 import org.melodist.mobile.ui.player.components.PlayerProgressSlider
 import org.melodist.mobile.ui.player.components.PlayerSongInfoSection
-import org.melodist.mobile.ui.player.components.resolveMonetColors
 import org.melodist.mobile.ui.theme.isAppInAmoledDark
 import org.melodist.mobile.ui.theme.isAppInDarkTheme
-import org.melodist.mobile.util.MobileCoverCacheResolver
 import org.melodist.model.LyricLine
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackLoopMode
@@ -154,16 +145,18 @@ fun FullPlayerSheet(
             PlaybackManager.getNextSong()
         }
 
-    val cachedColors = remember(song?.songMid) {
-        song?.songMid?.let { PlayerMonetCacheManager.get(it) }
-    }
+    val cachedColors =
+        remember(song?.songMid) {
+            song?.songMid?.let { PlayerMonetCacheManager.get(it) }
+        }
     val primaryColor = MaterialTheme.colorScheme.primary
-    val defaultMonetColors = remember(primaryColor) {
-        PlayerMonetColors(
-            accentColor = primaryColor,
-            highlightColor = primaryColor,
-        )
-    }
+    val defaultMonetColors =
+        remember(primaryColor) {
+            PlayerMonetColors(
+                accentColor = primaryColor,
+                highlightColor = primaryColor,
+            )
+        }
     var monetColors by remember(song?.songMid) {
         mutableStateOf<PlayerMonetColors>(cachedColors ?: defaultMonetColors)
     }

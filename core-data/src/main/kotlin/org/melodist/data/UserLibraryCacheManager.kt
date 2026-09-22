@@ -80,7 +80,10 @@ object UserLibraryCacheManager {
     private var periodicRefreshJob: Job? = null
     private var favSongsCache = FavoriteSongsCache()
 
-    private fun getCacheKey(dirId: Long, tid: Long): String = "${dirId}_$tid"
+    private fun getCacheKey(
+        dirId: Long,
+        tid: Long,
+    ): String = "${dirId}_$tid"
 
     fun init(context: Context) {
         val appContext = context.applicationContext
@@ -430,7 +433,10 @@ object UserLibraryCacheManager {
                 if (isMyFav) {
                     loadFavoriteSongs(MusicApiService(), forceRefresh = true)
                 } else {
-                    val tid = _libraryFlow.value.playlists.find { it.dirId == dirId }?.tid ?: 0L
+                    val tid =
+                        _libraryFlow.value.playlists
+                            .find { it.dirId == dirId }
+                            ?.tid ?: 0L
                     loadPlaylistSongs(MusicApiService(), dirId, tid, forceRefresh = true)
                 }
             } catch (_: Exception) {
@@ -485,7 +491,10 @@ object UserLibraryCacheManager {
                 if (isMyFav) {
                     loadFavoriteSongs(MusicApiService(), forceRefresh = true)
                 } else {
-                    val tid = _libraryFlow.value.playlists.find { it.dirId == dirId }?.tid ?: 0L
+                    val tid =
+                        _libraryFlow.value.playlists
+                            .find { it.dirId == dirId }
+                            ?.tid ?: 0L
                     loadPlaylistSongs(MusicApiService(), dirId, tid, forceRefresh = true)
                 }
             } catch (_: Exception) {
@@ -636,9 +645,7 @@ object UserLibraryCacheManager {
     fun getCachedPlaylistSongs(
         dirId: Long,
         tid: Long,
-    ): List<Song>? {
-        return getPlaylistSongsCache(dirId, tid)?.songs
-    }
+    ): List<Song>? = getPlaylistSongsCache(dirId, tid)?.songs
 
     fun isPlaylistSongsCacheValid(
         dirId: Long,

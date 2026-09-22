@@ -103,9 +103,10 @@ fun RecentAlbumsScreen(
         modifier = modifier.fillMaxSize(),
     ) { scaffoldPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = scaffoldPadding.calculateTopPadding()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = scaffoldPadding.calculateTopPadding()),
         ) {
             PullToRefreshBox(
                 isRefreshing = isSyncing,
@@ -136,15 +137,17 @@ fun RecentAlbumsScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                        ),
+                        contentPadding =
+                            PaddingValues(
+                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                            ),
                     ) {
                         item(key = "recent_albums_header") {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -194,13 +197,13 @@ fun RecentAlbumsScreen(
 
                         items(albums, key = { it.albumMid.ifBlank { it.albumId.toString() } }) { album ->
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = { onAlbumClick(album.albumMid, album.albumName) },
-                                        onLongClick = { targetAlbumForAction = album },
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = { onAlbumClick(album.albumMid, album.albumName) },
+                                            onLongClick = { targetAlbumForAction = album },
+                                        ).padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 AlbumArtImage(
@@ -222,19 +225,20 @@ fun RecentAlbumsScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    val subtitle = buildString {
-                                        if (album.singerName.isNotBlank()) {
-                                            append(album.singerName)
+                                    val subtitle =
+                                        buildString {
+                                            if (album.singerName.isNotBlank()) {
+                                                append(album.singerName)
+                                            }
+                                            if (album.songCount > 0) {
+                                                if (isNotEmpty()) append(" · ")
+                                                append("${album.songCount}首")
+                                            }
+                                            if (album.listenCnt > 1) {
+                                                if (isNotEmpty()) append(" · ")
+                                                append("听过 ${album.listenCnt} 次")
+                                            }
                                         }
-                                        if (album.songCount > 0) {
-                                            if (isNotEmpty()) append(" · ")
-                                            append("${album.songCount}首")
-                                        }
-                                        if (album.listenCnt > 1) {
-                                            if (isNotEmpty()) append(" · ")
-                                            append("听过 ${album.listenCnt} 次")
-                                        }
-                                    }
                                     if (subtitle.isNotBlank()) {
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
@@ -266,14 +270,16 @@ fun RecentAlbumsScreen(
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         AlbumArtImage(
@@ -308,13 +314,13 @@ fun RecentAlbumsScreen(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                RecentPlaybackManager.removeAlbum(sheetAlbum)
-                                targetAlbumForAction = null
-                            }
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    RecentPlaybackManager.removeAlbum(sheetAlbum)
+                                    targetAlbumForAction = null
+                                }.padding(horizontal = 20.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(

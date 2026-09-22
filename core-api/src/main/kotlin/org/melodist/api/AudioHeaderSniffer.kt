@@ -24,7 +24,8 @@ data class SniffedAudioSpec(
 
 object AudioHeaderSniffer {
     private val client =
-        OkHttpClient.Builder()
+        OkHttpClient
+            .Builder()
             .connectTimeout(3, TimeUnit.SECONDS)
             .readTimeout(3, TimeUnit.SECONDS)
             .build()
@@ -32,9 +33,7 @@ object AudioHeaderSniffer {
     // 缓存已嗅探的 URL 规格，容量 200，避免重复弹窗时再次触发网络请求
     private val specCache =
         object : java.util.LinkedHashMap<String, SniffedAudioSpec>(64, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SniffedAudioSpec>?): Boolean {
-                return size > 200
-            }
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SniffedAudioSpec>?): Boolean = size > 200
         }
 
     suspend fun sniff(
@@ -49,7 +48,8 @@ object AudioHeaderSniffer {
 
             try {
                 val request =
-                    Request.Builder()
+                    Request
+                        .Builder()
                         .url(url)
                         .header("Range", "bytes=0-2047")
                         .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; MelodistTV) AppleWebKit/537.36")

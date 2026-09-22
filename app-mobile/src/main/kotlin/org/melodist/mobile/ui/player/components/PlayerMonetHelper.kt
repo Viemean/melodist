@@ -147,7 +147,10 @@ object PlayerMonetCacheManager {
         return memoryCache.get(songMid)
     }
 
-    fun put(songMid: String, colors: PlayerMonetColors) {
+    fun put(
+        songMid: String,
+        colors: PlayerMonetColors,
+    ) {
         if (songMid.isBlank()) return
         memoryCache.put(songMid, colors)
     }
@@ -164,10 +167,13 @@ object PlayerMonetCacheManager {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val loader = coil3.SingletonImageLoader.get(context)
-                val candidates = org.melodist.mobile.util.MobileCoverCacheResolver.resolvePaletteCandidates(song)
+                val candidates =
+                    org.melodist.mobile.util.MobileCoverCacheResolver
+                        .resolvePaletteCandidates(song)
                 for (source in candidates) {
                     val request =
-                        coil3.request.ImageRequest.Builder(context)
+                        coil3.request.ImageRequest
+                            .Builder(context)
                             .data(source)
                             .size(128, 128)
                             .precision(coil3.size.Precision.INEXACT)
@@ -198,4 +204,3 @@ object PlayerMonetCacheManager {
         }
     }
 }
-

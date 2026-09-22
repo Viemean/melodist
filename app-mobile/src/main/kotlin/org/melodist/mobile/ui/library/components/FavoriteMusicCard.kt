@@ -34,9 +34,10 @@ fun FavoriteMusicCard(
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
     // 5 最新 + 25 随机构建 30 首候选池
-    val candidatePool = remember(favoriteSongs) {
-        RotatingCandidatePool.buildCandidatePool(favoriteSongs, fixedCount = 5, randomCount = 25)
-    }
+    val candidatePool =
+        remember(favoriteSongs) {
+            RotatingCandidatePool.buildCandidatePool(favoriteSongs, fixedCount = 5, randomCount = 25)
+        }
 
     var shuffledList by remember { mutableStateOf<List<Song>>(emptyList()) }
     var currentDisplayIndex by remember { mutableIntStateOf(0) }

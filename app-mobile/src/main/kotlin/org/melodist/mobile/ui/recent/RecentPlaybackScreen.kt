@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -36,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,12 +46,11 @@ import org.melodist.api.RecentPlaylistItem
 import org.melodist.api.UserSession
 import org.melodist.data.AppLifecycleManager
 import org.melodist.data.RecentPlaybackManager
-import org.melodist.model.RotatingCandidatePool
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.discover.HeroRecommendCard
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
-import org.melodist.model.Playlist
+import org.melodist.model.RotatingCandidatePool
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,22 +84,24 @@ fun RecentPlaybackScreen(
             showWebDavBadge = true,
             onDeleteSelected = { songs -> RecentPlaybackManager.removeSongs(songs) },
             onDeleteLocalFile = { song -> RecentPlaybackManager.removeSong(song.songMid) },
-            contentPadding = PaddingValues(
-                top = 4.dp,
-                bottom = contentPadding.calculateBottomPadding() + 16.dp,
-            ),
+            contentPadding =
+                PaddingValues(
+                    top = 4.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                ),
             headerItems = {
                 // 特色卡片横向并排区域（“最近专辑”与“最近歌单”）
                 item(key = "recent_hero_cards_row") {
                     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
                     val cardWidth = (screenWidth - 44.dp).coerceIn(280.dp, 360.dp)
 
-                    val filteredPlaylists = remember(recentPlaylists) {
-                        recentPlaylists.filterNot { item ->
-                            val t = item.title
-                            t.contains("30首") || t.contains("每日30") || t.contains("红心雷达") || t.contains("猜你喜欢")
+                    val filteredPlaylists =
+                        remember(recentPlaylists) {
+                            recentPlaylists.filterNot { item ->
+                                val t = item.title
+                                t.contains("30首") || t.contains("每日30") || t.contains("红心雷达") || t.contains("猜你喜欢")
+                            }
                         }
-                    }
 
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -130,9 +131,10 @@ fun RecentPlaybackScreen(
                 // 标题与控制栏
                 item(key = "recent_section_header") {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -176,9 +178,10 @@ fun RecentPlaybackScreen(
             },
             emptyContent = {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 32.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -243,9 +246,10 @@ private fun RecentAlbumsHeroCard(
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
     // 5 最新 + 25 随机构建候选池
-    val candidatePool = remember(recentAlbums) {
-        RotatingCandidatePool.buildCandidatePool(recentAlbums, fixedCount = 5, randomCount = 25)
-    }
+    val candidatePool =
+        remember(recentAlbums) {
+            RotatingCandidatePool.buildCandidatePool(recentAlbums, fixedCount = 5, randomCount = 25)
+        }
 
     var shuffledList by remember { mutableStateOf<List<RecentAlbumItem>>(emptyList()) }
     var currentDisplayIndex by remember { mutableIntStateOf(0) }
@@ -312,9 +316,10 @@ private fun RecentPlaylistsHeroCard(
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
     // 5 最新 + 25 随机构建候选池
-    val candidatePool = remember(playlists) {
-        RotatingCandidatePool.buildCandidatePool(playlists, fixedCount = 5, randomCount = 25)
-    }
+    val candidatePool =
+        remember(playlists) {
+            RotatingCandidatePool.buildCandidatePool(playlists, fixedCount = 5, randomCount = 25)
+        }
 
     var shuffledList by remember { mutableStateOf<List<RecentPlaylistItem>>(emptyList()) }
     var currentDisplayIndex by remember { mutableIntStateOf(0) }

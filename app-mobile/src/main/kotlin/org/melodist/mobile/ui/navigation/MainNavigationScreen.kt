@@ -95,8 +95,8 @@ import org.melodist.mobile.ui.navigation.ScreenDestination
 import org.melodist.mobile.ui.player.PlayerContainer
 import org.melodist.mobile.ui.playlist.PlaylistDetailScreen
 import org.melodist.mobile.ui.recent.RecentAlbumsScreen
-import org.melodist.mobile.ui.recent.RecentPlaylistsScreen
 import org.melodist.mobile.ui.recent.RecentPlaybackScreen
+import org.melodist.mobile.ui.recent.RecentPlaylistsScreen
 import org.melodist.mobile.ui.search.SearchScreen
 import org.melodist.mobile.ui.settings.MobileSettingsScreen
 import org.melodist.mobile.ui.webdav.WebDavMobileScreen

@@ -1,5 +1,8 @@
 package org.melodist.mobile.ui.recent
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -36,10 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -73,12 +73,13 @@ fun RecentPlaylistsScreen(
     val isSyncing by RecentPlaybackManager.isSyncingFlow.collectAsState()
     var targetPlaylistForAction by remember { mutableStateOf<RecentPlaylistItem?>(null) }
 
-    val displayPlaylists = remember(playlists) {
-        playlists.filterNot { item ->
-            val t = item.title
-            t.contains("30首") || t.contains("每日30") || t.contains("红心雷达") || t.contains("猜你喜欢")
+    val displayPlaylists =
+        remember(playlists) {
+            playlists.filterNot { item ->
+                val t = item.title
+                t.contains("30首") || t.contains("每日30") || t.contains("红心雷达") || t.contains("猜你喜欢")
+            }
         }
-    }
 
     val listState = rememberLazyListState()
     val showTopBarTitle by remember {
@@ -113,9 +114,10 @@ fun RecentPlaylistsScreen(
         modifier = modifier.fillMaxSize(),
     ) { scaffoldPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = scaffoldPadding.calculateTopPadding()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(top = scaffoldPadding.calculateTopPadding()),
         ) {
             PullToRefreshBox(
                 isRefreshing = isSyncing,
@@ -146,15 +148,17 @@ fun RecentPlaylistsScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                        ),
+                        contentPadding =
+                            PaddingValues(
+                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                            ),
                     ) {
                         item(key = "recent_playlists_header") {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -203,37 +207,39 @@ fun RecentPlaylistsScreen(
                         }
 
                         items(displayPlaylists, key = { it.tid }) { item ->
-                            val matchedPlaylist = remember(item, library.playlists) {
-                                library.playlists.firstOrNull {
-                                    (item.tid > 0L && (it.tid == item.tid || it.dirId == item.tid)) ||
-                                        (it.name.isNotBlank() && it.name == item.title)
+                            val matchedPlaylist =
+                                remember(item, library.playlists) {
+                                    library.playlists.firstOrNull {
+                                        (item.tid > 0L && (it.tid == item.tid || it.dirId == item.tid)) ||
+                                            (it.name.isNotBlank() && it.name == item.title)
+                                    }
                                 }
-                            }
-                            val playlistModel = remember(item, matchedPlaylist) {
-                                if (matchedPlaylist != null) {
-                                    matchedPlaylist.copy(
-                                        picUrl = item.coverUrl.ifBlank { matchedPlaylist.picUrl },
-                                        songCount = if (item.songCount > 0) item.songCount else matchedPlaylist.songCount,
-                                    )
-                                } else {
-                                    Playlist(
-                                        dirId = item.tid,
-                                        tid = item.tid,
-                                        name = item.title,
-                                        picUrl = item.coverUrl,
-                                        songCount = item.songCount,
-                                        isFav = true,
-                                    )
+                            val playlistModel =
+                                remember(item, matchedPlaylist) {
+                                    if (matchedPlaylist != null) {
+                                        matchedPlaylist.copy(
+                                            picUrl = item.coverUrl.ifBlank { matchedPlaylist.picUrl },
+                                            songCount = if (item.songCount > 0) item.songCount else matchedPlaylist.songCount,
+                                        )
+                                    } else {
+                                        Playlist(
+                                            dirId = item.tid,
+                                            tid = item.tid,
+                                            name = item.title,
+                                            picUrl = item.coverUrl,
+                                            songCount = item.songCount,
+                                            isFav = true,
+                                        )
+                                    }
                                 }
-                            }
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .combinedClickable(
-                                        onClick = { onPlaylistClick(playlistModel) },
-                                        onLongClick = { targetPlaylistForAction = item },
-                                    )
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = { onPlaylistClick(playlistModel) },
+                                            onLongClick = { targetPlaylistForAction = item },
+                                        ).padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 AlbumArtImage(
@@ -255,15 +261,16 @@ fun RecentPlaylistsScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    val subtitle = buildString {
-                                        if (item.creatorNick.isNotBlank()) {
-                                            append("by ${item.creatorNick} · ")
+                                    val subtitle =
+                                        buildString {
+                                            if (item.creatorNick.isNotBlank()) {
+                                                append("by ${item.creatorNick} · ")
+                                            }
+                                            append("${item.songCount} 首")
+                                            if (item.listenCnt > 1) {
+                                                append(" · 听过 ${item.listenCnt} 次")
+                                            }
                                         }
-                                        append("${item.songCount} 首")
-                                        if (item.listenCnt > 1) {
-                                            append(" · 听过 ${item.listenCnt} 次")
-                                        }
-                                    }
                                     Spacer(modifier = Modifier.height(3.dp))
                                     Text(
                                         text = subtitle,
@@ -293,14 +300,16 @@ fun RecentPlaylistsScreen(
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         AlbumArtImage(
@@ -335,13 +344,13 @@ fun RecentPlaylistsScreen(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                RecentPlaybackManager.removePlaylist(sheetPlaylist)
-                                targetPlaylistForAction = null
-                            }
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    RecentPlaybackManager.removePlaylist(sheetPlaylist)
+                                    targetPlaylistForAction = null
+                                }.padding(horizontal = 20.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(

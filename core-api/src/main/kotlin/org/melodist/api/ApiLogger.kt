@@ -7,7 +7,11 @@ package org.melodist.api
 object ApiLogger {
     var logger: ((priority: Int, tag: String, message: String, throwable: Throwable?) -> Unit)? = null
 
-    fun w(tag: String, message: String, throwable: Throwable? = null) {
+    fun w(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    ) {
         val custom = logger
         if (custom != null) {
             custom(5, tag, message, throwable)
@@ -16,7 +20,11 @@ object ApiLogger {
         }
     }
 
-    fun e(tag: String, message: String, throwable: Throwable? = null) {
+    fun e(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    ) {
         val custom = logger
         if (custom != null) {
             custom(6, tag, message, throwable)

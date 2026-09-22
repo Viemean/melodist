@@ -28,13 +28,14 @@ class PlaybackSourceContextTest {
     @Test
     fun testQueueManagerSourceContextPreservationAndClear() {
         var requestedSong: Song? = null
-        val queueManager = PlaybackQueueManager(
-            scope = scope,
-            apiService = apiService,
-            onStateChanged = {},
-            onPlaySongRequest = { song, _, _ -> requestedSong = song },
-            onStopPlaybackRequest = {},
-        )
+        val queueManager =
+            PlaybackQueueManager(
+                scope = scope,
+                apiService = apiService,
+                onStateChanged = {},
+                onPlaySongRequest = { song, _, _ -> requestedSong = song },
+                onStopPlaybackRequest = {},
+            )
 
         assertNull(queueManager.sourceContext.value)
 

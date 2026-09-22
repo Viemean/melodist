@@ -738,11 +738,15 @@ object PlaybackManager {
         }
     }
 
-    fun startPlaybackService(context: Context, foreground: Boolean = false) {
+    fun startPlaybackService(
+        context: Context,
+        foreground: Boolean = false,
+    ) {
         try {
             val intent = Intent(context.applicationContext, PlaybackService::class.java)
             if (foreground) {
-                androidx.core.content.ContextCompat.startForegroundService(context.applicationContext, intent)
+                androidx.core.content.ContextCompat
+                    .startForegroundService(context.applicationContext, intent)
             } else {
                 context.applicationContext.startService(intent)
             }

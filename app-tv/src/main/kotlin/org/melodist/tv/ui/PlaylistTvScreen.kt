@@ -181,15 +181,16 @@ fun PlaylistTvScreen(
     val cacheKey = "${categoryId}_${dirId}_${tid}_$albumMid"
     val hasValidCache = PlaylistScreenCache.matches(cacheKey)
 
-    val tvSourceContext = remember(categoryId, dirId, tid, albumMid) {
-        when {
-            albumMid.isNotBlank() -> PlaybackSourceContext.Album(albumMid = albumMid)
-            categoryId == "radar" || categoryId == "favorites" -> null
-            tid > 0L -> PlaybackSourceContext.Playlist(tid.toString())
-            dirId > 0L && dirId != 201L -> PlaybackSourceContext.Playlist(dirId.toString())
-            else -> null
+    val tvSourceContext =
+        remember(categoryId, dirId, tid, albumMid) {
+            when {
+                albumMid.isNotBlank() -> PlaybackSourceContext.Album(albumMid = albumMid)
+                categoryId == "radar" || categoryId == "favorites" -> null
+                tid > 0L -> PlaybackSourceContext.Playlist(tid.toString())
+                dirId > 0L && dirId != 201L -> PlaybackSourceContext.Playlist(dirId.toString())
+                else -> null
+            }
         }
-    }
 
     var playlistSongs by remember(cacheKey) {
         mutableStateOf(if (hasValidCache) PlaylistScreenCache.songs else songs)
@@ -534,7 +535,8 @@ fun PlaylistTvScreen(
                     if (UserSession.isLoggedIn) {
                         launch {
                             try {
-                                org.melodist.data.RecentPlaybackManager.syncFromCloud(force = false)
+                                org.melodist.data.RecentPlaybackManager
+                                    .syncFromCloud(force = false)
                                 val updated = org.melodist.data.RecentPlaybackManager.recentSongsFlow.value
                                 if (updated.isNotEmpty()) {
                                     playlistSongs = updated

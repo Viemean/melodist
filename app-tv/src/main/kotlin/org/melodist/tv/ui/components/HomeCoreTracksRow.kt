@@ -195,7 +195,8 @@ fun HomeCoreTracksRow(
         // 6. 最近播放：后台静默同步云端记录
         launch {
             try {
-                org.melodist.data.RecentPlaybackManager.syncFromCloud(force = false)
+                org.melodist.data.RecentPlaybackManager
+                    .syncFromCloud(force = false)
             } catch (_: Exception) {
             }
         }
@@ -303,7 +304,17 @@ fun HomeCoreTracksRow(
     }
 
     val cardItems =
-        remember(currentRadarSong, currentDailySong, currentFavSong, currentMillionSong, currentRecentSong, recentSongs.size, currentPlaylist, currentAlbum, favoriteCount) {
+        remember(
+            currentRadarSong,
+            currentDailySong,
+            currentFavSong,
+            currentMillionSong,
+            currentRecentSong,
+            recentSongs.size,
+            currentPlaylist,
+            currentAlbum,
+            favoriteCount,
+        ) {
             listOf(
                 // 1. 猜你喜欢（排在第一位，唯一保留播放按钮）
                 RotatingCardItem(
@@ -354,8 +365,9 @@ fun HomeCoreTracksRow(
                     id = "recent",
                     badgeText = "最近播放",
                     title = currentRecentSong?.name?.ifBlank { "最近播放" } ?: "最近播放",
-                    subtitle = currentRecentSong?.let { "${it.singer} · 最近播放 ${recentSongs.size} 首" }
-                        ?: (if (recentSongs.isNotEmpty()) "共 ${recentSongs.size} 首单曲" else "历史播放足迹"),
+                    subtitle =
+                        currentRecentSong?.let { "${it.singer} · 最近播放 ${recentSongs.size} 首" }
+                            ?: (if (recentSongs.isNotEmpty()) "共 ${recentSongs.size} 首单曲" else "历史播放足迹"),
                     coverUrl = currentRecentSong?.coverUrl.orEmpty(),
                     albumMid = currentRecentSong?.albumMid.orEmpty(),
                     songMid = currentRecentSong?.songMid.orEmpty(),

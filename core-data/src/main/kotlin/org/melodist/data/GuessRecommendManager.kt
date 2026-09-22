@@ -123,8 +123,8 @@ object GuessRecommendManager {
     /**
      * 当前批次 10 首轮播完毕后切换到下一批
      */
-    suspend fun rotateToNextBatch(apiService: MusicApiService = MusicApiService()): List<Song> {
-        return refreshMutex.withLock {
+    suspend fun rotateToNextBatch(apiService: MusicApiService = MusicApiService()): List<Song> =
+        refreshMutex.withLock {
             val candidate = nextBatch
             nextBatch = null
             if (!candidate.isNullOrEmpty()) {
@@ -140,7 +140,6 @@ object GuessRecommendManager {
                 fresh.ifEmpty { _songsFlow.value }
             }
         }
-    }
 
     suspend fun refresh(
         apiService: MusicApiService = MusicApiService(),
