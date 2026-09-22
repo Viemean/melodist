@@ -346,7 +346,10 @@ fun parseRecentPlaylistsResponse(jsonStr: String): RecentHistoryResult<RecentPla
         val lastTime = obj["lastTime"]?.jsonPrimitive?.longOrNull ?: 0L
         val listenCnt = obj["listenCnt"]?.jsonPrimitive?.intOrNull ?: 1
 
-        if (tid == 0L && title.isBlank()) null
+        val isAlgorithmic = title.contains("30首") || title.contains("每日30") ||
+            title.contains("红心雷达") || title.contains("猜你喜欢")
+
+        if (isAlgorithmic || (tid == 0L && title.isBlank())) null
         else RecentPlaylistItem(
             tid = tid,
             title = title,

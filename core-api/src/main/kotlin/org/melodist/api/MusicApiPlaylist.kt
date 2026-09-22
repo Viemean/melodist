@@ -203,7 +203,7 @@ suspend fun MusicApiService.getPlaylistSongs(
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
 
-        if (!isFav || dirId == 201L) {
+        if ((!isFav || dirId == 201L) && dirId > 0L) {
             // 自建歌单或默认我喜欢
             val payload =
                 """
