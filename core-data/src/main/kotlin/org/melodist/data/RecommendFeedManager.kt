@@ -1,6 +1,8 @@
 package org.melodist.data
 
 import android.content.Context
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,6 +31,7 @@ data class RecommendFeedData(
 )
 
 object RecommendFeedManager {
+    private const val TAG = "RecommendFeedManager"
     private const val CACHE_FILE_NAME = "recommend_feed_cache.json"
     private const val AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000L // 10 分钟
 
@@ -67,7 +70,9 @@ object RecommendFeedManager {
                         lastFetchTimestamp = data.fetchTimestamp
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to load recommend feed cache from disk", e)
             }
         }
     }
@@ -78,7 +83,9 @@ object RecommendFeedManager {
                 val file = cacheFile ?: return@launch
                 val content = json.encodeToString(RecommendFeedData.serializer(), data)
                 file.writeText(content)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Failed to save recommend feed cache to disk", e)
             }
         }
     }
@@ -163,7 +170,9 @@ object RecommendFeedManager {
                         ),
                     )
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to refresh recommend feed", e)
             } finally {
                 _isLoadingFlow.value = false
             }

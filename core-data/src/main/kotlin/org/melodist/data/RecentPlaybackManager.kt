@@ -23,6 +23,7 @@ import org.melodist.api.getRecentAlbums
 import org.melodist.api.getRecentPlaylists
 import org.melodist.api.getRecentSongs
 import org.melodist.model.Song
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import java.io.File
 
@@ -33,6 +34,7 @@ data class RecentSongEntry(
 )
 
 object RecentPlaybackManager {
+    private const val TAG = "RecentPlaybackManager"
     const val MAX_RECENT_ITEMS = 500
     private const val FILE_NAME = "recent_playback_history.json"
     private const val SYNC_THROTTLE_MS = 30_000L
@@ -82,7 +84,9 @@ object RecentPlaybackManager {
                     _recentEntries = entries.take(MAX_RECENT_ITEMS).toMutableList()
                     _recentSongsFlow.value = _recentEntries.map { it.song }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Failed to load recent playback history from disk", e)
             }
             if (UserSession.isLoggedIn) {
                 syncFromCloud()
@@ -96,7 +100,9 @@ object RecentPlaybackManager {
             try {
                 val content = json.encodeToString(_recentEntries)
                 file.writeText(content)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Failed to save recent playback history to disk", e)
             }
         }
     }
@@ -193,7 +199,9 @@ object RecentPlaybackManager {
                 try {
                     val id = if (target.songId > 0L) target.songId.toString() else target.songMid
                     apiService.deleteRecentHistory(id, RecentHistoryType.Song)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "Failed to delete remote song recent history", e)
                 }
             }
         }
@@ -217,7 +225,9 @@ object RecentPlaybackManager {
                 scope.launch {
                     try {
                         apiService.deleteRecentHistoryBatch(deleteItems)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "Failed to batch delete remote song recent history", e)
                     }
                 }
             }
@@ -231,7 +241,9 @@ object RecentPlaybackManager {
                 try {
                     val id = if (item.albumId > 0L) item.albumId.toString() else item.albumMid
                     apiService.deleteRecentHistory(id, RecentHistoryType.Album)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "Failed to delete remote album recent history", e)
                 }
             }
         }
@@ -244,7 +256,9 @@ object RecentPlaybackManager {
                 try {
                     val id = if (item.tid > 0L) item.tid.toString() else item.tid.toString()
                     apiService.deleteRecentHistory(id, RecentHistoryType.Playlist)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "Failed to delete remote playlist recent history", e)
                 }
             }
         }
@@ -257,7 +271,9 @@ object RecentPlaybackManager {
         scope.launch {
             try {
                 historyFile?.delete()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to delete local recent history file", e)
             }
             if (UserSession.isLoggedIn) {
                 val deleteItems = current
@@ -269,7 +285,9 @@ object RecentPlaybackManager {
                 if (deleteItems.isNotEmpty()) {
                     try {
                         apiService.deleteRecentHistoryBatch(deleteItems)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "Failed to batch delete remote history on clear", e)
                     }
                 }
             }

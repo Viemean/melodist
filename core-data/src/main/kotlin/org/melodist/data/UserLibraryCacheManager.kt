@@ -1,6 +1,8 @@
 package org.melodist.data
 
 import android.content.Context
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,6 +54,7 @@ data class PlaylistSongsCache(
 )
 
 object UserLibraryCacheManager {
+    private const val TAG = "UserLibraryCache"
     private const val CACHE_FILE_NAME = "user_library_cache.json"
     private const val FAV_SONGS_CACHE_FILE_NAME = "favorite_songs_cache.json"
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -130,7 +133,9 @@ object UserLibraryCacheManager {
                     val data = json.decodeFromString<UserLibraryData>(file.readText())
                     _libraryFlow.value = data
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to load user library cache from disk", e)
             }
         }
     }
@@ -147,7 +152,9 @@ object UserLibraryCacheManager {
                         _favoriteSongsFlow.value = cache.songs
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to load favorite songs cache from disk", e)
             }
             startPeriodicRefresh()
         }
@@ -158,7 +165,9 @@ object UserLibraryCacheManager {
             try {
                 val file = cacheFile ?: return@launch
                 file.writeText(json.encodeToString(UserLibraryData.serializer(), data))
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Failed to save user library cache to disk", e)
             }
         }
     }
@@ -168,7 +177,9 @@ object UserLibraryCacheManager {
             try {
                 val file = favSongsCacheFile ?: return@launch
                 file.writeText(json.encodeToString(FavoriteSongsCache.serializer(), cache))
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Failed to save favorite songs cache to disk", e)
             }
         }
     }
@@ -215,7 +226,9 @@ object UserLibraryCacheManager {
                 _favoriteSongsFlow.value = allSongs
                 saveFavSongsToDisk(cache)
                 allSongs
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to load favorite songs from network", e)
                 favSongsCache.songs
             } finally {
                 _isFavSongsLoading.value = false
@@ -561,7 +574,9 @@ object UserLibraryCacheManager {
                 val favAlbums =
                     try {
                         apiService.getFavoriteAlbums()
-                    } catch (_: Throwable) {
+                    } catch (e: Throwable) {
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "Failed to load favorite albums", e)
                         emptyList()
                     }
 
@@ -577,6 +592,8 @@ object UserLibraryCacheManager {
                 saveToDisk(newData)
                 newData
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to load user library from network", e)
                 _libraryFlow.value
             } finally {
                 _isLoadingFlow.value = false
@@ -651,7 +668,9 @@ object UserLibraryCacheManager {
             try {
                 val file = getPlaylistCacheFile(dirId, tid) ?: return@launch
                 file.writeText(json.encodeToString(PlaylistSongsCache.serializer(), cache))
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Failed to save playlist songs cache to disk: dirId=$dirId, tid=$tid", e)
             }
         }
     }
@@ -676,7 +695,9 @@ object UserLibraryCacheManager {
                     val all = fetchAllPlaylistSongs(apiService, dirId, tid, isFav)
                     savePlaylistSongsCache(dirId, tid, all, all.size)
                     all
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "Failed to force refresh playlist songs: dirId=$dirId, tid=$tid", e)
                     getCachedPlaylistSongs(dirId, tid) ?: emptyList()
                 }
             } else {
@@ -758,7 +779,9 @@ object UserLibraryCacheManager {
                 val all = fetchAllPlaylistSongs(apiService, dirId, tid, isFav)
                 savePlaylistSongsCache(dirId, tid, all, all.size)
                 all
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to probe and sync playlist first page: dirId=$dirId, tid=$tid", e)
                 getCachedPlaylistSongs(dirId, tid) ?: emptyList()
             }
         }

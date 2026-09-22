@@ -2,10 +2,12 @@ package org.melodist.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 object SearchKeywordHistoryManager {
+    private const val TAG = "SearchKeywordHistoryManager"
     private const val PREF_NAME = "melodist_search_keyword_history"
     private const val KEY_KEYWORDS = "search_keywords"
     private const val MAX_HISTORY_ITEMS = 30
@@ -23,7 +25,8 @@ object SearchKeywordHistoryManager {
         val raw = prefs?.getString(KEY_KEYWORDS, null) ?: return emptyList()
         return try {
             json.decodeFromString<List<String>>(raw)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to decode search keyword history", e)
             emptyList()
         }
     }
@@ -42,7 +45,8 @@ object SearchKeywordHistoryManager {
         try {
             val encoded = json.encodeToString(current)
             prefs?.edit()?.putString(KEY_KEYWORDS, encoded)?.apply()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save search keyword history", e)
         }
     }
 

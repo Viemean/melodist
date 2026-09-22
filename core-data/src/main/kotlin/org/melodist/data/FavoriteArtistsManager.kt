@@ -1,6 +1,8 @@
 package org.melodist.data
 
 import android.content.Context
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +16,7 @@ import org.melodist.api.getFollowedSingerList
 import org.melodist.api.toggleSingerFollow
 
 object FavoriteArtistsManager {
+    private const val TAG = "FavoriteArtistsManager"
     private const val PREFS_NAME = "melodist_favorite_artists"
     private const val KEY_ARTISTS_SET = "favorite_artist_mids"
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -30,7 +33,8 @@ object FavoriteArtistsManager {
             val prefs = appCtx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val savedSet = prefs.getStringSet(KEY_ARTISTS_SET, null).orEmpty()
             _followedArtistMids.value = savedSet.toSet()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load favorite artists from prefs", e)
             _followedArtistMids.value = emptySet()
         }
 
@@ -121,7 +125,9 @@ object FavoriteArtistsManager {
                     _followedArtistMids.value = rollbackSet
                     persist(rollbackSet)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to sync singer follow status to cloud", e)
             }
         }
 
@@ -133,7 +139,8 @@ object FavoriteArtistsManager {
             try {
                 val prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 prefs.edit().putStringSet(KEY_ARTISTS_SET, set).apply()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to persist favorite artists to prefs", e)
             }
         }
     }

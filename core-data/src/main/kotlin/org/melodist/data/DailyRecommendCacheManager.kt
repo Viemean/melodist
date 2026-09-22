@@ -1,6 +1,8 @@
 package org.melodist.data
 
 import android.content.Context
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -219,6 +221,8 @@ object DailyRecommendCacheManager {
                 triggerPreload(newData.songs)
                 newData
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("DailyRecommendCache", "Failed to refresh daily recommend songs", e)
                 _recommendFlow.value
             } finally {
                 _isLoadingFlow.value = false
