@@ -86,7 +86,7 @@ fun RecentPlaybackScreen(
                 item(key = "recent_hero_album_card") {
                     val activeAlbum = recentAlbums.firstOrNull()
                     HeroRecommendCard(
-                        badgeText = "最近收听",
+                        badgeText = "最近专辑",
                         subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张专辑" else "暂无专辑",
                         title = activeAlbum?.albumName ?: "最近播放的专辑",
                         caption = if (activeAlbum != null) {
@@ -106,9 +106,7 @@ fun RecentPlaybackScreen(
                         onAccentContainerColor = MaterialTheme.colorScheme.onTertiaryContainer,
                         onPlayClick = null,
                         onCardClick = {
-                            if (activeAlbum != null) {
-                                navigation.navigateToAlbum(activeAlbum.albumMid, activeAlbum.albumName)
-                            }
+                            navigation.navigateToRecentAlbums()
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -143,17 +141,7 @@ fun RecentPlaybackScreen(
                         onAccentContainerColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         onPlayClick = null,
                         onCardClick = {
-                            if (activePlaylist != null) {
-                                navigation.navigateToPlaylist(
-                                    Playlist(
-                                        dirId = 0L,
-                                        tid = activePlaylist.tid,
-                                        name = activePlaylist.title,
-                                        songCount = activePlaylist.songCount,
-                                        picUrl = activePlaylist.coverUrl,
-                                    )
-                                )
-                            }
+                            navigation.navigateToRecentPlaylists()
                         },
                         modifier = Modifier
                             .fillMaxWidth()

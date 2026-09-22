@@ -19,6 +19,10 @@ sealed interface ScreenDestination {
     ) : ScreenDestination
 
     data object FavoriteAlbums : ScreenDestination
+
+    data object RecentAlbums : ScreenDestination
+
+    data object RecentPlaylists : ScreenDestination
 }
 
 interface AppNavigationController {
@@ -40,6 +44,10 @@ interface AppNavigationController {
     )
 
     fun navigateToFavoriteAlbums(clearStack: Boolean = false)
+
+    fun navigateToRecentAlbums(clearStack: Boolean = false)
+
+    fun navigateToRecentPlaylists(clearStack: Boolean = false)
 
     fun navigateBack(): Boolean
 
@@ -67,6 +75,10 @@ val LocalAppNavigation =
             ) {}
 
             override fun navigateToFavoriteAlbums(clearStack: Boolean) {}
+
+            override fun navigateToRecentAlbums(clearStack: Boolean) {}
+
+            override fun navigateToRecentPlaylists(clearStack: Boolean) {}
 
             override fun navigateBack(): Boolean = false
 

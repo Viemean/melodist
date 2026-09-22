@@ -94,6 +94,8 @@ import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.mobile.ui.navigation.ScreenDestination
 import org.melodist.mobile.ui.player.PlayerContainer
 import org.melodist.mobile.ui.playlist.PlaylistDetailScreen
+import org.melodist.mobile.ui.recent.RecentAlbumsScreen
+import org.melodist.mobile.ui.recent.RecentPlaylistsScreen
 import org.melodist.mobile.ui.recent.RecentPlaybackScreen
 import org.melodist.mobile.ui.search.SearchScreen
 import org.melodist.mobile.ui.settings.MobileSettingsScreen
@@ -191,6 +193,14 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
 
                 override fun navigateToFavoriteAlbums(clearStack: Boolean) {
                     pushDestination(ScreenDestination.FavoriteAlbums, clearStack)
+                }
+
+                override fun navigateToRecentAlbums(clearStack: Boolean) {
+                    pushDestination(ScreenDestination.RecentAlbums, clearStack)
+                }
+
+                override fun navigateToRecentPlaylists(clearStack: Boolean) {
+                    pushDestination(ScreenDestination.RecentPlaylists, clearStack)
                 }
 
                 override fun navigateBack(): Boolean =
@@ -959,6 +969,24 @@ private fun RenderAppScreen(
                             onBack = { navController.navigateBack() },
                             onAlbumClick = { album ->
                                 navController.navigateToAlbum(album.mid, album.name)
+                            },
+                        )
+                    }
+                    is ScreenDestination.RecentAlbums -> {
+                        RecentAlbumsScreen(
+                            contentPadding = innerPadding,
+                            onBack = { navController.navigateBack() },
+                            onAlbumClick = { albumMid, albumName ->
+                                navController.navigateToAlbum(albumMid, albumName)
+                            },
+                        )
+                    }
+                    is ScreenDestination.RecentPlaylists -> {
+                        RecentPlaylistsScreen(
+                            contentPadding = innerPadding,
+                            onBack = { navController.navigateBack() },
+                            onPlaylistClick = { playlist ->
+                                navController.navigateToPlaylist(playlist)
                             },
                         )
                     }
