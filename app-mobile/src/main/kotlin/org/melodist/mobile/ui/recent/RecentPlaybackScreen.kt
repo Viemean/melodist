@@ -13,18 +13,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,51 +35,160 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.melodist.api.RecentAlbumItem
+import org.melodist.api.RecentPlaylistItem
+import org.melodist.api.UserSession
 import org.melodist.data.RecentPlaybackManager
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
-import org.melodist.playback.PlaybackManager
+import org.melodist.mobile.ui.discover.HeroRecommendCard
+import org.melodist.mobile.ui.navigation.LocalAppNavigation
+import org.melodist.model.Playlist
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RecentPlaybackScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    val navigation = LocalAppNavigation.current
     val recentSongs by RecentPlaybackManager.recentSongsFlow.collectAsState()
+    val recentAlbums by RecentPlaybackManager.recentAlbumsFlow.collectAsState()
+    val recentPlaylists by RecentPlaybackManager.recentPlaylistsFlow.collectAsState()
+    val isSyncing by RecentPlaybackManager.isSyncingFlow.collectAsState()
+
     var showClearDialog by remember { mutableStateOf(false) }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    LaunchedEffect(Unit) {
+        if (UserSession.isLoggedIn) {
+            RecentPlaybackManager.syncFromCloud()
+        }
+    }
+
+    PullToRefreshBox(
+        isRefreshing = isSyncing,
+        onRefresh = { RecentPlaybackManager.syncFromCloud(force = true) },
+        modifier = modifier.fillMaxSize(),
+    ) {
         CommonSongList(
             songs = recentSongs,
             deleteType = SongListDeleteType.RecentHistory,
-            contentPadding =
-                PaddingValues(
-                    top = 4.dp,
-                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                ),
+            showLocalBadge = true,
+            showWebDavBadge = true,
+            onDeleteSelected = { songs -> RecentPlaybackManager.removeSongs(songs) },
+            onDeleteLocalFile = { song -> RecentPlaybackManager.removeSong(song.songMid) },
+            contentPadding = PaddingValues(
+                top = 4.dp,
+                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+            ),
             headerItems = {
-                if (recentSongs.isNotEmpty()) {
-                    item(key = "recent_header_controls") {
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = "共 ${recentSongs.size} 首歌曲",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                // 卡片 1: 最近播放的专辑特色卡片
+                item(key = "recent_hero_album_card") {
+                    val activeAlbum = recentAlbums.firstOrNull()
+                    HeroRecommendCard(
+                        badgeText = "最近收听",
+                        subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张专辑" else "暂无专辑",
+                        title = activeAlbum?.albumName ?: "最近播放的专辑",
+                        caption = if (activeAlbum != null) {
+                            buildString {
+                                append(activeAlbum.singerName.ifBlank { "专辑" })
+                                if (activeAlbum.listenCnt > 1) {
+                                    append(" · 听过 ${activeAlbum.listenCnt} 次")
+                                }
+                            }
+                        } else {
+                            "收听专辑曲目后将自动展示在此处"
+                        },
+                        coverUrl = activeAlbum?.coverUrl.orEmpty(),
+                        badgeIcon = Icons.Rounded.Album,
+                        accentColor = MaterialTheme.colorScheme.tertiary,
+                        accentContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        onAccentContainerColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        onPlayClick = null,
+                        onCardClick = {
+                            if (activeAlbum != null) {
+                                navigation.navigateToAlbum(activeAlbum.albumMid, activeAlbum.albumName)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 5.dp),
+                    )
+                }
 
+                // 卡片 2: 最近播放的歌单特色卡片
+                item(key = "recent_hero_playlist_card") {
+                    val activePlaylist = recentPlaylists.firstOrNull()
+                    HeroRecommendCard(
+                        badgeText = "最近歌单",
+                        subtitleText = if (recentPlaylists.isNotEmpty()) "共 ${recentPlaylists.size} 个歌单" else "暂无歌单",
+                        title = activePlaylist?.title ?: "最近播放的歌单",
+                        caption = if (activePlaylist != null) {
+                            buildString {
+                                if (activePlaylist.creatorNick.isNotBlank()) {
+                                    append("by ${activePlaylist.creatorNick} · ")
+                                }
+                                append("${activePlaylist.songCount} 首")
+                                if (activePlaylist.listenCnt > 1) {
+                                    append(" · 听过 ${activePlaylist.listenCnt} 次")
+                                }
+                            }
+                        } else {
+                            "收听歌单曲目后将自动展示在此处"
+                        },
+                        coverUrl = activePlaylist?.coverUrl.orEmpty(),
+                        badgeIcon = Icons.AutoMirrored.Rounded.QueueMusic,
+                        accentColor = MaterialTheme.colorScheme.secondary,
+                        accentContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        onAccentContainerColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        onPlayClick = null,
+                        onCardClick = {
+                            if (activePlaylist != null) {
+                                navigation.navigateToPlaylist(
+                                    Playlist(
+                                        dirId = 0L,
+                                        tid = activePlaylist.tid,
+                                        name = activePlaylist.title,
+                                        songCount = activePlaylist.songCount,
+                                        picUrl = activePlaylist.coverUrl,
+                                    )
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 5.dp),
+                    )
+                }
+
+                // 标题与控制栏
+                item(key = "recent_section_header") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "最近播放的单曲",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "共 ${recentSongs.size} 首",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+
+                            if (recentSongs.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(6.dp))
                                 TextButton(
                                     onClick = { showClearDialog = true },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.DeleteOutline,
@@ -86,54 +196,12 @@ fun RecentPlaybackScreen(
                                         modifier = Modifier.size(16.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(2.dp))
                                     Text(
                                         text = "清空",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                FilledTonalButton(
-                                    onClick = {
-                                        if (recentSongs.isNotEmpty()) {
-                                            PlaybackManager.setPlaylist(recentSongs, startIndex = 0)
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.PlayArrow,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("播放全部")
-                                }
-
-                                OutlinedButton(
-                                    onClick = {
-                                        if (recentSongs.isNotEmpty()) {
-                                            PlaybackManager.setPlaylist(recentSongs.shuffled(), startIndex = 0)
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Shuffle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("随机播放")
                                 }
                             }
                         }
@@ -142,10 +210,9 @@ fun RecentPlaybackScreen(
             },
             emptyContent = {
                 Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 32.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -157,14 +224,14 @@ fun RecentPlaybackScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "暂无最近播放记录",
+                            text = "暂无最近播放单曲",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "播放曲目后将自动沉淀在此处（上限 500 首）",
+                            text = "播放曲目累计满 5 秒后将自动同步沉淀在此处",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
@@ -172,29 +239,28 @@ fun RecentPlaybackScreen(
                 }
             },
         )
+    }
 
-        // 清空确认弹窗
-        if (showClearDialog) {
-            AlertDialog(
-                onDismissRequest = { showClearDialog = false },
-                title = { Text("清空最近播放") },
-                text = { Text("确认要清空最近播放记录吗？此操作无法撤销。") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            RecentPlaybackManager.clear()
-                            showClearDialog = false
-                        },
-                    ) {
-                        Text("清空", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showClearDialog = false }) {
-                        Text("取消")
-                    }
-                },
-            )
-        }
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text("清空最近播放") },
+            text = { Text("确认要清空最近播放单曲记录吗？此操作无法撤销。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        RecentPlaybackManager.clear()
+                        showClearDialog = false
+                    },
+                ) {
+                    Text("清空", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
