@@ -46,8 +46,14 @@ fun DeleteLocalFileDialog(
             )
         },
         text = {
+            val promptText =
+                if (!song.isLocal && !song.isWebDav) {
+                    "确定要从设备中删除《${song.name}》的已下载音频文件吗？此操作仅移除本地副本，歌单与在线播放记录仍将保留。"
+                } else {
+                    "确定要从设备中删除《${song.name}》的本地文件吗？此操作将永久移除该文件，无法撤销。"
+                }
             Text(
-                text = "确定要从设备中删除《${song.name}》的本地文件吗？此操作将永久移除该文件，无法撤销。",
+                text = promptText,
                 style = MaterialTheme.typography.bodyMedium,
             )
         },

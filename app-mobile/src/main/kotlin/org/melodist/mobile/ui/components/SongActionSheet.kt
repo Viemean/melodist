@@ -25,10 +25,10 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.FileDownloadDone
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -86,8 +86,6 @@ fun SongActionSheet(
     val navController = LocalAppNavigation.current
     val favoriteMids by PlaybackManager.favoriteSongMids.collectAsState()
     val isFavorite = favoriteMids.contains(song.songMid)
-    val connectState by MobileConnectManager.connectionState.collectAsState()
-    val isTvOnline = connectState is MobileConnectionState.Paired
 
     var showArtistSelectDialog by remember { mutableStateOf(false) }
     var showDownloadQualityDialog by remember { mutableStateOf(false) }
@@ -261,29 +259,6 @@ fun SongActionSheet(
                 )
             }
 
-            if (isTvOnline) {
-                ActionSheetItem(
-                    icon = Icons.Rounded.Tv,
-                    title = "在 TV 上立即播放",
-                    tint = MaterialTheme.colorScheme.primary,
-                    onClick = {
-                        MobileConnectManager.playOnTv(song)
-                        Toast.makeText(context, "已发送至 TV 播放", Toast.LENGTH_SHORT).show()
-                        onDismissRequest()
-                    },
-                )
-                ActionSheetItem(
-                    icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
-                    title = "在 TV 上稍后播放",
-                    tint = MaterialTheme.colorScheme.primary,
-                    onClick = {
-                        MobileConnectManager.enqueueNextOnTv(song)
-                        Toast.makeText(context, "已插播至 TV 队列", Toast.LENGTH_SHORT).show()
-                        onDismissRequest()
-                    },
-                )
-            }
-
             if (onViewCover != null) {
                 ActionSheetItem(
                     icon = Icons.Rounded.Image,
@@ -342,10 +317,11 @@ fun SongActionSheet(
             )
 
             if (!song.isLocal && !song.isWebDav) {
+                val isDownloaded = localFilePath != null
                 ActionSheetItem(
-                    icon = Icons.Rounded.Download,
-                    title = "下载歌曲",
-                    subtitle = "选择音质并内嵌原图与双语歌词",
+                    icon = if (isDownloaded) Icons.Rounded.FileDownloadDone else Icons.Rounded.Download,
+                    title = if (isDownloaded) "重新下载" else "下载歌曲",
+                    subtitle = if (isDownloaded) "已下载到设备，点击可切换音质重新下载" else "选择音质并内嵌原图与双语歌词",
                     onClick = {
                         showDownloadQualityDialog = true
                     },
@@ -406,7 +382,7 @@ fun SongActionSheet(
                 ActionSheetItem(
                     icon = Icons.Rounded.DeleteForever,
                     title = "删除本地文件",
-                    subtitle = "永久删除设备中的音频文件",
+                    subtitle = "仅删除设备中的音频文件，保留歌单记录",
                     tint = MaterialTheme.colorScheme.error,
                     onClick = {
                         showDeleteConfirmDialog = true
