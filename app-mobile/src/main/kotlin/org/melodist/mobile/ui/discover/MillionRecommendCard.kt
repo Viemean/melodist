@@ -5,14 +5,27 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import org.melodist.api.UserSession
+import org.melodist.data.AppLifecycleManager
 import org.melodist.data.MillionRecommendManager
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Playlist
+import org.melodist.model.RotatingCandidatePool
+import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
+
+private const val ROTATION_INTERVAL_MS = 15_000L
+private const val PHASE_OFFSET_MS = 4_000L // 与猜你喜欢错峰 4 秒
 
 @Composable
 fun MillionRecommendCard(
@@ -24,9 +37,44 @@ fun MillionRecommendCard(
     val millionResult by MillionRecommendManager.resultFlow.collectAsState()
     val songs = millionResult.songs
     val coverUrl = millionResult.coverUrl.ifBlank { songs.firstOrNull()?.coverUrl.orEmpty() }
+    val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
     val tertiaryColor = MaterialTheme.colorScheme.tertiary
     val tertiaryContainer = MaterialTheme.colorScheme.tertiaryContainer
+
+    // 提取前 50 首本地缓存作为候选池并进行洗牌
+    val pool50 = remember(songs) { songs.take(50) }
+    var shuffledList by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var currentIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(pool50) {
+        if (pool50.isNotEmpty()) {
+            shuffledList = RotatingCandidatePool.createShuffledQueue(pool50, lastItem = shuffledList.lastOrNull())
+            currentIndex = 0
+        } else {
+            shuffledList = emptyList()
+            currentIndex = 0
+        }
+    }
+
+    // 15 秒无序轮播，带有 4 秒初始错峰相位，避免与同屏的猜你喜欢同时跳变
+    LaunchedEffect(shuffledList, isForeground) {
+        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+        delay(PHASE_OFFSET_MS)
+        while (isActive) {
+            delay(ROTATION_INTERVAL_MS)
+            val nextIndex = currentIndex + 1
+            if (nextIndex < shuffledList.size) {
+                currentIndex = nextIndex
+            } else {
+                shuffledList = RotatingCandidatePool.createShuffledQueue(pool50, lastItem = shuffledList.lastOrNull())
+                currentIndex = 0
+            }
+        }
+    }
+
+    val activeSong = shuffledList.getOrNull(currentIndex) ?: songs.firstOrNull()
+    val activeCoverUrl = activeSong?.coverUrl?.takeIf { it.isNotBlank() } ?: coverUrl
 
     val openPlaylistDetail: () -> Unit = {
         if (!UserSession.isLoggedIn) {
@@ -46,10 +94,6 @@ fun MillionRecommendCard(
             navController.navigateToPlaylist(playlist)
         }
     }
-
-    val displaySong by MillionRecommendManager.displaySongFlow.collectAsState()
-    val activeSong = displaySong ?: songs.firstOrNull()
-    val activeCoverUrl = activeSong?.coverUrl?.takeIf { it.isNotBlank() } ?: coverUrl
 
     val triggerPlay: () -> Unit = {
         if (!UserSession.isLoggedIn) {
@@ -73,7 +117,7 @@ fun MillionRecommendCard(
 
     HeroRecommendCard(
         badgeText = "百万收藏",
-        subtitleText = "每日更新",
+        subtitleText = "高赞专栏 · 15 秒无序轮播",
         title = activeSong?.name ?: millionResult.title.ifBlank { "官方高赞好歌专栏" },
         caption =
             if (activeSong != null) {

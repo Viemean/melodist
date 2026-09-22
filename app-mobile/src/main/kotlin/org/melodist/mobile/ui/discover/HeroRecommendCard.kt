@@ -1,6 +1,12 @@
 package org.melodist.mobile.ui.discover
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,9 +96,13 @@ fun HeroRecommendCard(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Crossfade(
+                    AnimatedContent(
                         targetState = coverUrl,
-                        label = "HeroCardCoverCrossfade",
+                        transitionSpec = {
+                            (slideInHorizontally { fullWidth -> (fullWidth * 0.45f).toInt() } + fadeIn(animationSpec = tween(400)))
+                                .togetherWith(slideOutHorizontally { fullWidth -> -(fullWidth * 0.45f).toInt() } + fadeOut(animationSpec = tween(400)))
+                        },
+                        label = "HeroCardCoverAnimation",
                     ) { targetCover ->
                         if (targetCover.isNotBlank()) {
                             AsyncImage(
@@ -171,24 +181,35 @@ fun HeroRecommendCard(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    AnimatedContent(
+                        targetState = title to caption,
+                        transitionSpec = {
+                            (slideInHorizontally { fullWidth -> (fullWidth * 0.35f).toInt() } + fadeIn(animationSpec = tween(450)))
+                                .togetherWith(slideOutHorizontally { fullWidth -> -(fullWidth * 0.35f).toInt() } + fadeOut(animationSpec = tween(450)))
+                        },
+                        label = "HeroCardTextAnimation",
+                    ) { (targetTitle, targetCaption) ->
+                        Column {
+                            Text(
+                                text = targetTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
 
-                    Text(
-                        text = caption,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                            Text(
+                                text = targetCaption,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
 
                 // 右侧操作区：若提供播放回调则显示播放按钮，否则可点击卡片时显示轻量右箭头

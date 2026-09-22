@@ -7,17 +7,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.melodist.data.AppLifecycleManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.discover.HeroRecommendCard
 import org.melodist.model.Album
+import org.melodist.model.RotatingCandidatePool
 
-private const val ALBUM_ROTATION_INTERVAL_MS = 30_000L
+private const val ALBUM_ROTATION_INTERVAL_MS = 15_000L
+private const val ALBUM_PHASE_OFFSET_MS = 4_000L
 
 @Composable
 fun FavoriteAlbumsCard(
@@ -26,32 +30,47 @@ fun FavoriteAlbumsCard(
 ) {
     val libraryData by UserLibraryCacheManager.libraryFlow.collectAsState()
     val favoriteAlbums = libraryData.favoriteAlbums
+    val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
-    var activeAlbum by remember { mutableStateOf<Album?>(null) }
+    // 5 最新 + 25 随机构建候选池
+    val candidatePool = remember(favoriteAlbums) {
+        RotatingCandidatePool.buildCandidatePool(favoriteAlbums, fixedCount = 5, randomCount = 25)
+    }
 
-    // 随机显示已收藏的专辑信息，若有多张则定时平滑轮转
-    LaunchedEffect(favoriteAlbums) {
-        if (favoriteAlbums.isNotEmpty()) {
-            if (activeAlbum == null || favoriteAlbums.none { it.mid == activeAlbum?.mid }) {
-                activeAlbum = favoriteAlbums.randomOrNull()
-            }
-            if (favoriteAlbums.size > 1) {
-                while (isActive) {
-                    delay(ALBUM_ROTATION_INTERVAL_MS)
-                    val candidates = favoriteAlbums.filter { it.mid != activeAlbum?.mid }.ifEmpty { favoriteAlbums }
-                    activeAlbum = candidates.randomOrNull() ?: favoriteAlbums.first()
-                }
-            }
+    var shuffledList by remember { mutableStateOf<List<Album>>(emptyList()) }
+    var currentDisplayIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(candidatePool) {
+        if (candidatePool.isNotEmpty()) {
+            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+            currentDisplayIndex = 0
         } else {
-            activeAlbum = null
+            shuffledList = emptyList()
+            currentDisplayIndex = 0
         }
     }
 
-    val displayAlbum = activeAlbum ?: favoriteAlbums.firstOrNull()
+    // 15 秒无序轮播定时器（错峰 4 秒，前台时执行）
+    LaunchedEffect(shuffledList, isForeground) {
+        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+        delay(ALBUM_PHASE_OFFSET_MS)
+        while (isActive) {
+            delay(ALBUM_ROTATION_INTERVAL_MS)
+            val nextIndex = currentDisplayIndex + 1
+            if (nextIndex < shuffledList.size) {
+                currentDisplayIndex = nextIndex
+            } else {
+                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+                currentDisplayIndex = 0
+            }
+        }
+    }
+
+    val displayAlbum = shuffledList.getOrNull(currentDisplayIndex) ?: favoriteAlbums.firstOrNull()
 
     HeroRecommendCard(
         badgeText = "收藏专辑",
-        subtitleText = if (favoriteAlbums.isNotEmpty()) "共 ${favoriteAlbums.size} 张" else "暂无收藏",
+        subtitleText = if (favoriteAlbums.isNotEmpty()) "共 ${favoriteAlbums.size} 张 · 15 秒无序轮播" else "暂无收藏",
         title = displayAlbum?.name ?: "收藏的专辑",
         caption =
             if (displayAlbum != null) {

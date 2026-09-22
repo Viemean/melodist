@@ -30,17 +30,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import org.melodist.api.RecentAlbumItem
 import org.melodist.api.RecentPlaylistItem
 import org.melodist.api.UserSession
+import org.melodist.data.AppLifecycleManager
 import org.melodist.data.RecentPlaybackManager
+import org.melodist.model.RotatingCandidatePool
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.discover.HeroRecommendCard
@@ -101,66 +107,21 @@ fun RecentPlaybackScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        // 卡片 1: 最近播放的专辑特色卡片
+                        // 卡片 1: 最近播放的专辑特色卡片（5 最新 + 25 随机，15 秒无序轮播）
                         item(key = "recent_hero_album_card") {
-                            val activeAlbum = recentAlbums.firstOrNull()
-                            HeroRecommendCard(
-                                badgeText = "最近专辑",
-                                subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张专辑" else "暂无专辑",
-                                title = activeAlbum?.albumName ?: "最近播放的专辑",
-                                caption = if (activeAlbum != null) {
-                                    buildString {
-                                        append(activeAlbum.singerName.ifBlank { "专辑" })
-                                        if (activeAlbum.listenCnt > 1) {
-                                            append(" · 听过 ${activeAlbum.listenCnt} 次")
-                                        }
-                                    }
-                                } else {
-                                    "收听专辑曲目后将自动展示在此处"
-                                },
-                                coverUrl = activeAlbum?.coverUrl.orEmpty(),
-                                badgeIcon = Icons.Rounded.Album,
-                                accentColor = MaterialTheme.colorScheme.primary,
-                                accentContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                onAccentContainerColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                onPlayClick = null,
-                                onCardClick = {
-                                    navigation.navigateToRecentAlbums()
-                                },
-                                modifier = Modifier.width(cardWidth),
+                            RecentAlbumsHeroCard(
+                                recentAlbums = recentAlbums,
+                                cardWidth = cardWidth,
+                                onCardClick = { navigation.navigateToRecentAlbums() },
                             )
                         }
 
-                        // 卡片 2: 最近播放的歌单特色卡片
+                        // 卡片 2: 最近播放的歌单特色卡片（5 最新 + 25 随机，15 秒无序轮播，错峰 4 秒）
                         item(key = "recent_hero_playlist_card") {
-                            val activePlaylist = filteredPlaylists.firstOrNull()
-                            HeroRecommendCard(
-                                badgeText = "最近歌单",
-                                subtitleText = if (filteredPlaylists.isNotEmpty()) "共 ${filteredPlaylists.size} 个歌单" else "暂无歌单",
-                                title = activePlaylist?.title ?: "最近播放的歌单",
-                                caption = if (activePlaylist != null) {
-                                    buildString {
-                                        if (activePlaylist.creatorNick.isNotBlank()) {
-                                            append("by ${activePlaylist.creatorNick} · ")
-                                        }
-                                        append("${activePlaylist.songCount} 首")
-                                        if (activePlaylist.listenCnt > 1) {
-                                            append(" · 听过 ${activePlaylist.listenCnt} 次")
-                                        }
-                                    }
-                                } else {
-                                    "收听歌单曲目后将自动展示在此处"
-                                },
-                                coverUrl = activePlaylist?.coverUrl.orEmpty(),
-                                badgeIcon = Icons.AutoMirrored.Rounded.QueueMusic,
-                                accentColor = MaterialTheme.colorScheme.secondary,
-                                accentContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                onAccentContainerColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                onPlayClick = null,
-                                onCardClick = {
-                                    navigation.navigateToRecentPlaylists()
-                                },
-                                modifier = Modifier.width(cardWidth),
+                            RecentPlaylistsHeroCard(
+                                playlists = filteredPlaylists,
+                                cardWidth = cardWidth,
+                                onCardClick = { navigation.navigateToRecentPlaylists() },
                             )
                         }
                     }
@@ -268,4 +229,149 @@ fun RecentPlaybackScreen(
             },
         )
     }
+}
+
+private const val ROTATION_INTERVAL_MS = 15_000L
+private const val PLAYLIST_PHASE_OFFSET_MS = 4_000L
+
+@Composable
+private fun RecentAlbumsHeroCard(
+    recentAlbums: List<RecentAlbumItem>,
+    cardWidth: Dp,
+    onCardClick: () -> Unit,
+) {
+    val isForeground by AppLifecycleManager.isForeground.collectAsState()
+
+    // 5 最新 + 25 随机构建候选池
+    val candidatePool = remember(recentAlbums) {
+        RotatingCandidatePool.buildCandidatePool(recentAlbums, fixedCount = 5, randomCount = 25)
+    }
+
+    var shuffledList by remember { mutableStateOf<List<RecentAlbumItem>>(emptyList()) }
+    var currentDisplayIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(candidatePool) {
+        if (candidatePool.isNotEmpty()) {
+            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+            currentDisplayIndex = 0
+        } else {
+            shuffledList = emptyList()
+            currentDisplayIndex = 0
+        }
+    }
+
+    // 15 秒无序轮播定时器（前台时执行，相位 0s）
+    LaunchedEffect(shuffledList, isForeground) {
+        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+        while (isActive) {
+            delay(ROTATION_INTERVAL_MS)
+            val nextIndex = currentDisplayIndex + 1
+            if (nextIndex < shuffledList.size) {
+                currentDisplayIndex = nextIndex
+            } else {
+                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+                currentDisplayIndex = 0
+            }
+        }
+    }
+
+    val activeAlbum = shuffledList.getOrNull(currentDisplayIndex) ?: recentAlbums.firstOrNull()
+
+    HeroRecommendCard(
+        badgeText = "最近专辑",
+        subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张 · 15 秒无序轮播" else "暂无专辑",
+        title = activeAlbum?.albumName ?: "最近播放的专辑",
+        caption =
+            if (activeAlbum != null) {
+                buildString {
+                    append(activeAlbum.singerName.ifBlank { "专辑" })
+                    if (activeAlbum.listenCnt > 1) {
+                        append(" · 听过 ${activeAlbum.listenCnt} 次")
+                    }
+                }
+            } else {
+                "收听专辑曲目后将自动展示在此处"
+            },
+        coverUrl = activeAlbum?.coverUrl.orEmpty(),
+        badgeIcon = Icons.Rounded.Album,
+        accentColor = MaterialTheme.colorScheme.primary,
+        accentContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        onAccentContainerColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        onPlayClick = null,
+        onCardClick = onCardClick,
+        modifier = Modifier.width(cardWidth),
+    )
+}
+
+@Composable
+private fun RecentPlaylistsHeroCard(
+    playlists: List<RecentPlaylistItem>,
+    cardWidth: Dp,
+    onCardClick: () -> Unit,
+) {
+    val isForeground by AppLifecycleManager.isForeground.collectAsState()
+
+    // 5 最新 + 25 随机构建候选池
+    val candidatePool = remember(playlists) {
+        RotatingCandidatePool.buildCandidatePool(playlists, fixedCount = 5, randomCount = 25)
+    }
+
+    var shuffledList by remember { mutableStateOf<List<RecentPlaylistItem>>(emptyList()) }
+    var currentDisplayIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(candidatePool) {
+        if (candidatePool.isNotEmpty()) {
+            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+            currentDisplayIndex = 0
+        } else {
+            shuffledList = emptyList()
+            currentDisplayIndex = 0
+        }
+    }
+
+    // 15 秒无序轮播定时器（前台时执行，错峰 4s）
+    LaunchedEffect(shuffledList, isForeground) {
+        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+        delay(PLAYLIST_PHASE_OFFSET_MS)
+        while (isActive) {
+            delay(ROTATION_INTERVAL_MS)
+            val nextIndex = currentDisplayIndex + 1
+            if (nextIndex < shuffledList.size) {
+                currentDisplayIndex = nextIndex
+            } else {
+                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+                currentDisplayIndex = 0
+            }
+        }
+    }
+
+    val activePlaylist = shuffledList.getOrNull(currentDisplayIndex) ?: playlists.firstOrNull()
+
+    HeroRecommendCard(
+        badgeText = "最近歌单",
+        subtitleText = if (playlists.isNotEmpty()) "共 ${playlists.size} 个 · 15 秒无序轮播" else "暂无歌单",
+        title = activePlaylist?.title ?: "最近播放的歌单",
+        caption =
+            if (activePlaylist != null) {
+                buildString {
+                    if (activePlaylist.creatorNick.isNotBlank()) {
+                        append("by ${activePlaylist.creatorNick} · ")
+                    }
+                    append("${activePlaylist.songCount} 首")
+                    if (activePlaylist.listenCnt > 1) {
+                        append(" · 听过 ${activePlaylist.listenCnt} 次")
+                    }
+                }
+            } else {
+                "收听歌单曲目后将自动展示在此处"
+            },
+        coverUrl = activePlaylist?.coverUrl.orEmpty(),
+        badgeIcon = Icons.AutoMirrored.Rounded.QueueMusic,
+        accentColor = MaterialTheme.colorScheme.secondary,
+        accentContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+        onAccentContainerColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        onPlayClick = null,
+        onCardClick = onCardClick,
+        modifier = Modifier.width(cardWidth),
+    )
 }

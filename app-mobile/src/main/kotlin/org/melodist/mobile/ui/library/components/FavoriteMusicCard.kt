@@ -9,17 +9,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.melodist.data.AppLifecycleManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.discover.HeroRecommendCard
+import org.melodist.model.RotatingCandidatePool
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
-private const val SONG_ROTATION_INTERVAL_MS = 30_000L
+private const val SONG_ROTATION_INTERVAL_MS = 15_000L
 
 @Composable
 fun FavoriteMusicCard(
@@ -28,23 +31,43 @@ fun FavoriteMusicCard(
     modifier: Modifier = Modifier,
 ) {
     val favoriteSongs by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
-    val top10Songs = remember(favoriteSongs) { favoriteSongs.take(10) }
+    val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
+    // 5 最新 + 25 随机构建 30 首候选池
+    val candidatePool = remember(favoriteSongs) {
+        RotatingCandidatePool.buildCandidatePool(favoriteSongs, fixedCount = 5, randomCount = 25)
+    }
+
+    var shuffledList by remember { mutableStateOf<List<Song>>(emptyList()) }
     var currentDisplayIndex by remember { mutableIntStateOf(0) }
 
-    // 确保索引有效并在前 10 首曲目间按顺序平滑循环
-    LaunchedEffect(top10Songs) {
-        if (top10Songs.size > 1) {
-            while (isActive) {
-                delay(SONG_ROTATION_INTERVAL_MS)
-                currentDisplayIndex = (currentDisplayIndex + 1) % top10Songs.size
-            }
+    LaunchedEffect(candidatePool) {
+        if (candidatePool.isNotEmpty()) {
+            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+            currentDisplayIndex = 0
         } else {
+            shuffledList = emptyList()
             currentDisplayIndex = 0
         }
     }
 
-    val activeSong: Song? = top10Songs.getOrNull(currentDisplayIndex) ?: top10Songs.firstOrNull()
+    // 15 秒无序轮播定时器（前台时执行）
+    LaunchedEffect(shuffledList, isForeground) {
+        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+        while (isActive) {
+            delay(SONG_ROTATION_INTERVAL_MS)
+            val nextIndex = currentDisplayIndex + 1
+            if (nextIndex < shuffledList.size) {
+                currentDisplayIndex = nextIndex
+            } else {
+                // 当前轮循环完毕，重新洗牌
+                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
+                currentDisplayIndex = 0
+            }
+        }
+    }
+
+    val activeSong: Song? = shuffledList.getOrNull(currentDisplayIndex) ?: favoriteSongs.firstOrNull()
     val activeCoverUrl = activeSong?.coverUrl.orEmpty()
 
     val triggerPlay: () -> Unit = {
@@ -74,7 +97,7 @@ fun FavoriteMusicCard(
 
     HeroRecommendCard(
         badgeText = "我的喜欢",
-        subtitleText = "共 $effectiveTotalCount 首",
+        subtitleText = "共 $effectiveTotalCount 首 · 15 秒无序轮播",
         title = activeSong?.name ?: "我喜欢的音乐",
         caption =
             if (activeSong != null) {
