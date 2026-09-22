@@ -23,9 +23,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService
 import org.melodist.api.QualityResult
+import org.melodist.api.RecentHistoryType
 import org.melodist.api.UserSession
 import org.melodist.api.getPlayUrl
 import org.melodist.api.getSongVisualMid
+import org.melodist.api.reportRecentHistory
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
 import org.melodist.model.QualityOption
@@ -639,7 +641,29 @@ object PlaybackManager {
             onTrackFromCacheConfirmed = { _isCurrentTrackFromCache.value = true },
             onSavePlaybackProgressRequest = { pos -> savePlaybackProgress(pos) },
             onTriggerPrefetchNextSongRequest = { triggerPrefetchNextSong() },
+            onSongActivePlaybackQualified = { song -> handleSongActivePlaybackQualified(song) },
         )
+
+    private fun handleSongActivePlaybackQualified(song: Song) {
+        if (song.isLocal || song.isWebDav || song.songMid.startsWith("local_") || song.songMid.startsWith("webdav_")) {
+            return
+        }
+        if (!UserSession.isLoggedIn) {
+            return
+        }
+        scope.launch(Dispatchers.IO) {
+            try {
+                val reportId = if (song.songId > 0L) song.songId.toString() else song.songMid
+                if (reportId.isNotBlank()) {
+                    apiService.reportRecentHistory(
+                        id = reportId,
+                        type = RecentHistoryType.Song,
+                    )
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     private fun buildExoPlayer(context: Context): ExoPlayer = playerPipeline.buildExoPlayer(context)
 
