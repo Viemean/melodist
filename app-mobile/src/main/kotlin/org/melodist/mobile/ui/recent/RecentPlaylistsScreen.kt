@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import org.melodist.api.RecentHistoryType
 import org.melodist.api.RecentPlaylistItem
 import org.melodist.data.RecentPlaybackManager
+import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.model.Playlist
 
@@ -68,8 +69,16 @@ fun RecentPlaylistsScreen(
     modifier: Modifier = Modifier,
 ) {
     val playlists by RecentPlaybackManager.recentPlaylistsFlow.collectAsState()
+    val library by UserLibraryCacheManager.libraryFlow.collectAsState()
     val isSyncing by RecentPlaybackManager.isSyncingFlow.collectAsState()
     var targetPlaylistForAction by remember { mutableStateOf<RecentPlaylistItem?>(null) }
+
+    val displayPlaylists = remember(playlists) {
+        playlists.filterNot { item ->
+            val t = item.title
+            t.contains("30首") || t.contains("每日30") || t.contains("红心雷达") || t.contains("猜你喜欢")
+        }
+    }
 
     val listState = rememberLazyListState()
     val showTopBarTitle by remember {
@@ -113,7 +122,7 @@ fun RecentPlaylistsScreen(
                 onRefresh = { RecentPlaybackManager.syncFromCloud(force = true, type = RecentHistoryType.Playlist) },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (playlists.isEmpty()) {
+                if (displayPlaylists.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center,
@@ -151,7 +160,7 @@ fun RecentPlaylistsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    val headerCoverUrl = playlists.firstOrNull()?.coverUrl.orEmpty()
+                                    val headerCoverUrl = displayPlaylists.firstOrNull()?.coverUrl.orEmpty()
                                     AlbumArtImage(
                                         coverUrl = headerCoverUrl,
                                         contentDescription = "最近播放的歌单",
@@ -184,7 +193,7 @@ fun RecentPlaylistsScreen(
                                         Spacer(modifier = Modifier.height(6.dp))
 
                                         Text(
-                                            text = "${playlists.size} 个歌单",
+                                            text = "${displayPlaylists.size} 个歌单",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -193,16 +202,29 @@ fun RecentPlaylistsScreen(
                             }
                         }
 
-                        items(playlists, key = { it.tid }) { item ->
-                            val playlistModel = remember(item) {
-                                Playlist(
-                                    dirId = 0L,
-                                    tid = item.tid,
-                                    name = item.title,
-                                    picUrl = item.coverUrl,
-                                    songCount = item.songCount,
-                                    isFav = false,
-                                )
+                        items(displayPlaylists, key = { it.tid }) { item ->
+                            val matchedPlaylist = remember(item, library.playlists) {
+                                library.playlists.firstOrNull {
+                                    (item.tid > 0L && (it.tid == item.tid || it.dirId == item.tid)) ||
+                                        (it.name.isNotBlank() && it.name == item.title)
+                                }
+                            }
+                            val playlistModel = remember(item, matchedPlaylist) {
+                                if (matchedPlaylist != null) {
+                                    matchedPlaylist.copy(
+                                        picUrl = item.coverUrl.ifBlank { matchedPlaylist.picUrl },
+                                        songCount = if (item.songCount > 0) item.songCount else matchedPlaylist.songCount,
+                                    )
+                                } else {
+                                    Playlist(
+                                        dirId = item.tid,
+                                        tid = item.tid,
+                                        name = item.title,
+                                        picUrl = item.coverUrl,
+                                        songCount = item.songCount,
+                                        isFav = true,
+                                    )
+                                }
                             }
                             Row(
                                 modifier = Modifier

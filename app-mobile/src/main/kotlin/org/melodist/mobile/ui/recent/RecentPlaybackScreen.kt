@@ -116,10 +116,16 @@ fun RecentPlaybackScreen(
 
                 // 卡片 2: 最近播放的歌单特色卡片
                 item(key = "recent_hero_playlist_card") {
-                    val activePlaylist = recentPlaylists.firstOrNull()
+                    val filteredPlaylists = remember(recentPlaylists) {
+                        recentPlaylists.filterNot { item ->
+                            val t = item.title
+                            t.contains("30首") || t.contains("每日30") || t.contains("红心雷达") || t.contains("猜你喜欢")
+                        }
+                    }
+                    val activePlaylist = filteredPlaylists.firstOrNull()
                     HeroRecommendCard(
                         badgeText = "最近歌单",
-                        subtitleText = if (recentPlaylists.isNotEmpty()) "共 ${recentPlaylists.size} 个歌单" else "暂无歌单",
+                        subtitleText = if (filteredPlaylists.isNotEmpty()) "共 ${filteredPlaylists.size} 个歌单" else "暂无歌单",
                         title = activePlaylist?.title ?: "最近播放的歌单",
                         caption = if (activePlaylist != null) {
                             buildString {
