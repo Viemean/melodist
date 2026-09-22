@@ -190,6 +190,7 @@ object MobileConnectManager {
 
                             if (localMute.value) {
                                 // 开启本地静音：保持静音保活且不发声，仅同步 UI 与系统媒体控制通知
+                                PlaybackManager.resetPlaybackSpeed()
                                 PlaybackManager.setVolume(1f)
                                 if (isPlaying && tvSong != null) {
                                     PlaybackManager.startSilentKeepAlive()
@@ -201,11 +202,11 @@ object MobileConnectManager {
                                 PlaybackManager.stopSilentKeepAlive()
                                 PlaybackManager.setVolume(1f)
                                 if (tvSong != null) {
-                                    val localSong = PlaybackManager.currentSong.value
-                                    val isSameSong = localSong?.songMid == tvSong.songMid
+                                    val isSameSong = PlaybackManager.activeMediaId == tvSong.songMid
                                     if (!isSameSong) {
                                         isSyncingFromTv = true
                                         try {
+                                            PlaybackManager.resetPlaybackSpeed()
                                             PlaybackManager.playSong(tvSong, seekToMs = tvPos)
                                         } finally {
                                             isSyncingFromTv = false
@@ -221,23 +222,45 @@ object MobileConnectManager {
                                         } else if (!isPlaying && PlaybackManager.isPlaying.value) {
                                             isSyncingFromTv = true
                                             try {
+                                                PlaybackManager.resetPlaybackSpeed()
                                                 PlaybackManager.pause()
                                             } finally {
                                                 isSyncingFromTv = false
                                             }
                                         }
-                                        if (!PlaybackManager.isTransitioning.value) {
+                                        if (isPlaying && !PlaybackManager.isTransitioning.value) {
                                             val localPos = PlaybackManager.currentPositionMs.value
-                                            if (Math.abs(localPos - tvPos) > 2500L) {
-                                                isSyncingFromTv = true
-                                                try {
-                                                    PlaybackManager.seekTo(tvPos)
-                                                } finally {
-                                                    isSyncingFromTv = false
+                                            val diffMs = tvPos - localPos // 正数: 手机落后于 TV; 负数: 手机超前于 TV
+                                            when {
+                                                Math.abs(diffMs) >= 1500L -> {
+                                                    // 偏差过大（超过 1.5 秒），执行硬 Seek 并恢复标准倍速
+                                                    isSyncingFromTv = true
+                                                    try {
+                                                        PlaybackManager.resetPlaybackSpeed()
+                                                        PlaybackManager.seekTo(tvPos)
+                                                    } finally {
+                                                        isSyncingFromTv = false
+                                                    }
+                                                }
+                                                diffMs in 150L until 1500L -> {
+                                                    // 手机落后 150ms ~ 1500ms（如冷启动缓冲时差）：微加速 1.06x 追赶
+                                                    PlaybackManager.setPlaybackSpeed(1.06f)
+                                                }
+                                                diffMs in -1500L until -150L -> {
+                                                    // 手机超前 150ms ~ 1500ms：微减速 0.94x 等待 TV
+                                                    PlaybackManager.setPlaybackSpeed(0.94f)
+                                                }
+                                                Math.abs(diffMs) <= 80L -> {
+                                                    // 时差已收敛在人耳容忍窗口（80ms）内，恢复 1.0x 正常倍速
+                                                    PlaybackManager.resetPlaybackSpeed()
                                                 }
                                             }
+                                        } else {
+                                            PlaybackManager.resetPlaybackSpeed()
                                         }
                                     }
+                                } else {
+                                    PlaybackManager.resetPlaybackSpeed()
                                 }
                             }
                             val curMid = tvSong?.songMid.orEmpty()
@@ -529,6 +552,7 @@ object MobileConnectManager {
             } else {
                 // 关闭静音：停止静音保活，若 TV 处于播放状态则驱动本地发声
                 PlaybackManager.stopSilentKeepAlive()
+                PlaybackManager.resetPlaybackSpeed()
                 val state = tvPlayerState.value
                 val tvSong = state?.currentSong
                 if (PlaybackManager.isRemoteActive.value && state?.isPlaying == true && tvSong != null) {

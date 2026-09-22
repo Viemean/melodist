@@ -94,6 +94,7 @@ object PlaybackManager {
 
     fun clearRemotePlayback() {
         stopSilentKeepAlive()
+        resetPlaybackSpeed()
         if (!remoteStateHolder.isRemoteActive.value) return
         remoteStateHolder.clearRemotePlayback()
         _isPlaying.value = false
@@ -303,6 +304,21 @@ object PlaybackManager {
         val player = exoPlayer ?: return
         player.stop()
         player.clearMediaItems()
+        resetPlaybackSpeed()
+    }
+
+    val activeMediaId: String?
+        get() = exoPlayer?.currentMediaItem?.mediaId
+
+    fun setPlaybackSpeed(speed: Float) {
+        val player = exoPlayer ?: return
+        if (Math.abs(player.playbackParameters.speed - speed) > 0.005f) {
+            player.setPlaybackSpeed(speed)
+        }
+    }
+
+    fun resetPlaybackSpeed() {
+        setPlaybackSpeed(1.0f)
     }
 
     private val _errorMessage = MutableStateFlow<String?>(null)
