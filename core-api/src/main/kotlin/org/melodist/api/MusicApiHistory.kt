@@ -35,7 +35,8 @@ data class RecentAlbumItem(
     val singerName: String,
     val coverUrl: String,
     val lastTime: Long,
-    val listenCnt: Int,
+    val listenCnt: Int = 1,
+    val songCount: Int = 0,
 )
 
 data class RecentPlaylistItem(
@@ -246,24 +247,37 @@ fun parseRecentAlbumsResponse(jsonStr: String): RecentHistoryResult<RecentAlbumI
     val items = albumList.mapNotNull { itemElem ->
         val obj = itemElem.jsonObject
         val albumInfo = obj["albumInfo"]?.jsonObject ?: obj
-        val albumId = albumInfo["albumID"]?.jsonPrimitive?.longOrNull
+        val albumId = albumInfo["id"]?.jsonPrimitive?.longOrNull
+            ?: albumInfo["albumID"]?.jsonPrimitive?.longOrNull
             ?: albumInfo["album_id"]?.jsonPrimitive?.longOrNull
-            ?: albumInfo["id"]?.jsonPrimitive?.longOrNull ?: 0L
-        val albumMid = albumInfo["albumMid"]?.jsonPrimitive?.contentOrNull
+            ?: obj["id"]?.jsonPrimitive?.longOrNull ?: 0L
+        val albumMid = albumInfo["mid"]?.jsonPrimitive?.contentOrNull
+            ?: albumInfo["albumMid"]?.jsonPrimitive?.contentOrNull
             ?: albumInfo["album_mid"]?.jsonPrimitive?.contentOrNull
-            ?: albumInfo["mid"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        val albumName = albumInfo["albumName"]?.jsonPrimitive?.contentOrNull
+            ?: obj["mid"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val albumName = albumInfo["name"]?.jsonPrimitive?.contentOrNull
+            ?: albumInfo["albumName"]?.jsonPrimitive?.contentOrNull
             ?: albumInfo["album_name"]?.jsonPrimitive?.contentOrNull
-            ?: albumInfo["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            ?: obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
 
-        val singerObj = albumInfo["singer"]?.jsonObject
-        val singerList = albumInfo["singerList"]?.jsonArray
-        val singerName = singerObj?.get("name")?.jsonPrimitive?.contentOrNull
-            ?: singerList?.firstOrNull()?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull
-            ?: albumInfo["singer_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val singerObj = albumInfo["singer"]?.jsonObject ?: obj["singer"]?.jsonObject
+        val singerList = albumInfo["singerList"]?.jsonArray ?: obj["singerList"]?.jsonArray ?: obj["v_singer"]?.jsonArray
+        val singerName = albumInfo["singerName"]?.jsonPrimitive?.contentOrNull
+            ?: obj["singerName"]?.jsonPrimitive?.contentOrNull
+            ?: singerObj?.get("name")?.jsonPrimitive?.contentOrNull
+            ?: singerList?.mapNotNull { it.jsonObject["name"]?.jsonPrimitive?.contentOrNull }?.joinToString(" / ")
+            ?: albumInfo["singer_name"]?.jsonPrimitive?.contentOrNull
+            ?: obj["singer_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+
+        val songCount = albumInfo["num"]?.jsonPrimitive?.intOrNull
+            ?: obj["num"]?.jsonPrimitive?.intOrNull
+            ?: albumInfo["songnum"]?.jsonPrimitive?.intOrNull
+            ?: albumInfo["song_count"]?.jsonPrimitive?.intOrNull ?: 0
 
         val rawPic = albumInfo["albumPic"]?.jsonPrimitive?.contentOrNull
-            ?: albumInfo["pic"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            ?: albumInfo["pic"]?.jsonPrimitive?.contentOrNull
+            ?: obj["albumPicUrl"]?.jsonPrimitive?.contentOrNull
+            ?: obj["pic"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val coverUrl = if (rawPic.isNotBlank()) rawPic else if (albumMid.isNotBlank()) {
             MusicApiService.getAlbumCoverUrl(albumMid)
         } else ""
@@ -280,6 +294,7 @@ fun parseRecentAlbumsResponse(jsonStr: String): RecentHistoryResult<RecentAlbumI
             coverUrl = coverUrl,
             lastTime = lastTime,
             listenCnt = listenCnt,
+            songCount = songCount,
         )
     }
     return RecentHistoryResult(items = items, updateTime = updateTime)
@@ -305,18 +320,27 @@ fun parseRecentPlaylistsResponse(jsonStr: String): RecentHistoryResult<RecentPla
     val items = folderList.mapNotNull { itemElem ->
         val obj = itemElem.jsonObject
         val folderInfo = obj["folderInfo"]?.jsonObject ?: obj
-        val tid = folderInfo["tid"]?.jsonPrimitive?.longOrNull
+        val tid = folderInfo["id"]?.jsonPrimitive?.longOrNull
+            ?: folderInfo["tid"]?.jsonPrimitive?.longOrNull
             ?: folderInfo["dissid"]?.jsonPrimitive?.longOrNull
-            ?: folderInfo["id"]?.jsonPrimitive?.longOrNull ?: 0L
-        val title = folderInfo["title"]?.jsonPrimitive?.contentOrNull
+            ?: obj["id"]?.jsonPrimitive?.longOrNull ?: 0L
+        val title = folderInfo["name"]?.jsonPrimitive?.contentOrNull
+            ?: folderInfo["title"]?.jsonPrimitive?.contentOrNull
             ?: folderInfo["dissname"]?.jsonPrimitive?.contentOrNull
-            ?: folderInfo["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            ?: obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val coverUrl = folderInfo["pic"]?.jsonPrimitive?.contentOrNull
+            ?: folderInfo["albumPicUrl"]?.jsonPrimitive?.contentOrNull
             ?: folderInfo["cover_url"]?.jsonPrimitive?.contentOrNull
-            ?: folderInfo["logo"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        val songCount = folderInfo["song_count"]?.jsonPrimitive?.intOrNull
+            ?: folderInfo["logo"]?.jsonPrimitive?.contentOrNull
+            ?: obj["pic"]?.jsonPrimitive?.contentOrNull
+            ?: obj["albumPicUrl"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val songCount = folderInfo["num"]?.jsonPrimitive?.intOrNull
+            ?: obj["num"]?.jsonPrimitive?.intOrNull
+            ?: folderInfo["song_count"]?.jsonPrimitive?.intOrNull
             ?: folderInfo["total_song_num"]?.jsonPrimitive?.intOrNull ?: 0
-        val creatorNick = folderInfo["creator_nick"]?.jsonPrimitive?.contentOrNull
+        val creatorNick = folderInfo["creater"]?.jsonPrimitive?.contentOrNull
+            ?: obj["creater"]?.jsonPrimitive?.contentOrNull
+            ?: folderInfo["creator_nick"]?.jsonPrimitive?.contentOrNull
             ?: folderInfo["nickname"]?.jsonPrimitive?.contentOrNull.orEmpty()
 
         val lastTime = obj["lastTime"]?.jsonPrimitive?.longOrNull ?: 0L
