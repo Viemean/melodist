@@ -31,10 +31,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.melodist.mobile.ui.player.components.PlayerMonetCacheManager
 import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import org.melodist.playback.PlaybackManager
 import kotlin.coroutines.cancellation.CancellationException
@@ -81,6 +83,15 @@ fun PlayerContainer(
     val remoteNextSong by PlaybackManager.remoteNextSong.collectAsState()
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // 当单曲播放变动时，后台静默预热封面调色板并写入全局缓存，消除展开播放器时的色彩补间跳变
+    LaunchedEffect(currentSong?.songMid, currentSong?.coverUrl) {
+        val song = currentSong ?: return@LaunchedEffect
+        if (PlayerMonetCacheManager.get(song.songMid) == null) {
+            PlayerMonetCacheManager.extractAndCache(context, song)
+        }
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val screenHeightPx = constraints.maxHeight.toFloat()

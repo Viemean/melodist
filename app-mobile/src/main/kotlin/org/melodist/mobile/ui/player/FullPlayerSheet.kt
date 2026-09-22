@@ -85,6 +85,7 @@ import org.melodist.mobile.ui.components.SongActionSheet
 import org.melodist.mobile.ui.lyrics.MobileLyricsView
 import org.melodist.mobile.ui.player.components.PlayerControlBar
 import org.melodist.mobile.ui.player.components.PlayerCoverCarousel
+import org.melodist.mobile.ui.player.components.PlayerMonetCacheManager
 import org.melodist.mobile.ui.player.components.PlayerMonetColors
 import org.melodist.mobile.ui.player.components.PlayerProgressSlider
 import org.melodist.mobile.ui.player.components.PlayerSongInfoSection
@@ -153,56 +154,33 @@ fun FullPlayerSheet(
             PlaybackManager.getNextSong()
         }
 
-    var monetColors by remember { mutableStateOf(PlayerMonetColors()) }
+    val cachedColors = remember(song?.songMid) {
+        song?.songMid?.let { PlayerMonetCacheManager.get(it) }
+    }
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val defaultMonetColors = remember(primaryColor) {
+        PlayerMonetColors(
+            accentColor = primaryColor,
+            highlightColor = primaryColor,
+        )
+    }
+    var monetColors by remember(song?.songMid) {
+        mutableStateOf<PlayerMonetColors>(cachedColors ?: defaultMonetColors)
+    }
 
     LaunchedEffect(song?.songMid, song?.coverUrl) {
         if (song == null) {
-            monetColors = PlayerMonetColors()
+            monetColors = defaultMonetColors
             return@LaunchedEffect
         }
-        withContext(Dispatchers.IO) {
-            try {
-                val loader = SingletonImageLoader.get(context)
-                val candidates = MobileCoverCacheResolver.resolvePaletteCandidates(song)
-                var resolved = false
-                for (source in candidates) {
-                    val request =
-                        ImageRequest
-                            .Builder(context)
-                            .data(source)
-                            .size(128, 128)
-                            .precision(coil3.size.Precision.INEXACT)
-                            .build()
-                    val result = loader.execute(request)
-                    if (result is SuccessResult) {
-                        val rawBitmap = result.image.toBitmap()
-                        val softwareBitmap =
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-                                rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE
-                            ) {
-                                rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
-                            } else {
-                                rawBitmap
-                            }
-                        if (softwareBitmap != null) {
-                            val palette = Palette.from(softwareBitmap).generate()
-                            monetColors = resolveMonetColors(palette)
-                            resolved = true
-                            android.util.Log.d(
-                                "MonetPalette",
-                                "Successfully extracted from palette candidate ($source): light=${monetColors.lightBackgroundColor}",
-                            )
-                            break
-                        }
-                    }
-                }
-                if (!resolved) {
-                    monetColors = PlayerMonetColors()
-                }
-            } catch (e: Throwable) {
-                android.util.Log.e("MonetPalette", "Palette extraction error", e)
-                monetColors = PlayerMonetColors()
-            }
+        val cached = PlayerMonetCacheManager.get(song.songMid)
+        if (cached != null) {
+            monetColors = cached
+            return@LaunchedEffect
+        }
+        val extracted = PlayerMonetCacheManager.extractAndCache(context, song)
+        if (extracted != null) {
+            monetColors = extracted
         }
     }
 

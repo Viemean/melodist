@@ -3,6 +3,7 @@ package org.melodist.mobile.ui.player.components
 import androidx.compose.ui.graphics.Color
 import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
+import coil3.toBitmap
 
 data class PlayerMonetColors(
     val darkBackgroundColor: Color = Color(0xFF141416),
@@ -137,3 +138,64 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         shadowTint = Color(shadowTintInt),
     )
 }
+
+object PlayerMonetCacheManager {
+    private val memoryCache = androidx.collection.LruCache<String, PlayerMonetColors>(50)
+
+    fun get(songMid: String): PlayerMonetColors? {
+        if (songMid.isBlank()) return null
+        return memoryCache.get(songMid)
+    }
+
+    fun put(songMid: String, colors: PlayerMonetColors) {
+        if (songMid.isBlank()) return
+        memoryCache.put(songMid, colors)
+    }
+
+    suspend fun extractAndCache(
+        context: android.content.Context,
+        song: org.melodist.model.Song,
+    ): PlayerMonetColors? {
+        val mid = song.songMid
+        if (mid.isBlank()) return null
+        val cached = get(mid)
+        if (cached != null) return cached
+
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val loader = coil3.SingletonImageLoader.get(context)
+                val candidates = org.melodist.mobile.util.MobileCoverCacheResolver.resolvePaletteCandidates(song)
+                for (source in candidates) {
+                    val request =
+                        coil3.request.ImageRequest.Builder(context)
+                            .data(source)
+                            .size(128, 128)
+                            .precision(coil3.size.Precision.INEXACT)
+                            .build()
+                    val result = loader.execute(request)
+                    if (result is coil3.request.SuccessResult) {
+                        val rawBitmap = result.image.toBitmap()
+                        val softwareBitmap =
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                                rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE
+                            ) {
+                                rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                            } else {
+                                rawBitmap
+                            }
+                        if (softwareBitmap != null) {
+                            val palette = Palette.from(softwareBitmap).generate()
+                            val colors = resolveMonetColors(palette)
+                            put(mid, colors)
+                            return@withContext colors
+                        }
+                    }
+                }
+                null
+            } catch (_: Throwable) {
+                null
+            }
+        }
+    }
+}
+
