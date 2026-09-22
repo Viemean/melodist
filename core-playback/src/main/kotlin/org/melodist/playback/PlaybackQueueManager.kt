@@ -107,7 +107,9 @@ class PlaybackQueueManager(
         pendingNextSongMid = null
         if (songs.isNotEmpty() && startIndex in songs.indices) {
             _currentIndex.value = startIndex
-            if (!isRadio && _loopMode.value == PlaybackLoopMode.Shuffle) {
+            if (isRadio) {
+                _loopMode.value = PlaybackLoopMode.ListRepeat
+            } else if (_loopMode.value == PlaybackLoopMode.Shuffle) {
                 shuffleQueue.reset(songs.size, startIndex, songs)
             }
             onPlaySongRequest(songs[startIndex], forceTier, initialSeekToMs)
