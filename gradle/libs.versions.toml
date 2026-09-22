@@ -1,11 +1,11 @@
 [versions]
-agp = "9.4.0"
+agp = "9.5.0-alpha06"
 kotlin = "2.4.20"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.12.0-RC"
 okhttp = "5.5.0"
 media3 = "1.11.1"
-coil = "3.6.2"
+coil = "3.6.3"
 junit = "6.1.3"
 androidx-core-ktx = "1.19.0"
 androidx-lifecycle = "2.12.0-alpha03"
@@ -21,8 +21,8 @@ detekt-rules-compose = "0.6.6"
 ktlint = "14.2.0"
 java-websocket = "1.6.0"
 zxing = "3.5.4"
-camerax = "1.6.2"
-leakcanary = "2.14"
+camerax = "1.7.0-alpha03"
+leakcanary = "3.0-alpha-9"
 
 [libraries]
 leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
