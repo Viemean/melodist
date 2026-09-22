@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,6 +51,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -153,39 +156,43 @@ fun LibraryScreen(
                     bottom = contentPadding.calculateBottomPadding() + 16.dp,
                 ),
         ) {
-            // “我喜欢的音乐”特色卡片（复用推荐卡片通用模块）
-            item(key = "library_favorite_music_card") {
-                val effectiveFavCount = if (favoriteCount > 0) favoriteCount else favoriteMids.size
-                FavoriteMusicCard(
-                    totalCount = effectiveFavCount,
-                    onCardClick = {
-                        val favPlaylist =
-                            Playlist(
-                                dirId = 201L,
-                                name = "我喜欢的音乐",
-                                songCount = effectiveFavCount,
-                                isFav = true,
-                            )
-                        onOpenPlaylist(favPlaylist)
-                    },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            }
+            // 特色卡片横向并排区域（“我的喜欢”与“收藏专辑”）
+            item(key = "library_hero_cards_row") {
+                val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+                val cardWidth = (screenWidth - 44.dp).coerceIn(280.dp, 360.dp)
 
-            // “收藏的专辑”特色卡片（复用推荐卡片通用模块）
-            item(key = "library_favorite_albums_card") {
-                FavoriteAlbumsCard(
-                    onCardClick = {
-                        navigation.navigateToFavoriteAlbums()
-                    },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                )
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item(key = "library_favorite_music_card") {
+                        val effectiveFavCount = if (favoriteCount > 0) favoriteCount else favoriteMids.size
+                        FavoriteMusicCard(
+                            totalCount = effectiveFavCount,
+                            onCardClick = {
+                                val favPlaylist =
+                                    Playlist(
+                                        dirId = 201L,
+                                        name = "我喜欢的音乐",
+                                        songCount = effectiveFavCount,
+                                        isFav = true,
+                                    )
+                                onOpenPlaylist(favPlaylist)
+                            },
+                            modifier = Modifier.width(cardWidth),
+                        )
+                    }
+
+                    item(key = "library_favorite_albums_card") {
+                        FavoriteAlbumsCard(
+                            onCardClick = {
+                                navigation.navigateToFavoriteAlbums()
+                            },
+                            modifier = Modifier.width(cardWidth),
+                        )
+                    }
+                }
             }
 
             // 歌单标题
