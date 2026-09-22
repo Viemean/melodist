@@ -34,6 +34,9 @@ object GuessRecommendManager {
     private var isUserObserverStarted = false
     private var lastRefreshTimestamp = 0L
 
+    private var nextBatch: List<Song>? = null
+    private var isPrefetching = false
+
     var isPlayingPredicate: (() -> Boolean)? = null
 
     fun init(context: Context) {
@@ -54,6 +57,7 @@ object GuessRecommendManager {
                     if (currentUin != lastUin) {
                         lastUin = currentUin
                         _songsFlow.value = emptyList()
+                        nextBatch = null
                         refresh(MusicApiService(), forceRefresh = true)
                     }
                 }
@@ -81,6 +85,63 @@ object GuessRecommendManager {
         }
     }
 
+    /**
+     * 连续两次拉取并去重合并，构成 10 首猜你喜欢候选池
+     */
+    private suspend fun fetchTenSongs(apiService: MusicApiService): List<Song> {
+        val first = apiService.getGuessRecommendSongs(count = 5)
+        val second = apiService.getGuessRecommendSongs(count = 5)
+        val combined = mutableListOf<Song>()
+        val seen = mutableSetOf<String>()
+        for (song in first + second) {
+            if (song.songMid.isNotBlank() && seen.add(song.songMid)) {
+                combined.add(song)
+            }
+        }
+        return combined.take(10)
+    }
+
+    /**
+     * 提前在后台静默抓取下一批 10 首，避免轮播耗尽时等待
+     */
+    fun prefetchNextBatch(apiService: MusicApiService = MusicApiService()) {
+        if (isPrefetching || (nextBatch?.isNotEmpty() == true)) return
+        scope.launch {
+            try {
+                isPrefetching = true
+                val fetched = fetchTenSongs(apiService)
+                if (fetched.isNotEmpty()) {
+                    nextBatch = fetched
+                }
+            } catch (_: Exception) {
+            } finally {
+                isPrefetching = false
+            }
+        }
+    }
+
+    /**
+     * 当前批次 10 首轮播完毕后切换到下一批
+     */
+    suspend fun rotateToNextBatch(apiService: MusicApiService = MusicApiService()): List<Song> {
+        return refreshMutex.withLock {
+            val candidate = nextBatch
+            nextBatch = null
+            if (!candidate.isNullOrEmpty()) {
+                _songsFlow.value = candidate
+                lastRefreshTimestamp = System.currentTimeMillis()
+                candidate
+            } else {
+                val fresh = fetchTenSongs(apiService)
+                if (fresh.isNotEmpty()) {
+                    _songsFlow.value = fresh
+                    lastRefreshTimestamp = System.currentTimeMillis()
+                }
+                fresh.ifEmpty { _songsFlow.value }
+            }
+        }
+    }
+
     suspend fun refresh(
         apiService: MusicApiService = MusicApiService(),
         forceRefresh: Boolean = false,
@@ -90,9 +151,10 @@ object GuessRecommendManager {
             if (_isLoadingFlow.value && !forceRefresh) return
             _isLoadingFlow.value = _songsFlow.value.isEmpty()
             try {
-                val songs = apiService.getGuessRecommendSongs(count = 20)
+                val songs = fetchTenSongs(apiService)
                 if (songs.isNotEmpty()) {
                     _songsFlow.value = songs
+                    nextBatch = null
                 }
             } catch (_: Exception) {
             } finally {
