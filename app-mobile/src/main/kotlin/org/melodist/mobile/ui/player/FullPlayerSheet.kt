@@ -32,11 +32,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.LinkOff
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -379,10 +383,46 @@ fun FullPlayerSheet(
                             expanded = showTvMenu,
                             onDismissRequest = { showTvMenu = false },
                         ) {
+                            Text(
+                                text = pairedDevice.name,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                            DropdownMenuItem(
+                                text = { Text("立即播放") },
+                                leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
+                                enabled = song != null,
+                                onClick = {
+                                    showTvMenu = false
+                                    if (song != null) {
+                                        MobileConnectManager.playOnTv(song)
+                                        android.widget.Toast
+                                            .makeText(context, "已发送至 TV 播放", android.widget.Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("稍后播放") },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
+                                enabled = song != null,
+                                onClick = {
+                                    showTvMenu = false
+                                    if (song != null) {
+                                        MobileConnectManager.enqueueNextOnTv(song)
+                                        android.widget.Toast
+                                            .makeText(context, "已插播至 TV 队列", android.widget.Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                },
+                            )
                             val isTakeover =
                                 MobileConnectManager.remoteControlMode.collectAsState().value == org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
                             DropdownMenuItem(
-                                text = { Text(if (isTakeover) "全面接管中 (${pairedDevice.name})" else "一键接力到 ${pairedDevice.name}") },
+                                text = { Text(if (isTakeover) "接管模式" else "进度接力") },
                                 leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
                                 onClick = {
                                     showTvMenu = false
@@ -405,7 +445,14 @@ fun FullPlayerSheet(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("断开连接") },
+                                text = { Text("断开连接", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Rounded.LinkOff,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
                                 onClick = {
                                     showTvMenu = false
                                     MobileConnectManager.disconnect()
