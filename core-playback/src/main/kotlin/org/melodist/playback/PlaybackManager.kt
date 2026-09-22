@@ -313,6 +313,9 @@ object PlaybackManager {
     val actualAudioPositionMs: Long
         get() = exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: _currentPositionMs.value
 
+    val actualAudioIsPlaying: Boolean
+        get() = exoPlayer?.isPlaying == true || (exoPlayer?.playWhenReady == true && exoPlayer?.playbackState != androidx.media3.common.Player.STATE_ENDED)
+
     fun setPlaybackSpeed(speed: Float) {
         val player = exoPlayer ?: return
         if (Math.abs(player.playbackParameters.speed - speed) > 0.005f) {

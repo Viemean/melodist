@@ -208,24 +208,31 @@ object MobileConnectManager {
                                         try {
                                             PlaybackManager.resetPlaybackSpeed()
                                             PlaybackManager.playSong(tvSong, seekToMs = tvPos)
+                                            if (!isPlaying) {
+                                                PlaybackManager.pause()
+                                            }
                                         } finally {
                                             isSyncingFromTv = false
                                         }
                                     } else {
-                                        if (isPlaying && !PlaybackManager.isPlaying.value) {
-                                            isSyncingFromTv = true
-                                            try {
-                                                PlaybackManager.play()
-                                            } finally {
-                                                isSyncingFromTv = false
+                                        if (isPlaying) {
+                                            if (!PlaybackManager.actualAudioIsPlaying) {
+                                                isSyncingFromTv = true
+                                                try {
+                                                    PlaybackManager.play()
+                                                } finally {
+                                                    isSyncingFromTv = false
+                                                }
                                             }
-                                        } else if (!isPlaying && PlaybackManager.isPlaying.value) {
-                                            isSyncingFromTv = true
-                                            try {
-                                                PlaybackManager.resetPlaybackSpeed()
-                                                PlaybackManager.pause()
-                                            } finally {
-                                                isSyncingFromTv = false
+                                        } else {
+                                            PlaybackManager.resetPlaybackSpeed()
+                                            if (PlaybackManager.actualAudioIsPlaying) {
+                                                isSyncingFromTv = true
+                                                try {
+                                                    PlaybackManager.pause()
+                                                } finally {
+                                                    isSyncingFromTv = false
+                                                }
                                             }
                                         }
                                         if (isPlaying && !PlaybackManager.isTransitioning.value) {
