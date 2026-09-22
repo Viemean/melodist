@@ -14,6 +14,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.source.SilenceMediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
@@ -92,6 +93,7 @@ object PlaybackManager {
     }
 
     fun clearRemotePlayback() {
+        stopSilentKeepAlive()
         if (!remoteStateHolder.isRemoteActive.value) return
         remoteStateHolder.clearRemotePlayback()
         _isPlaying.value = false
@@ -272,6 +274,35 @@ object PlaybackManager {
     fun setMuted(muted: Boolean) {
         _isMuted.value = muted
         exoPlayer?.volume = if (muted) 0f else 1f
+    }
+
+    private val _isSilentKeepAlive = MutableStateFlow(false)
+    val isSilentKeepAlive: StateFlow<Boolean> = _isSilentKeepAlive.asStateFlow()
+
+    fun startSilentKeepAlive() {
+        val player = exoPlayer ?: return
+        if (_isSilentKeepAlive.value && player.isPlaying) {
+            return
+        }
+        _isSilentKeepAlive.value = true
+        player.repeatMode = Player.REPEAT_MODE_ALL
+        val silenceSource = SilenceMediaSource(86_400_000_000L)
+        player.setMediaSource(silenceSource)
+        player.prepare()
+        player.play()
+    }
+
+    fun pauseSilentKeepAlive() {
+        if (!_isSilentKeepAlive.value) return
+        exoPlayer?.pause()
+    }
+
+    fun stopSilentKeepAlive() {
+        if (!_isSilentKeepAlive.value) return
+        _isSilentKeepAlive.value = false
+        val player = exoPlayer ?: return
+        player.stop()
+        player.clearMediaItems()
     }
 
     private val _errorMessage = MutableStateFlow<String?>(null)
@@ -841,6 +872,7 @@ object PlaybackManager {
         forceTier: AudioQualityTier? = null,
         seekToMs: Long = 0L,
     ) {
+        stopSilentKeepAlive()
         lastCustomStreamArgs = null
         val prevSong = _currentSong.value
         val prevPos = _currentPositionMs.value

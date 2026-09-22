@@ -26,7 +26,7 @@ class MelodistForwardingPlayer(
     private val isRemoteVirtual: Boolean
         get() =
             PlaybackManager.isRemoteActive.value &&
-                (!super.getPlayWhenReady() || super.getPlaybackState() == Player.STATE_IDLE)
+                (PlaybackManager.isSilentKeepAlive.value || !super.getPlayWhenReady() || super.getPlaybackState() == Player.STATE_IDLE)
 
     fun notifyRemoteStateChanged() {
         val song = PlaybackManager.currentSong.value

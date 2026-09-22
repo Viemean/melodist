@@ -189,18 +189,16 @@ object MobileConnectManager {
                             )
 
                             if (localMute.value) {
-                                // 开启本地静音：手机本地静音且不发声，仅同步 UI 与系统媒体控制通知
-                                if (PlaybackManager.isPlaying.value && !PlaybackManager.isRemoteActive.value) {
-                                    isSyncingFromTv = true
-                                    try {
-                                        PlaybackManager.pause()
-                                    } finally {
-                                        isSyncingFromTv = false
-                                    }
+                                // 开启本地静音：保持静音保活且不发声，仅同步 UI 与系统媒体控制通知
+                                PlaybackManager.setVolume(1f)
+                                if (isPlaying && tvSong != null) {
+                                    PlaybackManager.startSilentKeepAlive()
+                                } else {
+                                    PlaybackManager.pauseSilentKeepAlive()
                                 }
-                                PlaybackManager.setVolume(0f)
                             } else {
                                 // 关闭本地静音：手机端跟随 TV 发声
+                                PlaybackManager.stopSilentKeepAlive()
                                 PlaybackManager.setVolume(1f)
                                 if (tvSong != null) {
                                     val localSong = PlaybackManager.currentSong.value
@@ -513,17 +511,24 @@ object MobileConnectManager {
     fun setLocalMute(enabled: Boolean) {
         storageManager?.setLocalMute(enabled)
         if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
-            PlaybackManager.setVolume(if (enabled) 0f else 1f)
+            PlaybackManager.setVolume(1f)
             if (enabled) {
-                // 开启静音：暂停本地音频发声，但绝不影响 TV
+                // 开启静音：停止真实音频流，若 TV 处于播放状态则启动静音保活
                 isSyncingFromTv = true
                 try {
-                    PlaybackManager.pause()
+                    val state = tvPlayerState.value
+                    if (PlaybackManager.isRemoteActive.value && state?.isPlaying == true && state.currentSong != null) {
+                        PlaybackManager.startSilentKeepAlive()
+                    } else {
+                        PlaybackManager.stopSilentKeepAlive()
+                        PlaybackManager.pause()
+                    }
                 } finally {
                     isSyncingFromTv = false
                 }
             } else {
-                // 关闭静音：仅在处于远端接管且 TV 正在播放时，驱动本地发声
+                // 关闭静音：停止静音保活，若 TV 处于播放状态则驱动本地发声
+                PlaybackManager.stopSilentKeepAlive()
                 val state = tvPlayerState.value
                 val tvSong = state?.currentSong
                 if (PlaybackManager.isRemoteActive.value && state?.isPlaying == true && tvSong != null) {
