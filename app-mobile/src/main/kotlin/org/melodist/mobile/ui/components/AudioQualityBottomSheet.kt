@@ -25,9 +25,12 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.melodist.api.AudioHeaderSniffer
 import org.melodist.data.AppSettingsManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.QualityOption
@@ -64,13 +68,30 @@ fun AudioQualityBottomSheet(
     val effectiveSong = targetSong ?: currentSong
     val isLocalOrWebDav = remember(effectiveSong) { PlaybackManager.isLocalOrWebDavSong(effectiveSong) }
 
+    var enrichedOptions by remember(probedQualityOptions) { mutableStateOf<List<QualityOption>>(probedQualityOptions) }
+    var isSniffing by remember(probedQualityOptions) { mutableStateOf(false) }
+
+    LaunchedEffect(probedQualityOptions, songDurationSec, isLocalOrWebDav) {
+        if (!isLocalOrWebDav && probedQualityOptions.any { it.isAvailable && !it.playUrl.isNullOrBlank() }) {
+            isSniffing = true
+            try {
+                enrichedOptions = AudioHeaderSniffer.enrichQualityOptions(probedQualityOptions, songDurationSec)
+            } catch (_: Exception) {
+            } finally {
+                isSniffing = false
+            }
+        } else {
+            enrichedOptions = probedQualityOptions
+        }
+    }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val supportedTiers =
-        remember(availableTiers, probedQualityOptions, currentTier, isLocalOrWebDav) {
+        remember(availableTiers, enrichedOptions, currentTier, isLocalOrWebDav) {
             if (isLocalOrWebDav) {
                 listOf(currentTier)
             } else {
-                val probedAvailable = probedQualityOptions.filter { it.isAvailable }.map { it.tier }.toSet()
+                val probedAvailable = enrichedOptions.filter { it.isAvailable }.map { it.tier }.toSet()
                 val combined =
                     if (probedAvailable.isNotEmpty()) {
                         probedAvailable + currentTier
@@ -123,7 +144,7 @@ fun AudioQualityBottomSheet(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                if (isProbing) {
+                if (isProbing || isSniffing) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
@@ -136,10 +157,10 @@ fun AudioQualityBottomSheet(
             supportedTiers.forEach { tier ->
                 val isSelected = tier == currentTier
                 val probedOption =
-                    remember(tier, probedQualityOptions) {
-                        probedQualityOptions.find { it.tier == tier }
+                    remember(tier, enrichedOptions) {
+                        enrichedOptions.find { it.tier == tier }
                     }
-                if (probedQualityOptions.isNotEmpty() && !isSelected && (probedOption == null || !probedOption.isAvailable)) {
+                if (enrichedOptions.isNotEmpty() && !isSelected && (probedOption == null || !probedOption.isAvailable)) {
                     return@forEach
                 }
                 val isRestricted =
@@ -283,8 +304,11 @@ fun getQualityTierSpec(
             isSelected && currentTrackSpec != null && currentTrackSpec.bitrateKbps > 0 -> {
                 currentTrackSpec.bitrateKbps
             }
+            probedOption?.bitrate?.isNotBlank() == true && probedOption.bitrate.endsWith("kbps") -> {
+                probedOption.bitrate.removeSuffix("kbps").trim().toIntOrNull() ?: 0
+            }
             sizeBytes > 0L && songDurationSec > 0 -> {
-                ((sizeBytes * 8L) / 1024L / songDurationSec).toInt()
+                ((sizeBytes * 8.0) / songDurationSec / 1000.0).toInt()
             }
             else -> 0
         }
