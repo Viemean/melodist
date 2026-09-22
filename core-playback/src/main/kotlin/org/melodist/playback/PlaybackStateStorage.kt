@@ -24,6 +24,7 @@ data class RestoredPlaybackState(
 )
 
 object PlaybackStateStorage {
+    private const val TAG = "PlaybackStateStorage"
     private const val PREFS_NAME = "melodist_playback_prefs"
     private val jsonHelper =
         Json {
@@ -110,7 +111,8 @@ object PlaybackStateStorage {
         val prefs = getPrefs(context) ?: return
         try {
             prefs.edit().putLong("current_position_ms", posMs).apply()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to save playback progress", e)
         }
     }
 
@@ -124,7 +126,8 @@ object PlaybackStateStorage {
             if (modeName != null) {
                 try {
                     loopMode = PlaybackLoopMode.valueOf(modeName)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse saved loop mode: $modeName", e)
                 }
             }
 
@@ -135,7 +138,8 @@ object PlaybackStateStorage {
             if (!favJson.isNullOrBlank()) {
                 try {
                     favSet = jsonHelper.decodeFromString<Set<String>>(favJson)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to decode favorite song mids from prefs", e)
                 }
             }
 
@@ -144,7 +148,8 @@ object PlaybackStateStorage {
             if (!queueJson.isNullOrBlank()) {
                 try {
                     queue = jsonHelper.decodeFromString<List<Song>>(queueJson).map { sanitizeSongCover(it) }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to decode playback queue from prefs", e)
                 }
             }
 
@@ -158,7 +163,8 @@ object PlaybackStateStorage {
                 try {
                     val rawSong = jsonHelper.decodeFromString<Song>(songJson)
                     currentSong = sanitizeSongCover(rawSong)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to decode current song from prefs", e)
                 }
             }
 

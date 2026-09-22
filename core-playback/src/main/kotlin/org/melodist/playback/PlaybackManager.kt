@@ -660,7 +660,9 @@ object PlaybackManager {
                         type = RecentHistoryType.Song,
                     )
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MelodistPlayback", "Failed to report recent history for song: ${song.songMid}", e)
             }
         }
     }
@@ -1107,7 +1109,8 @@ object PlaybackManager {
                                         }
                                     }
                                 }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.w("MelodistPlayback", "Failed to update song details with raw cover", e)
                             }
                         }
                     }
