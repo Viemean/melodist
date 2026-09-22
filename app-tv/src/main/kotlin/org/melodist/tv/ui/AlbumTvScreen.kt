@@ -6,6 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import org.melodist.api.MusicApiService
 import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.model.AlbumDetail
+import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.Song
 import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
@@ -62,6 +63,7 @@ fun AlbumTvScreen(
     val title = albumDetail?.name ?: albumName.ifBlank { "专辑详情" }
     val subtitle = albumDetail?.artist ?: ""
     val songs = albumDetail?.songs.orEmpty()
+    val currentAlbumId = albumDetail?.id ?: songs.firstOrNull()?.albumId ?: 0L
     val description = albumDetail?.description ?: if (songs.isNotEmpty()) "共收录 ${songs.size} 首单曲" else ""
 
     MediaDetailTvScaffold(
@@ -81,12 +83,20 @@ fun AlbumTvScreen(
         onBack = onBack,
         onPlayAll = {
             if (songs.isNotEmpty()) {
-                PlaybackManager.setPlaylist(songs, startIndex = 0)
+                PlaybackManager.setPlaylist(
+                    songs,
+                    startIndex = 0,
+                    sourceContext = PlaybackSourceContext.Album(albumMid = albumMid, albumId = currentAlbumId),
+                )
             }
         },
         onSongClick = { song ->
             val index = songs.indexOfFirst { it.songMid == song.songMid }
-            PlaybackManager.setPlaylist(songs, startIndex = if (index >= 0) index else 0)
+            PlaybackManager.setPlaylist(
+                songs,
+                startIndex = if (index >= 0) index else 0,
+                sourceContext = PlaybackSourceContext.Album(albumMid = albumMid, albumId = currentAlbumId),
+            )
         },
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToAlbum = onNavigateToAlbum,

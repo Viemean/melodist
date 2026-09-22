@@ -26,6 +26,7 @@ import org.melodist.data.DailyRecommendCacheManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.model.Album
 import org.melodist.model.AudioQualityTier
+import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
@@ -179,6 +180,16 @@ fun PlaylistTvScreen(
 
     val cacheKey = "${categoryId}_${dirId}_${tid}_$albumMid"
     val hasValidCache = PlaylistScreenCache.matches(cacheKey)
+
+    val tvSourceContext = remember(categoryId, dirId, tid, albumMid) {
+        when {
+            albumMid.isNotBlank() -> PlaybackSourceContext.Album(albumMid = albumMid)
+            categoryId == "radar" || categoryId == "favorites" -> null
+            tid > 0L -> PlaybackSourceContext.Playlist(tid.toString())
+            dirId > 0L && dirId != 201L -> PlaybackSourceContext.Playlist(dirId.toString())
+            else -> null
+        }
+    }
 
     var playlistSongs by remember(cacheKey) {
         mutableStateOf(if (hasValidCache) PlaylistScreenCache.songs else songs)
@@ -938,7 +949,13 @@ fun PlaylistTvScreen(
                         if (isSamePlaylist && curQueue.size > playlistSongs.size && curQueue.firstOrNull()?.songMid == playlistSongs.first().songMid) {
                             PlaybackManager.playSong(playlistSongs.first())
                         } else {
-                            PlaybackManager.setPlaylist(playlistSongs, 0, isRadio = (categoryId == "radar"), queueTag = cacheKey)
+                            PlaybackManager.setPlaylist(
+                                playlistSongs,
+                                0,
+                                isRadio = (categoryId == "radar"),
+                                queueTag = cacheKey,
+                                sourceContext = tvSourceContext,
+                            )
                         }
                         syncFullPlaylistToPlayback()
                         screenMode = PlaylistScreenMode.Player
@@ -982,7 +999,13 @@ fun PlaylistTvScreen(
                     if (isSamePlaylist && curQueue.size > playlistSongs.size && curQueue.any { it.songMid == song.songMid }) {
                         PlaybackManager.playSong(song)
                     } else {
-                        PlaybackManager.setPlaylist(playlistSongs, index, isRadio = (categoryId == "radar"), queueTag = cacheKey)
+                        PlaybackManager.setPlaylist(
+                            playlistSongs,
+                            index,
+                            isRadio = (categoryId == "radar"),
+                            queueTag = cacheKey,
+                            sourceContext = tvSourceContext,
+                        )
                     }
                     syncFullPlaylistToPlayback()
                     screenMode = PlaylistScreenMode.Player

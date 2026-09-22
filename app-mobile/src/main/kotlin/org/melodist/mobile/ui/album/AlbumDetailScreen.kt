@@ -71,6 +71,7 @@ import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
 import org.melodist.model.AlbumDetail
 import org.melodist.model.Artist
+import org.melodist.model.PlaybackSourceContext
 import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
 
@@ -97,6 +98,7 @@ fun AlbumDetailScreen(
     val displayName = albumDetail?.name ?: albumName.ifBlank { "专辑详情" }
     val artistName = albumDetail?.artist.orEmpty()
     val songs = albumDetail?.songs.orEmpty()
+    val currentAlbumId = albumDetail?.id ?: songs.firstOrNull()?.albumId ?: 0L
     val albumArtists =
         remember(songs, artistName) {
             val artistsInSongs = songs.flatMap { it.singerList }.distinctBy { if (it.mid.isNotBlank()) it.mid else it.name }
@@ -248,7 +250,11 @@ fun AlbumDetailScreen(
                                 bottom = contentPadding.calculateBottomPadding() + 16.dp,
                             ),
                         onSongClick = { list, index ->
-                            PlaybackManager.setPlaylist(list, startIndex = index)
+                            PlaybackManager.setPlaylist(
+                                list,
+                                startIndex = index,
+                                sourceContext = PlaybackSourceContext.Album(albumMid = albumMid, albumId = currentAlbumId),
+                            )
                         },
                         headerItems = {
                             item(key = "album_header") {
@@ -394,7 +400,11 @@ fun AlbumDetailScreen(
                                         Button(
                                             onClick = {
                                                 if (songs.isNotEmpty()) {
-                                                    PlaybackManager.setPlaylist(songs, startIndex = 0)
+                                                    PlaybackManager.setPlaylist(
+                                                        songs,
+                                                        startIndex = 0,
+                                                        sourceContext = PlaybackSourceContext.Album(albumMid = albumMid, albumId = currentAlbumId),
+                                                    )
                                                 }
                                             },
                                             modifier = Modifier.weight(1f),
@@ -411,7 +421,11 @@ fun AlbumDetailScreen(
                                         FilledTonalButton(
                                             onClick = {
                                                 if (songs.isNotEmpty()) {
-                                                    PlaybackManager.setPlaylist(songs.shuffled(), startIndex = 0)
+                                                    PlaybackManager.setPlaylist(
+                                                        songs.shuffled(),
+                                                        startIndex = 0,
+                                                        sourceContext = PlaybackSourceContext.Album(albumMid = albumMid, albumId = currentAlbumId),
+                                                    )
                                                 }
                                             },
                                             modifier = Modifier.weight(1f),

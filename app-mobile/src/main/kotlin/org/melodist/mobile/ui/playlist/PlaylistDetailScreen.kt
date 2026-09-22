@@ -75,6 +75,7 @@ import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.model.CoverScenario
 import org.melodist.model.CoverUrlResolver
 import org.melodist.model.Playlist
+import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.Song
 import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
@@ -255,6 +256,18 @@ fun PlaylistDetailScreen(
             } else {
                 "playlist_${playlist.dirId}_${playlist.tid}"
             }
+        }
+
+    val playlistSourceContext =
+        remember(playlist.dirId, playlist.tid, playlist.isFav, playlist.isMyFavorite, playlist.isMillionRecommend) {
+            val reportId = when {
+                playlist.isMyFavorite -> null
+                playlist.isMillionRecommend -> null
+                playlist.tid > 0L -> playlist.tid.toString()
+                playlist.dirId > 0L && playlist.dirId != 201L -> playlist.dirId.toString()
+                else -> null
+            }
+            reportId?.let { PlaybackSourceContext.Playlist(it) }
         }
 
     val playlistPaginationSource =
@@ -480,6 +493,7 @@ fun PlaylistDetailScreen(
                             startIndex = index,
                             paginationSource = playlistPaginationSource,
                             queueTag = playlistTag,
+                            sourceContext = playlistSourceContext,
                         )
                         startBackgroundSyncRemaining()
                     },
@@ -630,6 +644,7 @@ fun PlaylistDetailScreen(
                                                     startIndex = 0,
                                                     paginationSource = playlistPaginationSource,
                                                     queueTag = playlistTag,
+                                                    sourceContext = playlistSourceContext,
                                                 )
                                                 startBackgroundSyncRemaining()
                                             }
@@ -653,6 +668,7 @@ fun PlaylistDetailScreen(
                                                     startIndex = 0,
                                                     paginationSource = playlistPaginationSource,
                                                     queueTag = playlistTag,
+                                                    sourceContext = playlistSourceContext,
                                                 )
                                                 startBackgroundSyncRemaining()
                                             }
