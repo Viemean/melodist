@@ -1,5 +1,6 @@
 package org.melodist.core.connect.client
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -404,7 +405,8 @@ class MobileConnectClient(
         val message = json.encodeToString(ConnectMessage.create(action, data, json))
         try {
             socket.send(message)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send connect message: action=$action", e)
         }
     }
 
@@ -413,7 +415,8 @@ class MobileConnectClient(
         val message = json.encodeToString(ConnectMessage(action = action))
         try {
             socket.send(message)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send connect action: action=$action", e)
         }
     }
 
@@ -421,7 +424,8 @@ class MobileConnectClient(
         val msg =
             try {
                 json.decodeFromString<ConnectMessage>(text)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to decode incoming connect message: $text", e)
                 return
             }
 
@@ -478,5 +482,9 @@ class MobileConnectClient(
                 _commandsFlow.tryEmit(MobileIncomingCommand.Resume)
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "MobileConnectClient"
     }
 }
