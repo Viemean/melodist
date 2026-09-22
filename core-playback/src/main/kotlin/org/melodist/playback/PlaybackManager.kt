@@ -260,10 +260,10 @@ object PlaybackManager {
 
     fun shouldHoldForeground(): Boolean {
         if (remoteStateHolder.isRemoteActive.value && _currentSong.value != null) {
-            return _isPlaying.value
+            return _isPlaying.value || _isSilentKeepAlive.value
         }
         val player = exoPlayer ?: return false
-        return player.playWhenReady || _isPlaying.value || _isLoading.value || _isTransitioning.value
+        return player.playWhenReady || _isPlaying.value || _isLoading.value || _isTransitioning.value || (_currentSong.value != null && !_isMuted.value)
     }
 
     private val _isLoading = MutableStateFlow(false)
@@ -670,10 +670,14 @@ object PlaybackManager {
         }
     }
 
-    fun startPlaybackService(context: Context) {
+    fun startPlaybackService(context: Context, foreground: Boolean = false) {
         try {
             val intent = Intent(context.applicationContext, PlaybackService::class.java)
-            context.applicationContext.startService(intent)
+            if (foreground) {
+                androidx.core.content.ContextCompat.startForegroundService(context.applicationContext, intent)
+            } else {
+                context.applicationContext.startService(intent)
+            }
         } catch (e: Exception) {
             Log.w("MelodistPlayback", "Failed to start PlaybackService: $e")
         }
@@ -920,7 +924,6 @@ object PlaybackManager {
         playJob?.cancel()
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
-        appContext?.let { startPlaybackService(it) }
 
         var effectiveSong = song
         val coverFile =
@@ -960,6 +963,7 @@ object PlaybackManager {
             _isTransitioning.value = false
             savePlaybackState()
             loadLyricsForSong(effectiveSong)
+            appContext?.let { startPlaybackService(it, foreground = true) }
             return
         }
 
@@ -969,6 +973,7 @@ object PlaybackManager {
         _bufferedPositionMs.value = seekToMs
         _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
         _isTransitioning.value = true
+        appContext?.let { startPlaybackService(it, foreground = true) }
 
         val targetTierInit = forceTier ?: _preferredTier.value
         val initialCachedTier =
@@ -1234,7 +1239,7 @@ object PlaybackManager {
                 player.prepare()
             }
             player.play()
-            appContext?.let { startPlaybackService(it) }
+            appContext?.let { startPlaybackService(it, foreground = true) }
         }
     }
 
@@ -1256,7 +1261,7 @@ object PlaybackManager {
                 playSong(currSong, seekToMs = _currentPositionMs.value)
             } else {
                 player.play()
-                appContext?.let { startPlaybackService(it) }
+                appContext?.let { startPlaybackService(it, foreground = true) }
             }
         }
     }
@@ -1285,10 +1290,10 @@ object PlaybackManager {
         playJob?.cancel()
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
-        appContext?.let { startPlaybackService(it) }
 
         _currentSong.value = song
         _isTransitioning.value = true
+        appContext?.let { startPlaybackService(it, foreground = true) }
         updateCurrentMediaMetadata(song)
         org.melodist.data.RecentPlaybackManager
             .recordSong(song)

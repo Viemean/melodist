@@ -231,7 +231,7 @@ class PlaybackService : MediaSessionService() {
                 NotificationChannel(
                     CHANNEL_ID,
                     "媒体播放控制",
-                    NotificationManager.IMPORTANCE_HIGH,
+                    NotificationManager.IMPORTANCE_LOW,
                 ).apply {
                     description = "显示正在播放的音乐信息与控制控件"
                     setShowBadge(false)

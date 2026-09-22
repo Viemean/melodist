@@ -31,6 +31,9 @@ open class QQMusicApiService : Service() {
 
         serviceScope.launch {
             PlaybackManager.isPlaying.collectLatest { playing ->
+                if (playing) {
+                    notifyVivoWidgetInit()
+                }
                 val state = if (playing) PLAY_STATUS_STARTED else PLAY_STATUS_PAUSED
                 val bundle =
                     Bundle().apply {
@@ -44,6 +47,9 @@ open class QQMusicApiService : Service() {
 
         serviceScope.launch {
             PlaybackManager.currentSong.collectLatest { song ->
+                if (song != null) {
+                    notifyVivoWidgetInit()
+                }
                 val songJson = buildSongJson(song)
                 val bundle =
                     Bundle().apply {
@@ -123,6 +129,10 @@ open class QQMusicApiService : Service() {
             }
         }
 
+        notifyVivoWidgetInit()
+    }
+
+    private fun notifyVivoWidgetInit() {
         try {
             val initIntent = Intent("vivo.intent.musicwidgetmix.notify.init")
             sendBroadcast(initIntent, "vivo.intent.musicwidgetmix.notify.init.PERMISSION")
