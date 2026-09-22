@@ -71,7 +71,7 @@ fun FavoriteAlbumsCard(
 
     HeroRecommendCard(
         badgeText = "收藏专辑",
-        subtitleText = if (favoriteAlbums.isNotEmpty()) "共 ${favoriteAlbums.size} 张 · 20 秒无序轮播" else "暂无收藏",
+        subtitleText = if (favoriteAlbums.isNotEmpty()) "共 ${favoriteAlbums.size} 张" else "暂无收藏",
         title = displayAlbum?.name ?: "收藏的专辑",
         caption =
             if (displayAlbum != null) {

@@ -117,7 +117,7 @@ fun MillionRecommendCard(
 
     HeroRecommendCard(
         badgeText = "百万收藏",
-        subtitleText = "高赞专栏 · 20 秒无序轮播",
+        subtitleText = "高赞专栏",
         title = activeSong?.name ?: millionResult.title.ifBlank { "官方高赞好歌专栏" },
         caption =
             if (activeSong != null) {

@@ -98,7 +98,7 @@ fun FavoriteMusicCard(
 
     HeroRecommendCard(
         badgeText = "我的喜欢",
-        subtitleText = "共 $effectiveTotalCount 首 · 20 秒无序轮播",
+        subtitleText = "共 $effectiveTotalCount 首",
         title = activeSong?.name ?: "我喜欢的音乐",
         caption =
             if (activeSong != null) {

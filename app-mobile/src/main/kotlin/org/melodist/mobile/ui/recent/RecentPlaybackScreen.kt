@@ -283,7 +283,7 @@ private fun RecentAlbumsHeroCard(
 
     HeroRecommendCard(
         badgeText = "最近专辑",
-        subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张 · 20 秒无序轮播" else "暂无专辑",
+        subtitleText = if (recentAlbums.isNotEmpty()) "共 ${recentAlbums.size} 张" else "暂无专辑",
         title = activeAlbum?.albumName ?: "最近播放的专辑",
         caption =
             if (activeAlbum != null) {
@@ -354,7 +354,7 @@ private fun RecentPlaylistsHeroCard(
 
     HeroRecommendCard(
         badgeText = "最近歌单",
-        subtitleText = if (playlists.isNotEmpty()) "共 ${playlists.size} 个 · 20 秒无序轮播" else "暂无歌单",
+        subtitleText = if (playlists.isNotEmpty()) "共 ${playlists.size} 个" else "暂无歌单",
         title = activePlaylist?.title ?: "最近播放的歌单",
         caption =
             if (activePlaylist != null) {

@@ -121,7 +121,7 @@ fun GuessRecommendCard(
             if (isRadioMode) {
                 if (isPlaying) "正在播放" else "已暂停"
             } else {
-                "个性电台 · 20 秒无序轮播"
+                "个性电台"
             },
         title = activeSong?.name ?: "个性推荐曲目",
         caption =
