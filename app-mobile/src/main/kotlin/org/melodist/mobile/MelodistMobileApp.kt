@@ -17,6 +17,13 @@ class MelodistMobileApp :
     SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
+        org.melodist.api.ApiLogger.logger = { priority, tag, message, throwable ->
+            if (throwable != null) {
+                android.util.Log.println(priority, tag, "$message\n${android.util.Log.getStackTraceString(throwable)}")
+            } else {
+                android.util.Log.println(priority, tag, message)
+            }
+        }
         org.melodist.data.AppLifecycleManager
             .init(this)
         org.melodist.data.AppLifecycleManager.onTrimMemoryAction = {
