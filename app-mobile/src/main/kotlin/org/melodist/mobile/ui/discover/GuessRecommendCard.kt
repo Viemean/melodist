@@ -24,7 +24,7 @@ import org.melodist.model.RotatingCandidatePool
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
-private const val ROTATION_INTERVAL_MS = 15_000L
+private const val ROTATION_INTERVAL_MS = 20_000L
 private const val PREFETCH_THRESHOLD_INDEX = 7
 
 @Composable
@@ -120,7 +120,7 @@ fun GuessRecommendCard(
             if (isRadioMode) {
                 if (isPlaying) "正在播放" else "已暂停"
             } else {
-                "个性电台 · 15 秒无序轮播"
+                "个性电台 · 20 秒无序轮播"
             },
         title = activeSong?.name ?: "个性推荐曲目",
         caption =

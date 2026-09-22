@@ -24,8 +24,8 @@ import org.melodist.model.RotatingCandidatePool
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
-private const val ROTATION_INTERVAL_MS = 15_000L
-private const val PHASE_OFFSET_MS = 4_000L // 与猜你喜欢错峰 4 秒
+private const val ROTATION_INTERVAL_MS = 20_000L
+private const val PHASE_OFFSET_MS = 10_000L // 与猜你喜欢对半错峰 10 秒
 
 @Composable
 fun MillionRecommendCard(
@@ -117,7 +117,7 @@ fun MillionRecommendCard(
 
     HeroRecommendCard(
         badgeText = "百万收藏",
-        subtitleText = "高赞专栏 · 15 秒无序轮播",
+        subtitleText = "高赞专栏 · 20 秒无序轮播",
         title = activeSong?.name ?: millionResult.title.ifBlank { "官方高赞好歌专栏" },
         caption =
             if (activeSong != null) {

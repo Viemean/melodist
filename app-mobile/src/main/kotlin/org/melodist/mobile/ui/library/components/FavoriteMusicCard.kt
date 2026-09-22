@@ -22,7 +22,7 @@ import org.melodist.model.RotatingCandidatePool
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
-private const val SONG_ROTATION_INTERVAL_MS = 15_000L
+private const val SONG_ROTATION_INTERVAL_MS = 20_000L
 
 @Composable
 fun FavoriteMusicCard(
@@ -97,7 +97,7 @@ fun FavoriteMusicCard(
 
     HeroRecommendCard(
         badgeText = "我的喜欢",
-        subtitleText = "共 $effectiveTotalCount 首 · 15 秒无序轮播",
+        subtitleText = "共 $effectiveTotalCount 首 · 20 秒无序轮播",
         title = activeSong?.name ?: "我喜欢的音乐",
         caption =
             if (activeSong != null) {

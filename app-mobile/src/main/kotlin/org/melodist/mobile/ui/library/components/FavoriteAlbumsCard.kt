@@ -20,8 +20,8 @@ import org.melodist.mobile.ui.discover.HeroRecommendCard
 import org.melodist.model.Album
 import org.melodist.model.RotatingCandidatePool
 
-private const val ALBUM_ROTATION_INTERVAL_MS = 15_000L
-private const val ALBUM_PHASE_OFFSET_MS = 4_000L
+private const val ALBUM_ROTATION_INTERVAL_MS = 20_000L
+private const val ALBUM_PHASE_OFFSET_MS = 10_000L
 
 @Composable
 fun FavoriteAlbumsCard(
@@ -70,7 +70,7 @@ fun FavoriteAlbumsCard(
 
     HeroRecommendCard(
         badgeText = "收藏专辑",
-        subtitleText = if (favoriteAlbums.isNotEmpty()) "共 ${favoriteAlbums.size} 张 · 15 秒无序轮播" else "暂无收藏",
+        subtitleText = if (favoriteAlbums.isNotEmpty()) "共 ${favoriteAlbums.size} 张 · 20 秒无序轮播" else "暂无收藏",
         title = displayAlbum?.name ?: "收藏的专辑",
         caption =
             if (displayAlbum != null) {
