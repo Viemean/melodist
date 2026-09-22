@@ -310,6 +310,9 @@ object PlaybackManager {
     val activeMediaId: String?
         get() = exoPlayer?.currentMediaItem?.mediaId
 
+    val actualAudioPositionMs: Long
+        get() = exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: _currentPositionMs.value
+
     fun setPlaybackSpeed(speed: Float) {
         val player = exoPlayer ?: return
         if (Math.abs(player.playbackParameters.speed - speed) > 0.005f) {
@@ -414,6 +417,13 @@ object PlaybackManager {
                         if (_isSwitchingQuality.value) {
                             _isSwitchingQuality.value = false
                             _isPlaying.value = exoPlayer?.isPlaying == true
+                        }
+                        if (remoteStateHolder.isRemoteActive.value && !_isSilentKeepAlive.value) {
+                            val estimatedTvPos = remoteStateHolder.getEstimatedPositionMs(_durationMs.value)
+                            val playerPos = exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L
+                            if (estimatedTvPos != null && estimatedTvPos > 250L && Math.abs(estimatedTvPos - playerPos) > 250L) {
+                                exoPlayer?.seekTo(estimatedTvPos)
+                            }
                         }
                     }
                     Player.STATE_ENDED -> {

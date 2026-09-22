@@ -229,7 +229,7 @@ object MobileConnectManager {
                                             }
                                         }
                                         if (isPlaying && !PlaybackManager.isTransitioning.value) {
-                                            val localPos = PlaybackManager.currentPositionMs.value
+                                            val localPos = PlaybackManager.actualAudioPositionMs
                                             val diffMs = tvPos - localPos // 正数: 手机落后于 TV; 负数: 手机超前于 TV
                                             when {
                                                 Math.abs(diffMs) >= 1500L -> {
