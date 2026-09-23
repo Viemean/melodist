@@ -239,8 +239,8 @@ object MobileConnectManager {
                                             val localPos = PlaybackManager.actualAudioPositionMs
                                             val diffMs = tvPos - localPos // 正数: 手机落后于 TV; 负数: 手机超前于 TV
                                             when {
-                                                Math.abs(diffMs) >= 1500L -> {
-                                                    // 偏差过大（超过 1.5 秒），执行硬 Seek 并恢复标准倍速
+                                                Math.abs(diffMs) >= 1800L -> {
+                                                    // 偏差过大（超过 1.8 秒），执行硬 Seek 并恢复标准倍速
                                                     isSyncingFromTv = true
                                                     try {
                                                         PlaybackManager.resetPlaybackSpeed()
@@ -249,16 +249,32 @@ object MobileConnectManager {
                                                         isSyncingFromTv = false
                                                     }
                                                 }
-                                                diffMs in 150L until 1500L -> {
-                                                    // 手机落后 150ms ~ 1500ms（如冷启动缓冲时差）：微加速 1.06x 追赶
-                                                    PlaybackManager.setPlaybackSpeed(1.06f)
+                                                diffMs > 600L -> {
+                                                    // 手机落后 600ms ~ 1800ms：快速快进 1.12x 追赶
+                                                    PlaybackManager.setPlaybackSpeed(1.12f)
                                                 }
-                                                diffMs in -1500L until -150L -> {
-                                                    // 手机超前 150ms ~ 1500ms：微减速 0.94x 等待 TV
-                                                    PlaybackManager.setPlaybackSpeed(0.94f)
+                                                diffMs > 250L -> {
+                                                    // 手机落后 250ms ~ 600ms：中度快进 1.08x 追赶
+                                                    PlaybackManager.setPlaybackSpeed(1.08f)
                                                 }
-                                                Math.abs(diffMs) <= 80L -> {
-                                                    // 时差已收敛在人耳容忍窗口（80ms）内，恢复 1.0x 正常倍速
+                                                diffMs > 45L -> {
+                                                    // 手机落后 45ms ~ 250ms：轻度快进 1.04x 追赶
+                                                    PlaybackManager.setPlaybackSpeed(1.04f)
+                                                }
+                                                diffMs < -600L -> {
+                                                    // 手机超前 600ms ~ 1800ms：快速拉平 0.84x 等待 TV
+                                                    PlaybackManager.setPlaybackSpeed(0.84f)
+                                                }
+                                                diffMs < -250L -> {
+                                                    // 手机超前 250ms ~ 600ms：中度等待 0.90x 等待 TV
+                                                    PlaybackManager.setPlaybackSpeed(0.90f)
+                                                }
+                                                diffMs < -45L -> {
+                                                    // 手机超前 45ms ~ 250ms：轻度等待 0.96x 等待 TV
+                                                    PlaybackManager.setPlaybackSpeed(0.96f)
+                                                }
+                                                else -> {
+                                                    // 时差已收敛在人耳容忍窗口（45ms）内，恢复 1.0x 正常倍速
                                                     PlaybackManager.resetPlaybackSpeed()
                                                 }
                                             }
