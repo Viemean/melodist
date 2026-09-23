@@ -108,7 +108,7 @@ object PlaybackMediaLoader {
 
             // 2. 检查本地音乐远程流式播放（局域网代理中转）
             val isLocalStream =
-                (song.isLocal || song.songMid.startsWith("local_")) &&
+                (song.isLocal || song.songMid.startsWith("local_") || song.songMid.startsWith("pc_local_") || song.mediaMid.contains("/stream/local")) &&
                     (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://"))
             if (isLocalStream) {
                 val baseHttpFactory =
@@ -133,8 +133,8 @@ object PlaybackMediaLoader {
             }
 
             // 本地歌曲既无本地文件也无可用流代理
-            if (song.isLocal || song.songMid.startsWith("local_")) {
-                return@withContext PlaybackTargetResult.Failure("无法找到本地音频文件", allowRetry = false)
+            if (song.isLocal || song.songMid.startsWith("local_") || song.songMid.startsWith("pc_local_") || song.mediaMid.contains("/stream/local")) {
+                return@withContext PlaybackTargetResult.Failure("无法找到本地音频文件或流代理", allowRetry = false)
             }
 
             // 3. WebDAV 媒体处理

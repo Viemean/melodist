@@ -641,15 +641,18 @@ object MobileConnectManager {
         forceTier: AudioQualityTier? = null,
     ) {
         scope.launch(Dispatchers.Main) {
-            val audioSource =
-                withContext(Dispatchers.IO) {
-                    resolveAudioSource(song)
-                }
             val currentPlaylist = PlaybackManager.playlist.value
             val idx = currentPlaylist.indexOfFirst { it.songMid == song.songMid }.coerceAtLeast(0)
             val effectiveTier = forceTier ?: PlaybackManager.preferredTier.value
-            val effectiveSong = prepareSongForTv(song)
-            val preparedQueue = currentPlaylist.map { prepareSongForTv(it) }
+
+            val (audioSource, effectiveSong, preparedQueue) =
+                withContext(Dispatchers.IO) {
+                    val src = resolveAudioSource(song)
+                    val effSong = prepareSongForTv(song)
+                    val prepQueue = currentPlaylist.map { prepareSongForTv(it) }
+                    Triple(src, effSong, prepQueue)
+                }
+
             connectClient?.playSong(
                 song = effectiveSong,
                 queue = preparedQueue,
@@ -885,6 +888,9 @@ object MobileConnectManager {
             updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
         }
         if (updated.isLocal || updated.songMid.startsWith("local_")) {
+            if (updated.mediaMid.startsWith("http://") || updated.mediaMid.startsWith("https://")) {
+                return updated
+            }
             val localPath =
                 updated.localFilePath.takeIf { !it.isNullOrBlank() }
                     ?: org.melodist.data.LocalMusicManager
@@ -936,6 +942,12 @@ object MobileConnectManager {
     }
 
     private fun resolveAudioSource(song: Song): AudioSourceDescriptor {
+        if (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://")) {
+            return AudioSourceDescriptor(
+                sourceType = AudioSourceType.STREAM_PROXY,
+                streamUrl = song.mediaMid,
+            )
+        }
         val isOfflineMode = tvOfflineProxy.value
         val server = streamServer
 

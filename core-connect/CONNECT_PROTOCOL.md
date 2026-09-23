@@ -275,7 +275,8 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 | 端点路径 | 请求方法 | 典型参数 | 功能描述 |
 | :--- | :--- | :--- | :--- |
 | `/stream/local` | `GET`, `HEAD` | `path=<url_encoded_file_path>` | 本地音频流式输出（支持 HTTP Range 断点续传与毫秒级 Seek） |
-| `/cover/local` | `GET`, `HEAD` | `path=<url_encoded_cover_path>` | 本地与 WebDAV 专辑封面图片代理输出 |
+| `/cover/local` | `GET`, `HEAD` | `path=<url_encoded_cover_path>` | 本地绝对路径文件封面图片代理输出 |
+| `/cover` | `GET`, `HEAD` | `name=<cached_cover_filename>` | 服务端/WebDAV 缓存封面代理输出（支持长效缓存与跨域） |
 | `/stream/webdav` | `GET`, `HEAD` | `server=<server_id>&href=<url_encoded_href>` | 手机代为拉取 WebDAV 音频分片并转发至 TV |
 | `/stream/proxy` | `GET`, `HEAD` | `url=<url_encoded_target_url>` | TV 离线模式下，由手机代理请求公网 CDN 音频流 |
 
@@ -283,6 +284,15 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 - **HTTP Range 规范**：全量实现 `Range: bytes=start-end`、`Range: bytes=start-` 及 `Range: bytes=-suffix`（尾部切片）请求响应（HTTP 206 Partial Content），支持任意格式音频元数据探测与精确 Seek。
 - **HEAD 预检支持**：原生支持 `HEAD` 请求返回头信息（`Content-Length`、`Accept-Ranges`、`Content-Type` 等），加速播放器媒体类型预检。
 - **MIME Type 映射**：依据文件扩展名自动输出标准 `Content-Type`（如 `audio/flac`、`audio/mpeg`、`audio/wav`、`audio/ogg`、`audio/mp4`、`image/webp`、`image/jpeg` 等）。
+
+### 7.3 跨端本地媒体托管与流直通规范
+- **`mediaMid` 网络流直通规范**：
+  当歌曲对象的 `mediaMid` 已是以 `http://` 或 `https://` 开头的流直链（由远端服务端提供，例如服务端的 `/stream/local` 路由）时，客户端在处理 `cmd_play_song` / `cmd_enqueue_next` 时应遵循**直接透传复用原则**：
+  1. 将其直接指定为目标 `AudioSourceDescriptor(sourceType = STREAM_PROXY, streamUrl = song.mediaMid)`；
+  2. 禁止将此类曲目误判为客户端自身的私有本地存储文件，避免触发客户端本地扫描库检索与重复创建代理流。
+- **本地命名空间前缀转换规范 (`pc_local_` / `local_`)**：
+  1. 当服务端（如 PC 端）将本地物理音频文件通过 Connect 广播给移动端时，为防止移动端误识别为移动端自身的私有文件系统，服务端将广播数据中的 `songMid` 添加 `pc_local_` 命名空间前缀，并将 `isLocal` 设置为 `false`；
+  2. 客户端向服务端回传点播与入队指令（`cmd_play_song` / `cmd_enqueue_next`）时，服务端在接收层自动将 `pc_local_` 还原为内部的 `local_` 标识，确保服务端本地播放列表精确命中与起播。
 
 ---
 
