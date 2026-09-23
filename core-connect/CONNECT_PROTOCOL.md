@@ -302,3 +302,10 @@ Connect 协议具备对等双向性：
 - 常规场景：手机作为控制端向 TV 下发 `cmd_*` 指令；
 - 反向接力场景：当 TV 界面通过遥控器触发了一首仅存在于手机本地文件系统的曲目时，TV 端通过 [TvConnectServer.kt](src/main/kotlin/org/melodist/core/connect/server/TvConnectServer.kt) 反向向手机广播 `cmd_play_song` / `cmd_next` / `cmd_prev`，手机捕获后自动建立 HTTP Stream Server 代理并把流回传给 TV 播放。
 
+### 8.3 从属端播放状态与切歌权门禁 (Subordinate Authority Gate)
+在 `TAKEOVER` 接管模式下，远端设备（TV / PC）作为主发声器与主状态源：
+- **切歌权独占与主动操作分流**：
+  1. 移动端作为控制器时，仅响应**用户主动操作**（应用内控制按钮、锁屏/系统媒体通知、耳机线控等）转发切歌指令；
+  2. 严禁移动端本地播放器内核的**被动事件**（包括但不限于流加载失败重试、网络超时、本地 ExoPlayer 播放到达末尾 `STATE_ENDED` 等）向远端触发 `cmd_next` / `cmd_prev`；
+  3. 远端宿主设备的自然播放结束由宿主自身推进下一曲并通过 `sync_state` 事件向从属端广播状态，防止因从属端网络波动或缓冲耗尽而反向截断主设备的正常播放。
+

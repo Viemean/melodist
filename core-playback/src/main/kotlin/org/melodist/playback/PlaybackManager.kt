@@ -252,6 +252,10 @@ object PlaybackManager {
             consecutiveErrorCount = 0
         } else {
             _errorMessage.value = "$errorMsg (即将尝试下一首 $consecutiveErrorCount/3)"
+            if (remoteStateHolder.isRemoteActive.value) {
+                Log.w("MelodistPlayback", "Remote playback is active, skip local error auto-advance.")
+                return
+            }
             scope.launch {
                 delay(3000L)
                 playNext()
@@ -1836,6 +1840,10 @@ object PlaybackManager {
     fun prefetchAdjacentWebDavCovers() = prefetchAdjacentCoversAndMetadata()
 
     private fun handleSongEnded() {
+        if (remoteStateHolder.isRemoteActive.value) {
+            Log.d("MelodistPlayback", "Remote playback is active, skip local song ended auto-advance.")
+            return
+        }
         _isTransitioning.value = true
         when {
             !queueManager.isRadioMode.value && !queueManager.hasPendingNextPlay && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {
