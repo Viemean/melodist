@@ -46,6 +46,7 @@ object MobileConnectManager {
     private var isSyncingFromTv = false
     private var autoConnectFailureCount = 0
     private const val MAX_AUTO_CONNECT_FAILURES = 6
+    private const val MAX_REMOTE_QUEUE_SIZE = 300
     private val AUTO_CONNECT_BACKOFF_DELAYS = longArrayOf(3000L, 6000L, 12000L, 20000L, 35000L, 60000L)
 
     private val _connectionState = MutableStateFlow<MobileConnectionState>(MobileConnectionState.Disconnected)
@@ -649,6 +650,9 @@ object MobileConnectManager {
         val song = PlaybackManager.currentSong.value ?: return
         val pos = PlaybackManager.currentPositionMs.value
         playOnTv(song, startPositionMs = pos)
+        if (remoteControlMode.value == RemoteControlMode.BROWSE) {
+            PlaybackManager.pause()
+        }
     }
 
     fun playOnTv(
@@ -658,21 +662,34 @@ object MobileConnectManager {
     ) {
         scope.launch(Dispatchers.Main) {
             val currentPlaylist = PlaybackManager.playlist.value
-            val idx = currentPlaylist.indexOfFirst { it.songMid == song.songMid }.coerceAtLeast(0)
+            val rawIdx = currentPlaylist.indexOfFirst { it.songMid == song.songMid }.coerceAtLeast(0)
             val effectiveTier = forceTier ?: PlaybackManager.preferredTier.value
+
+            val (effectiveQueue, effectiveIdx) =
+                if (currentPlaylist.size > MAX_REMOTE_QUEUE_SIZE) {
+                    val halfWindow = MAX_REMOTE_QUEUE_SIZE / 2
+                    val start = (rawIdx - halfWindow).coerceAtLeast(0)
+                    val end = (start + MAX_REMOTE_QUEUE_SIZE).coerceAtMost(currentPlaylist.size)
+                    val actualStart = (end - MAX_REMOTE_QUEUE_SIZE).coerceAtLeast(0)
+                    val windowed = currentPlaylist.subList(actualStart, end)
+                    val newIdx = (rawIdx - actualStart).coerceIn(0, (windowed.size - 1).coerceAtLeast(0))
+                    Pair(windowed, newIdx)
+                } else {
+                    Pair(currentPlaylist, rawIdx)
+                }
 
             val (audioSource, effectiveSong, preparedQueue) =
                 withContext(Dispatchers.IO) {
                     val src = resolveAudioSource(song)
                     val effSong = prepareSongForTv(song)
-                    val prepQueue = currentPlaylist.map { prepareSongForTv(it) }
+                    val prepQueue = effectiveQueue.map { prepareSongForTv(it) }
                     Triple(src, effSong, prepQueue)
                 }
 
             connectClient?.playSong(
                 song = effectiveSong,
                 queue = preparedQueue,
-                index = idx,
+                index = effectiveIdx,
                 startPositionMs = startPositionMs,
                 audioSource = audioSource,
                 qualityTier = effectiveTier,
@@ -903,7 +920,8 @@ object MobileConnectManager {
         if (coverUrl.isNotBlank() && (coverUrl.startsWith("file://") || coverUrl.startsWith("/"))) {
             updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
         }
-        if (updated.isLocal || updated.songMid.startsWith("local_")) {
+        val isTrueLocal = updated.isLocal || updated.songMid.startsWith("local_")
+        if (isTrueLocal) {
             if (updated.mediaMid.startsWith("http://") || updated.mediaMid.startsWith("https://")) {
                 return updated
             }
@@ -920,6 +938,10 @@ object MobileConnectManager {
                         localFilePath = localPath,
                         mediaMid = streamUrl,
                     )
+            }
+        } else if (!updated.isWebDav) {
+            if (updated.localFilePath != null) {
+                updated = updated.copy(localFilePath = null)
             }
         }
         return updated
@@ -967,9 +989,10 @@ object MobileConnectManager {
         val isOfflineMode = tvOfflineProxy.value
         val server = streamServer
 
+        val isTrueLocal = song.isLocal || song.songMid.startsWith("local_")
         val filePath =
             song.localFilePath
-                ?: if (song.isLocal || song.songMid.startsWith("local_")) {
+                ?: if (isTrueLocal) {
                     org.melodist.data.LocalMusicManager
                         .getScannedSongs()
                         .find { it.songMid == song.songMid }
@@ -978,7 +1001,7 @@ object MobileConnectManager {
                     null
                 }
 
-        if ((song.isLocal || song.songMid.startsWith("local_") || !filePath.isNullOrBlank()) && !filePath.isNullOrBlank() && server != null) {
+        if (isTrueLocal && !filePath.isNullOrBlank() && server != null) {
             return AudioSourceDescriptor(
                 sourceType = AudioSourceType.STREAM_PROXY,
                 streamUrl = server.buildLocalAudioStreamUrl(filePath),

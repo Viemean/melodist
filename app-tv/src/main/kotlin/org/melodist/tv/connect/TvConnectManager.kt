@@ -450,7 +450,7 @@ object TvConnectManager {
                     if (isSyncingFromMobile) return false
                     val server = connectServer ?: return false
                     if (server.connectedDeviceFlow.value == null) return false
-                    val isLocalSong = song.isLocal || (!song.localFilePath.isNullOrBlank() && !song.isWebDav)
+                    val isLocalSong = song.isLocal || song.songMid.startsWith("local_")
                     val localPath = song.localFilePath
                     val directFileExists =
                         if (isLocalSong && !localPath.isNullOrBlank()) {
