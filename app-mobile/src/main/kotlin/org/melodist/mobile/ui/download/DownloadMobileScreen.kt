@@ -54,6 +54,7 @@ import org.melodist.data.download.DownloadStatus
 import org.melodist.data.download.DownloadTask
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.QualityTierBadge
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.model.AudioQualityTier
 import java.io.File
@@ -191,6 +192,7 @@ fun DownloadMobileScreen(
                                 val localFile = File(task.filePath)
                                 task.song.copy(
                                     localFilePath = task.filePath,
+                                    currentTier = task.tier,
                                     coverUrl = if (task.song.coverUrl.isNotBlank()) task.song.coverUrl else "",
                                 )
                             }
@@ -199,6 +201,7 @@ fun DownloadMobileScreen(
                             songs = songs,
                             deleteType = SongListDeleteType.LocalFile,
                             enableDownload = false,
+                            showQualityBadge = true,
                             contentPadding =
                                 PaddingValues(
                                     top = 2.dp,
@@ -418,31 +421,6 @@ private fun ActiveDownloadTaskCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun QualityTierBadge(tier: AudioQualityTier) {
-    val (label, bg, fg) =
-        when (tier) {
-            AudioQualityTier.HiRes -> Triple("Hi-Res", MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
-            AudioQualityTier.Master -> Triple("Master", MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.onTertiary)
-            AudioQualityTier.SQ -> Triple("SQ", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
-            AudioQualityTier.HQ -> Triple("HQ", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-            else -> Triple("标准", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
-    Surface(
-        color = bg,
-        shape = RoundedCornerShape(4.dp),
-    ) {
-        Text(
-            text = label,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            color = fg,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-        )
     }
 }
 

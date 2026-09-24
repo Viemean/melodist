@@ -51,6 +51,7 @@ fun SongItemRow(
     highlightQuery: String = "",
     showLocalBadge: Boolean = true,
     showWebDavBadge: Boolean = true,
+    showQualityBadge: Boolean = false,
     isMultiSelectMode: Boolean = false,
     isSelected: Boolean = false,
     onClick: () -> Unit,
@@ -169,13 +170,20 @@ fun SongItemRow(
                     )
                 }
 
-            Text(
-                text = titleText,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isPlayingThis) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = titleText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isPlayingThis) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (showQualityBadge) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    QualityTierBadge(tier = song.currentTier)
+                }
+            }
 
             val rawSubtitle =
                 remember(song.singer, song.album) {
