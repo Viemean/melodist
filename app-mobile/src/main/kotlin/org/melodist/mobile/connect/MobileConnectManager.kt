@@ -47,6 +47,9 @@ object MobileConnectManager {
     private var autoConnectFailureCount = 0
     private const val MAX_AUTO_CONNECT_FAILURES = 6
     private const val MAX_REMOTE_QUEUE_SIZE = 300
+    private var pendingTrackTargetMid: String? = null
+    private var pendingTrackTransitionTimestamp = 0L
+    private const val PENDING_TRACK_TRANSITION_TIMEOUT_MS = 2500L
     private val AUTO_CONNECT_BACKOFF_DELAYS = longArrayOf(3000L, 6000L, 12000L, 20000L, 35000L, 60000L)
 
     private val _connectionState = MutableStateFlow<MobileConnectionState>(MobileConnectionState.Disconnected)
@@ -171,6 +174,22 @@ object MobileConnectManager {
 
                         val shouldSyncToLocalPlayer = isPlaying || PlaybackManager.isRemoteActive.value
                         if (shouldSyncToLocalPlayer) {
+                            val now = System.currentTimeMillis()
+                            val isPendingTransition =
+                                pendingTrackTargetMid != null &&
+                                    (now - pendingTrackTransitionTimestamp < PENDING_TRACK_TRANSITION_TIMEOUT_MS)
+
+                            if (isPendingTransition) {
+                                if (tvSong?.songMid == pendingTrackTargetMid) {
+                                    pendingTrackTargetMid = null
+                                } else {
+                                    // TV 处于换轨过渡期仍回报旧曲目，跳过同步以杜绝旧曲目残响倒灌起播
+                                    return@collect
+                                }
+                            } else if (pendingTrackTargetMid != null) {
+                                pendingTrackTargetMid = null
+                            }
+
                             val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
                             appContext?.let { PlaybackManager.startPlaybackService(it) }
                             PlaybackManager.setRemoteActive(true, pairedName)
@@ -240,8 +259,8 @@ object MobileConnectManager {
                                             val localPos = PlaybackManager.actualAudioPositionMs
                                             val diffMs = tvPos - localPos // 正数: 手机落后于 TV; 负数: 手机超前于 TV
                                             when {
-                                                Math.abs(diffMs) >= 1800L -> {
-                                                    // 偏差过大（超过 1.8 秒），执行硬 Seek 并恢复标准倍速
+                                                Math.abs(diffMs) >= 3500L -> {
+                                                    // 偏差过大（超过 3.5 秒，通常为用户手动 Seek），执行硬 Seek 并恢复标准倍速
                                                     isSyncingFromTv = true
                                                     try {
                                                         PlaybackManager.resetPlaybackSpeed()
@@ -250,32 +269,32 @@ object MobileConnectManager {
                                                         isSyncingFromTv = false
                                                     }
                                                 }
-                                                diffMs > 600L -> {
-                                                    // 手机落后 600ms ~ 1800ms：快速快进 1.12x 追赶
-                                                    PlaybackManager.setPlaybackSpeed(1.12f)
-                                                }
-                                                diffMs > 250L -> {
-                                                    // 手机落后 250ms ~ 600ms：中度快进 1.08x 追赶
+                                                diffMs > 800L -> {
+                                                    // 手机显著落后 800ms ~ 3500ms：1.08x 较快平稳追赶
                                                     PlaybackManager.setPlaybackSpeed(1.08f)
                                                 }
-                                                diffMs > 45L -> {
-                                                    // 手机落后 45ms ~ 250ms：轻度快进 1.04x 追赶
-                                                    PlaybackManager.setPlaybackSpeed(1.04f)
+                                                diffMs > 350L -> {
+                                                    // 手机中度落后 350ms ~ 800ms：1.05x 平稳追赶
+                                                    PlaybackManager.setPlaybackSpeed(1.05f)
                                                 }
-                                                diffMs < -600L -> {
-                                                    // 手机超前 600ms ~ 1800ms：快速拉平 0.84x 等待 TV
-                                                    PlaybackManager.setPlaybackSpeed(0.84f)
+                                                diffMs > 90L -> {
+                                                    // 手机轻度落后 90ms ~ 350ms：1.025x 无感微调追赶
+                                                    PlaybackManager.setPlaybackSpeed(1.025f)
                                                 }
-                                                diffMs < -250L -> {
-                                                    // 手机超前 250ms ~ 600ms：中度等待 0.90x 等待 TV
-                                                    PlaybackManager.setPlaybackSpeed(0.90f)
+                                                diffMs < -800L -> {
+                                                    // 手机显著超前 800ms ~ 3500ms：0.92x 较快平稳等待
+                                                    PlaybackManager.setPlaybackSpeed(0.92f)
                                                 }
-                                                diffMs < -45L -> {
-                                                    // 手机超前 45ms ~ 250ms：轻度等待 0.96x 等待 TV
-                                                    PlaybackManager.setPlaybackSpeed(0.96f)
+                                                diffMs < -350L -> {
+                                                    // 手机中度超前 350ms ~ 800ms：0.95x 等待
+                                                    PlaybackManager.setPlaybackSpeed(0.95f)
+                                                }
+                                                diffMs < -90L -> {
+                                                    // 手机轻度超前 90ms ~ 350ms：0.975x 无感微调等待
+                                                    PlaybackManager.setPlaybackSpeed(0.975f)
                                                 }
                                                 else -> {
-                                                    // 时差已收敛在人耳容忍窗口（45ms）内，恢复 1.0x 正常倍速
+                                                    // 时差在 90ms 死区容差内（过滤局域网 Wi-Fi 抖动），保持 1.0x 标准倍速，消除重采样毛刺
                                                     PlaybackManager.resetPlaybackSpeed()
                                                 }
                                             }
@@ -695,6 +714,8 @@ object MobileConnectManager {
                 qualityTier = effectiveTier,
             )
             if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
+                pendingTrackTargetMid = song.songMid
+                pendingTrackTransitionTimestamp = System.currentTimeMillis()
                 val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
                 appContext?.let { PlaybackManager.startPlaybackService(it) }
                 PlaybackManager.setRemoteActive(true, pairedName)
@@ -730,9 +751,23 @@ object MobileConnectManager {
         }
     }
 
-    fun tvNext() = connectClient?.next()
+    fun tvNext() {
+        val nextMid = tvPlayerState.value?.nextSong?.songMid
+        if (!nextMid.isNullOrBlank()) {
+            pendingTrackTargetMid = nextMid
+            pendingTrackTransitionTimestamp = System.currentTimeMillis()
+        }
+        connectClient?.next()
+    }
 
-    fun tvPrev() = connectClient?.previous()
+    fun tvPrev() {
+        val prevMid = tvPlayerState.value?.prevSong?.songMid
+        if (!prevMid.isNullOrBlank()) {
+            pendingTrackTargetMid = prevMid
+            pendingTrackTransitionTimestamp = System.currentTimeMillis()
+        }
+        connectClient?.previous()
+    }
 
     fun tvPlayPrevious() = tvPrev()
 
