@@ -82,14 +82,30 @@ object PlaybackSourceResolver {
             return requestedTier
         }
         val mid = song?.songMid.orEmpty()
-        val cachedTier = if (mid.isNotBlank()) MelodistCacheManager.getCachedSongTier(mid) else null
-        if (cachedTier != null) {
-            val cachedRank = getAudioQualityRank(cachedTier)
+        val downloadedTier =
+            if (mid.isNotBlank()) {
+                org.melodist.data.download.DownloadManager
+                    .getCompletedDownload(mid)
+                    ?.second
+            } else {
+                null
+            }
+
+        val cachedTier =
+            if (mid.isNotBlank()) {
+                MelodistCacheManager.getBestFullyCachedTier(mid)
+            } else {
+                null
+            }
+
+        val localTier = downloadedTier ?: cachedTier
+        if (localTier != null) {
+            val localRank = getAudioQualityRank(localTier)
             val reqRank = getAudioQualityRank(requestedTier)
-            if (cachedRank >= reqRank) {
+            if (localRank >= reqRank) {
                 return requestedTier
-            } else if (cachedRank > getAudioQualityRank(cellularLimit)) {
-                return cachedTier
+            } else if (localRank > getAudioQualityRank(cellularLimit)) {
+                return localTier
             }
         }
         if (!isCellularNetwork(context)) {

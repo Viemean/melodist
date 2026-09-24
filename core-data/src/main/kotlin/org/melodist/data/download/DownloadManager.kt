@@ -86,6 +86,19 @@ object DownloadManager {
     private val _toastEvent = MutableSharedFlow<String>(extraBufferCapacity = 5)
     val toastEvent: SharedFlow<String> = _toastEvent.asSharedFlow()
 
+    fun getCompletedDownload(songMid: String): Pair<java.io.File, AudioQualityTier>? {
+        if (songMid.isBlank()) return null
+        val task = _completedTasks.value.find { it.song.songMid == songMid } ?: return null
+        val path = task.filePath
+        if (path.isNotBlank()) {
+            val file = java.io.File(path)
+            if (file.exists() && file.isFile && file.length() > 0L) {
+                return Pair(file, task.tier)
+            }
+        }
+        return null
+    }
+
     fun init(context: Context) {
         val app = context.applicationContext
         appContext = app

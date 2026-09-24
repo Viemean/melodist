@@ -107,6 +107,25 @@ class PlaybackSourceResolverTest {
     }
 
     @Test
+    fun `clampCellularTier respects local file songs without restriction`() {
+        val downloadedSong =
+            Song(
+                songId = 11,
+                songMid = "003mQIjO4e38e6",
+                name = "Test Downloaded",
+                localFilePath = "/storage/emulated/0/Music/test.flac",
+            )
+        val clamped =
+            PlaybackSourceResolver.clampCellularTier(
+                requestedTier = AudioQualityTier.SQ,
+                song = downloadedSong,
+                context = null,
+                cellularLimit = AudioQualityTier.HQ,
+            )
+        assertEquals(AudioQualityTier.SQ, clamped)
+    }
+
+    @Test
     fun `shouldTriggerPrefetch accurately identifies timing window`() {
         // 短曲目（<= 20秒）不触发
         assertFalse(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 20_000L, positionMs = 15_000L))

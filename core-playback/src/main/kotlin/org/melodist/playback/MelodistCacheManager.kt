@@ -376,6 +376,40 @@ object MelodistCacheManager {
     }
 
     /**
+     * 主动扫描磁盘缓存，获取曲目当前真正 100% 完整落盘的最佳音质
+     */
+    fun getBestFullyCachedTier(songMid: String): org.melodist.model.AudioQualityTier? {
+        if (songMid.isBlank()) return null
+
+        // 1. 优先校验内存字典记录的音质，如果文件仍在且完整，直接返回
+        val recordedTier = cachedSongTiers[songMid]
+        if (recordedTier != null && isKeyFullyCached(getCacheKey(songMid, recordedTier))) {
+            return recordedTier
+        }
+
+        // 2. 若记录无效或丢失，从高到低主动扫描磁盘上各音质的 CacheKey
+        val candidateTiers =
+            listOf(
+                org.melodist.model.AudioQualityTier.Master,
+                org.melodist.model.AudioQualityTier.Atmos,
+                org.melodist.model.AudioQualityTier.Dolby,
+                org.melodist.model.AudioQualityTier.Premium,
+                org.melodist.model.AudioQualityTier.HiRes,
+                org.melodist.model.AudioQualityTier.SQ,
+                org.melodist.model.AudioQualityTier.HQ,
+                org.melodist.model.AudioQualityTier.Standard,
+            )
+        for (tier in candidateTiers) {
+            val key = getCacheKey(songMid, tier)
+            if (isKeyFullyCached(key)) {
+                cachedSongTiers[songMid] = tier
+                return tier
+            }
+        }
+        return null
+    }
+
+    /**
      * 检查本地是否已经完整缓存了相同或更高等级的立体声音质。
      * 若存在且 100% 完整落盘，返回本地已缓存的最佳音质级别，业务层可直接免流复用本地数据起播。
      */
@@ -389,15 +423,12 @@ object MelodistCacheManager {
                 .getStereoRank(targetTier)
         if (targetStereoRank <= 0) return null // 仅针对立体声轨道收敛
 
-        val cachedTier = cachedSongTiers[songMid] ?: return null
+        val bestCachedTier = getBestFullyCachedTier(songMid) ?: return null
         val cachedStereoRank =
             org.melodist.model.AudioQualityTier
-                .getStereoRank(cachedTier)
+                .getStereoRank(bestCachedTier)
         if (cachedStereoRank >= targetStereoRank) {
-            val cacheKey = getCacheKey(songMid, cachedTier)
-            if (isKeyFullyCached(cacheKey)) {
-                return cachedTier
-            }
+            return bestCachedTier
         }
         return null
     }

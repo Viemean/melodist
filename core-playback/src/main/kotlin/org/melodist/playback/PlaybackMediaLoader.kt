@@ -92,7 +92,7 @@ object PlaybackMediaLoader {
         prefetchedUrlInfo: Pair<String, QualityResult>? = null,
     ): PlaybackTargetResult =
         withContext(Dispatchers.IO) {
-            // 1. 检查纯本地文件
+            // 1. 检查纯本地文件及下载管理器中已下载文件
             val isPureLocal = !song.localFilePath.isNullOrBlank() && !song.songMid.startsWith("webdav_")
             if (isPureLocal) {
                 val directFile = File(song.localFilePath!!)
@@ -104,6 +104,18 @@ object PlaybackMediaLoader {
                         localFile = directFile,
                     )
                 }
+            }
+            val completedDownload =
+                org.melodist.data.download.DownloadManager
+                    .getCompletedDownload(song.songMid)
+            if (completedDownload != null) {
+                val (downloadFile, downloadTier) = completedDownload
+                val mediaItem = buildMediaItem(Uri.fromFile(downloadFile), song, downloadTier, metadataBuilder)
+                return@withContext PlaybackTargetResult.LocalFile(
+                    mediaItem = mediaItem,
+                    actualTier = downloadTier,
+                    localFile = downloadFile,
+                )
             }
 
             // 2. 检查本地音乐远程流式播放（局域网代理中转）

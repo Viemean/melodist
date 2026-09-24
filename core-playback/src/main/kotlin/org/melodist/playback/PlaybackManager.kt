@@ -1057,9 +1057,15 @@ object PlaybackManager {
         _isTransitioning.value = true
         appContext?.let { startPlaybackService(it, foreground = true) }
 
-        val targetTierInit = forceTier ?: _preferredTier.value
+        val rawTargetTier = forceTier ?: _preferredTier.value
+        val targetTierInit = clampCellularTier(rawTargetTier, effectiveSong)
+        val completedDownloadTier =
+            org.melodist.data.download.DownloadManager
+                .getCompletedDownload(effectiveSong.songMid)
+                ?.second
         val initialCachedTier =
-            MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
+            completedDownloadTier
+                ?: MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
                 ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
         val isDirectCachedInit =
             initialCachedTier != null ||
@@ -1068,11 +1074,7 @@ object PlaybackManager {
                 !effectiveSong.localFilePath.isNullOrBlank()
         _isCurrentTrackFromCache.value = isDirectCachedInit
         _fileCacheFraction.value = if (isDirectCachedInit) 1f else 0f
-        if (initialCachedTier != null) {
-            _currentTier.value = initialCachedTier
-        } else if (forceTier != null) {
-            _currentTier.value = forceTier
-        }
+        _currentTier.value = initialCachedTier ?: targetTierInit
 
         updateCurrentMediaMetadata(effectiveSong)
         org.melodist.data.RecentPlaybackManager
