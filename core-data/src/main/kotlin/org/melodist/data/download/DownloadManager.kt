@@ -57,6 +57,7 @@ object DownloadManager {
     private const val TAG = "DownloadManager"
     private const val PREF_NAME = "melodist_downloads"
     private const val KEY_COMPLETED = "completed_downloads_json"
+    private const val MAX_CONCURRENT_DOWNLOADS = 5
 
     private var appContext: Context? = null
     private var prefs: SharedPreferences? = null
@@ -254,15 +255,28 @@ object DownloadManager {
         _activeTasks.value = _activeTasks.value.filter { it.id != taskId } + initialTask
         _toastEvent.tryEmit("已添加至下载队列: ${song.name}")
 
-        startDownloadTask(initialTask)
+        scheduleNextDownloads()
     }
 
-    private fun startDownloadTask(task: DownloadTask) {
-        val job =
-            scope.launch {
-                executeDownload(task)
-            }
-        activeJobs[task.id] = job
+    @Synchronized
+    private fun scheduleNextDownloads() {
+        val currentDownloading = _activeTasks.value.count { it.status == DownloadStatus.Downloading }
+        val availableSlots = MAX_CONCURRENT_DOWNLOADS - currentDownloading
+        if (availableSlots <= 0) return
+
+        val tasksToStart =
+            _activeTasks.value
+                .filter { it.status == DownloadStatus.Pending }
+                .take(availableSlots)
+
+        for (task in tasksToStart) {
+            updateActiveTask(task.id) { it.copy(status = DownloadStatus.Downloading) }
+            val job =
+                scope.launch {
+                    executeDownload(task)
+                }
+            activeJobs[task.id] = job
+        }
     }
 
     private suspend fun executeDownload(task: DownloadTask) {
@@ -440,6 +454,7 @@ object DownloadManager {
             _toastEvent.tryEmit("下载失败: $errorDesc")
         } finally {
             activeJobs.remove(task.id)
+            scheduleNextDownloads()
         }
     }
 
@@ -484,17 +499,22 @@ object DownloadManager {
         updateActiveTask(taskId) {
             it.copy(status = DownloadStatus.Paused, speedBytesPerSec = 0L)
         }
+        scheduleNextDownloads()
     }
 
     fun resumeDownload(taskId: String) {
         val task = _activeTasks.value.find { it.id == taskId } ?: return
-        startDownloadTask(task)
+        updateActiveTask(taskId) {
+            it.copy(status = DownloadStatus.Pending, errorMessage = null)
+        }
+        scheduleNextDownloads()
     }
 
     fun cancelDownload(taskId: String) {
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
         _activeTasks.value = _activeTasks.value.filter { it.id != taskId }
+        scheduleNextDownloads()
     }
 
     fun deleteDownloaded(
