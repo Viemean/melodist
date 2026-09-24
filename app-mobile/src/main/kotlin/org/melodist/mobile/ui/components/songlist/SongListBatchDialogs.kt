@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.deleteSongsFromPlaylist
+import org.melodist.data.AppSettingsManager
 import org.melodist.data.LocalMusicManager
 import org.melodist.data.RecentPlaybackManager
 import org.melodist.data.UserLibraryCacheManager
@@ -72,11 +73,13 @@ fun SongListBatchDialogs(
     // 1. 批量下载确认弹窗
     if (showBatchDownloadDialog) {
         val validDownloadSongs = selectedSongs.filter { it.songMid.isNotBlank() && !it.isLocal && !it.isWebDav }
+        val defaultTier = AppSettingsManager.settings.value.preferredQualityTier
+        val tierLabel = DownloadManager.getCleanTierLabel(defaultTier)
         AlertDialog(
             onDismissRequest = onDismissBatchDownload,
             title = { Text("批量下载确认") },
             text = {
-                Text("确定将选中的 ${validDownloadSongs.size} 首在线歌曲加入下载队列吗？")
+                Text("确定将选中的 ${validDownloadSongs.size} 首最高 $tierLabel 音质（默认音质级别）加入下载队列吗？")
             },
             confirmButton = {
                 TextButton(
