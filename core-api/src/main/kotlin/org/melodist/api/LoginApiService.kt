@@ -2,6 +2,8 @@ package org.melodist.api
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.*
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -42,6 +44,7 @@ class LoginApiService(
             .build(),
 ) {
     companion object {
+        private val refreshMutex = Mutex()
         private val JSON_TYPE = "application/json; charset=utf-8".toMediaType()
         private val SINGLE_QUOTE_PATTERN = Pattern.compile("'([^']*)'")
         private val WX_STATUS_PATTERN = Pattern.compile("window\\.wx_errcode=(\\d+);(?:window\\.wx_code='([^']*)';)?")
@@ -366,28 +369,109 @@ class LoginApiService(
             }
         }
 
-    suspend fun ensureMusicKey(): Boolean =
+    suspend fun refreshQQLoginToken(
+        openid: String,
+        accessToken: String,
+    ): Boolean =
         withContext(Dispatchers.IO) {
-            val cookies = UserSession.profile.cookies.toMutableMap()
+            try {
+                val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+                val payload =
+                    """{"comm":{"ct":19,"cv":1,"tmeLoginType":"1"},"login":{"module":"QQConnectLogin.LoginServer","method":"QQLogin","param":{"onlyNeedAccessToken":0,"forceRefreshToken":1,"appid":100497308,"openid":"$openid","access_token":"$accessToken"}}}"""
+
+                val requestBuilder =
+                    Request.Builder()
+                        .url(url)
+                        .post(payload.toRequestBody(JSON_TYPE))
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                        .header("Referer", "https://y.qq.com/")
+                        .header("Origin", "https://y.qq.com")
+
+                val cookieHeader = UserSession.getCookieHeader()
+                if (cookieHeader.isNotBlank()) {
+                    requestBuilder.header("Cookie", cookieHeader)
+                }
+
+                client.newCall(requestBuilder.build()).execute().use { resp ->
+                    if (!resp.isSuccessful) return@withContext false
+                    val json = resp.body.string()
+                    val jsonElement = Json.parseToJsonElement(json).jsonObject
+                    val loginObj = jsonElement["login"]?.jsonObject ?: return@withContext false
+                    val code = loginObj["code"]?.jsonPrimitive?.intOrNull ?: -1
+                    if (code != 0) return@withContext false
+                    val loginData = loginObj["data"]?.jsonObject ?: return@withContext false
+
+                    val musicId =
+                        loginData["str_musicid"]?.jsonPrimitive?.contentOrNull
+                            ?: loginData["musicid"]?.jsonPrimitive?.contentOrNull
+                            ?: ""
+                    val musicKey = loginData["musickey"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val newOpenid = loginData["openid"]?.jsonPrimitive?.contentOrNull ?: openid
+                    val newAccessToken = loginData["access_token"]?.jsonPrimitive?.contentOrNull ?: accessToken
+                    val unionid = loginData["unionid"]?.jsonPrimitive?.contentOrNull ?: ""
+
+                    if (musicKey.isNotEmpty()) {
+                        val cookies = UserSession.profile.cookies.toMutableMap()
+                        if (musicId.isNotEmpty()) {
+                            cookies["musicid"] = musicId
+                            cookies["uin"] = musicId
+                            cookies["qqmusic_uin"] = musicId
+                        }
+                        cookies["qqmusic_key"] = musicKey
+                        cookies["qm_keyst"] = musicKey
+                        cookies["qqmusic_version"] = "17"
+                        cookies["qqmusic_miniversion"] = "70"
+                        cookies["tmeLoginType"] = "1"
+                        if (newOpenid.isNotEmpty()) cookies["psrf_qqopenid"] = newOpenid
+                        if (newAccessToken.isNotEmpty()) cookies["psrf_qqaccess_token"] = newAccessToken
+                        if (unionid.isNotEmpty()) cookies["psrf_qqunionid"] = unionid
+
+                        UserSession.update(
+                            uin = musicId.ifEmpty { UserSession.profile.uin },
+                            nick = UserSession.profile.nick,
+                            musicKey = musicKey,
+                            cookies = cookies,
+                            avatarUrl = UserSession.profile.avatarUrl,
+                            isVip = UserSession.profile.isVip,
+                        )
+                        return@withContext true
+                    }
+                }
+                false
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                ApiLogger.w("LoginApiService", "refreshQQLoginToken failed", e)
+                false
+            }
+        }
+
+    suspend fun ensureMusicKey(forceRefresh: Boolean = false): Boolean =
+        withContext(Dispatchers.IO) {
+            val cookies = UserSession.profile.cookies
             val qmKey = cookies["qm_keyst"]
-            if (!qmKey.isNullOrEmpty()) {
+            if (!forceRefresh && !qmKey.isNullOrEmpty()) {
                 return@withContext true
             }
-            val pskey = cookies["p_skey"] ?: cookies["skey"]
-            if (!pskey.isNullOrEmpty()) {
-                return@withContext exchangeOAuthForMusicKey(cookies)
-            }
-            false
+            forceRefreshMusicKey()
         }
 
     suspend fun forceRefreshMusicKey(): Boolean =
         withContext(Dispatchers.IO) {
-            val cookies = UserSession.profile.cookies.toMutableMap()
-            val pskey = cookies["p_skey"] ?: cookies["skey"]
-            if (!pskey.isNullOrEmpty()) {
-                return@withContext exchangeOAuthForMusicKey(cookies)
+            refreshMutex.withLock {
+                val cookies = UserSession.profile.cookies.toMutableMap()
+                val openid = cookies["psrf_qqopenid"]
+                val accessToken = cookies["psrf_qqaccess_token"]
+                if (!openid.isNullOrEmpty() && !accessToken.isNullOrEmpty()) {
+                    val refreshed = refreshQQLoginToken(openid, accessToken)
+                    if (refreshed) return@withLock true
+                }
+
+                val pskey = cookies["p_skey"] ?: cookies["skey"]
+                if (!pskey.isNullOrEmpty()) {
+                    return@withLock exchangeOAuthForMusicKey(cookies)
+                }
+                false
             }
-            false
         }
 
     // ================== 微信扫码登录 ==================
