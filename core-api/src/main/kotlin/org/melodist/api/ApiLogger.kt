@@ -7,6 +7,32 @@ package org.melodist.api
 object ApiLogger {
     var logger: ((priority: Int, tag: String, message: String, throwable: Throwable?) -> Unit)? = null
 
+    fun d(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    ) {
+        val custom = logger
+        if (custom != null) {
+            custom(3, tag, message, throwable)
+        } else {
+            println("DEBUG: [$tag] $message" + (throwable?.let { " - ${it.message}" } ?: ""))
+        }
+    }
+
+    fun i(
+        tag: String,
+        message: String,
+        throwable: Throwable? = null,
+    ) {
+        val custom = logger
+        if (custom != null) {
+            custom(4, tag, message, throwable)
+        } else {
+            println("INFO: [$tag] $message" + (throwable?.let { " - ${it.message}" } ?: ""))
+        }
+    }
+
     fun w(
         tag: String,
         message: String,

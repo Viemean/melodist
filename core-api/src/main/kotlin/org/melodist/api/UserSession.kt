@@ -111,7 +111,20 @@ object UserSession {
         _favoriteSongCount.value = null
     }
 
-    fun getCookieHeader(): String = profile.cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+    fun getCookieHeader(): String {
+        if (profile.cookies.isEmpty()) {
+            val u = profile.uin
+            val k = profile.musicKey
+            return if (u.isNotBlank() && k.isNotBlank()) {
+                "uin=$u; qqmusic_uin=$u; qqmusic_key=$k; qm_keyst=$k"
+            } else if (u.isNotBlank()) {
+                "uin=$u"
+            } else {
+                ""
+            }
+        }
+        return profile.cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+    }
 
     private val jsonHelper =
         Json {
