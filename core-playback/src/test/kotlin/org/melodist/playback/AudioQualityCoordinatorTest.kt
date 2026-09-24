@@ -60,7 +60,10 @@ class AudioQualityCoordinatorTest {
 
     @Test
     fun `getFallbackTier follows degradation ladder`() {
-        assertEquals(AudioQualityTier.HiRes, coordinator.getFallbackTier(AudioQualityTier.Master))
+        assertEquals(AudioQualityTier.Atmos, coordinator.getFallbackTier(AudioQualityTier.Master))
+        assertEquals(AudioQualityTier.Dolby, coordinator.getFallbackTier(AudioQualityTier.Atmos))
+        assertEquals(AudioQualityTier.Premium, coordinator.getFallbackTier(AudioQualityTier.Dolby))
+        assertEquals(AudioQualityTier.HiRes, coordinator.getFallbackTier(AudioQualityTier.Premium))
         assertEquals(AudioQualityTier.SQ, coordinator.getFallbackTier(AudioQualityTier.HiRes))
         assertEquals(AudioQualityTier.HQ, coordinator.getFallbackTier(AudioQualityTier.SQ))
         assertEquals(AudioQualityTier.Standard, coordinator.getFallbackTier(AudioQualityTier.HQ))

@@ -4,14 +4,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class AudioQualityTier {
+    Master,
+    Atmos,
+    Dolby,
+    Premium,
     HiRes,
     SQ,
     HQ,
     Standard,
-    Master,
-    Premium,
-    Atmos,
-    Dolby,
     ;
 
     companion object {

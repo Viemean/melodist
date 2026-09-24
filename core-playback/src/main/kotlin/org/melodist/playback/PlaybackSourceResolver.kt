@@ -57,15 +57,17 @@ object PlaybackSourceResolver {
             song.isLocal
     }
 
-    fun getAudioQualityRank(tier: AudioQualityTier): Int {
-        val stereo = AudioQualityTier.getStereoRank(tier)
-        if (stereo > 0) return stereo
-        return when (AudioQualityTier.getSpatialRank(tier)) {
-            2 -> 3
-            1 -> 2
-            else -> 1
+    fun getAudioQualityRank(tier: AudioQualityTier): Int =
+        when (tier) {
+            AudioQualityTier.Master -> 8
+            AudioQualityTier.Atmos -> 7
+            AudioQualityTier.Dolby -> 6
+            AudioQualityTier.Premium -> 5
+            AudioQualityTier.HiRes -> 4
+            AudioQualityTier.SQ -> 3
+            AudioQualityTier.HQ -> 2
+            AudioQualityTier.Standard -> 1
         }
-    }
 
     fun clampCellularTier(
         requestedTier: AudioQualityTier,
@@ -100,11 +102,11 @@ object PlaybackSourceResolver {
 
     fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? =
         when (current) {
-            AudioQualityTier.Master -> AudioQualityTier.HiRes
-            AudioQualityTier.HiRes -> AudioQualityTier.SQ
+            AudioQualityTier.Master -> AudioQualityTier.Atmos
             AudioQualityTier.Atmos -> AudioQualityTier.Dolby
-            AudioQualityTier.Dolby -> AudioQualityTier.SQ
-            AudioQualityTier.Premium -> AudioQualityTier.SQ
+            AudioQualityTier.Dolby -> AudioQualityTier.Premium
+            AudioQualityTier.Premium -> AudioQualityTier.HiRes
+            AudioQualityTier.HiRes -> AudioQualityTier.SQ
             AudioQualityTier.SQ -> AudioQualityTier.HQ
             AudioQualityTier.HQ -> AudioQualityTier.Standard
             AudioQualityTier.Standard -> null

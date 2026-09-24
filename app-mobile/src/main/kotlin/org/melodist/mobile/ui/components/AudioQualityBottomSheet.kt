@@ -104,13 +104,13 @@ fun AudioQualityBottomSheet(
                 fun getWeight(tier: AudioQualityTier): Int =
                     when (tier) {
                         AudioQualityTier.Master -> 100
-                        AudioQualityTier.Premium -> 95
-                        AudioQualityTier.HiRes -> 90
-                        AudioQualityTier.Atmos -> 85
+                        AudioQualityTier.Atmos -> 90
                         AudioQualityTier.Dolby -> 80
-                        AudioQualityTier.SQ -> 70
-                        AudioQualityTier.HQ -> 60
-                        AudioQualityTier.Standard -> 50
+                        AudioQualityTier.Premium -> 70
+                        AudioQualityTier.HiRes -> 60
+                        AudioQualityTier.SQ -> 50
+                        AudioQualityTier.HQ -> 40
+                        AudioQualityTier.Standard -> 30
                     }
                 combined.sortedByDescending { getWeight(it) }
             }

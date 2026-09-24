@@ -430,6 +430,33 @@ suspend fun MusicApiService.getPlayUrl(
                 when (preferredTier) {
                     AudioQualityTier.Master ->
                         listOf(
+                            AudioQualityTier.Atmos,
+                            AudioQualityTier.Dolby,
+                            AudioQualityTier.Premium,
+                            AudioQualityTier.HiRes,
+                            AudioQualityTier.SQ,
+                            AudioQualityTier.HQ,
+                            AudioQualityTier.Standard,
+                        )
+                    AudioQualityTier.Atmos ->
+                        listOf(
+                            AudioQualityTier.Dolby,
+                            AudioQualityTier.Premium,
+                            AudioQualityTier.HiRes,
+                            AudioQualityTier.SQ,
+                            AudioQualityTier.HQ,
+                            AudioQualityTier.Standard,
+                        )
+                    AudioQualityTier.Dolby ->
+                        listOf(
+                            AudioQualityTier.Premium,
+                            AudioQualityTier.HiRes,
+                            AudioQualityTier.SQ,
+                            AudioQualityTier.HQ,
+                            AudioQualityTier.Standard,
+                        )
+                    AudioQualityTier.Premium ->
+                        listOf(
                             AudioQualityTier.HiRes,
                             AudioQualityTier.SQ,
                             AudioQualityTier.HQ,
@@ -451,33 +478,6 @@ suspend fun MusicApiService.getPlayUrl(
                             AudioQualityTier.Standard,
                         )
                     AudioQualityTier.Standard -> emptyList()
-                    AudioQualityTier.Atmos ->
-                        listOf(
-                            AudioQualityTier.Dolby,
-                            AudioQualityTier.Premium,
-                            AudioQualityTier.Master,
-                            AudioQualityTier.HiRes,
-                            AudioQualityTier.SQ,
-                            AudioQualityTier.HQ,
-                            AudioQualityTier.Standard,
-                        )
-                    AudioQualityTier.Dolby ->
-                        listOf(
-                            AudioQualityTier.Premium,
-                            AudioQualityTier.Master,
-                            AudioQualityTier.HiRes,
-                            AudioQualityTier.SQ,
-                            AudioQualityTier.HQ,
-                            AudioQualityTier.Standard,
-                        )
-                    AudioQualityTier.Premium ->
-                        listOf(
-                            AudioQualityTier.Master,
-                            AudioQualityTier.HiRes,
-                            AudioQualityTier.SQ,
-                            AudioQualityTier.HQ,
-                            AudioQualityTier.Standard,
-                        )
                 }
 
             for (tier in fallbackCandidates) {
@@ -489,11 +489,14 @@ suspend fun MusicApiService.getPlayUrl(
             // 兜底保障（若向下候选未命中，则回退到基础可用流）
             val ultimateFallback =
                 listOf(
+                    AudioQualityTier.Master,
+                    AudioQualityTier.Atmos,
+                    AudioQualityTier.Dolby,
+                    AudioQualityTier.Premium,
+                    AudioQualityTier.HiRes,
                     AudioQualityTier.SQ,
                     AudioQualityTier.HQ,
                     AudioQualityTier.Standard,
-                    AudioQualityTier.HiRes,
-                    AudioQualityTier.Master,
                 )
             for (tier in ultimateFallback) {
                 availableMap[tier]?.let { url ->
