@@ -38,7 +38,7 @@ suspend fun MusicApiService.probeSongQualities(
             )
 
         val sb = StringBuilder(1536)
-        sb.append("""{"comm":{"uin":"$uin","format":"json","ct":19,"cv":1,"authst":"$authst"}""")
+        sb.append("""{"comm":{"uin":"$uin","format":"json","ct":28,"cv":1,"authst":"$authst"}""")
         sb.append(""", "songinfo":{"module":"music.pf_song_detail_svr","method":"get_song_detail_yqq","param":{"song_mid":"$songMid"}}""")
 
         for (req in requests) {
@@ -84,11 +84,6 @@ suspend fun MusicApiService.probeSongQualities(
                     fileObj["size_hires"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
                         ?: fileObj["size_96flac"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
                         ?: fileObj["size_24bit"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
-                        ?: sizeNew
-                            ?.getOrNull(11)
-                            ?.jsonPrimitive
-                            ?.longOrNull
-                            ?.takeIf { it > 0L }
                         ?: 0L
                 flacSize = fileObj["size_flac"]?.jsonPrimitive?.longOrNull ?: 0L
                 hiresSample = fileObj["hires_sample"]?.jsonPrimitive?.intOrNull ?: 0
@@ -282,7 +277,7 @@ suspend fun MusicApiService.getPlayUrl(
             )
 
         val sb = StringBuilder(1536)
-        sb.append("""{"comm":{"uin":"$uin","format":"json","ct":19,"cv":1,"authst":"$authst"}""")
+        sb.append("""{"comm":{"uin":"$uin","format":"json","ct":28,"cv":1,"authst":"$authst"}""")
         sb.append(
             """, "songinfo":{"module":"music.pf_song_detail_svr","method":"get_song_detail_yqq","param":{"song_mid":"$songMid"}}""",
         )
@@ -324,11 +319,6 @@ suspend fun MusicApiService.getPlayUrl(
                     fileObj["size_hires"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
                         ?: fileObj["size_96flac"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
                         ?: fileObj["size_24bit"]?.jsonPrimitive?.longOrNull?.takeIf { it > 0L }
-                        ?: sizeNew
-                            ?.getOrNull(11)
-                            ?.jsonPrimitive
-                            ?.longOrNull
-                            ?.takeIf { it > 0L }
                         ?: 0L
                 val flacSize = fileObj["size_flac"]?.jsonPrimitive?.longOrNull ?: 0L
                 val hiresSample = fileObj["hires_sample"]?.jsonPrimitive?.intOrNull ?: 0

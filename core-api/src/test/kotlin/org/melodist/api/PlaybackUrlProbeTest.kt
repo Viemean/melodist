@@ -50,6 +50,33 @@ class PlaybackUrlProbeTest {
             when (preferredTier) {
                 AudioQualityTier.Master ->
                     listOf(
+                        AudioQualityTier.Atmos,
+                        AudioQualityTier.Dolby,
+                        AudioQualityTier.Premium,
+                        AudioQualityTier.HiRes,
+                        AudioQualityTier.SQ,
+                        AudioQualityTier.HQ,
+                        AudioQualityTier.Standard,
+                    )
+                AudioQualityTier.Atmos ->
+                    listOf(
+                        AudioQualityTier.Dolby,
+                        AudioQualityTier.Premium,
+                        AudioQualityTier.HiRes,
+                        AudioQualityTier.SQ,
+                        AudioQualityTier.HQ,
+                        AudioQualityTier.Standard,
+                    )
+                AudioQualityTier.Dolby ->
+                    listOf(
+                        AudioQualityTier.Premium,
+                        AudioQualityTier.HiRes,
+                        AudioQualityTier.SQ,
+                        AudioQualityTier.HQ,
+                        AudioQualityTier.Standard,
+                    )
+                AudioQualityTier.Premium ->
+                    listOf(
                         AudioQualityTier.HiRes,
                         AudioQualityTier.SQ,
                         AudioQualityTier.HQ,
@@ -71,7 +98,6 @@ class PlaybackUrlProbeTest {
                         AudioQualityTier.Standard,
                     )
                 AudioQualityTier.Standard -> emptyList()
-                else -> emptyList()
             }
 
         var selectedUrl: String? = null
@@ -145,12 +171,12 @@ class PlaybackUrlProbeTest {
     }
 
     @Test
-    fun `hires option is marked available when track has genuine hires size in size_new 11`() {
-        // 妄想感傷代償連盟: size_new[11] = 50685154
-        val hiresRaw = 50685154L
+    fun `hires option is marked available when track has genuine hires size in size_hires`() {
+        // 妄想感傷代償連盟: size_hires = 100164810, hires_sample = 96000, hires_bitdepth = 24
+        val hiresRaw = 100164810L
         val masterSize = 198166746L
-        val hiresSample = 0
-        val hiresBitdepth = 0
+        val hiresSample = 96000
+        val hiresBitdepth = 24
         val isTrueHiRes = hiresRaw > 0L || hiresSample > 48000 || hiresBitdepth > 16
 
         val flacSize = 61839633L
@@ -170,7 +196,7 @@ class PlaybackUrlProbeTest {
 
         assertTrue(isHiResAvailable)
         assertTrue(isMasterAvailable)
-        assertEquals(50685154L, sizeMap[AudioQualityTier.HiRes])
+        assertEquals(100164810L, sizeMap[AudioQualityTier.HiRes])
         assertEquals(198166746L, sizeMap[AudioQualityTier.Master])
     }
 
