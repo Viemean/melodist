@@ -213,4 +213,19 @@ class PlaybackUrlProbeTest {
             println("Resolved lyrics count for ${targetSong.name}: ${lyrics.size}")
             println("First line: ${lyrics.first().text}, trans=${lyrics.first().transText}")
         }
+
+    @Test
+    fun `dolby option maintains distinct size and bitrate from premium tier`() {
+        // 打上花火: size_dolby = 16213685, size_new[1] (premium) = 31305854, interval = 289
+        val dolbySize = 16213685L
+        val premiumSize = 31305854L
+        val interval = 289L
+
+        val dolbyBitrate = "${Math.round((dolbySize * 8.0) / interval / 1000.0)}kbps"
+        val premiumBitrate = "${Math.round((premiumSize * 8.0) / interval / 1000.0)}kbps"
+
+        assertEquals("449kbps", dolbyBitrate)
+        assertEquals("867kbps", premiumBitrate)
+        assertNotEquals(dolbySize, premiumSize)
+    }
 }

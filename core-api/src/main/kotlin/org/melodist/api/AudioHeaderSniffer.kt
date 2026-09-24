@@ -137,12 +137,27 @@ object AudioHeaderSniffer {
 
                         val finalBitDepth = if (spec.bitDepth > 0) spec.bitDepth else option.bitDepth
                         val finalSampleRate = if (spec.sampleRateHz > 0) spec.sampleRateHz else option.sampleRateHz
-                        val finalSize = if (spec.totalFileSize > 0L) spec.totalFileSize else option.sizeBytes
+
+                        val needsSizeCorrection =
+                            (option.tier == AudioQualityTier.HiRes && (option.sizeBytes <= 0L || (songDurationSec > 0 && option.sizeBytes <= 35_000_000L))) ||
+                                option.sizeBytes <= 0L
+
+                        val finalSize =
+                            if (needsSizeCorrection && spec.totalFileSize > 0L) {
+                                spec.totalFileSize
+                            } else {
+                                option.sizeBytes
+                            }
 
                         val formattedBitrate =
                             when {
                                 option.tier == AudioQualityTier.Standard -> "128 kbps"
                                 option.tier == AudioQualityTier.HQ -> "320 kbps"
+                                needsSizeCorrection && spec.calculatedBitrateKbps > 0 -> "${spec.calculatedBitrateKbps} kbps"
+                                finalSize > 0L && songDurationSec > 0 -> {
+                                    val calculated = ((finalSize * 8.0) / songDurationSec / 1000.0).roundToInt()
+                                    if (calculated > 0) "$calculated kbps" else option.bitrate
+                                }
                                 spec.calculatedBitrateKbps > 0 -> "${spec.calculatedBitrateKbps} kbps"
                                 else -> option.bitrate
                             }
