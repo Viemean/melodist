@@ -13,6 +13,12 @@ import org.melodist.model.QualityOption
 suspend fun MusicApiService.probeSongQualities(
     songMid: String,
     mediaMid: String = "",
+): List<QualityOption> = probeSongQualitiesInternal(songMid, mediaMid, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.probeSongQualitiesInternal(
+    songMid: String,
+    mediaMid: String = "",
+    canRetryWithRenew: Boolean = true,
 ): List<QualityOption> =
     withContext(Dispatchers.IO) {
         if (songMid.isBlank()) return@withContext emptyList()
@@ -232,6 +238,18 @@ suspend fun MusicApiService.probeSongQualities(
                 )
             }
 
+            if (canRetryWithRenew && UserSession.isLoggedIn && !PlaybackCredentialsManager.hasCustomCredentials) {
+                val hasVipSource = resultList.any { it.tier > AudioQualityTier.HQ && it.sizeBytes > 0 }
+                val hasVipUrl = resultList.any { it.tier > AudioQualityTier.HQ && it.isAvailable }
+                if (hasVipSource && !hasVipUrl) {
+                    ApiLogger.i("MusicApiPlayback", "probeSongQualities: VIP track detected without valid URL, attempting token renewal...")
+                    val renewed = LoginApiService().forceRefreshMusicKey()
+                    if (renewed) {
+                        return@withContext probeSongQualitiesInternal(songMid, mediaMid, canRetryWithRenew = false)
+                    }
+                }
+            }
+
             resultList
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -253,6 +271,13 @@ suspend fun MusicApiService.getPlayUrl(
     songMid: String,
     mediaMid: String = "",
     preferredTier: AudioQualityTier = AudioQualityTier.SQ,
+): QualityResult = getPlayUrlInternal(songMid, mediaMid, preferredTier, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.getPlayUrlInternal(
+    songMid: String,
+    mediaMid: String = "",
+    preferredTier: AudioQualityTier = AudioQualityTier.SQ,
+    canRetryWithRenew: Boolean = true,
 ): QualityResult =
     withContext(Dispatchers.IO) {
         if (!PlaybackCredentialsManager.hasCustomCredentials) {
@@ -366,47 +391,13 @@ suspend fun MusicApiService.getPlayUrl(
                 }
             }
 
-            if (availableMap.isEmpty() && UserSession.isLoggedIn) {
+            val hasVipSource = sizeMap.any { it.key > AudioQualityTier.HQ && it.value > 0L }
+            val hasVipUrl = availableMap.keys.any { it > AudioQualityTier.HQ }
+            if (canRetryWithRenew && UserSession.isLoggedIn && !PlaybackCredentialsManager.hasCustomCredentials && hasVipSource && !hasVipUrl) {
+                ApiLogger.i("MusicApiPlayback", "getPlayUrl: VIP tracks available but no valid VIP URL obtained, attempting token renewal...")
                 val refreshed = LoginApiService().forceRefreshMusicKey()
                 if (refreshed) {
-                    val newUin = PlaybackCredentialsManager.getActiveUin()
-                    val newAuthst = PlaybackCredentialsManager.getActiveAuthst()
-                    val newCookieHeader = PlaybackCredentialsManager.getActiveCookieHeader()
-                    val retryPayload =
-                        sb
-                            .toString()
-                            .replace(""""uin":"$uin"""", """"uin":"$newUin"""")
-                            .replace(""""authst":"$authst"""", """"authst":"$newAuthst"""")
-                    try {
-                        val retryResp = postGateway(retryPayload, customCookieHeader = newCookieHeader)
-                        val retryRoot = Json.parseToJsonElement(retryResp).jsonObject
-                        for (req in requests) {
-                            val key = req.first
-                            val tier = req.second
-                            val prefix = req.third.first
-                            val reqData = retryRoot[key]?.jsonObject?.get("data")?.jsonObject ?: continue
-                            val sips = reqData["sip"]?.jsonArray
-                            val sip = sips?.firstOrNull()?.jsonPrimitive?.contentOrNull ?: continue
-                            val midInfo = reqData["midurlinfo"]?.jsonArray?.firstOrNull()?.jsonObject
-                            val purl = midInfo?.get("purl")?.jsonPrimitive?.contentOrNull
-                            val result = midInfo?.get("result")?.jsonPrimitive?.intOrNull ?: 0
-                            val fileSize = sizeMap[tier] ?: 0L
-                            val hasValidUrl = !purl.isNullOrBlank() && purl.length > 5 && result == 0 && purl.contains(prefix, ignoreCase = true)
-                            val isAvailable =
-                                if (tier == AudioQualityTier.Dolby) {
-                                    dolbySize > 0L && hasValidUrl
-                                } else if (fileObj != null) {
-                                    fileSize > 0L && hasValidUrl
-                                } else {
-                                    hasValidUrl
-                                }
-                            if (isAvailable && purl != null) {
-                                if (purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) continue
-                                availableMap[tier] = sip + purl
-                            }
-                        }
-                    } catch (_: Exception) {
-                    }
+                    return@withContext getPlayUrlInternal(songMid, mediaMid, preferredTier, canRetryWithRenew = false)
                 }
             }
 
