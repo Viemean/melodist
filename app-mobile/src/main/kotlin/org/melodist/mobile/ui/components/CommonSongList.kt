@@ -178,12 +178,29 @@ fun CommonSongList(
     }
 
     val handleSongClick =
-        remember(displaySongs, onSongClick, paginationSource) {
-            { index: Int ->
+        remember(songs, filterQuery, onSongClick, paginationSource) {
+            { song: Song, displayIndex: Int ->
+                val fullIndex =
+                    if (filterQuery.isBlank()) {
+                        displayIndex
+                    } else {
+                        val idx =
+                            songs.indexOfFirst { target ->
+                                if (song.songMid.isNotBlank() && target.songMid.isNotBlank()) {
+                                    song.songMid == target.songMid
+                                } else if (song.songId != 0L && target.songId != 0L) {
+                                    song.songId == target.songId
+                                } else {
+                                    target == song
+                                }
+                            }
+                        if (idx >= 0) idx else displayIndex
+                    }
+
                 if (onSongClick != null) {
-                    onSongClick(displaySongs, index)
+                    onSongClick(songs, fullIndex)
                 } else {
-                    PlaybackManager.setPlaylist(displaySongs, startIndex = index, paginationSource = paginationSource)
+                    PlaybackManager.setPlaylist(songs, startIndex = fullIndex, paginationSource = paginationSource)
                 }
             }
         }
@@ -248,7 +265,7 @@ fun CommonSongList(
                         showQualityBadge = showQualityBadge,
                         isMultiSelectMode = isMultiSelectMode,
                         isSelected = isSelected,
-                        onClick = { handleSongClick(index) },
+                        onClick = { handleSongClick(song, index) },
                         onSelectToggle = { toggleSongSelection(song) },
                         onLongClick = {
                             if (!isMultiSelectMode) {
