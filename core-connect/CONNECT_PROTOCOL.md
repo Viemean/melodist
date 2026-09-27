@@ -131,7 +131,8 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 | `cmd_open_player` | 无参数 | 在 TV 端展开大屏全屏播放界面 |
 | `cmd_toggle_favorite` | `{"song": <optional_song_object>, "songMid": "<song_mid>", "isFavorite": <boolean>}` | 切换歌曲收藏状态 |
 | `cmd_enqueue_next` | `{"song": <song_object>, "audioSource": <optional_audio_source>}` | 将指定曲目插入下一首优先播放 |
-| `cmd_play_song` | 见下方详细模型 | 点播曲目、接力播放并重置/同步队列 |
+| `cmd_play_song` | 见下方详细模型 | 点播曲目、接力播放并重置/同步初始轻量队列（秒开起播） |
+| `cmd_sync_queue_chunk` | 见下方详细模型 | 大播放队列分批流式全量同步分片包（首播后后台异步追加） |
 | `cmd_gesture_swipe` | 见下方详细模型 | 接管模式下的实时跟手滑动卡片手势联动 |
 | `cmd_sync_lyrics_scroll` | `{"lineIndex": <line_index>, "isUserScrolling": <boolean>, "timestamp": <timestamp_ms>}` | 同步歌词手动滚动行偏移与跟手状态 |
 | `cmd_sync_lyrics` | 见下方详细模型 | 同步单曲歌词及声学校准偏移量至对端缓存池 |
@@ -167,9 +168,23 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 > `audioSource.sourceType` 支持以下类型：
 > - `DIRECT_API`: TV 本地网络直接请求流媒体 API；
 > - `STREAM_PROXY`: TV 从手机端局域网 HTTP 代理拉取音频流（适用于本地音乐、WebDAV 代理或离线中转）；
-> - `DIRECT_WEBDAV`: TV 直连自身挂载的 WebDAV 服务器。
+### 5.2 大歌单分批流式全量同步 (`cmd_sync_queue_chunk`)
+当歌单总长度超过首发秒开窗口（如 > 100 首）时，手机端在 `cmd_play_song` 起播后，通过后台异步分批向 TV 传输完整列表分片：
+```json
+{
+  "action": "cmd_sync_queue_chunk",
+  "data": {
+    "syncId": "<uuid>",
+    "chunkIndex": 0,
+    "totalChunks": 5,
+    "songs": [ /* 分片包含的 Song 对象列表，默认每批 150 首 */ ],
+    "targetMid": "<current_playing_song_mid>"
+  }
+}
+```
+TV 端接收全部分片并组装完整后，一次性调用 `syncRemoteQueue` 更新大屏全量播放列表并广播一次 `event_queue_state`，消除单包过大导致的 TV 主线程反序列化卡顿。
 
-### 5.2 实时跟手手势指令 (`cmd_gesture_swipe`)
+### 5.3 实时跟手手势指令 (`cmd_gesture_swipe`)
 接管模式（TAKEOVER）下，手机端手势滑动联动 TV 大屏走马灯动效：
 ```json
 {

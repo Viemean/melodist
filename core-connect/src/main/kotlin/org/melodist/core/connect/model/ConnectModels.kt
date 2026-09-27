@@ -125,6 +125,7 @@ object ConnectActions {
     const val CMD_TOGGLE_FAVORITE = "cmd_toggle_favorite"
     const val CMD_SYNC_LYRICS_SCROLL = "cmd_sync_lyrics_scroll"
     const val CMD_SYNC_LYRICS = "cmd_sync_lyrics"
+    const val CMD_SYNC_QUEUE_CHUNK = "cmd_sync_queue_chunk"
 
     const val EVENT_PLAY_STATE = "event_play_state"
     const val EVENT_QUEUE_STATE = "event_queue_state"
@@ -257,4 +258,13 @@ data class LyricsSyncPayload(
     val sourceDeviceId: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val lyricOffsetMs: Long = 0L,
+)
+
+@Serializable
+data class SyncQueueChunkCommand(
+    val syncId: String,
+    val chunkIndex: Int,
+    val totalChunks: Int,
+    val songs: List<Song>,
+    val targetMid: String? = null,
 )

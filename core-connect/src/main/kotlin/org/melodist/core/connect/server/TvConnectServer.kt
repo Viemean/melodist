@@ -84,6 +84,10 @@ sealed interface TvIncomingCommand {
     data class SyncLyrics(
         val payload: org.melodist.core.connect.model.LyricsSyncPayload,
     ) : TvIncomingCommand
+
+    data class SyncQueueChunk(
+        val command: org.melodist.core.connect.model.SyncQueueChunkCommand,
+    ) : TvIncomingCommand
 }
 
 data class PendingPairRequest(
@@ -456,6 +460,12 @@ class TvConnectServer(
                 val payload = msg.decodeData<org.melodist.core.connect.model.LyricsSyncPayload>(json)
                 if (payload != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SyncLyrics(payload)) }
+                }
+            }
+            ConnectActions.CMD_SYNC_QUEUE_CHUNK -> {
+                val cmd = msg.decodeData<org.melodist.core.connect.model.SyncQueueChunkCommand>(json)
+                if (cmd != null) {
+                    scope.launch { _commandsFlow.emit(TvIncomingCommand.SyncQueueChunk(cmd)) }
                 }
             }
         }

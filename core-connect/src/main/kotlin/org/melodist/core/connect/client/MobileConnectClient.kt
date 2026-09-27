@@ -301,6 +301,24 @@ class MobileConnectClient(
         sendData(ConnectActions.CMD_PLAY_SONG, cmd)
     }
 
+    fun syncQueueChunk(
+        syncId: String,
+        chunkIndex: Int,
+        totalChunks: Int,
+        songs: List<Song>,
+        targetMid: String? = null,
+    ) {
+        val cmd =
+            org.melodist.core.connect.model.SyncQueueChunkCommand(
+                syncId = syncId,
+                chunkIndex = chunkIndex,
+                totalChunks = totalChunks,
+                songs = songs,
+                targetMid = targetMid,
+            )
+        sendData(ConnectActions.CMD_SYNC_QUEUE_CHUNK, cmd)
+    }
+
     fun enqueueNext(
         song: Song,
         audioSource: AudioSourceDescriptor? = null,
