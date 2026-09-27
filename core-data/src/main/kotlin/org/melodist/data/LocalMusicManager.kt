@@ -684,19 +684,25 @@ object LocalMusicManager {
                 }
             }
 
-            // 2. 内嵌歌词提取
+            // 2. 内嵌歌词提取（优先通过纯字节轻量解析 VorbisComment / ID3v2 USLT）
             try {
-                val retriever = MediaMetadataRetriever()
-                retriever.setDataSource(audioFile.absolutePath)
-                // 部分格式支持 METADATA_KEY_LYRICS
-                val embedded =
-                    if (Build.VERSION.SDK_INT >= 29) {
-                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_COMPILATION)
-                    } else {
-                        null
+                if (audioFile.length() > 64) {
+                    val readLen = (audioFile.length()).coerceAtMost(512 * 1024L).toInt()
+                    val headerBytes = ByteArray(readLen)
+                    java.io.FileInputStream(audioFile).use { fis ->
+                        var totalRead = 0
+                        while (totalRead < readLen) {
+                            val r = fis.read(headerBytes, totalRead, readLen - totalRead)
+                            if (r <= 0) break
+                            totalRead += r
+                        }
                     }
-                retriever.release()
-                if (!embedded.isNullOrBlank()) return@withContext embedded
+                    val parsed = org.melodist.api.AudioMetadataParser.parse(headerBytes)
+                    val lyrics = parsed.lyrics ?: org.melodist.api.WebDavService.extractEmbeddedLyricsFromBytes(headerBytes)
+                    if (!lyrics.isNullOrBlank()) {
+                        return@withContext lyrics
+                    }
+                }
             } catch (_: Exception) {
             }
 

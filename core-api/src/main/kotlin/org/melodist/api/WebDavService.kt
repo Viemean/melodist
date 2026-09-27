@@ -186,6 +186,10 @@ class WebDavService {
 
         fun extractEmbeddedLyricsFromBytes(bytes: ByteArray): String? {
             if (bytes.size < 64) return null
+            val parsed = AudioMetadataParser.parse(bytes)
+            if (!parsed.lyrics.isNullOrBlank()) {
+                return parsed.lyrics
+            }
             val content =
                 try {
                     String(bytes, Charsets.ISO_8859_1)
@@ -227,7 +231,8 @@ class WebDavService {
                 val realSize = frameSize.coerceIn(10, 65536).coerceAtMost(bytes.size - usltIdx - 10)
                 if (realSize > 10) {
                     val payload = bytes.copyOfRange(usltIdx + 10, usltIdx + 10 + realSize)
-                    val encoding = payload[0].toInt()
+                    val encoding = payload[0].toInt() and 0xFF
+                    var cursor = 4
                     val charset =
                         when (encoding) {
                             1 -> Charsets.UTF_16
@@ -235,9 +240,26 @@ class WebDavService {
                             3 -> Charsets.UTF_8
                             else -> Charsets.ISO_8859_1
                         }
+                    if (encoding == 1 || encoding == 2) {
+                        while (cursor + 1 < payload.size) {
+                            if (payload[cursor] == 0.toByte() && payload[cursor + 1] == 0.toByte()) {
+                                cursor += 2
+                                break
+                            }
+                            cursor += 2
+                        }
+                    } else {
+                        while (cursor < payload.size) {
+                            if (payload[cursor] == 0.toByte()) {
+                                cursor += 1
+                                break
+                            }
+                            cursor++
+                        }
+                    }
                     val rawText =
                         try {
-                            String(payload, 4, payload.size - 4, charset).trim()
+                            String(payload, cursor, payload.size - cursor, charset).trim().trimEnd('\u0000')
                         } catch (_: Exception) {
                             ""
                         }

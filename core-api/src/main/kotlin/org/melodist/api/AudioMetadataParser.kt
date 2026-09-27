@@ -50,7 +50,19 @@ object AudioMetadataParser {
 
         // 2. MP3 (ID3v2)
         if (bytes[0] == 'I'.code.toByte() && bytes[1] == 'D'.code.toByte() && bytes[2] == '3'.code.toByte()) {
-            return parseId3v2(bytes)
+            val id3Result = parseId3v2(bytes)
+            if (id3Result.lyrics.isNullOrBlank()) {
+                val fallbackLyric = WebDavService.extractEmbeddedLyricsFromBytes(bytes)
+                if (!fallbackLyric.isNullOrBlank()) {
+                    return id3Result.copy(lyrics = fallbackLyric)
+                }
+            }
+            return id3Result
+        }
+
+        val embeddedLyric = WebDavService.extractEmbeddedLyricsFromBytes(bytes)
+        if (!embeddedLyric.isNullOrBlank()) {
+            return ParsedAudioMetadata(lyrics = embeddedLyric)
         }
 
         return ParsedAudioMetadata()
