@@ -307,9 +307,13 @@ object PlaybackManager {
     }
 
     fun stopSilentKeepAlive() {
-        if (!_isSilentKeepAlive.value) return
+        if (!_isSilentKeepAlive.value) {
+            exoPlayer?.repeatMode = Player.REPEAT_MODE_OFF
+            return
+        }
         _isSilentKeepAlive.value = false
         val player = exoPlayer ?: return
+        player.repeatMode = Player.REPEAT_MODE_OFF
         player.stop()
         player.clearMediaItems()
         resetPlaybackSpeed()
@@ -412,6 +416,18 @@ object PlaybackManager {
                     audioTrackRetryCount = 0
                 } else {
                     savePlaybackProgress(exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L)
+                }
+            }
+
+            override fun onMediaItemTransition(
+                mediaItem: androidx.media3.common.MediaItem?,
+                reason: Int,
+            ) {
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
+                    exoPlayer?.repeatMode = Player.REPEAT_MODE_OFF
+                    if (queueManager.loopMode.value != PlaybackLoopMode.SingleRepeat) {
+                        handleSongEnded()
+                    }
                 }
             }
 
@@ -985,6 +1001,7 @@ object PlaybackManager {
         seekToMs: Long = 0L,
     ) {
         stopSilentKeepAlive()
+        exoPlayer?.repeatMode = Player.REPEAT_MODE_OFF
         lastCustomStreamArgs = null
         val prevSong = _currentSong.value
         val prevPos = _currentPositionMs.value
