@@ -143,6 +143,12 @@ class PlaybackService : MediaSessionService() {
                 updateWakeLock(shouldHoldWake)
             }
         }
+
+        serviceScope.launch {
+            PlaybackManager.loopMode.collect {
+                forwardingPlayer?.notifyLoopModeChanged()
+            }
+        }
     }
 
     override fun onStartCommand(

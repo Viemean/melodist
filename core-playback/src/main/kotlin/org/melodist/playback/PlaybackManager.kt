@@ -1778,6 +1778,11 @@ object PlaybackManager {
         prefetchAdjacentWebDavCovers()
     }
 
+    fun setLoopMode(mode: PlaybackLoopMode) {
+        queueManager.setLoopMode(mode)
+        prefetchAdjacentWebDavCovers()
+    }
+
     private val prefetchingTargetMids =
         java.util.concurrent.ConcurrentHashMap
             .newKeySet<String>()

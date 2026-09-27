@@ -36,6 +36,8 @@ class MelodistForwardingPlayer(
         val state = playbackState
         val playWhenReady = playWhenReady
         val timeline = currentTimeline
+        val repeat = repeatMode
+        val shuffle = shuffleModeEnabled
         for (listener in extraListeners) {
             try {
                 listener.onTimelineChanged(timeline, Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
@@ -44,6 +46,8 @@ class MelodistForwardingPlayer(
                 listener.onPlaybackStateChanged(state)
                 listener.onPlayWhenReadyChanged(playWhenReady, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
                 listener.onIsPlayingChanged(isPlaying)
+                listener.onRepeatModeChanged(repeat)
+                listener.onShuffleModeEnabledChanged(shuffle)
             } catch (_: Exception) {
             }
         }
@@ -142,31 +146,39 @@ class MelodistForwardingPlayer(
             .add(COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
             .add(COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
             .add(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+            .add(COMMAND_SET_REPEAT_MODE)
+            .add(COMMAND_SET_SHUFFLE_MODE)
             .build()
 
     override fun isCommandAvailable(command: Int): Boolean =
-        if (isRemoteVirtual) {
-            when (command) {
-                COMMAND_PLAY_PAUSE,
-                COMMAND_PREPARE,
-                COMMAND_STOP,
-                COMMAND_SEEK_TO_NEXT,
-                COMMAND_SEEK_TO_PREVIOUS,
-                COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
-                COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-                COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
-                -> true
-                else -> super.isCommandAvailable(command)
-            }
-        } else {
-            when (command) {
-                COMMAND_SEEK_TO_NEXT,
-                COMMAND_SEEK_TO_PREVIOUS,
-                COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
-                COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
-                -> PlaybackManager.playlist.value.isNotEmpty()
-                else -> super.isCommandAvailable(command)
-            }
+        when (command) {
+            COMMAND_SET_REPEAT_MODE,
+            COMMAND_SET_SHUFFLE_MODE,
+            -> true
+            else ->
+                if (isRemoteVirtual) {
+                    when (command) {
+                        COMMAND_PLAY_PAUSE,
+                        COMMAND_PREPARE,
+                        COMMAND_STOP,
+                        COMMAND_SEEK_TO_NEXT,
+                        COMMAND_SEEK_TO_PREVIOUS,
+                        COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                        COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+                        COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+                        -> true
+                        else -> super.isCommandAvailable(command)
+                    }
+                } else {
+                    when (command) {
+                        COMMAND_SEEK_TO_NEXT,
+                        COMMAND_SEEK_TO_PREVIOUS,
+                        COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                        COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
+                        -> PlaybackManager.playlist.value.isNotEmpty()
+                        else -> super.isCommandAvailable(command)
+                    }
+                }
         }
 
     override fun play() {
@@ -218,5 +230,42 @@ class MelodistForwardingPlayer(
 
     override fun seekToPreviousMediaItem() {
         PlaybackManager.playPrevious()
+    }
+
+    override fun setRepeatMode(repeatMode: Int) {
+        when (repeatMode) {
+            Player.REPEAT_MODE_ONE -> PlaybackManager.setLoopMode(PlaybackLoopMode.SingleRepeat)
+            Player.REPEAT_MODE_ALL -> PlaybackManager.setLoopMode(PlaybackLoopMode.ListRepeat)
+            Player.REPEAT_MODE_OFF -> PlaybackManager.setLoopMode(PlaybackLoopMode.ListRepeat)
+        }
+    }
+
+    override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
+        if (shuffleModeEnabled) {
+            PlaybackManager.setLoopMode(PlaybackLoopMode.Shuffle)
+        } else if (PlaybackManager.loopMode.value == PlaybackLoopMode.Shuffle) {
+            PlaybackManager.setLoopMode(PlaybackLoopMode.ListRepeat)
+        }
+    }
+
+    override fun getRepeatMode(): Int =
+        when (PlaybackManager.loopMode.value) {
+            PlaybackLoopMode.SingleRepeat -> Player.REPEAT_MODE_ONE
+            PlaybackLoopMode.ListRepeat, PlaybackLoopMode.Shuffle -> Player.REPEAT_MODE_ALL
+        }
+
+    override fun getShuffleModeEnabled(): Boolean =
+        PlaybackManager.loopMode.value == PlaybackLoopMode.Shuffle
+
+    fun notifyLoopModeChanged() {
+        val repeat = repeatMode
+        val shuffle = shuffleModeEnabled
+        for (listener in extraListeners) {
+            try {
+                listener.onRepeatModeChanged(repeat)
+                listener.onShuffleModeEnabledChanged(shuffle)
+            } catch (_: Exception) {
+            }
+        }
     }
 }
