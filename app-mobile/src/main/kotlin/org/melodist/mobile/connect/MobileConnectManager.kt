@@ -46,7 +46,9 @@ object MobileConnectManager {
     private var isSyncingFromTv = false
     private var autoConnectFailureCount = 0
     private const val MAX_AUTO_CONNECT_FAILURES = 6
-    private const val MAX_REMOTE_QUEUE_SIZE = 300
+    private var queueBatchSyncJob: Job? = null
+    private const val QUEUE_INITIAL_WINDOW_SIZE = 100
+    private const val QUEUE_CHUNK_BATCH_SIZE = 150
     private var pendingTrackTargetMid: String? = null
     private var pendingTrackTransitionTimestamp = 0L
     private const val PENDING_TRACK_TRANSITION_TIMEOUT_MS = 2500L
@@ -327,6 +329,9 @@ object MobileConnectManager {
         scope.launch {
             client.queueState.collect { qState ->
                 if (qState != null && remoteControlMode.value == RemoteControlMode.TAKEOVER && isTvOnline) {
+                    if (queueBatchSyncJob?.isActive == true) {
+                        return@collect
+                    }
                     if (PlaybackManager.isRemoteActive.value || tvPlayerState.value?.isPlaying == true) {
                         val resolvedQueue = qState.queue.map { resolveWebDavCoverLocally(it) }
                         PlaybackManager.syncRemoteQueue(resolvedQueue, qState.currentIndex)
@@ -564,6 +569,7 @@ object MobileConnectManager {
         }
 
     fun disconnect() {
+        queueBatchSyncJob?.cancel()
         userManuallyDisconnected = true
         connectClient?.disconnect()
         _tvPlayerState.value = null
@@ -684,12 +690,13 @@ object MobileConnectManager {
             val rawIdx = currentPlaylist.indexOfFirst { it.songMid == song.songMid }.coerceAtLeast(0)
             val effectiveTier = forceTier ?: PlaybackManager.preferredTier.value
 
-            val (effectiveQueue, effectiveIdx) =
-                if (currentPlaylist.size > MAX_REMOTE_QUEUE_SIZE) {
-                    val halfWindow = MAX_REMOTE_QUEUE_SIZE / 2
+            val needsChunkedSync = currentPlaylist.size > QUEUE_INITIAL_WINDOW_SIZE
+            val (initialQueue, initialIdx) =
+                if (needsChunkedSync) {
+                    val halfWindow = QUEUE_INITIAL_WINDOW_SIZE / 2
                     val start = (rawIdx - halfWindow).coerceAtLeast(0)
-                    val end = (start + MAX_REMOTE_QUEUE_SIZE).coerceAtMost(currentPlaylist.size)
-                    val actualStart = (end - MAX_REMOTE_QUEUE_SIZE).coerceAtLeast(0)
+                    val end = (start + QUEUE_INITIAL_WINDOW_SIZE).coerceAtMost(currentPlaylist.size)
+                    val actualStart = (end - QUEUE_INITIAL_WINDOW_SIZE).coerceAtLeast(0)
                     val windowed = currentPlaylist.subList(actualStart, end)
                     val newIdx = (rawIdx - actualStart).coerceIn(0, (windowed.size - 1).coerceAtLeast(0))
                     Pair(windowed, newIdx)
@@ -697,22 +704,45 @@ object MobileConnectManager {
                     Pair(currentPlaylist, rawIdx)
                 }
 
-            val (audioSource, effectiveSong, preparedQueue) =
+            val (audioSource, effectiveSong, preparedInitialQueue) =
                 withContext(Dispatchers.IO) {
                     val src = resolveAudioSource(song)
                     val effSong = prepareSongForTv(song)
-                    val prepQueue = effectiveQueue.map { prepareSongForTv(it) }
+                    val prepQueue = initialQueue.map { prepareSongForTv(it) }
                     Triple(src, effSong, prepQueue)
                 }
 
             connectClient?.playSong(
                 song = effectiveSong,
-                queue = preparedQueue,
-                index = effectiveIdx,
+                queue = preparedInitialQueue,
+                index = initialIdx,
                 startPositionMs = startPositionMs,
                 audioSource = audioSource,
                 qualityTier = effectiveTier,
             )
+
+            queueBatchSyncJob?.cancel()
+            if (needsChunkedSync) {
+                queueBatchSyncJob =
+                    scope.launch(Dispatchers.IO) {
+                        delay(350L)
+                        val syncId = java.util.UUID.randomUUID().toString()
+                        val preparedAllSongs = currentPlaylist.map { prepareSongForTv(it) }
+                        val chunks = preparedAllSongs.chunked(QUEUE_CHUNK_BATCH_SIZE)
+                        val totalChunks = chunks.size
+                        for ((chunkIdx, chunkSongs) in chunks.withIndex()) {
+                            if (!isActive || !isTvOnline) break
+                            connectClient?.syncQueueChunk(
+                                syncId = syncId,
+                                chunkIndex = chunkIdx,
+                                totalChunks = totalChunks,
+                                songs = chunkSongs,
+                                targetMid = song.songMid,
+                            )
+                            delay(40L)
+                        }
+                    }
+            }
             if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
                 pendingTrackTargetMid = song.songMid
                 pendingTrackTransitionTimestamp = System.currentTimeMillis()

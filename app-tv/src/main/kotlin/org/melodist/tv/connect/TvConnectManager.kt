@@ -28,6 +28,7 @@ import org.melodist.core.connect.server.TvConnectServer
 import org.melodist.core.connect.server.TvIncomingCommand
 import org.melodist.core.connect.storage.ConnectStorageManager
 import org.melodist.core.connect.util.NetworkUtils
+import org.melodist.model.Song
 import org.melodist.core.connect.util.QrCodeUtils
 import org.melodist.model.AudioQualityTier
 import org.melodist.playback.PlaybackManager
@@ -68,6 +69,8 @@ object TvConnectManager {
         get() = storageManager?.pairedDevicesFlow ?: MutableStateFlow(emptyList())
 
     private const val SERVER_PORT = 8765
+    private var currentQueueSyncId: String? = null
+    private val queueSyncChunks = java.util.concurrent.ConcurrentHashMap<Int, List<Song>>()
 
     fun init(context: Context) {
         if (storageManager != null) return
@@ -287,6 +290,8 @@ object TvConnectManager {
         try {
             when (command) {
                 is TvIncomingCommand.PlaySong -> {
+                    currentQueueSyncId = null
+                    queueSyncChunks.clear()
                     val cmd = command.command
                     val audioSource = cmd.audioSource
                     val streamUrl = audioSource?.streamUrl
@@ -313,6 +318,25 @@ object TvConnectManager {
                         }
                     }
                     broadcastQueueNow()
+                }
+                is TvIncomingCommand.SyncQueueChunk -> {
+                    val cmd = command.command
+                    if (currentQueueSyncId != cmd.syncId) {
+                        currentQueueSyncId = cmd.syncId
+                        queueSyncChunks.clear()
+                    }
+                    queueSyncChunks[cmd.chunkIndex] = cmd.songs
+                    if (queueSyncChunks.size == cmd.totalChunks) {
+                        val fullList = (0 until cmd.totalChunks).flatMap { queueSyncChunks[it].orEmpty() }
+                        currentQueueSyncId = null
+                        queueSyncChunks.clear()
+                        if (fullList.isNotEmpty()) {
+                            val targetMid = cmd.targetMid ?: PlaybackManager.currentSong.value?.songMid
+                            val newIdx = fullList.indexOfFirst { it.songMid == targetMid }.coerceAtLeast(0)
+                            PlaybackManager.syncRemoteQueue(fullList, newIdx)
+                            broadcastQueueNow()
+                        }
+                    }
                 }
                 is TvIncomingCommand.EnqueueNext -> {
                     PlaybackManager.insertNextPlay(command.command.song)
