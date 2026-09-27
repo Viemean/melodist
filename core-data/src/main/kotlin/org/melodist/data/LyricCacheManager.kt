@@ -49,6 +49,14 @@ object LyricCacheManager {
         current: List<LyricLine>,
     ): Boolean {
         if (candidate.isEmpty()) return false
+        val candidateIsPlaceholder = org.melodist.api.LyricParser.isPlaceholderLyrics(candidate)
+        val currentIsPlaceholder = org.melodist.api.LyricParser.isPlaceholderLyrics(current)
+
+        // 占位/纯音乐歌词绝不替换有效歌词
+        if (candidateIsPlaceholder && !currentIsPlaceholder) return false
+        // 有效歌词必定优于占位歌词
+        if (!candidateIsPlaceholder && currentIsPlaceholder) return true
+
         if (current.isEmpty()) return true
 
         val candidateHasTrans = candidate.any { it.hasTranslation }

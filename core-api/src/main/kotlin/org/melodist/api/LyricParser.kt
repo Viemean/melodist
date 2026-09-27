@@ -241,4 +241,30 @@ object LyricParser {
 
         return false
     }
+
+    /**
+     * 判断歌词是否为纯音乐、暂无歌词等无效占位内容
+     */
+    fun isPlaceholderLyrics(lyrics: List<LyricLine>): Boolean {
+        if (lyrics.isEmpty()) return true
+        val validLines = lyrics.filter { !isMetaInfoLine(it.timestampMs, it.text) && it.text.isNotBlank() }
+        if (validLines.isEmpty()) return true
+        if (validLines.size <= 2) {
+            val combined = validLines.joinToString(" ") { it.text }
+            val placeholderKeywords =
+                listOf(
+                    "纯音乐",
+                    "没有填词",
+                    "暂无歌词",
+                    "请您欣赏",
+                    "请欣赏",
+                    "instrumental",
+                    "no lyrics",
+                )
+            if (placeholderKeywords.any { combined.contains(it, ignoreCase = true) }) {
+                return true
+            }
+        }
+        return false
+    }
 }

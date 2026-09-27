@@ -124,4 +124,16 @@ class LyricParserTest {
         assertTrue(lyrics.isNotEmpty(), "Lyrics should not be empty")
         assertTrue(lyrics.any { it.text.contains("蝉の声が聞こえ") })
     }
+
+    @Test
+    fun `isPlaceholderLyrics detects instrumental and placeholder correctly`() {
+        val instrumentalLrc = LyricParser.parseMergedLyrics("[00:00.00]此歌曲为没有填词的纯音乐，请您欣赏", null)
+        assertTrue(LyricParser.isPlaceholderLyrics(instrumentalLrc))
+
+        val noLyricLrc = LyricParser.parseMergedLyrics("[00:00.00]暂无歌词", null)
+        assertTrue(LyricParser.isPlaceholderLyrics(noLyricLrc))
+
+        val normalLrc = LyricParser.parseMergedLyrics("[00:01.00]Hello world\n[00:05.00]Second line", null)
+        assertFalse(LyricParser.isPlaceholderLyrics(normalLrc))
+    }
 }
