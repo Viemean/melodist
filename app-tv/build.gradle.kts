@@ -25,7 +25,9 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
-        resourceConfigurations += listOf("zh", "zh-rCN", "en")
+    }
+    androidResources {
+        localeFilters += listOf("zh", "zh-rCN", "en")
     }
 
     val releaseKeystore = file("release.jks")
