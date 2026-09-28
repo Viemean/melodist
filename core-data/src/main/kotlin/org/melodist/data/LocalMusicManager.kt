@@ -697,8 +697,12 @@ object LocalMusicManager {
                             totalRead += r
                         }
                     }
-                    val parsed = org.melodist.api.AudioMetadataParser.parse(headerBytes)
-                    val lyrics = parsed.lyrics ?: org.melodist.api.WebDavService.extractEmbeddedLyricsFromBytes(headerBytes)
+                    val parsed =
+                        org.melodist.api.AudioMetadataParser
+                            .parse(headerBytes)
+                    val lyrics =
+                        parsed.lyrics ?: org.melodist.api.WebDavService
+                            .extractEmbeddedLyricsFromBytes(headerBytes)
                     if (!lyrics.isNullOrBlank()) {
                         return@withContext lyrics
                     }

@@ -254,8 +254,7 @@ class MelodistForwardingPlayer(
             PlaybackLoopMode.ListRepeat, PlaybackLoopMode.Shuffle -> Player.REPEAT_MODE_ALL
         }
 
-    override fun getShuffleModeEnabled(): Boolean =
-        PlaybackManager.loopMode.value == PlaybackLoopMode.Shuffle
+    override fun getShuffleModeEnabled(): Boolean = PlaybackManager.loopMode.value == PlaybackLoopMode.Shuffle
 
     fun notifyLoopModeChanged() {
         val repeat = repeatMode

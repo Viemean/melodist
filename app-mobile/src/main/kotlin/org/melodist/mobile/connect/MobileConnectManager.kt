@@ -726,7 +726,10 @@ object MobileConnectManager {
                 queueBatchSyncJob =
                     scope.launch(Dispatchers.IO) {
                         delay(350L)
-                        val syncId = java.util.UUID.randomUUID().toString()
+                        val syncId =
+                            java.util.UUID
+                                .randomUUID()
+                                .toString()
                         val preparedAllSongs = currentPlaylist.map { prepareSongForTv(it) }
                         val chunks = preparedAllSongs.chunked(QUEUE_CHUNK_BATCH_SIZE)
                         val totalChunks = chunks.size

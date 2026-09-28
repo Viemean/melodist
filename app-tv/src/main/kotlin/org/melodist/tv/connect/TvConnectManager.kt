@@ -28,9 +28,9 @@ import org.melodist.core.connect.server.TvConnectServer
 import org.melodist.core.connect.server.TvIncomingCommand
 import org.melodist.core.connect.storage.ConnectStorageManager
 import org.melodist.core.connect.util.NetworkUtils
-import org.melodist.model.Song
 import org.melodist.core.connect.util.QrCodeUtils
 import org.melodist.model.AudioQualityTier
+import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 import kotlin.random.Random
 

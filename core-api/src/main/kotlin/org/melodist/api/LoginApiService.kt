@@ -1,9 +1,9 @@
 package org.melodist.api
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -380,7 +380,8 @@ class LoginApiService(
                     """{"comm":{"ct":19,"cv":1,"tmeLoginType":"1"},"login":{"module":"QQConnectLogin.LoginServer","method":"QQLogin","param":{"onlyNeedAccessToken":0,"forceRefreshToken":1,"appid":100497308,"openid":"$openid","access_token":"$accessToken"}}}"""
 
                 val requestBuilder =
-                    Request.Builder()
+                    Request
+                        .Builder()
                         .url(url)
                         .post(payload.toRequestBody(JSON_TYPE))
                         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")

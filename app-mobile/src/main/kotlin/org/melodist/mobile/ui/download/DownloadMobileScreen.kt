@@ -47,7 +47,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.melodist.data.AppSettingsManager
 import org.melodist.data.download.DownloadManager
 import org.melodist.data.download.DownloadStatus
@@ -56,7 +55,6 @@ import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.QualityTierBadge
 import org.melodist.mobile.ui.components.SongListDeleteType
-import org.melodist.model.AudioQualityTier
 import java.io.File
 
 enum class DownloadTab {

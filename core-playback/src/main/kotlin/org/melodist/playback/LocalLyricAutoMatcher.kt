@@ -78,7 +78,8 @@ object LocalLyricAutoMatcher {
         val isPlaceholder =
             currentLyrics.isEmpty() ||
                 (currentLyrics.size == 1 && (currentLyrics[0].text.contains("暂无歌词") || currentLyrics[0].text.isBlank())) ||
-                org.melodist.api.LyricParser.isPlaceholderLyrics(currentLyrics)
+                org.melodist.api.LyricParser
+                    .isPlaceholderLyrics(currentLyrics)
         if (isPlaceholder) return true
         if (currentLyrics.any { it.transText.isNotBlank() }) return false
 
@@ -177,13 +178,17 @@ object LocalLyricAutoMatcher {
                     val officialLyrics = apiService.getLyrics(matchedSongMid)
                     if (officialLyrics.isNotEmpty()) {
                         // 过滤纯音乐、暂无歌词等占位内容，避免覆盖本地有效歌词或误将本地歌曲置为纯音乐
-                        if (org.melodist.api.LyricParser.isPlaceholderLyrics(officialLyrics)) {
+                        if (org.melodist.api.LyricParser
+                                .isPlaceholderLyrics(officialLyrics)
+                        ) {
                             Log.i(TAG, "Official lyrics is placeholder/instrumental, discarding")
                             return@withContext null
                         }
 
                         // 若原歌词已有有效非占位内容，且匹配到的新歌词没有提供翻译，则保留原歌词避免负优化
-                        val currentIsPlaceholder = org.melodist.api.LyricParser.isPlaceholderLyrics(currentLyrics)
+                        val currentIsPlaceholder =
+                            org.melodist.api.LyricParser
+                                .isPlaceholderLyrics(currentLyrics)
                         val newHasTrans = officialLyrics.any { it.transText.isNotBlank() }
                         if (currentLyrics.isNotEmpty() && !currentIsPlaceholder && !newHasTrans) {
                             Log.i(TAG, "Official lyrics has no translation, keeping original")
