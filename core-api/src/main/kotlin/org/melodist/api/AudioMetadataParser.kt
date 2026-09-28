@@ -52,7 +52,7 @@ object AudioMetadataParser {
         if (bytes[0] == 'I'.code.toByte() && bytes[1] == 'D'.code.toByte() && bytes[2] == '3'.code.toByte()) {
             val id3Result = parseId3v2(bytes)
             if (id3Result.lyrics.isNullOrBlank()) {
-                val fallbackLyric = WebDavService.extractEmbeddedLyricsFromBytes(bytes)
+                val fallbackLyric = extractRawFallbackLyrics(bytes)
                 if (!fallbackLyric.isNullOrBlank()) {
                     return id3Result.copy(lyrics = fallbackLyric)
                 }
@@ -60,7 +60,7 @@ object AudioMetadataParser {
             return id3Result
         }
 
-        val embeddedLyric = WebDavService.extractEmbeddedLyricsFromBytes(bytes)
+        val embeddedLyric = extractRawFallbackLyrics(bytes)
         if (!embeddedLyric.isNullOrBlank()) {
             return ParsedAudioMetadata(lyrics = embeddedLyric)
         }
@@ -373,4 +373,88 @@ object AudioMetadataParser {
             ((bytes[offset + 1].toInt() and 0xFF) shl 16) or
             ((bytes[offset + 2].toInt() and 0xFF) shl 8) or
             (bytes[offset + 3].toInt() and 0xFF)
+
+    private fun extractRawFallbackLyrics(bytes: ByteArray): String? {
+        if (bytes.size < 64) return null
+        val content =
+            try {
+                String(bytes, Charsets.ISO_8859_1)
+            } catch (_: Exception) {
+                return null
+            }
+
+        // 1. 查找 Vorbis comment (FLAC / OGG)
+        val vorbisKeys = listOf("LYRICS=", "UNSYNCEDLYRICS=", "SYNCEDLYRICS=")
+        for (key in vorbisKeys) {
+            val idx = content.indexOf(key, ignoreCase = true)
+            if (idx != -1) {
+                val start = idx + key.length
+                val end =
+                    content.indexOfAny(charArrayOf('\u0000', '\u0001', '\u0002', '\u0003'), start).let {
+                        if (it == -1) (start + 8192).coerceAtMost(content.length) else it
+                    }
+                val rawVal = bytes.copyOfRange(idx + key.length, (idx + key.length + (end - start)).coerceAtMost(bytes.size))
+                val lyric =
+                    try {
+                        String(rawVal, Charsets.UTF_8).trim()
+                    } catch (_: Exception) {
+                        ""
+                    }
+                if (lyric.isNotBlank() && (lyric.contains('[') || lyric.contains('\n'))) {
+                    return lyric
+                }
+            }
+        }
+
+        // 2. 查找 ID3v2 USLT (非同步歌词帧)
+        val usltIdx = content.indexOf("USLT")
+        if (usltIdx != -1 && usltIdx + 10 < bytes.size) {
+            val frameSize =
+                (bytes[usltIdx + 4].toInt() and 0xFF shl 24) or
+                    (bytes[usltIdx + 5].toInt() and 0xFF shl 16) or
+                    (bytes[usltIdx + 6].toInt() and 0xFF shl 8) or
+                    (bytes[usltIdx + 7].toInt() and 0xFF)
+            val realSize = frameSize.coerceIn(10, 65536).coerceAtMost(bytes.size - usltIdx - 10)
+            if (realSize > 10) {
+                val payload = bytes.copyOfRange(usltIdx + 10, usltIdx + 10 + realSize)
+                val encoding = payload[0].toInt() and 0xFF
+                var cursor = 4
+                val charset =
+                    when (encoding) {
+                        1 -> Charsets.UTF_16
+                        2 -> Charsets.UTF_16BE
+                        3 -> Charsets.UTF_8
+                        else -> Charsets.ISO_8859_1
+                    }
+                if (encoding == 1 || encoding == 2) {
+                    while (cursor + 1 < payload.size) {
+                        if (payload[cursor] == 0.toByte() && payload[cursor + 1] == 0.toByte()) {
+                            cursor += 2
+                            break
+                        }
+                        cursor += 2
+                    }
+                } else {
+                    while (cursor < payload.size) {
+                        if (payload[cursor] == 0.toByte()) {
+                            cursor += 1
+                            break
+                        }
+                        cursor++
+                    }
+                }
+                val rawText =
+                    try {
+                        String(payload, cursor, payload.size - cursor, charset).trim().trimEnd('\u0000')
+                    } catch (_: Exception) {
+                        ""
+                    }
+                if (rawText.isNotBlank()) {
+                    return rawText
+                }
+            }
+        }
+
+        return null
+    }
 }
