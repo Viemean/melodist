@@ -264,14 +264,21 @@ suspend fun MusicApiService.getPlaylistSongs(
     }
 
 suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, String> =
+    createPlaylistInternal(name, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.createPlaylistInternal(
+    name: String,
+    canRetryWithRenew: Boolean,
+): Triple<Boolean, Long, String> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || name.isBlank()) return@withContext Triple(false, 0L, "未登录或歌单名为空")
         ensureMusicKeySafe()
         val escaped = Json.encodeToString(name.trim())
+        val comm = MusicApiService.buildAppCommJson()
         val payload =
             """
             {
-              "comm": { "ct": 24, "cv": 0 },
+              "comm": $comm,
               "createNewPlayList": {
                 "module": "music.musicasset.PlaylistBaseWrite",
                 "method": "AddPlaylist",
@@ -287,10 +294,11 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
             """.trimIndent()
 
         try {
-            val respJson = postGateway(payload)
+            val respJson = postAppGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
             val obj = root["createNewPlayList"]?.jsonObject ?: return@withContext Triple(false, 0L, "响应为空")
-            val code = obj["code"]?.jsonPrimitive?.intOrNull ?: -1
+            val code = obj["code"]?.jsonPrimitive?.intOrNull ?: rootCode
             if (code == 0) {
                 val dataObj = obj["data"]?.jsonObject
                 val resObj = dataObj?.get("result")?.jsonObject
@@ -300,6 +308,10 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
                         ?: dataObj?.get("dirId")?.jsonPrimitive?.longOrNull
                         ?: 0L
                 Triple(true, dirId, "创建成功")
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "createPlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                createPlaylistInternal(name, canRetryWithRenew = false)
             } else {
                 val msg =
                     obj["data"]
@@ -318,14 +330,21 @@ suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, 
     }
 
 suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
+    deletePlaylistInternal(playlist, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.deletePlaylistInternal(
+    playlist: Playlist,
+    canRetryWithRenew: Boolean,
+): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || playlist.isMyFavorite) return@withContext false
         ensureMusicKeySafe()
+        val comm = MusicApiService.buildAppCommJson()
         val payload =
             if (playlist.isCreated) {
                 """
                 {
-                  "comm": { "ct": 24, "cv": 0 },
+                  "comm": $comm,
                   "deletePlayList": {
                     "module": "music.musicasset.PlaylistBaseWrite",
                     "method": "DelPlaylist",
@@ -337,7 +356,7 @@ suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
                 val dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId
                 """
                 {
-                  "comm": { "ct": 24, "cv": 0 },
+                  "comm": $comm,
                   "deleteFavPlayList": {
                     "module": "music.musicasset.PlaylistFavWrite",
                     "method": "CancelFavPlaylist",
@@ -348,14 +367,21 @@ suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
             }
 
         try {
-            val respJson = postGateway(payload)
+            val respJson = postAppGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
             val key = if (playlist.isCreated) "deletePlayList" else "deleteFavPlayList"
-            root[key]
-                ?.jsonObject
-                ?.get("code")
-                ?.jsonPrimitive
-                ?.intOrNull == 0
+            val obj = root[key]?.jsonObject
+            val code = obj?.get("code")?.jsonPrimitive?.intOrNull ?: rootCode
+            if (code == 0) {
+                true
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "deletePlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                deletePlaylistInternal(playlist, canRetryWithRenew = false)
+            } else {
+                false
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiPlaylist", "deletePlaylist failed", e)
@@ -409,6 +435,13 @@ suspend fun MusicApiService.addSongToPlaylist(
     dirId: Long,
     songId: Long,
     songMid: String = "",
+): AddSongResult = addSongToPlaylistInternal(dirId, songId, songMid, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.addSongToPlaylistInternal(
+    dirId: Long,
+    songId: Long,
+    songMid: String,
+    canRetryWithRenew: Boolean,
 ): AddSongResult =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || dirId <= 0L) return@withContext AddSongResult.Failed
@@ -417,10 +450,11 @@ suspend fun MusicApiService.addSongToPlaylist(
 
         ensureMusicKeySafe()
 
+        val comm = MusicApiService.buildAppCommJson()
         val payload =
             """
             {
-              "comm": { "ct": 24, "cv": 0 },
+              "comm": $comm,
               "addSongsToPlayList": {
                 "module": "music.musicasset.PlaylistDetailWrite",
                 "method": "AddSonglist",
@@ -430,13 +464,15 @@ suspend fun MusicApiService.addSongToPlaylist(
             """.trimIndent()
 
         try {
-            val respJson = postAg1Gateway(payload)
+            val respJson = postAppGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            val addObj = root["addSongsToPlayList"]?.jsonObject ?: return@withContext AddSongResult.Failed
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val addObj = root["addSongsToPlayList"]?.jsonObject
             val code =
-                addObj["code"]?.jsonPrimitive?.intOrNull
-                    ?: addObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
-            if (code == 0) {
+                addObj?.get("code")?.jsonPrimitive?.intOrNull
+                    ?: addObj?.get("subcode")?.jsonPrimitive?.intOrNull
+                    ?: rootCode
+            if (code == 0 && addObj != null) {
                 val data = addObj["data"]?.jsonObject
                 val succNum = data?.get("succ_song_num")?.jsonPrimitive?.intOrNull ?: 1
                 val failNum = data?.get("fail_song_num")?.jsonPrimitive?.intOrNull ?: 0
@@ -445,6 +481,10 @@ suspend fun MusicApiService.addSongToPlaylist(
                     failNum > 0 -> AddSongResult.AlreadyExists
                     else -> AddSongResult.Success
                 }
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "addSongToPlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                addSongToPlaylistInternal(dirId, songId, songMid, canRetryWithRenew = false)
             } else {
                 AddSongResult.Failed
             }
@@ -458,6 +498,12 @@ suspend fun MusicApiService.addSongToPlaylist(
 suspend fun MusicApiService.addSongsToPlaylist(
     dirId: Long,
     songs: List<Song>,
+): AddSongResult = addSongsToPlaylistInternal(dirId, songs, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.addSongsToPlaylistInternal(
+    dirId: Long,
+    songs: List<Song>,
+    canRetryWithRenew: Boolean,
 ): AddSongResult =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || dirId <= 0L || songs.isEmpty()) return@withContext AddSongResult.Failed
@@ -477,11 +523,12 @@ suspend fun MusicApiService.addSongsToPlaylist(
 
         ensureMusicKeySafe()
 
+        val comm = MusicApiService.buildAppCommJson()
         val songInfoJson = resolvedSongInfos.joinToString(separator = ",") { """{ "songId": $it, "songType": 0 }""" }
         val payload =
             """
             {
-              "comm": { "ct": 24, "cv": 0 },
+              "comm": $comm,
               "addSongsToPlayList": {
                 "module": "music.musicasset.PlaylistDetailWrite",
                 "method": "AddSonglist",
@@ -491,13 +538,15 @@ suspend fun MusicApiService.addSongsToPlaylist(
             """.trimIndent()
 
         try {
-            val respJson = postAg1Gateway(payload)
+            val respJson = postAppGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            val addObj = root["addSongsToPlayList"]?.jsonObject ?: return@withContext AddSongResult.Failed
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val addObj = root["addSongsToPlayList"]?.jsonObject
             val code =
-                addObj["code"]?.jsonPrimitive?.intOrNull
-                    ?: addObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
-            if (code == 0) {
+                addObj?.get("code")?.jsonPrimitive?.intOrNull
+                    ?: addObj?.get("subcode")?.jsonPrimitive?.intOrNull
+                    ?: rootCode
+            if (code == 0 && addObj != null) {
                 val data = addObj["data"]?.jsonObject
                 val succNum = data?.get("succ_song_num")?.jsonPrimitive?.intOrNull ?: 1
                 val failNum = data?.get("fail_song_num")?.jsonPrimitive?.intOrNull ?: 0
@@ -506,6 +555,10 @@ suspend fun MusicApiService.addSongsToPlaylist(
                     failNum > 0 -> AddSongResult.AlreadyExists
                     else -> AddSongResult.Success
                 }
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "addSongsToPlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                addSongsToPlaylistInternal(dirId, songs, canRetryWithRenew = false)
             } else {
                 AddSongResult.Failed
             }
@@ -519,6 +572,12 @@ suspend fun MusicApiService.addSongsToPlaylist(
 suspend fun MusicApiService.deleteSongsFromPlaylist(
     dirId: Long,
     songs: List<Song>,
+): Boolean = deleteSongsFromPlaylistInternal(dirId, songs, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.deleteSongsFromPlaylistInternal(
+    dirId: Long,
+    songs: List<Song>,
+    canRetryWithRenew: Boolean,
 ): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || dirId <= 0L || songs.isEmpty()) return@withContext false
@@ -538,11 +597,12 @@ suspend fun MusicApiService.deleteSongsFromPlaylist(
 
         ensureMusicKeySafe()
 
+        val comm = MusicApiService.buildAppCommJson()
         val songInfoJson = resolvedSongInfos.joinToString(separator = ",") { """{ "songId": $it, "songType": 0 }""" }
         val payload =
             """
             {
-              "comm": { "ct": 24, "cv": 0 },
+              "comm": $comm,
               "delSongsFromPlayList": {
                 "module": "music.musicasset.PlaylistDetailWrite",
                 "method": "DelSonglist",
@@ -552,13 +612,23 @@ suspend fun MusicApiService.deleteSongsFromPlaylist(
             """.trimIndent()
 
         try {
-            val respJson = postAg1Gateway(payload)
+            val respJson = postAppGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            val delObj = root["delSongsFromPlayList"]?.jsonObject ?: return@withContext false
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val delObj = root["delSongsFromPlayList"]?.jsonObject
             val code =
-                delObj["code"]?.jsonPrimitive?.intOrNull
-                    ?: delObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
-            code == 0
+                delObj?.get("code")?.jsonPrimitive?.intOrNull
+                    ?: delObj?.get("subcode")?.jsonPrimitive?.intOrNull
+                    ?: rootCode
+            if (code == 0 && delObj != null) {
+                true
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "deleteSongsFromPlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                deleteSongsFromPlaylistInternal(dirId, songs, canRetryWithRenew = false)
+            } else {
+                false
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiPlaylist", "deleteSongsFromPlaylist failed: dirId=$dirId", e)
@@ -570,6 +640,13 @@ suspend fun MusicApiService.deleteSongFromPlaylist(
     dirId: Long,
     songId: Long,
     songMid: String = "",
+): Boolean = deleteSongFromPlaylistInternal(dirId, songId, songMid, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.deleteSongFromPlaylistInternal(
+    dirId: Long,
+    songId: Long,
+    songMid: String,
+    canRetryWithRenew: Boolean,
 ): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || dirId <= 0L) return@withContext false
@@ -578,10 +655,11 @@ suspend fun MusicApiService.deleteSongFromPlaylist(
 
         ensureMusicKeySafe()
 
+        val comm = MusicApiService.buildAppCommJson()
         val payload =
             """
             {
-              "comm": { "ct": 24, "cv": 0 },
+              "comm": $comm,
               "delSongsFromPlayList": {
                 "module": "music.musicasset.PlaylistDetailWrite",
                 "method": "DelSonglist",
@@ -591,13 +669,23 @@ suspend fun MusicApiService.deleteSongFromPlaylist(
             """.trimIndent()
 
         try {
-            val respJson = postAg1Gateway(payload)
+            val respJson = postAppGateway(payload)
             val root = Json.parseToJsonElement(respJson).jsonObject
-            val delObj = root["delSongsFromPlayList"]?.jsonObject ?: return@withContext false
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val delObj = root["delSongsFromPlayList"]?.jsonObject
             val code =
-                delObj["code"]?.jsonPrimitive?.intOrNull
-                    ?: delObj["subcode"]?.jsonPrimitive?.intOrNull ?: -1
-            code == 0
+                delObj?.get("code")?.jsonPrimitive?.intOrNull
+                    ?: delObj?.get("subcode")?.jsonPrimitive?.intOrNull
+                    ?: rootCode
+            if (code == 0 && delObj != null) {
+                true
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "deleteSongFromPlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                deleteSongFromPlaylistInternal(dirId, songId, songMid, canRetryWithRenew = false)
+            } else {
+                false
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiPlaylist", "deleteSongFromPlaylist failed: dirId=$dirId, songId=$actualId", e)

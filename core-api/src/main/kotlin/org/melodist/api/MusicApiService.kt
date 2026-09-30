@@ -25,6 +25,20 @@ class MusicApiService(
         private val FORM_MEDIA_TYPE = "application/x-www-form-urlencoded".toMediaType()
         private const val API_ENDPOINT = "https://u.y.qq.com/cgi-bin/musicu.fcg"
         private const val AG1_ENDPOINT = "https://u6.y.qq.com/cgi-bin/musics.fcg"
+        const val APP_USER_AGENT = "QQMusic 14090008(android 14)"
+        const val WEB_USER_AGENT = "Mozilla/5.0 (Linux; Android 14; MelodistTV) AppleWebKit/537.36"
+
+        /**
+         * 构建客户端 App 渠道的通用 comm 协议体
+         */
+        fun buildAppCommJson(): String {
+            val uin = UserSession.profile.uin
+            val authst = UserSession.profile.musicKey
+            val loginType = UserSession.loginType
+            val escapedUin = Json.encodeToString(uin)
+            val escapedAuthst = Json.encodeToString(authst)
+            return """{"ct":11,"cv":14090008,"v":14090008,"chid":"10003505","tmeAppID":"qqmusic","tmeLoginType":$loginType,"qq":$escapedUin,"authst":$escapedAuthst}"""
+        }
 
         /**
          * 解析 Song 实体
@@ -220,6 +234,38 @@ class MusicApiService(
             client.newCall(requestBuilder.build()).execute().use { response ->
                 if (!response.isSuccessful) {
                     throw IOException("Gateway error: HTTP ${response.code}")
+                }
+                response.body.string()
+            }
+        }
+
+    /**
+     * 发起带客户端 App 头的音乐网关 POST 请求
+     */
+    suspend fun postAppGateway(
+        jsonPayload: String,
+        customCookieHeader: String? = null,
+    ): String =
+        withContext(Dispatchers.IO) {
+            val sign = CryptoUtils.computeZzcSign(jsonPayload)
+            val url = "$API_ENDPOINT?_=$sign"
+
+            val body = jsonPayload.toRequestBody(JSON_MEDIA_TYPE)
+            val requestBuilder =
+                Request
+                    .Builder()
+                    .url(url)
+                    .post(body)
+                    .header("User-Agent", APP_USER_AGENT)
+
+            val cookieHeader = customCookieHeader ?: UserSession.getCookieHeader()
+            if (cookieHeader.isNotBlank()) {
+                requestBuilder.header("Cookie", cookieHeader)
+            }
+
+            client.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw IOException("App Gateway error: HTTP ${response.code}")
                 }
                 response.body.string()
             }

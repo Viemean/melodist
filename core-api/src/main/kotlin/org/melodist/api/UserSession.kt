@@ -52,6 +52,13 @@ object UserSession {
             _profileFlow.value = value
         }
 
+    val loginType: Int
+        get() {
+            val p = _profileFlow.value
+            return p.cookies["tmeLoginType"]?.toIntOrNull()
+                ?: if (p.musicKey.startsWith("W_X")) 1 else 2
+        }
+
     val isLoggedIn: Boolean
         get() {
             val p = _profileFlow.value
