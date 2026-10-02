@@ -257,127 +257,137 @@ fun SongActionSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.height(8.dp))
+            val hasQuickActions =
+                (showFavorite && !isWebDavOrLocal) ||
+                    (showTvCast && isTvConnected && pairedDevice != null) ||
+                    showNextPlay ||
+                    (!song.isLocal && !song.isWebDav)
 
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (showFavorite && !isWebDavOrLocal) {
-                    QuickActionButton(
-                        icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        title = if (isFavorite) "取消收藏" else "收藏",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                        containerColor =
-                            if (isFavorite) {
-                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerHigh
-                            },
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            PlaybackManager.toggleSongFavorite(song)
-                            Toast.makeText(context, if (isFavorite) "已取消收藏" else "已添加到收藏", Toast.LENGTH_SHORT).show()
-                            onDismissRequest()
-                        },
-                    )
-                }
+            if (hasQuickActions) {
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                if (showTvCast && isTvConnected && pairedDevice != null) {
-                    Box(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (showFavorite && !isWebDavOrLocal) {
                         QuickActionButton(
-                            icon = Icons.Rounded.Tv,
-                            title = "投至电视",
-                            tint = MaterialTheme.colorScheme.primary,
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                            modifier = Modifier.fillMaxWidth(),
+                            icon = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            title = if (isFavorite) "取消收藏" else "收藏",
+                            tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                            containerColor =
+                                if (isFavorite) {
+                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHigh
+                                },
+                            modifier = Modifier.weight(1f),
                             onClick = {
-                                showTvMenu = true
+                                PlaybackManager.toggleSongFavorite(song)
+                                Toast.makeText(context, if (isFavorite) "已取消收藏" else "已添加到收藏", Toast.LENGTH_SHORT).show()
+                                onDismissRequest()
                             },
                         )
+                    }
 
-                        DropdownMenu(
-                            expanded = showTvMenu,
-                            onDismissRequest = { showTvMenu = false },
-                        ) {
-                            Text(
-                                text = pairedDevice.name,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            DropdownMenuItem(
-                                text = { Text("立即在电视播放") },
-                                leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
+                    if (showTvCast && isTvConnected && pairedDevice != null) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            QuickActionButton(
+                                icon = Icons.Rounded.Tv,
+                                title = "投至电视",
+                                tint = MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                modifier = Modifier.fillMaxWidth(),
                                 onClick = {
-                                    showTvMenu = false
-                                    MobileConnectManager.playOnTv(song)
-                                    Toast.makeText(context, "已发送至 TV 播放", Toast.LENGTH_SHORT).show()
-                                    onDismissRequest()
+                                    showTvMenu = true
                                 },
                             )
-                            DropdownMenuItem(
-                                text = { Text("稍后在电视播放") },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
-                                onClick = {
-                                    showTvMenu = false
-                                    MobileConnectManager.enqueueNextOnTv(song)
-                                    Toast.makeText(context, "已插播至 TV 队列", Toast.LENGTH_SHORT).show()
-                                    onDismissRequest()
-                                },
-                            )
+
+                            DropdownMenu(
+                                expanded = showTvMenu,
+                                onDismissRequest = { showTvMenu = false },
+                            ) {
+                                Text(
+                                    text = pairedDevice.name,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                )
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                DropdownMenuItem(
+                                    text = { Text("立即在电视播放") },
+                                    leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
+                                    onClick = {
+                                        showTvMenu = false
+                                        MobileConnectManager.playOnTv(song)
+                                        Toast.makeText(context, "已发送至 TV 播放", Toast.LENGTH_SHORT).show()
+                                        onDismissRequest()
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("稍后在电视播放") },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
+                                    onClick = {
+                                        showTvMenu = false
+                                        MobileConnectManager.enqueueNextOnTv(song)
+                                        Toast.makeText(context, "已插播至 TV 队列", Toast.LENGTH_SHORT).show()
+                                        onDismissRequest()
+                                    },
+                                )
+                            }
                         }
                     }
-                }
 
-                if (showNextPlay) {
-                    QuickActionButton(
-                        icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
-                        title = "稍后播放",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            PlaybackManager.insertNextPlay(song)
-                            Toast.makeText(context, "已加入稍后播放", Toast.LENGTH_SHORT).show()
-                            onDismissRequest()
-                        },
-                    )
-                }
+                    if (showNextPlay) {
+                        QuickActionButton(
+                            icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
+                            title = "稍后播放",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                PlaybackManager.insertNextPlay(song)
+                                Toast.makeText(context, "已加入稍后播放", Toast.LENGTH_SHORT).show()
+                                onDismissRequest()
+                            },
+                        )
+                    }
 
-                if (!song.isLocal && !song.isWebDav) {
-                    val isDownloaded = localFilePath != null
-                    QuickActionButton(
-                        icon = if (isDownloaded) Icons.Rounded.FileDownloadDone else Icons.Rounded.Download,
-                        title = if (isDownloaded) "重新下载" else "下载歌曲",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            showDownloadQualityDialog = true
-                        },
-                    )
-                }
+                    if (!song.isLocal && !song.isWebDav) {
+                        val isDownloaded = localFilePath != null
+                        QuickActionButton(
+                            icon = if (isDownloaded) Icons.Rounded.FileDownloadDone else Icons.Rounded.Download,
+                            title = if (isDownloaded) "重新下载" else "下载歌曲",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                showDownloadQualityDialog = true
+                            },
+                        )
+                    }
 
-                if (!song.isLocal && !song.isWebDav) {
-                    QuickActionButton(
-                        icon = Icons.AutoMirrored.Rounded.QueueMusic,
-                        title = "添加歌单",
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            if (!UserSession.isLoggedIn) {
-                                Toast.makeText(context, "请先登录账号", Toast.LENGTH_SHORT).show()
-                                return@QuickActionButton
-                            }
-                            showAddToPlaylistDialog = true
-                        },
-                    )
+                    if (!song.isLocal && !song.isWebDav) {
+                        QuickActionButton(
+                            icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                            title = "添加歌单",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                if (!UserSession.isLoggedIn) {
+                                    Toast.makeText(context, "请先登录账号", Toast.LENGTH_SHORT).show()
+                                    return@QuickActionButton
+                                }
+                                showAddToPlaylistDialog = true
+                            },
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+            } else {
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(4.dp))
 
