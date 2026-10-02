@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.HighQuality
-import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.rounded.Translate
@@ -146,16 +145,6 @@ fun SettingsPlaybackSection(
                 subtitle = "在外文歌曲播放界面显示中文对照翻译",
                 checked = settings.showBilingualLyrics,
                 onCheckedChange = { AppSettingsManager.setShowBilingualTranslation(it) },
-            )
-
-            SettingsDivider()
-
-            SettingsSwitchRow(
-                icon = Icons.Rounded.Lyrics,
-                title = "逐字卡拉OK动效",
-                subtitle = "支持词级别时间戳时平滑渲染字级变色动效",
-                checked = settings.enableWordByWordAnim,
-                onCheckedChange = { AppSettingsManager.setEnableWordByWordAnimation(it) },
             )
 
             SettingsDivider()
