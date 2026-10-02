@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.playlist
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -59,6 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -292,7 +294,10 @@ fun PlaylistDetailScreen(
                                         page = nextPage,
                                         pageSize = 100,
                                     )
-                                } catch (_: Exception) {
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    Log.w("PlaylistDetail", "Failed to load playlist songs: dirId=${playlist.dirId}, page=$nextPage", e)
                                     emptyList()
                                 }
                             }
@@ -352,7 +357,10 @@ fun PlaylistDetailScreen(
                                 )
                             more = res.size >= 100
                             res
-                        } catch (_: Exception) {
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Log.w("PlaylistDetail", "Failed in background sync remaining playlist songs: dirId=${playlist.dirId}, page=$p", e)
                             emptyList()
                         }
 

@@ -3,6 +3,7 @@ package org.melodist.core.connect.storage
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -133,7 +134,8 @@ class ConnectStorageManager(
         val raw = prefs.getString(KEY_PAIRED_DEVICES, null) ?: return emptyList()
         return try {
             json.decodeFromString(raw)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("ConnectStorage", "Failed to decode paired devices JSON", e)
             emptyList()
         }
     }
@@ -149,7 +151,8 @@ class ConnectStorageManager(
         if (!raw.isNullOrBlank()) {
             try {
                 return json.decodeFromString<ConnectDevice>(raw)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("ConnectStorage", "Failed to decode last connected device JSON", e)
             }
         }
         return _pairedDevicesFlow.value.lastOrNull()

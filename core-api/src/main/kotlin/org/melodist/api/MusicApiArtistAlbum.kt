@@ -65,6 +65,8 @@ suspend fun MusicApiService.getFavoriteAlbums(): List<Album> =
             }
             albums
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "getFavoriteAlbums failed", e)
             emptyList()
         }
     }
@@ -245,6 +247,8 @@ suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model
                 id = albumId,
             )
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "getAlbumDetail failed: albumMid=$albumMid", e)
             null
         }
     }
@@ -284,6 +288,8 @@ suspend fun MusicApiService.getArtistDetail(singerMid: String): ArtistDetail? =
 
             ArtistDetail(singerMid, sId, sName, brief, songs)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "getArtistDetail failed: singerMid=$singerMid", e)
             null
         }
     }
@@ -323,6 +329,8 @@ suspend fun MusicApiService.getSingerSongList(
 
             Pair(songs, total)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "getSingerSongList failed: singerMid=$singerMid, page=$page", e)
             Pair(emptyList(), 0)
         }
     }
@@ -434,6 +442,8 @@ suspend fun MusicApiService.getSingerAlbumList(
                 }
             Pair(albums, total)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "getSingerAlbumList failed: singerMid=$singerMid, page=$page", e)
             Pair(emptyList(), 0)
         }
     }
@@ -573,7 +583,9 @@ suspend fun MusicApiService.getFollowedSingerList(
                     }
                 }
             Pair(artists, hasMore)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiArtistAlbum", "getFollowedSingerList failed: from=$from, size=$size", e)
             Pair(emptyList(), false)
         }
     }

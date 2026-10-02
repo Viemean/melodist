@@ -1,5 +1,6 @@
 package org.melodist.core.connect.server
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -233,7 +234,8 @@ class TvConnectServer(
             if (ws.isOpen) {
                 try {
                     ws.send(message)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w("MelodistConnectServer", "Failed to broadcast data: action=$action", e)
                 }
             }
         }
@@ -245,7 +247,8 @@ class TvConnectServer(
             if (ws.isOpen) {
                 try {
                     ws.send(message)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w("MelodistConnectServer", "Failed to broadcast action: action=$action", e)
                 }
             }
         }
@@ -260,7 +263,8 @@ class TvConnectServer(
         val message = json.encodeToString(ConnectMessage.create(action, data, json))
         try {
             socket.send(message)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("MelodistConnectServer", "Failed to send data: action=$action", e)
         }
     }
 
@@ -272,7 +276,8 @@ class TvConnectServer(
         val message = json.encodeToString(ConnectMessage(action = action))
         try {
             socket.send(message)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("MelodistConnectServer", "Failed to send action: action=$action", e)
         }
     }
 
@@ -326,7 +331,8 @@ class TvConnectServer(
         val msg =
             try {
                 json.decodeFromString<ConnectMessage>(text)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("MelodistConnectServer", "Failed to parse incoming message: $text", e)
                 return
             }
 

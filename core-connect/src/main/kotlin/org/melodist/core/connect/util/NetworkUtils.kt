@@ -1,5 +1,6 @@
 package org.melodist.core.connect.util
 
+import android.util.Log
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.Collections
@@ -97,7 +98,8 @@ object NetworkUtils {
                     }
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("NetworkUtils", "Failed to enumerate network interfaces", e)
         }
 
         return results.sortedByDescending { it.second }.map { it.first }.distinct()

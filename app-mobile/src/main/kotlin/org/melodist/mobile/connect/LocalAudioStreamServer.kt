@@ -169,7 +169,8 @@ class LocalAudioStreamServer(
                         sendNotFound(output)
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.util.Log.w("LocalAudioStreamServer", "Failed to serve client request", e)
             }
         }
     }

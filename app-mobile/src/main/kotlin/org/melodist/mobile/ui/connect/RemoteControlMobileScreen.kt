@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.connect
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.probeSongQualities
@@ -60,7 +62,10 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
                                 .probeSongQualities(curTvSong.songMid, curTvSong.mediaMid)
                         }
                     tvProbedQualityOptions = probed
-                } catch (_: Exception) {
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("RemoteControl", "Failed to probe TV song qualities for ${curTvSong.songMid}", e)
                 } finally {
                     isTvProbingQuality = false
                 }

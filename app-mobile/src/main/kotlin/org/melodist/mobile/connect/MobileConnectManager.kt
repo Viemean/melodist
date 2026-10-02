@@ -1,6 +1,8 @@
 package org.melodist.mobile.connect
 
 import android.content.Context
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -415,7 +417,8 @@ object MobileConnectManager {
                     socket.connect(java.net.InetSocketAddress(host, port), timeoutMs)
                     true
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 false
             }
         }
@@ -564,7 +567,8 @@ object MobileConnectManager {
                 )
             connectTo(device, data.pinCode)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("MobileConnectManager", "Failed to parse QR code JSON or initiate connect", e)
             false
         }
 

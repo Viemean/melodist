@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.search
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -187,7 +189,10 @@ fun SearchScreen(
                         }
                     }
                     loadedTabs = loadedTabs + targetTab
-                } catch (_: Exception) {
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("SearchScreen", "Search failed for query: $trimmed, tab: $targetTab", e)
                 }
             }
             isLoading = false
@@ -209,7 +214,10 @@ fun SearchScreen(
                             withContext(Dispatchers.IO) {
                                 try {
                                     apiService.search(activeQuery, page = nextPage, pageSize = 30)
-                                } catch (_: Exception) {
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    Log.w("SearchScreen", "Failed to load more songs for query: $activeQuery, page: $nextPage", e)
                                     emptyList()
                                 }
                             }
@@ -254,7 +262,10 @@ fun SearchScreen(
                 withContext(Dispatchers.IO) {
                     try {
                         apiService.searchPlaylists(activeQuery, page = nextPage, pageSize = 30)
-                    } catch (_: Exception) {
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("SearchScreen", "Failed to load more playlists for query: $activeQuery, page: $nextPage", e)
                         emptyList()
                     }
                 }
@@ -282,7 +293,10 @@ fun SearchScreen(
                 withContext(Dispatchers.IO) {
                     try {
                         apiService.searchAlbums(activeQuery, page = nextPage, pageSize = 30)
-                    } catch (_: Exception) {
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("SearchScreen", "Failed to load more albums for query: $activeQuery, page: $nextPage", e)
                         emptyList()
                     }
                 }
