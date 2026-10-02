@@ -1,6 +1,6 @@
 [versions]
-agp = "9.5.0-alpha07"
-kotlin = "2.4.20"
+agp = "9.5.0-alpha08"
+kotlin = "2.5.0-Beta1"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.12.0-RC"
 okhttp = "5.5.0"
