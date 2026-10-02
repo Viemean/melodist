@@ -539,6 +539,38 @@ open class QQMusicApiService : Service() {
         }
     }
 
+    private fun resolveCoverUri(song: Song): String {
+        var rawUrl = song.coverUrl
+
+        if (rawUrl.isBlank()) {
+            val localPath = song.localFilePath
+            if (!localPath.isNullOrBlank()) {
+                rawUrl = org.melodist.data.LocalMusicManager.resolveCoverUrl(localPath, "")
+            } else if (song.songMid.startsWith("webdav_")) {
+                val server = org.melodist.data.WebDavManager.getActiveServer()
+                val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
+                if (server != null && relativeHref.isNotBlank()) {
+                    rawUrl = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref).orEmpty()
+                }
+            }
+        }
+
+        if (rawUrl.isBlank()) return ""
+
+        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+            return rawUrl
+        }
+
+        val cleanUrl = rawUrl.substringBefore('?')
+        val filePath = cleanUrl.removePrefix("file://")
+        val file = java.io.File(filePath)
+        if (file.exists() && file.isFile && file.length() > 0L) {
+            return OriginCoverProvider.buildContentUri(packageName, file).toString()
+        }
+
+        return rawUrl
+    }
+
     private fun buildSongJson(song: Song?): String {
         if (song == null) return "{}"
         val primaryArtist = song.singerList.firstOrNull()
@@ -548,12 +580,13 @@ open class QQMusicApiService : Service() {
                 put("mid", primaryArtist?.mid?.ifBlank { "0" } ?: "0")
                 put("title", song.singer)
             }
+        val resolvedCover = resolveCoverUri(song)
         val albumObj =
             JSONObject().apply {
                 put("id", 0L)
                 put("mid", song.albumMid.ifBlank { "0" })
                 put("title", song.album)
-                put("coverUri", song.coverUrl)
+                put("coverUri", resolvedCover)
             }
         return JSONObject()
             .apply {
@@ -561,6 +594,7 @@ open class QQMusicApiService : Service() {
                 put("mid", song.songMid)
                 put("title", song.name)
                 put("type", 0)
+                put("coverUri", resolvedCover)
                 put("singer", singerObj)
                 put("album", albumObj)
             }.toString()

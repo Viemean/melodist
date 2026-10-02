@@ -16,5 +16,11 @@
                 <action android:name="com.tencent.qqmusic.third.api.QQMusicApiService" />
             </intent-filter>
         </service>
+
+        <provider
+            android:name="org.melodist.mobile.origin.OriginCoverProvider"
+            android:authorities="${applicationId}.origin.cover"
+            android:exported="true"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>
