@@ -22,8 +22,6 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,8 +63,9 @@ enum class MobileLoginChannel(
     val label: String,
     val appName: String,
 ) {
-    QQ("QQ 扫码", "手机 QQ"),
-    WeChat("微信扫码", "手机微信"),
+    QQ("QQ", "手机 QQ"),
+    WeChat("微信", "手机微信"),
+    QQMusic("QQ音乐", "QQ 音乐"),
 }
 
 @Composable
@@ -203,27 +202,51 @@ fun MobileLoginDialog(
                         refreshTrigger++
                     }
 
-                    // 渠道切换 Chips
+                    // 渠道切换分段器
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         MobileLoginChannel.entries.forEach { channel ->
-                            FilterChip(
-                                selected = selectedChannel == channel,
-                                onClick = {
-                                    if (selectedChannel != channel) {
-                                        selectedChannel = channel
-                                    }
-                                },
-                                label = { Text(channel.label) },
-                                colors =
-                                    FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                    ),
-                                modifier = Modifier.padding(horizontal = 6.dp),
-                            )
+                            val selected = selectedChannel == channel
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                        .clip(RoundedCornerShape(9.dp))
+                                        .background(
+                                            if (selected) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                Color.Transparent
+                                            },
+                                        ).clickable {
+                                            if (selectedChannel != channel) {
+                                                selectedChannel = channel
+                                            }
+                                        },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = channel.label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    color =
+                                        if (selected) {
+                                            MaterialTheme.colorScheme.onPrimary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            }
                         }
                     }
 
@@ -303,6 +326,51 @@ fun MobileLoginDialog(
                                     while (isPolling) {
                                         delay(1500L)
                                         val poll = loginService.pollWeChatQrStatus(qrInfo.identifier)
+                                        when (poll.status) {
+                                            QrStatus.Waiting -> {
+                                                statusText = "请使用 ${selectedChannel.appName} 扫码"
+                                            }
+                                            QrStatus.Confirming -> {
+                                                statusText = "已扫码，请在手机端确认授权"
+                                            }
+                                            QrStatus.Success -> {
+                                                statusText = "登录成功"
+                                                try {
+                                                    MusicApiService().refreshCurrentUserProfile()
+                                                } catch (_: Exception) {
+                                                }
+                                                UserSessionManager.save(context)
+                                                isPolling = false
+                                                onLoginSuccess()
+                                                break
+                                            }
+                                            QrStatus.Expired -> {
+                                                statusText = "二维码已过期，点击刷新"
+                                                isPolling = false
+                                                break
+                                            }
+                                            QrStatus.Canceled -> {
+                                                statusText = "已取消授权"
+                                                isPolling = false
+                                                break
+                                            }
+                                            QrStatus.Error -> {
+                                                statusText = poll.message
+                                            }
+                                        }
+                                    }
+                                }
+                                MobileLoginChannel.QQMusic -> {
+                                    val qrInfo = loginService.fetchOfficialAppQrCode()
+                                    val bitmap = BitmapFactory.decodeByteArray(qrInfo.imageBytes, 0, qrInfo.imageBytes.size)
+                                    if (bitmap != null) {
+                                        qrImageBitmap = bitmap.asImageBitmap()
+                                        statusText = "请使用 ${selectedChannel.appName} 扫码"
+                                    }
+
+                                    while (isPolling) {
+                                        delay(1500L)
+                                        val poll = loginService.pollOfficialAppQrStatus(qrInfo.identifier)
                                         when (poll.status) {
                                             QrStatus.Waiting -> {
                                                 statusText = "请使用 ${selectedChannel.appName} 扫码"
