@@ -545,12 +545,19 @@ open class QQMusicApiService : Service() {
         if (rawUrl.isBlank()) {
             val localPath = song.localFilePath
             if (!localPath.isNullOrBlank()) {
-                rawUrl = org.melodist.data.LocalMusicManager.resolveCoverUrl(localPath, "")
+                rawUrl =
+                    org.melodist.data.LocalMusicManager
+                        .resolveCoverUrl(localPath, "")
             } else if (song.songMid.startsWith("webdav_")) {
-                val server = org.melodist.data.WebDavManager.getActiveServer()
+                val server =
+                    org.melodist.data.WebDavManager
+                        .getActiveServer()
                 val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
                 if (server != null && relativeHref.isNotBlank()) {
-                    rawUrl = org.melodist.data.WebDavManager.getSongCoverPath(server.id, relativeHref).orEmpty()
+                    rawUrl =
+                        org.melodist.data.WebDavManager
+                            .getSongCoverPath(server.id, relativeHref)
+                            .orEmpty()
                 }
             }
         }

@@ -37,7 +37,8 @@ class MusicApiService(
             val loginType = UserSession.loginType
             val escapedUin = Json.encodeToString(uin)
             val escapedAuthst = Json.encodeToString(authst)
-            return """{"ct":11,"cv":14090008,"v":14090008,"chid":"10003505","tmeAppID":"qqmusic","tmeLoginType":$loginType,"qq":$escapedUin,"authst":$escapedAuthst}"""
+            return """{"ct":11,"cv":14090008,"v":14090008,"chid":"10003505","tmeAppID":"qqmusic","tmeLoginType":$loginType,""" +
+                """"qq":$escapedUin,"authst":$escapedAuthst}"""
         }
 
         /**

@@ -263,8 +263,7 @@ suspend fun MusicApiService.getPlaylistSongs(
         }
     }
 
-suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, String> =
-    createPlaylistInternal(name, canRetryWithRenew = true)
+suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, String> = createPlaylistInternal(name, canRetryWithRenew = true)
 
 private suspend fun MusicApiService.createPlaylistInternal(
     name: String,
@@ -329,8 +328,7 @@ private suspend fun MusicApiService.createPlaylistInternal(
         }
     }
 
-suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean =
-    deletePlaylistInternal(playlist, canRetryWithRenew = true)
+suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean = deletePlaylistInternal(playlist, canRetryWithRenew = true)
 
 private suspend fun MusicApiService.deletePlaylistInternal(
     playlist: Playlist,
