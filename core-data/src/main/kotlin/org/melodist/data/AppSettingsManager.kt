@@ -126,7 +126,6 @@ data class AppSettings(
     val preferredQualityTier: AudioQualityTier = AudioQualityTier.SQ,
     val cellularQualityTier: AudioQualityTier = AudioQualityTier.HQ,
     val enableAudioPassthrough: Boolean = false,
-    val enableAudioOffload: Boolean = false,
     val enableUsbExclusive: Boolean = true,
     val enableAutoMatchLyrics: Boolean = true,
     // 2. 播放与歌词
@@ -158,7 +157,6 @@ object AppSettingsManager {
     private const val KEY_PREFERRED_TIER = "preferred_tier"
     private const val KEY_CELLULAR_TIER = "cellular_quality_tier"
     private const val KEY_AUDIO_PASSTHROUGH = "audio_passthrough"
-    private const val KEY_AUDIO_OFFLOAD = "audio_offload"
     private const val KEY_USB_EXCLUSIVE = "usb_exclusive"
     private const val KEY_ATMOS_PASSTHROUGH = "atmos_passthrough"
     private const val KEY_AUTO_MATCH_LYRICS = "auto_match_lyrics"
@@ -187,7 +185,6 @@ object AppSettingsManager {
     val cacheUsage: StateFlow<CacheUsageDetail> = _cacheUsage.asStateFlow()
 
     var onAudioPassthroughChangedListener: ((Boolean) -> Unit)? = null
-    var onAudioOffloadChangedListener: ((Boolean) -> Unit)? = null
     var onUsbExclusiveChangedListener: ((Boolean) -> Unit)? = null
 
     fun init(context: Context) {
@@ -215,7 +212,6 @@ object AppSettingsManager {
             } else {
                 p.getBoolean(KEY_ATMOS_PASSTHROUGH, false)
             }
-        val audioOffload = p.getBoolean(KEY_AUDIO_OFFLOAD, false)
         val usbExclusive =
             if (p.contains(KEY_USB_EXCLUSIVE)) {
                 p.getBoolean(KEY_USB_EXCLUSIVE, true)
@@ -265,7 +261,6 @@ object AppSettingsManager {
                 preferredQualityTier = tier,
                 cellularQualityTier = cellTier,
                 enableAudioPassthrough = passthrough,
-                enableAudioOffload = audioOffload,
                 enableUsbExclusive = usbExclusive,
                 enableAutoMatchLyrics = autoLyrics,
                 showBilingualLyrics = bilingual,
@@ -337,14 +332,6 @@ object AppSettingsManager {
     fun setEnableAtmosPassthrough(enable: Boolean) = setEnableAudioPassthrough(enable)
 
     fun updateAtmosPassthrough(enable: Boolean) = setEnableAudioPassthrough(enable)
-
-    fun setEnableAudioOffload(enable: Boolean) {
-        _settings.value = _settings.value.copy(enableAudioOffload = enable)
-        prefs?.edit()?.putBoolean(KEY_AUDIO_OFFLOAD, enable)?.apply()
-        onAudioOffloadChangedListener?.invoke(enable)
-    }
-
-    fun updateAudioOffload(enable: Boolean) = setEnableAudioOffload(enable)
 
     fun setEnableUsbExclusive(enable: Boolean) {
         _settings.value = _settings.value.copy(enableUsbExclusive = enable)

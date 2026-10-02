@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
-import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -46,31 +45,13 @@ object PlaybackEngineFactory {
                         .Builder(context)
                         .setAudioCapabilities(audioCapabilities)
                         .setAudioProcessors(emptyArray())
-                        .setAudioOffloadSupportProvider(
-                            androidx.media3.exoplayer.audio
-                                .DefaultAudioOffloadSupportProvider(context),
-                        ).setEnableFloatOutput(if (isExclusive) true else enableFloatOutput)
+                        .setEnableFloatOutput(if (isExclusive) true else enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(if (isExclusive) false else enableAudioTrackPlaybackParams)
                 return builder.build()
             }
         }.apply {
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
         }
-    }
-
-    fun buildAudioOffloadPreferences(enabled: Boolean): TrackSelectionParameters.AudioOffloadPreferences {
-        val offloadMode =
-            if (enabled) {
-                TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
-            } else {
-                TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
-            }
-        return TrackSelectionParameters.AudioOffloadPreferences
-            .Builder()
-            .setAudioOffloadMode(offloadMode)
-            .setIsGaplessSupportRequired(false)
-            .setIsSpeedChangeSupportRequired(false)
-            .build()
     }
 
     fun buildExoPlayer(
@@ -103,9 +84,6 @@ object PlaybackEngineFactory {
                 .setDataSourceFactory(cachedDataSourceFactory)
                 .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
 
-        val isOffload = AppSettingsManager.settings.value.enableAudioOffload
-        val offloadPreferences = buildAudioOffloadPreferences(isOffload)
-
         val profile = PlaybackProfile.detect(context)
         val loadControl =
             DefaultLoadControl
@@ -127,11 +105,6 @@ object PlaybackEngineFactory {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
             .apply {
-                trackSelectionParameters =
-                    trackSelectionParameters
-                        .buildUpon()
-                        .setAudioOffloadPreferences(offloadPreferences)
-                        .build()
                 addListener(listener)
                 analyticsListener?.let { addAnalyticsListener(it) }
             }

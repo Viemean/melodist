@@ -2,14 +2,13 @@ package org.melodist.playback
 
 import android.content.Context
 import android.util.Log
-import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import org.melodist.data.AppSettingsManager
 
 /**
- * 负责 ExoPlayer 实例的生命周期、AudioOffload 配置、USB DAC 独占音频路由与管道重置
+ * 负责 ExoPlayer 实例的生命周期、USB DAC 独占音频路由与管道重置
  */
 class PlaybackExoPlayerPipeline(
     private val getContext: () -> Context?,
@@ -53,29 +52,6 @@ class PlaybackExoPlayerPipeline(
                 onPlayerCreated(it)
             }
         }
-
-    fun applyAudioOffloadPreferences(enabled: Boolean) {
-        val p = exoPlayer ?: return
-        val offloadMode =
-            if (enabled) {
-                TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
-            } else {
-                TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
-            }
-        val offloadPreferences =
-            TrackSelectionParameters.AudioOffloadPreferences
-                .Builder()
-                .setAudioOffloadMode(offloadMode)
-                .setIsGaplessSupportRequired(false)
-                .setIsSpeedChangeSupportRequired(false)
-                .build()
-        p.trackSelectionParameters =
-            p.trackSelectionParameters
-                .buildUpon()
-                .setAudioOffloadPreferences(offloadPreferences)
-                .build()
-        Log.i("MelodistPlayback", "Applied audio offload preferences: enabled=$enabled")
-    }
 
     fun resetPlayerPipeline(restoreMediaItem: Boolean = true) {
         val context = getContext() ?: return

@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Lyrics
-import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.rounded.Translate
@@ -93,21 +92,6 @@ fun SettingsPlaybackSection(
                 subtitle = usbSubtitle,
                 checked = settings.enableUsbExclusive,
                 onCheckedChange = { AppSettingsManager.setEnableUsbExclusive(it) },
-            )
-
-            SettingsDivider()
-
-            SettingsSwitchRow(
-                icon = Icons.Rounded.Memory,
-                title = "音频硬件卸载",
-                subtitle =
-                    if (settings.enableAudioOffload) {
-                        "已启用独立 DSP 硬件解码，降低后台播放功耗"
-                    } else {
-                        "由 CPU/框架层解码输出，兼容完整音频处理"
-                    },
-                checked = settings.enableAudioOffload,
-                onCheckedChange = { AppSettingsManager.setEnableAudioOffload(it) },
             )
 
             SettingsDivider()

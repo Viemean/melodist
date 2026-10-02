@@ -794,9 +794,6 @@ object PlaybackManager {
         org.melodist.data.AppSettingsManager.onUsbExclusiveChangedListener = {
             resetPlayerPipeline()
         }
-        org.melodist.data.AppSettingsManager.onAudioOffloadChangedListener = { enabled ->
-            applyAudioOffloadPreferences(enabled)
-        }
         if (exoPlayer == null) {
             playerPipeline.buildExoPlayer(context)
             _isPlaying.value = false
@@ -806,8 +803,6 @@ object PlaybackManager {
         }
         startPlaybackService(context)
     }
-
-    fun applyAudioOffloadPreferences(enabled: Boolean) = playerPipeline.applyAudioOffloadPreferences(enabled)
 
     fun resetPlayerPipeline(restoreMediaItem: Boolean = true) = playerPipeline.resetPlayerPipeline(restoreMediaItem)
 
