@@ -22,10 +22,15 @@ enum class LyricFontSize(
     Small("偏小", 0.85f, 18, 13),
     Normal("标准", 1.0f, 22, 15),
     Large("偏大", 1.18f, 26, 17),
-    ExtraLarge("超大", 1.36f, 30, 19),
+    Custom("自定义", 1.36f, 30, 19),
     ;
 
     val spValue: Int get() = titleSp
+
+    companion object {
+        @Deprecated("Use Custom instead", ReplaceWith("Custom"))
+        val ExtraLarge: LyricFontSize get() = Custom
+    }
 }
 
 data class CacheUsageDetail(
@@ -132,6 +137,7 @@ data class AppSettings(
     val showBilingualLyrics: Boolean = true,
     val enableWordByWordAnim: Boolean = true,
     val lyricFontSize: LyricFontSize = LyricFontSize.Normal,
+    val customLyricFontSizeSp: Int = 30,
     // 3. OLED 屏保与显示保护
     val screenSaverTimeout: ScreenSaverTimeout = ScreenSaverTimeout.Minutes5,
     val screenSaverBrightness: ScreenSaverBrightness = ScreenSaverBrightness.Auto,
@@ -148,6 +154,22 @@ data class AppSettings(
 ) {
     // 向后兼容旧字段引用
     val enableAtmosPassthrough: Boolean get() = enableAudioPassthrough
+
+    val effectiveLyricTitleSp: Int
+        get() =
+            if (lyricFontSize == LyricFontSize.Custom) {
+                customLyricFontSizeSp.coerceIn(14, 48)
+            } else {
+                lyricFontSize.titleSp
+            }
+
+    val effectiveLyricSubSp: Int
+        get() =
+            if (lyricFontSize == LyricFontSize.Custom) {
+                (effectiveLyricTitleSp * 0.68f).toInt().coerceAtLeast(10)
+            } else {
+                lyricFontSize.subSp
+            }
 }
 
 object AppSettingsManager {
@@ -163,6 +185,7 @@ object AppSettingsManager {
     private const val KEY_BILINGUAL_TRANS = "bilingual_translation"
     private const val KEY_WORD_ANIM = "word_animation"
     private const val KEY_LYRIC_FONT_SIZE = "lyric_font_size"
+    private const val KEY_CUSTOM_LYRIC_FONT_SIZE = "custom_lyric_font_size"
     private const val KEY_SCREENSAVER_TIMEOUT = "screensaver_timeout"
     private const val KEY_SCREENSAVER_BRIGHTNESS = "screensaver_brightness"
     private const val KEY_SCREENSAVER_PIXEL_SHIFT = "screensaver_pixel_shift"
@@ -224,10 +247,15 @@ object AppSettingsManager {
         val fontName = p.getString(KEY_LYRIC_FONT_SIZE, LyricFontSize.Normal.name) ?: LyricFontSize.Normal.name
         val font =
             try {
-                LyricFontSize.valueOf(fontName)
+                if (fontName == "ExtraLarge") {
+                    LyricFontSize.Custom
+                } else {
+                    LyricFontSize.valueOf(fontName)
+                }
             } catch (_: Exception) {
                 LyricFontSize.Normal
             }
+        val customFontSize = p.getInt(KEY_CUSTOM_LYRIC_FONT_SIZE, 30).coerceIn(14, 48)
 
         val timeoutName = p.getString(KEY_SCREENSAVER_TIMEOUT, ScreenSaverTimeout.Minutes5.name) ?: ScreenSaverTimeout.Minutes5.name
         val timeout =
@@ -266,6 +294,7 @@ object AppSettingsManager {
                 showBilingualLyrics = bilingual,
                 enableWordByWordAnim = wordAnim,
                 lyricFontSize = font,
+                customLyricFontSizeSp = customFontSize,
                 screenSaverTimeout = timeout,
                 screenSaverBrightness = brightness,
                 enablePixelShift = pixelShift,
@@ -368,6 +397,21 @@ object AppSettingsManager {
     }
 
     fun updateLyricFontSize(size: LyricFontSize) = setLyricFontSize(size)
+
+    fun setCustomLyricFontSize(sizeSp: Int) {
+        val clamped = sizeSp.coerceIn(14, 48)
+        _settings.value =
+            _settings.value.copy(
+                customLyricFontSizeSp = clamped,
+                lyricFontSize = LyricFontSize.Custom,
+            )
+        prefs?.edit()
+            ?.putInt(KEY_CUSTOM_LYRIC_FONT_SIZE, clamped)
+            ?.putString(KEY_LYRIC_FONT_SIZE, LyricFontSize.Custom.name)
+            ?.apply()
+    }
+
+    fun updateCustomLyricFontSize(sizeSp: Int) = setCustomLyricFontSize(sizeSp)
 
     fun setScreenSaverTimeout(timeout: ScreenSaverTimeout) {
         _settings.value = _settings.value.copy(screenSaverTimeout = timeout)

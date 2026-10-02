@@ -1,6 +1,7 @@
 package org.melodist.mobile.ui.settings.sections
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,16 +9,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,7 +36,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.melodist.data.AppSettings
 import org.melodist.data.AppSettingsManager
 import org.melodist.data.LyricFontSize
@@ -152,7 +162,12 @@ fun SettingsPlaybackSection(
             SettingsClickableRow(
                 icon = Icons.Rounded.Palette,
                 title = "播放器歌词字号",
-                subtitle = settings.lyricFontSize.label,
+                subtitle =
+                    if (settings.lyricFontSize == LyricFontSize.Custom) {
+                        "自定义 (${settings.customLyricFontSizeSp}sp)"
+                    } else {
+                        "${settings.lyricFontSize.label} (${settings.effectiveLyricTitleSp}sp)"
+                    },
                 onClick = { showFontSizeDialog = true },
             )
         }
@@ -188,33 +203,140 @@ fun SettingsPlaybackSection(
     }
 
     if (showFontSizeDialog) {
+        var selectedFont by remember { mutableStateOf(settings.lyricFontSize) }
+        var customSp by remember { mutableStateOf(settings.customLyricFontSizeSp) }
+
+        val previewTitleSp =
+            if (selectedFont == LyricFontSize.Custom) {
+                customSp
+            } else {
+                selectedFont.titleSp
+            }
+        val previewSubSp =
+            if (selectedFont == LyricFontSize.Custom) {
+                (customSp * 0.68f).toInt().coerceAtLeast(10)
+            } else {
+                selectedFont.subSp
+            }
+
         AlertDialog(
             onDismissRequest = { showFontSizeDialog = false },
             title = { Text("选择歌词字号") },
             text = {
-                Column {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     LyricFontSize.entries.forEach { font ->
+                        val labelText =
+                            if (font == LyricFontSize.Custom) {
+                                "${font.label} (${customSp}sp)"
+                            } else {
+                                "${font.label} (${font.spValue}sp)"
+                            }
                         Row(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        AppSettingsManager.setLyricFontSize(font)
-                                        showFontSizeDialog = false
-                                    }.padding(vertical = 10.dp),
+                                        selectedFont = font
+                                        if (font != LyricFontSize.Custom) {
+                                            AppSettingsManager.setLyricFontSize(font)
+                                        } else {
+                                            AppSettingsManager.setCustomLyricFontSize(customSp)
+                                        }
+                                    }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(
-                                selected = settings.lyricFontSize == font,
+                                selected = selectedFont == font,
                                 onClick = {
-                                    AppSettingsManager.setLyricFontSize(font)
-                                    showFontSizeDialog = false
+                                    selectedFont = font
+                                    if (font != LyricFontSize.Custom) {
+                                        AppSettingsManager.setLyricFontSize(font)
+                                    } else {
+                                        AppSettingsManager.setCustomLyricFontSize(customSp)
+                                    }
                                 },
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "${font.label} (${font.spValue}sp)",
+                                text = labelText,
                                 style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+
+                    if (selectedFont == LyricFontSize.Custom) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "字号微调: ${customSp}sp",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = {
+                                        if (customSp > 14) {
+                                            customSp -= 1
+                                            AppSettingsManager.setCustomLyricFontSize(customSp)
+                                        }
+                                    },
+                                    enabled = customSp > 14,
+                                ) {
+                                    Icon(Icons.Rounded.Remove, contentDescription = "减小字号")
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (customSp < 48) {
+                                            customSp += 1
+                                            AppSettingsManager.setCustomLyricFontSize(customSp)
+                                        }
+                                    },
+                                    enabled = customSp < 48,
+                                ) {
+                                    Icon(Icons.Rounded.Add, contentDescription = "增大字号")
+                                }
+                            }
+                        }
+
+                        Slider(
+                            value = customSp.toFloat(),
+                            onValueChange = {
+                                customSp = it.toInt().coerceIn(14, 48)
+                                AppSettingsManager.setCustomLyricFontSize(customSp)
+                            },
+                            valueRange = 14f..48f,
+                            steps = 33,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 实时预览卡片
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = "歌词效果实时预览",
+                                fontSize = previewTitleSp.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Lyrics Preview Translation",
+                                fontSize = previewSubSp.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                             )
                         }
                     }
@@ -222,7 +344,7 @@ fun SettingsPlaybackSection(
             },
             confirmButton = {
                 TextButton(onClick = { showFontSizeDialog = false }) {
-                    Text("取消")
+                    Text("完成")
                 }
             },
         )

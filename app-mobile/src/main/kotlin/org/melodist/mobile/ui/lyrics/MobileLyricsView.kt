@@ -80,10 +80,10 @@ fun MobileLyricsView(
     }
 
     val settings by AppSettingsManager.settings.collectAsState()
-    val baseFontSize = settings.lyricFontSize.titleSp.sp
-    val baseLineHeight = (settings.lyricFontSize.titleSp * 1.38f).sp
-    val transFontSize = settings.lyricFontSize.subSp.sp
-    val transLineHeight = (settings.lyricFontSize.subSp * 1.40f).sp
+    val baseFontSize = settings.effectiveLyricTitleSp.sp
+    val baseLineHeight = (settings.effectiveLyricTitleSp * 1.38f).sp
+    val transFontSize = settings.effectiveLyricSubSp.sp
+    val transLineHeight = (settings.effectiveLyricSubSp * 1.40f).sp
 
     val effectivePositionMs = currentPositionMs + lyricOffsetMs
 
@@ -98,7 +98,7 @@ fun MobileLyricsView(
         val viewportHeightPx = with(density) { maxHeight.roundToPx() }
         val halfHeight = maxHeight / 2
 
-        val estimatedItemHeight = with(density) { (settings.lyricFontSize.titleSp * 2.2f).dp.roundToPx() }
+        val estimatedItemHeight = with(density) { (settings.effectiveLyricTitleSp * 2.2f).dp.roundToPx() }
         val centerScrollOffset = -((viewportHeightPx - estimatedItemHeight) / 2)
         val initialItemIndex = (activeIndex + 1).coerceIn(0, lyrics.size)
 

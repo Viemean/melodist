@@ -120,8 +120,14 @@ fun LyricsPanel(menuRequester: FocusRequester) {
                         scale = ButtonDefaults.scale(focusedScale = 1.05f),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
                     ) {
+                        val labelText =
+                            if (size == LyricFontSize.Custom) {
+                                "${size.label} (${settings.customLyricFontSizeSp}sp)"
+                            } else {
+                                "${size.label} (${size.spValue}sp)"
+                            }
                         Text(
-                            text = "${size.label} (${size.spValue}sp)",
+                            text = labelText,
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                             textAlign = TextAlign.Center,

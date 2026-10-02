@@ -37,7 +37,7 @@ fun CenterAlignedKaraokeLyricsView(
     highlightColor: Color = MelodistColors.AccentGreen,
 ) {
     val settings by AppSettingsManager.settings.collectAsState()
-    val baseFontSize = settings.lyricFontSize.spValue
+    val baseFontSize = settings.effectiveLyricTitleSp
     val enableWordAnim = settings.enableWordByWordAnim
     val showBilingual = settings.showBilingualLyrics
 
