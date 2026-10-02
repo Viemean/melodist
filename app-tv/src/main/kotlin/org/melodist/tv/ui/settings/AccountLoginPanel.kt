@@ -31,8 +31,10 @@ import androidx.tv.material3.*
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 import org.melodist.api.LoginApiService
+import org.melodist.api.MusicApiService
 import org.melodist.api.QrStatus
 import org.melodist.api.UserSession
+import org.melodist.api.refreshCurrentUserProfile
 import org.melodist.data.UserSessionManager
 import org.melodist.tv.ui.theme.LocalMonetSurface
 import org.melodist.tv.ui.theme.MelodistColors
@@ -247,6 +249,50 @@ fun AccountLoginPanel(
                             }
                             QrStatus.Success -> {
                                 statusText = "授权成功，正在同步登录态..."
+                                UserSessionManager.save(context)
+                                isPolling = false
+                                break
+                            }
+                            QrStatus.Expired -> {
+                                statusText = "二维码已过期，正在自动刷新..."
+                                refreshQr()
+                                break
+                            }
+                            QrStatus.Canceled -> {
+                                statusText = "用户取消授权"
+                                isPolling = false
+                                break
+                            }
+                            QrStatus.Error -> {
+                                statusText = poll.message
+                            }
+                        }
+                    }
+                }
+                LoginChannel.QQMusic -> {
+                    val qrInfo = loginService.fetchOfficialAppQrCode()
+                    val bitmap = BitmapFactory.decodeByteArray(qrInfo.imageBytes, 0, qrInfo.imageBytes.size)
+                    if (bitmap != null) {
+                        qrImageBitmap = bitmap.asImageBitmap()
+                        statusText = "请使用 QQ 音乐扫描二维码"
+                    }
+
+                    while (isPolling) {
+                        delay(1500L)
+                        val poll = loginService.pollOfficialAppQrStatus(qrInfo.identifier)
+                        when (poll.status) {
+                            QrStatus.Waiting -> {
+                                statusText = "请使用 QQ 音乐扫描二维码"
+                            }
+                            QrStatus.Confirming -> {
+                                statusText = "已扫码，请在手机端确认授权"
+                            }
+                            QrStatus.Success -> {
+                                statusText = "授权成功，正在同步登录态..."
+                                try {
+                                    MusicApiService().refreshCurrentUserProfile()
+                                } catch (_: Exception) {
+                                }
                                 UserSessionManager.save(context)
                                 isPolling = false
                                 break
