@@ -1,5 +1,6 @@
 package org.melodist.data.update
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -29,6 +30,49 @@ sealed interface UpdateResult {
 object UpdateChecker {
     const val REPO_WEB_URL = "https://github.com/Viemean/melodist"
     private const val GITHUB_API_LATEST_RELEASE = "https://api.github.com/repos/Viemean/melodist/releases/latest"
+    const val PREFS_NAME = "update_checker_prefs"
+    const val KEY_LAST_CHECK_TIME = "last_check_time_ms"
+    const val CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L
+
+    fun shouldCheckUpdate(
+        lastCheckMs: Long,
+        nowMs: Long = System.currentTimeMillis(),
+        intervalMs: Long = CHECK_INTERVAL_MS,
+    ): Boolean = (nowMs - lastCheckMs) >= intervalMs
+
+    fun shouldCheckUpdate(
+        context: Context,
+        nowMs: Long = System.currentTimeMillis(),
+        intervalMs: Long = CHECK_INTERVAL_MS,
+    ): Boolean {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val lastCheck = prefs.getLong(KEY_LAST_CHECK_TIME, 0L)
+        return shouldCheckUpdate(lastCheck, nowMs, intervalMs)
+    }
+
+    fun recordCheckTime(
+        context: Context,
+        nowMs: Long = System.currentTimeMillis(),
+    ) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putLong(KEY_LAST_CHECK_TIME, nowMs).apply()
+    }
+
+    suspend fun checkUpdateDaily(
+        context: Context,
+        currentVersion: String,
+        targetKeyword: String? = null,
+        force: Boolean = false,
+    ): UpdateResult? {
+        if (!force && !shouldCheckUpdate(context)) {
+            return null
+        }
+        val result = checkUpdate(currentVersion, targetKeyword)
+        if (result is UpdateResult.NewVersion || result is UpdateResult.Latest) {
+            recordCheckTime(context)
+        }
+        return result
+    }
 
     private val httpClient by lazy {
         OkHttpClient

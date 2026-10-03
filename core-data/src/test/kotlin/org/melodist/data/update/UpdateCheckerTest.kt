@@ -94,4 +94,26 @@ class UpdateCheckerTest {
         assertFalse(UpdateChecker.isNewerVersion("v1.3.7", "20.1.3.7"))
         assertFalse(UpdateChecker.isNewerVersion("v1.3.6", "20.1.3.7"))
     }
+
+    @Test
+    fun testShouldCheckUpdateRateLimiting() {
+        val interval = 24 * 60 * 60 * 1000L
+        val now = 1_000_000_000L
+
+        // 首次启动（lastCheck = 0），必须触发
+        assertTrue(UpdateChecker.shouldCheckUpdate(lastCheckMs = 0L, nowMs = now, intervalMs = interval))
+
+        // 刚检查过（1秒前），不可触发
+        assertFalse(UpdateChecker.shouldCheckUpdate(lastCheckMs = now - 1000L, nowMs = now, intervalMs = interval))
+
+        // 23小时59分钟前，未达到24小时，不可触发
+        assertFalse(UpdateChecker.shouldCheckUpdate(lastCheckMs = now - (interval - 1000L), nowMs = now, intervalMs = interval))
+
+        // 正好满24小时，可以触发
+        assertTrue(UpdateChecker.shouldCheckUpdate(lastCheckMs = now - interval, nowMs = now, intervalMs = interval))
+
+        // 超过24小时（如25小时前），可以触发
+        assertTrue(UpdateChecker.shouldCheckUpdate(lastCheckMs = now - (interval + 3600_000L), nowMs = now, intervalMs = interval))
+    }
 }
+
