@@ -86,6 +86,7 @@ fun AboutPanel(menuRequester: FocusRequester) {
         // 软件版本与检查更新
         var isCheckingUpdate by remember { mutableStateOf(false) }
         var updateFeedback by remember { mutableStateOf<String?>(null) }
+        var newVersionDialogResult by remember { mutableStateOf<UpdateResult.NewVersion?>(null) }
         val coroutineScope = rememberCoroutineScope()
 
         Row(
@@ -131,6 +132,7 @@ fun AboutPanel(menuRequester: FocusRequester) {
                             ) {
                                 is UpdateResult.NewVersion -> {
                                     updateFeedback = "发现新版本 ${result.tagName}"
+                                    newVersionDialogResult = result
                                 }
                                 is UpdateResult.Latest -> {
                                     updateFeedback = "当前已是最新版本 (v${result.currentVersion})"
@@ -300,6 +302,13 @@ fun AboutPanel(menuRequester: FocusRequester) {
             } else {
                 Text(text = "正在读取解码器列表...", fontSize = 12.sp, color = MelodistColors.TextSecondary)
             }
+        }
+
+        newVersionDialogResult?.let { newVersion ->
+            org.melodist.tv.ui.components.NewVersionTvDialog(
+                newVersion = newVersion,
+                onDismissRequest = { newVersionDialogResult = null },
+            )
         }
     }
 }

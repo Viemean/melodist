@@ -15,6 +15,17 @@ object UpdateChecker {
             targetKeyword = "tv",
         )
 
+    suspend fun checkUpdateDaily(
+        context: android.content.Context,
+        force: Boolean = false,
+    ): UpdateResult? =
+        CoreUpdateChecker.checkUpdateDaily(
+            context = context,
+            currentVersion = BuildConfig.VERSION_NAME,
+            targetKeyword = "tv",
+            force = force,
+        )
+
     fun isNewerVersion(
         remoteTag: String,
         localVersion: String,

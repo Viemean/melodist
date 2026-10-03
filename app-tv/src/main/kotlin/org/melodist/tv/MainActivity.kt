@@ -221,6 +221,24 @@ class MainActivity : ComponentActivity() {
                         }
 
                         var lastBackTime by remember { mutableLongStateOf(0L) }
+                        var newVersionDialogResult by remember { mutableStateOf<org.melodist.data.update.UpdateResult.NewVersion?>(null) }
+
+                        LaunchedEffect(Unit) {
+                            // 启动错峰延时 3 秒，避开 TV 冷启动首屏数据渲染高峰
+                            kotlinx.coroutines.delay(3000)
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                val result =
+                                    org.melodist.tv.update.UpdateChecker.checkUpdateDaily(
+                                        context = this@MainActivity,
+                                        force = false,
+                                    )
+                                if (result is org.melodist.data.update.UpdateResult.NewVersion) {
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        newVersionDialogResult = result
+                                    }
+                                }
+                            }
+                        }
 
                         LaunchedEffect(Unit) {
                             PlaybackManager.songFavoriteToggledEvent.collect { (song, isFav) ->
@@ -541,6 +559,13 @@ class MainActivity : ComponentActivity() {
                                 onDismiss = {
                                     ScreenSaverManager.dismissScreenSaver()
                                 },
+                            )
+                        }
+
+                        newVersionDialogResult?.let { newVersion ->
+                            org.melodist.tv.ui.components.NewVersionTvDialog(
+                                newVersion = newVersion,
+                                onDismissRequest = { newVersionDialogResult = null },
                             )
                         }
                     }
