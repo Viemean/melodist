@@ -165,9 +165,10 @@ class MelodistCacheManagerTest {
     fun `detectAudioExtension identifies flac magic bytes`(
         @TempDir tempDir: File,
     ) {
-        val file = File(tempDir, "sample.flac").apply {
-            writeBytes(byteArrayOf(0x66, 0x4C, 0x61, 0x43) + ByteArray(32))
-        }
+        val file =
+            File(tempDir, "sample.flac").apply {
+                writeBytes(byteArrayOf(0x66, 0x4C, 0x61, 0x43) + ByteArray(32))
+            }
         assertEquals("flac", MelodistCacheManager.detectAudioExtension(file))
     }
 
@@ -175,9 +176,10 @@ class MelodistCacheManagerTest {
     fun `detectAudioExtension identifies mp3 with id3 tag`(
         @TempDir tempDir: File,
     ) {
-        val file = File(tempDir, "sample.mp3").apply {
-            writeBytes(byteArrayOf(0x49, 0x44, 0x33, 0x03, 0x00) + ByteArray(32))
-        }
+        val file =
+            File(tempDir, "sample.mp3").apply {
+                writeBytes(byteArrayOf(0x49, 0x44, 0x33, 0x03, 0x00) + ByteArray(32))
+            }
         assertEquals("mp3", MelodistCacheManager.detectAudioExtension(file))
     }
 
@@ -185,9 +187,10 @@ class MelodistCacheManagerTest {
     fun `detectAudioExtension identifies mp3 raw frame sync`(
         @TempDir tempDir: File,
     ) {
-        val file = File(tempDir, "sample_raw.mp3").apply {
-            writeBytes(byteArrayOf(0xFF.toByte(), 0xFB.toByte(), 0x90.toByte(), 0x64.toByte()) + ByteArray(32))
-        }
+        val file =
+            File(tempDir, "sample_raw.mp3").apply {
+                writeBytes(byteArrayOf(0xFF.toByte(), 0xFB.toByte(), 0x90.toByte(), 0x64.toByte()) + ByteArray(32))
+            }
         assertEquals("mp3", MelodistCacheManager.detectAudioExtension(file))
     }
 
@@ -195,9 +198,10 @@ class MelodistCacheManagerTest {
     fun `detectAudioExtension identifies m4a container`(
         @TempDir tempDir: File,
     ) {
-        val file = File(tempDir, "sample.m4a").apply {
-            writeBytes(byteArrayOf(0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70) + ByteArray(32))
-        }
+        val file =
+            File(tempDir, "sample.m4a").apply {
+                writeBytes(byteArrayOf(0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70) + ByteArray(32))
+            }
         assertEquals("m4a", MelodistCacheManager.detectAudioExtension(file))
     }
 
@@ -205,9 +209,10 @@ class MelodistCacheManagerTest {
     fun `detectAudioExtension identifies wav riff container`(
         @TempDir tempDir: File,
     ) {
-        val file = File(tempDir, "sample.wav").apply {
-            writeBytes(byteArrayOf(0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45) + ByteArray(32))
-        }
+        val file =
+            File(tempDir, "sample.wav").apply {
+                writeBytes(byteArrayOf(0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45) + ByteArray(32))
+            }
         assertEquals("wav", MelodistCacheManager.detectAudioExtension(file))
     }
 
@@ -215,9 +220,10 @@ class MelodistCacheManagerTest {
     fun `detectAudioExtension identifies ogg container`(
         @TempDir tempDir: File,
     ) {
-        val file = File(tempDir, "sample.ogg").apply {
-            writeBytes(byteArrayOf(0x4F, 0x67, 0x67, 0x53) + ByteArray(32))
-        }
+        val file =
+            File(tempDir, "sample.ogg").apply {
+                writeBytes(byteArrayOf(0x4F, 0x67, 0x67, 0x53) + ByteArray(32))
+            }
         assertEquals("ogg", MelodistCacheManager.detectAudioExtension(file))
     }
 
@@ -225,14 +231,16 @@ class MelodistCacheManagerTest {
     fun `detectAudioExtension rejects invalid or truncated headers`(
         @TempDir tempDir: File,
     ) {
-        val htmlFile = File(tempDir, "error.html").apply {
-            writeText("<html><body>404 Not Found</body></html>")
-        }
+        val htmlFile =
+            File(tempDir, "error.html").apply {
+                writeText("<html><body>404 Not Found</body></html>")
+            }
         assertEquals(null, MelodistCacheManager.detectAudioExtension(htmlFile))
 
-        val shortFile = File(tempDir, "short.bin").apply {
-            writeBytes(byteArrayOf(0x01, 0x02))
-        }
+        val shortFile =
+            File(tempDir, "short.bin").apply {
+                writeBytes(byteArrayOf(0x01, 0x02))
+            }
         assertEquals(null, MelodistCacheManager.detectAudioExtension(shortFile))
     }
 
@@ -240,12 +248,13 @@ class MelodistCacheManagerTest {
     fun `exportCompleteCachedSong returns null when uninitialized or key missing`(
         @TempDir tempDir: File,
     ) {
-        val result = MelodistCacheManager.exportCompleteCachedSong(
-            songMid = "non_existent_mid",
-            tier = org.melodist.model.AudioQualityTier.SQ,
-            targetDir = tempDir,
-            baseName = "test_song",
-        )
+        val result =
+            MelodistCacheManager.exportCompleteCachedSong(
+                songMid = "non_existent_mid",
+                tier = org.melodist.model.AudioQualityTier.SQ,
+                targetDir = tempDir,
+                baseName = "test_song",
+            )
         assertEquals(null, result)
     }
 }

@@ -8,7 +8,9 @@ import java.io.File
 
 class AppUpdateDownloaderTest {
     @Test
-    fun testCleanOldApks(@TempDir tempDir: File) {
+    fun testCleanOldApks(
+        @TempDir tempDir: File,
+    ) {
         val updatesDir = File(tempDir, "updates").apply { mkdirs() }
         val oldApk1 = File(updatesDir, "melodist_1.4.0.apk").apply { writeText("dummy1") }
         val oldApk2 = File(updatesDir, "melodist_1.4.1.apk.tmp").apply { writeText("dummy2") }

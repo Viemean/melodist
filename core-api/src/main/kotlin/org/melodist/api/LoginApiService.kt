@@ -889,13 +889,17 @@ class LoginApiService(
                         val json = Json.parseToJsonElement(String(payload, Charsets.UTF_8)).jsonObject
                         val cookiesObj = json["cookies"]?.jsonObject
                         val uin =
-                            cookiesObj?.get("qqmusic_uin")?.let {
-                                if (it is JsonObject) it["value"]?.jsonPrimitive?.contentOrNull else it.jsonPrimitive.contentOrNull
-                            }.orEmpty()
+                            cookiesObj
+                                ?.get("qqmusic_uin")
+                                ?.let {
+                                    if (it is JsonObject) it["value"]?.jsonPrimitive?.contentOrNull else it.jsonPrimitive.contentOrNull
+                                }.orEmpty()
                         val key =
-                            cookiesObj?.get("qqmusic_key")?.let {
-                                if (it is JsonObject) it["value"]?.jsonPrimitive?.contentOrNull else it.jsonPrimitive.contentOrNull
-                            }.orEmpty()
+                            cookiesObj
+                                ?.get("qqmusic_key")
+                                ?.let {
+                                    if (it is JsonObject) it["value"]?.jsonPrimitive?.contentOrNull else it.jsonPrimitive.contentOrNull
+                                }.orEmpty()
 
                         if (uin.isNotEmpty() && key.isNotEmpty()) {
                             CoroutineScope(Dispatchers.IO).launch {

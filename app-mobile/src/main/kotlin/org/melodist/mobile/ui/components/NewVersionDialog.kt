@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.melodist.data.update.AppUpdateDownloader
@@ -37,7 +36,8 @@ fun NewVersionDialog(
         downloadJob?.cancel()
         downloadJob =
             coroutineScope.launch {
-                AppUpdateDownloader.downloadApk(context, downloadUrl, newVersion.tagName)
+                AppUpdateDownloader
+                    .downloadApk(context, downloadUrl, newVersion.tagName)
                     .collect { state ->
                         downloadState = state
                         if (state is UpdateDownloadState.Completed) {

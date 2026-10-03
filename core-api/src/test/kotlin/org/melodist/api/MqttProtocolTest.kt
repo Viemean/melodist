@@ -42,4 +42,3 @@ class MqttProtocolTest {
             service.cancelOfficialAppSession(qr.identifier)
         }
 }
-

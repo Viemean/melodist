@@ -405,7 +405,8 @@ object AppSettingsManager {
                 customLyricFontSizeSp = clamped,
                 lyricFontSize = LyricFontSize.Custom,
             )
-        prefs?.edit()
+        prefs
+            ?.edit()
             ?.putInt(KEY_CUSTOM_LYRIC_FONT_SIZE, clamped)
             ?.putString(KEY_LYRIC_FONT_SIZE, LyricFontSize.Custom.name)
             ?.apply()

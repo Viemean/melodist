@@ -19,18 +19,26 @@ import java.util.concurrent.TimeUnit
 
 sealed interface UpdateDownloadState {
     data object Idle : UpdateDownloadState
+
     data class Downloading(
         val progress: Float,
         val bytesDownloaded: Long,
         val totalBytes: Long,
     ) : UpdateDownloadState
-    data class Completed(val apkFile: File) : UpdateDownloadState
-    data class Error(val message: String) : UpdateDownloadState
+
+    data class Completed(
+        val apkFile: File,
+    ) : UpdateDownloadState
+
+    data class Error(
+        val message: String,
+    ) : UpdateDownloadState
 }
 
 object AppUpdateDownloader {
     private val httpClient by lazy {
-        OkHttpClient.Builder()
+        OkHttpClient
+            .Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
@@ -47,7 +55,10 @@ object AppUpdateDownloader {
     /**
      * 清理所有历史残余 APK 及临时文件，确保空间及时释放
      */
-    fun cleanOldApks(context: Context, excludeFile: File? = null) {
+    fun cleanOldApks(
+        context: Context,
+        excludeFile: File? = null,
+    ) {
         val dir = getUpdatesDir(context)
         dir.listFiles()?.forEach { file ->
             if (excludeFile == null || file.absolutePath != excludeFile.absolutePath) {
@@ -63,91 +74,98 @@ object AppUpdateDownloader {
         context: Context,
         downloadUrl: String,
         tagName: String,
-    ): Flow<UpdateDownloadState> = flow {
-        emit(UpdateDownloadState.Idle)
-        val dir = getUpdatesDir(context)
-        val cleanTag = tagName.removePrefix("v").replace(Regex("[^a-zA-Z0-9._-]"), "_")
-        val finalApk = File(dir, "melodist_${cleanTag}.apk")
-        val tmpApk = File(dir, "melodist_${cleanTag}.apk.tmp")
+    ): Flow<UpdateDownloadState> =
+        flow {
+            emit(UpdateDownloadState.Idle)
+            val dir = getUpdatesDir(context)
+            val cleanTag = tagName.removePrefix("v").replace(Regex("[^a-zA-Z0-9._-]"), "_")
+            val finalApk = File(dir, "melodist_$cleanTag.apk")
+            val tmpApk = File(dir, "melodist_$cleanTag.apk.tmp")
 
-        // 若当前已经存在完整同名 APK（且大小大于 1MB），直接复用
-        if (finalApk.exists() && finalApk.length() > 1024 * 1024) {
-            emit(UpdateDownloadState.Completed(finalApk))
-            return@flow
-        }
-
-        // 下载前清理其他旧版本的残余安装包
-        cleanOldApks(context, excludeFile = finalApk)
-
-        val request = Request.Builder()
-            .url(downloadUrl)
-            .header("User-Agent", "Melodist-UpdateDownloader")
-            .build()
-
-        try {
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                emit(UpdateDownloadState.Error("HTTP ${response.code}"))
+            // 若当前已经存在完整同名 APK（且大小大于 1MB），直接复用
+            if (finalApk.exists() && finalApk.length() > 1024 * 1024) {
+                emit(UpdateDownloadState.Completed(finalApk))
                 return@flow
             }
-            val body = response.body
-            val totalBytes = body.contentLength()
-            var bytesDownloaded = 0L
 
-            body.byteStream().use { input ->
-                FileOutputStream(tmpApk).use { output ->
-                    val buffer = ByteArray(32 * 1024)
-                    var read: Int
-                    var lastEmitTime = 0L
-                    while (input.read(buffer).also { read = it } != -1) {
-                        output.write(buffer, 0, read)
-                        bytesDownloaded += read
-                        val now = System.currentTimeMillis()
-                        // 节流推送进度，避免过于高频触发 Compose 重组
-                        if (now - lastEmitTime >= 100L || bytesDownloaded == totalBytes) {
-                            lastEmitTime = now
-                            val progress = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
-                            emit(UpdateDownloadState.Downloading(progress, bytesDownloaded, totalBytes))
+            // 下载前清理其他旧版本的残余安装包
+            cleanOldApks(context, excludeFile = finalApk)
+
+            val request =
+                Request
+                    .Builder()
+                    .url(downloadUrl)
+                    .header("User-Agent", "Melodist-UpdateDownloader")
+                    .build()
+
+            try {
+                val response = httpClient.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    emit(UpdateDownloadState.Error("HTTP ${response.code}"))
+                    return@flow
+                }
+                val body = response.body
+                val totalBytes = body.contentLength()
+                var bytesDownloaded = 0L
+
+                body.byteStream().use { input ->
+                    FileOutputStream(tmpApk).use { output ->
+                        val buffer = ByteArray(32 * 1024)
+                        var read: Int
+                        var lastEmitTime = 0L
+                        while (input.read(buffer).also { read = it } != -1) {
+                            output.write(buffer, 0, read)
+                            bytesDownloaded += read
+                            val now = System.currentTimeMillis()
+                            // 节流推送进度，避免过于高频触发 Compose 重组
+                            if (now - lastEmitTime >= 100L || bytesDownloaded == totalBytes) {
+                                lastEmitTime = now
+                                val progress = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
+                                emit(UpdateDownloadState.Downloading(progress, bytesDownloaded, totalBytes))
+                            }
                         }
+                        output.flush()
                     }
-                    output.flush()
                 }
-            }
 
-            if (tmpApk.exists()) {
-                if (finalApk.exists()) {
-                    finalApk.delete()
-                }
-                if (tmpApk.renameTo(finalApk)) {
-                    emit(UpdateDownloadState.Completed(finalApk))
+                if (tmpApk.exists()) {
+                    if (finalApk.exists()) {
+                        finalApk.delete()
+                    }
+                    if (tmpApk.renameTo(finalApk)) {
+                        emit(UpdateDownloadState.Completed(finalApk))
+                    } else {
+                        emit(UpdateDownloadState.Error("重命名安装包文件失败"))
+                    }
                 } else {
-                    emit(UpdateDownloadState.Error("重命名安装包文件失败"))
+                    emit(UpdateDownloadState.Error("下载文件未成功生成"))
                 }
-            } else {
-                emit(UpdateDownloadState.Error("下载文件未成功生成"))
+            } catch (e: CancellationException) {
+                tmpApk.delete()
+                throw e
+            } catch (e: Exception) {
+                tmpApk.delete()
+                emit(UpdateDownloadState.Error(e.message ?: "下载过程中发生异常"))
             }
-        } catch (e: CancellationException) {
-            tmpApk.delete()
-            throw e
-        } catch (e: Exception) {
-            tmpApk.delete()
-            emit(UpdateDownloadState.Error(e.message ?: "下载过程中发生异常"))
-        }
-    }.flowOn(Dispatchers.IO)
+        }.flowOn(Dispatchers.IO)
 
     /**
      * 调起系统安装器安装 APK
      */
-    fun installApk(context: Context, apkFile: File): Boolean {
+    fun installApk(
+        context: Context,
+        apkFile: File,
+    ): Boolean {
         if (!apkFile.exists() || apkFile.length() <= 0) return false
         val appContext = context.applicationContext
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!appContext.packageManager.canRequestPackageInstalls()) {
-                    val manageIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                        data = Uri.parse("package:${appContext.packageName}")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
+                    val manageIntent =
+                        Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                            data = Uri.parse("package:${appContext.packageName}")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
                     context.startActivity(manageIntent)
                     return false
                 }
@@ -155,11 +173,12 @@ object AppUpdateDownloader {
 
             val authority = "${appContext.packageName}.fileprovider"
             val apkUri = FileProvider.getUriForFile(appContext, authority, apkFile)
-            val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(apkUri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
+            val installIntent =
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(apkUri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
             context.startActivity(installIntent)
             true
         } catch (e: Exception) {

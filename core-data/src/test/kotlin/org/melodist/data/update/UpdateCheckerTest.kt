@@ -116,4 +116,3 @@ class UpdateCheckerTest {
         assertTrue(UpdateChecker.shouldCheckUpdate(lastCheckMs = now - (interval + 3600_000L), nowMs = now, intervalMs = interval))
     }
 }
-

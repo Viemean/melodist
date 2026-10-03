@@ -6,13 +6,11 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 import java.io.File
 
 class DownloadManagerCacheTest {
-
     @Test
     fun `getCleanTierLabel formats standard tier representations without chinese prefixes`() {
         assertEquals("Master", DownloadManager.getCleanTierLabel(AudioQualityTier.Master))
@@ -27,12 +25,13 @@ class DownloadManagerCacheTest {
 
     @Test
     fun `getStandardBaseName formats sanitized singer title and tier`() {
-        val song = Song(
-            songMid = "001test",
-            songId = 12345L,
-            name = "晴天/晴空",
-            singer = "周杰伦:Jay",
-        )
+        val song =
+            Song(
+                songMid = "001test",
+                songId = 12345L,
+                name = "晴天/晴空",
+                singer = "周杰伦:Jay",
+            )
         val baseName = DownloadManager.getStandardBaseName(song, AudioQualityTier.SQ)
         assertEquals("周杰伦_Jay - 晴天_晴空 - SQ", baseName)
     }
@@ -42,24 +41,30 @@ class DownloadManagerCacheTest {
         var isTierChecked = false
         var isExportCalled = false
 
-        val mockExporter = object : MediaCacheExporter {
-            override fun isTierFullyCached(songMid: String, tier: AudioQualityTier): Boolean {
-                isTierChecked = true
-                return songMid == "cached_mid" && tier == AudioQualityTier.SQ
-            }
+        val mockExporter =
+            object : MediaCacheExporter {
+                override fun isTierFullyCached(
+                    songMid: String,
+                    tier: AudioQualityTier,
+                ): Boolean {
+                    isTierChecked = true
+                    return songMid == "cached_mid" && tier == AudioQualityTier.SQ
+                }
 
-            override fun exportCompleteCache(
-                songMid: String,
-                tier: AudioQualityTier,
-                targetDir: File,
-                baseFileName: String,
-            ): File? {
-                isExportCalled = true
-                return if (songMid == "cached_mid") {
-                    File(targetDir, "$baseFileName.flac").apply { writeBytes(ByteArray(4096)) }
-                } else null
+                override fun exportCompleteCache(
+                    songMid: String,
+                    tier: AudioQualityTier,
+                    targetDir: File,
+                    baseFileName: String,
+                ): File? {
+                    isExportCalled = true
+                    return if (songMid == "cached_mid") {
+                        File(targetDir, "$baseFileName.flac").apply { writeBytes(ByteArray(4096)) }
+                    } else {
+                        null
+                    }
+                }
             }
-        }
 
         DownloadManager.cacheExporter = mockExporter
 

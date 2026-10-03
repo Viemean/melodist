@@ -3,9 +3,9 @@ package org.melodist.playback
 import android.content.Context
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
-import androidx.media3.common.C
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.CacheDataSource
@@ -406,8 +406,15 @@ object MelodistCacheManager : MediaCacheExporter {
             return "ogg"
         }
         // 6. WAV: 0x52 0x49 0x46 0x46 ("RIFF") 且偏移 8..11 为 "WAVE"
-        if (header[0] == 0x52.toByte() && header[1] == 0x49.toByte() && header[2] == 0x46.toByte() && header[3] == 0x46.toByte() &&
-            header[8] == 0x57.toByte() && header[9] == 0x41.toByte() && header[10] == 0x56.toByte() && header[11] == 0x45.toByte()) {
+        if (header[0] == 0x52.toByte() &&
+            header[1] == 0x49.toByte() &&
+            header[2] == 0x46.toByte() &&
+            header[3] == 0x46.toByte() &&
+            header[8] == 0x57.toByte() &&
+            header[9] == 0x41.toByte() &&
+            header[10] == 0x56.toByte() &&
+            header[11] == 0x45.toByte()
+        ) {
             return "wav"
         }
 
@@ -452,7 +459,8 @@ object MelodistCacheManager : MediaCacheExporter {
             }
 
             val cacheDataSource =
-                CacheDataSource.Factory()
+                CacheDataSource
+                    .Factory()
                     .setCache(cache)
                     .setUpstreamDataSourceFactory(null)
                     .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE)
@@ -461,7 +469,8 @@ object MelodistCacheManager : MediaCacheExporter {
             var totalRead = 0L
             try {
                 val dataSpec =
-                    DataSpec.Builder()
+                    DataSpec
+                        .Builder()
                         .setUri(android.net.Uri.parse("melodist://cache/$cacheKey"))
                         .setKey(cacheKey)
                         .setPosition(0L)

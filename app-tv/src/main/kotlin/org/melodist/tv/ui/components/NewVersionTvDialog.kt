@@ -77,7 +77,8 @@ fun NewVersionTvDialog(
         downloadJob?.cancel()
         downloadJob =
             coroutineScope.launch {
-                AppUpdateDownloader.downloadApk(context, downloadUrl, newVersion.tagName)
+                AppUpdateDownloader
+                    .downloadApk(context, downloadUrl, newVersion.tagName)
                     .collect { state ->
                         downloadState = state
                         if (state is UpdateDownloadState.Completed) {

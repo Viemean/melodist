@@ -43,7 +43,10 @@ enum class DownloadStatus {
 }
 
 interface MediaCacheExporter {
-    fun isTierFullyCached(songMid: String, tier: AudioQualityTier): Boolean
+    fun isTierFullyCached(
+        songMid: String,
+        tier: AudioQualityTier,
+    ): Boolean
 
     fun exportCompleteCache(
         songMid: String,
@@ -561,7 +564,9 @@ object DownloadManager {
         }
 
         try {
-            val cachedLyrics = org.melodist.data.LyricCacheManager.getLyrics(song.songMid)
+            val cachedLyrics =
+                org.melodist.data.LyricCacheManager
+                    .getLyrics(song.songMid)
             val lyricLines = cachedLyrics ?: apiService.getLyrics(song.songMid, song.songId)
             if (lyricLines.isNotEmpty()) {
                 val sb = StringBuilder()
