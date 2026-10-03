@@ -784,6 +784,7 @@ object PlaybackManager {
             org.melodist.data.AppSettingsManager.mediaQuotaProvider = { MelodistCacheManager.activeCacheQuotaBytes }
             org.melodist.data.AppSettingsManager.cachedTrackCountProvider = { MelodistCacheManager.getCachedKeyCount() }
             org.melodist.data.AppSettingsManager.mediaCacheClearAction = { MelodistCacheManager.clearAllCache() }
+            org.melodist.data.download.DownloadManager.cacheExporter = MelodistCacheManager
             LocalLyricAutoMatcher.init(context)
             restorePlaybackState()
             if (UserSession.isLoggedIn) {

@@ -38,6 +38,17 @@ enum class DownloadStatus {
     Failed,
 }
 
+interface MediaCacheExporter {
+    fun isTierFullyCached(songMid: String, tier: AudioQualityTier): Boolean
+
+    fun exportCompleteCache(
+        songMid: String,
+        tier: AudioQualityTier,
+        targetDir: File,
+        baseFileName: String,
+    ): File?
+}
+
 @Serializable
 data class DownloadTask(
     val id: String,
@@ -74,6 +85,8 @@ object DownloadManager {
             ignoreUnknownKeys = true
             prettyPrint = false
         }
+
+    var cacheExporter: MediaCacheExporter? = null
 
     // 活跃任务列表与已完成历史
     private val activeJobs = ConcurrentHashMap<String, Job>()
@@ -297,16 +310,46 @@ object DownloadManager {
 
         val apiService = MusicApiService()
         val song = task.song
+        val preferredTier = task.tier
 
         try {
-            // 1. 获取直链播放/下载地址
-            val urlInfo = apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = task.tier)
+            val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
+            if (!targetDir.exists()) {
+                targetDir.mkdirs()
+            }
+
+            // 1. 优先尝试直接从本地播放缓存中提取完整音频文件（免重复网络下载）
+            val exporter = cacheExporter
+            if (exporter != null && exporter.isTierFullyCached(song.songMid, preferredTier)) {
+                val baseName = getStandardBaseName(song, preferredTier)
+                val exportedFile = exporter.exportCompleteCache(song.songMid, preferredTier, targetDir, baseName)
+                if (exportedFile != null && exportedFile.exists() && exportedFile.length() > 2048L) {
+                    Log.i(TAG, "Reusing complete cached audio for download: ${exportedFile.name} (${exportedFile.length()} bytes)")
+                    finalizeDownload(task, song, preferredTier, exportedFile, apiService)
+                    return
+                }
+            }
+
+            // 2. 若无缓存或缓存导出未通过完整性校验，执行常规网络直链获取
+            val urlInfo = apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = preferredTier)
             val downloadUrl = urlInfo.url
             if (downloadUrl.isNullOrBlank()) {
                 throw IllegalStateException("获取下载直链失败 (可能需要 VIP 或版权受限)")
             }
 
             val actualTier = urlInfo.tier
+            val finalBaseName = getStandardBaseName(song, actualTier)
+
+            // 3. 若实际音质不同于请求音质（如降级），再次检查实际音质是否在缓存中完全就绪
+            if (actualTier != preferredTier && exporter != null && exporter.isTierFullyCached(song.songMid, actualTier)) {
+                val exportedFile = exporter.exportCompleteCache(song.songMid, actualTier, targetDir, finalBaseName)
+                if (exportedFile != null && exportedFile.exists() && exportedFile.length() > 2048L) {
+                    Log.i(TAG, "Reusing complete cached audio for actualTier: ${exportedFile.name} (${exportedFile.length()} bytes)")
+                    finalizeDownload(task, song, actualTier, exportedFile, apiService)
+                    return
+                }
+            }
+
             val ext =
                 when {
                     downloadUrl.contains(".flac", ignoreCase = true) || actualTier == AudioQualityTier.SQ || actualTier == AudioQualityTier.HiRes -> "flac"
@@ -314,11 +357,6 @@ object DownloadManager {
                     else -> "mp3"
                 }
 
-            val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
-            if (!targetDir.exists()) {
-                targetDir.mkdirs()
-            }
-            val finalBaseName = getStandardBaseName(song, actualTier)
             val finalFile = File(targetDir, "$finalBaseName.$ext")
 
             // 再次检查目标文件
@@ -327,41 +365,7 @@ object DownloadManager {
                 return
             }
 
-            // 2. 并行获取专辑原图与双语歌词文本
-            var coverBytes: ByteArray? = null
-            var lyricsMerged: String? = null
-
-            try {
-                val coverCandidateUrl = song.playerCoverCandidates.firstOrNull() ?: song.coverUrl
-                if (coverCandidateUrl.isNotBlank() && !coverCandidateUrl.startsWith("file://")) {
-                    val coverReq = Request.Builder().url(coverCandidateUrl).build()
-                    val coverResp = httpClient.newCall(coverReq).execute()
-                    if (coverResp.isSuccessful) {
-                        coverBytes = coverResp.body.bytes()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Error fetching cover art for download", e)
-            }
-
-            try {
-                val lyricLines = apiService.getLyrics(song.songMid, song.songId)
-                if (lyricLines.isNotEmpty()) {
-                    val sb = StringBuilder()
-                    for (line in lyricLines) {
-                        val timeStr = formatLrcTime(line.timestampMs)
-                        sb.append("[$timeStr]${line.text}\n")
-                        if (line.hasTranslation) {
-                            sb.append("[$timeStr]${line.transText}\n")
-                        }
-                    }
-                    lyricsMerged = sb.toString().trim()
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Error fetching lyrics for download", e)
-            }
-
-            // 3. 流式下载音频到临时文件 .downloading
+            // 4. 流式下载音频到临时文件 .downloading
             val tempFile = File(targetDir, "$finalBaseName.$ext.downloading")
 
             val request = Request.Builder().url(downloadUrl).build()
@@ -410,22 +414,6 @@ object DownloadManager {
                 }
             }
 
-            // 4. 将元数据（歌曲名、歌手名、专辑名、最高清原图、双语歌词）直接内嵌写入音频文件
-            try {
-                val metadataPayload =
-                    AudioMetadataWriter.MetadataPayload(
-                        title = song.name,
-                        artist = song.singer,
-                        album = song.album.ifBlank { song.name },
-                        lyrics = lyricsMerged,
-                        coverBytes = coverBytes,
-                        coverMime = "image/jpeg",
-                    )
-                AudioMetadataWriter.writeMetadata(tempFile, metadataPayload)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to embed metadata, preserving raw audio: ${e.message}")
-            }
-
             // 5. 原子重命名为目标文件
             if (tempFile.exists()) {
                 if (finalFile.exists()) finalFile.delete()
@@ -436,12 +424,7 @@ object DownloadManager {
                 }
             }
 
-            // 6. 通知系统 MediaStore 刷新
-            appContext?.let { ctx ->
-                MediaScannerConnection.scanFile(ctx, arrayOf(finalFile.absolutePath), null, null)
-            }
-
-            onDownloadSuccess(task.id, song, actualTier, finalFile)
+            finalizeDownload(task, song, actualTier, finalFile, apiService)
         } catch (e: Exception) {
             Log.e(TAG, "Download failed for ${task.song.name}: ${e.message}", e)
             val errorDesc =
@@ -468,6 +451,88 @@ object DownloadManager {
         } finally {
             activeJobs.remove(task.id)
             scheduleNextDownloads()
+        }
+    }
+
+    private suspend fun finalizeDownload(
+        task: DownloadTask,
+        song: Song,
+        tier: AudioQualityTier,
+        file: File,
+        apiService: MusicApiService,
+    ) {
+        updateActiveTask(task.id) {
+            it.copy(
+                downloadedBytes = file.length(),
+                totalBytes = file.length(),
+                progress = 1f,
+                speedBytesPerSec = 0L,
+            )
+        }
+
+        // 将元数据（歌曲名、歌手名、专辑名、最高清原图、双语歌词）直接内嵌写入音频文件
+        embedMetadata(song, file, apiService)
+
+        // 通知系统 MediaStore 刷新
+        appContext?.let { ctx ->
+            MediaScannerConnection.scanFile(ctx, arrayOf(file.absolutePath), null, null)
+        }
+
+        onDownloadSuccess(task.id, song, tier, file)
+    }
+
+    private suspend fun embedMetadata(
+        song: Song,
+        file: File,
+        apiService: MusicApiService,
+    ) {
+        var coverBytes: ByteArray? = null
+        var lyricsMerged: String? = null
+
+        try {
+            val coverCandidateUrl = song.playerCoverCandidates.firstOrNull() ?: song.coverUrl
+            if (coverCandidateUrl.isNotBlank() && !coverCandidateUrl.startsWith("file://")) {
+                val coverReq = Request.Builder().url(coverCandidateUrl).build()
+                val coverResp = httpClient.newCall(coverReq).execute()
+                if (coverResp.isSuccessful) {
+                    coverBytes = coverResp.body.bytes()
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching cover art for download", e)
+        }
+
+        try {
+            val cachedLyrics = org.melodist.data.LyricCacheManager.getLyrics(song.songMid)
+            val lyricLines = cachedLyrics ?: apiService.getLyrics(song.songMid, song.songId)
+            if (lyricLines.isNotEmpty()) {
+                val sb = StringBuilder()
+                for (line in lyricLines) {
+                    val timeStr = formatLrcTime(line.timestampMs)
+                    sb.append("[$timeStr]${line.text}\n")
+                    if (line.hasTranslation) {
+                        sb.append("[$timeStr]${line.transText}\n")
+                    }
+                }
+                lyricsMerged = sb.toString().trim()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching lyrics for download", e)
+        }
+
+        try {
+            val metadataPayload =
+                AudioMetadataWriter.MetadataPayload(
+                    title = song.name,
+                    artist = song.singer,
+                    album = song.album.ifBlank { song.name },
+                    lyrics = lyricsMerged,
+                    coverBytes = coverBytes,
+                    coverMime = "image/jpeg",
+                )
+            AudioMetadataWriter.writeMetadata(file, metadataPayload)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to embed metadata, preserving raw audio: ${e.message}")
         }
     }
 

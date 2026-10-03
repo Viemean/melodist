@@ -5,7 +5,9 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.common.C
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
@@ -18,14 +20,17 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.melodist.data.download.MediaCacheExporter
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 @OptIn(UnstableApi::class)
-object MelodistCacheManager {
+object MelodistCacheManager : MediaCacheExporter {
     private const val TAG = "MelodistCache"
     private const val CACHE_SUBDIR = "media_cache"
     private const val STATS_FILE_NAME = "media_play_stats.json"
@@ -331,6 +336,190 @@ object MelodistCacheManager {
         if (songMid.isBlank()) return false
         val targetTier = tier ?: cachedSongTiers[songMid] ?: return false
         return isSongTierFullyCached(songMid, targetTier)
+    }
+
+    /**
+     * 获取指定曲目指定音质在缓存中实际有效且 100% 完整落盘的 CacheKey
+     * 优先匹配携带音质后缀的标准 CacheKey（如 melodist_001_SQ），其次兜底匹配历史通用 CacheKey（如 melodist_001）
+     */
+    fun getEffectiveFullyCachedKey(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier,
+    ): String? {
+        if (songMid.isBlank()) return null
+        val tierKey = getCacheKey(songMid, tier)
+        if (isKeyFullyCached(tierKey)) return tierKey
+        val genericKey = getCacheKey(songMid, null)
+        if (cachedSongTiers[songMid] == tier && isKeyFullyCached(genericKey)) {
+            return genericKey
+        }
+        return null
+    }
+
+    override fun isTierFullyCached(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier,
+    ): Boolean = getEffectiveFullyCachedKey(songMid, tier) != null
+
+    override fun exportCompleteCache(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier,
+        targetDir: File,
+        baseFileName: String,
+    ): File? = exportCompleteCachedSong(songMid, tier, targetDir, baseFileName)
+
+    /**
+     * 检测音频文件魔数并返回格式扩展名（如 flac、mp3、m4a、wav、ogg），若非有效音频数据则返回 null
+     */
+    fun detectAudioExtension(file: File): String? {
+        if (!file.exists() || !file.isFile || file.length() < 16L) return null
+        val header = ByteArray(16)
+        try {
+            FileInputStream(file).use { fis ->
+                val read = fis.read(header)
+                if (read < 16) return null
+            }
+        } catch (_: Exception) {
+            return null
+        }
+
+        // 1. FLAC: 0x66 0x4C 0x61 0x43 ("fLaC")
+        if (header[0] == 0x66.toByte() && header[1] == 0x4C.toByte() && header[2] == 0x61.toByte() && header[3] == 0x43.toByte()) {
+            return "flac"
+        }
+        // 2. MP3 带 ID3v2 标签: 0x49 0x44 0x33 ("ID3")
+        if (header[0] == 0x49.toByte() && header[1] == 0x44.toByte() && header[2] == 0x33.toByte()) {
+            return "mp3"
+        }
+        // 3. MP3 裸帧同步字: 11 位连续为 1 (0xFF 且紧随 0xEx/0xFx)
+        val b0 = header[0].toInt() and 0xFF
+        val b1 = header[1].toInt() and 0xFF
+        if (b0 == 0xFF && (b1 and 0xE0) == 0xE0 && (b1 and 0x06) != 0x00) {
+            return "mp3"
+        }
+        // 4. M4A / MP4 容器: 偏移量 4..7 为 "ftyp" (0x66 0x74 0x79 0x70)
+        if (header[4] == 0x66.toByte() && header[5] == 0x74.toByte() && header[6] == 0x79.toByte() && header[7] == 0x70.toByte()) {
+            return "m4a"
+        }
+        // 5. OGG: 0x4F 0x67 0x67 0x53 ("OggS")
+        if (header[0] == 0x4F.toByte() && header[1] == 0x67.toByte() && header[2] == 0x67.toByte() && header[3] == 0x53.toByte()) {
+            return "ogg"
+        }
+        // 6. WAV: 0x52 0x49 0x46 0x46 ("RIFF") 且偏移 8..11 为 "WAVE"
+        if (header[0] == 0x52.toByte() && header[1] == 0x49.toByte() && header[2] == 0x46.toByte() && header[3] == 0x46.toByte() &&
+            header[8] == 0x57.toByte() && header[9] == 0x41.toByte() && header[10] == 0x56.toByte() && header[11] == 0x45.toByte()) {
+            return "wav"
+        }
+
+        return null
+    }
+
+    /**
+     * 从播放缓存中提取并验证完整音频文件至目标文件。
+     * 若提取成功且校验完整无损，返回导出的音频文件（包含正确格式扩展名）；若不完整或提取失败，返回 null。
+     */
+    fun exportCompleteCachedSong(
+        songMid: String,
+        tier: org.melodist.model.AudioQualityTier,
+        targetDir: File,
+        baseName: String,
+    ): File? {
+        if (songMid.isBlank()) return null
+        val cache = simpleCache ?: return null
+
+        val cacheKey = getEffectiveFullyCachedKey(songMid, tier) ?: return null
+
+        return try {
+            val metadata = cache.getContentMetadata(cacheKey)
+            val contentLength = ContentMetadata.getContentLength(metadata)
+            if (contentLength < 2048L) {
+                Log.w(TAG, "Cached audio content length too small ($contentLength bytes) for key: $cacheKey")
+                return null
+            }
+
+            if (!cache.isCached(cacheKey, 0L, contentLength)) {
+                Log.w(TAG, "Cache span incomplete for key: $cacheKey (expected length: $contentLength)")
+                return null
+            }
+
+            if (!targetDir.exists()) {
+                targetDir.mkdirs()
+            }
+
+            val tempFile = File(targetDir, "$baseName.cache_export.tmp")
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+
+            val cacheDataSource =
+                CacheDataSource.Factory()
+                    .setCache(cache)
+                    .setUpstreamDataSourceFactory(null)
+                    .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE)
+                    .createDataSource()
+
+            var totalRead = 0L
+            try {
+                val dataSpec =
+                    DataSpec.Builder()
+                        .setUri(android.net.Uri.parse("melodist://cache/$cacheKey"))
+                        .setKey(cacheKey)
+                        .setPosition(0L)
+                        .setLength(contentLength)
+                        .build()
+
+                cacheDataSource.open(dataSpec)
+                FileOutputStream(tempFile).use { fos ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (totalRead < contentLength) {
+                        val toRead = minOf(buffer.size.toLong(), contentLength - totalRead).toInt()
+                        val read = cacheDataSource.read(buffer, 0, toRead)
+                        if (read == C.RESULT_END_OF_INPUT || read <= 0) break
+                        fos.write(buffer, 0, read)
+                        totalRead += read
+                    }
+                    fos.flush()
+                }
+            } finally {
+                try {
+                    cacheDataSource.close()
+                } catch (_: Exception) {
+                }
+            }
+
+            if (totalRead != contentLength || tempFile.length() != contentLength) {
+                Log.w(TAG, "Exported cache truncated: expected $contentLength bytes, wrote $totalRead bytes (file: ${tempFile.length()})")
+                tempFile.delete()
+                return null
+            }
+
+            val ext = detectAudioExtension(tempFile)
+            if (ext == null) {
+                Log.w(TAG, "Exported cache failed audio header validation for key: $cacheKey")
+                tempFile.delete()
+                return null
+            }
+
+            val finalFile = File(targetDir, "$baseName.$ext")
+            if (finalFile.exists()) {
+                finalFile.delete()
+            }
+            val renamed = tempFile.renameTo(finalFile)
+            if (!renamed) {
+                tempFile.copyTo(finalFile, overwrite = true)
+                tempFile.delete()
+            }
+
+            Log.i(TAG, "Exported complete cache for $songMid (${tier.name}) -> ${finalFile.name} ($contentLength bytes, format: $ext)")
+            finalFile
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to export complete cache for key: $cacheKey", e)
+            val tempFile = File(targetDir, "$baseName.cache_export.tmp")
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            null
+        }
     }
 
     /**
