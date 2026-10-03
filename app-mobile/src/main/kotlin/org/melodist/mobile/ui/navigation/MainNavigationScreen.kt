@@ -67,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -75,6 +76,9 @@ import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.refreshCurrentUserProfile
+import org.melodist.data.update.UpdateChecker
+import org.melodist.data.update.UpdateResult
+import org.melodist.mobile.BuildConfig
 import org.melodist.mobile.ui.acr.AcrPillBar
 import org.melodist.mobile.ui.acr.AcrRecognitionController
 import org.melodist.mobile.ui.acr.AcrResultCard
@@ -235,6 +239,28 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
     var showLoginDialog by remember { mutableStateOf(false) }
     var isFullPlayerExpanded by remember { mutableStateOf(false) }
     var showSettingsScreen by remember { mutableStateOf(false) }
+    var newVersionDialogResult by remember { mutableStateOf<UpdateResult.NewVersion?>(null) }
+
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        // 错峰延迟 2.5 秒，避开应用冷启动渲染高峰
+        delay(2500)
+        withContext(Dispatchers.IO) {
+            val targetKw = if (context.packageName == "com.tencent.qqmusic") "originos" else "mobile"
+            val result =
+                UpdateChecker.checkUpdateDaily(
+                    context = context,
+                    currentVersion = BuildConfig.MELODIST_VERSION_NAME,
+                    targetKeyword = targetKw,
+                    force = false,
+                )
+            if (result is UpdateResult.NewVersion) {
+                withContext(Dispatchers.Main) {
+                    newVersionDialogResult = result
+                }
+            }
+        }
+    }
 
     // ACR 识曲 ViewModel（提升到 Screen 级别，生命周期与页面一致）
     val acrViewModel = remember { MobileAcrViewModel() }
@@ -590,6 +616,13 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                 MobileLoginDialog(
                     onDismissRequest = { showLoginDialog = false },
                     onLoginSuccess = { showLoginDialog = false },
+                )
+            }
+
+            newVersionDialogResult?.let { newVersion ->
+                org.melodist.mobile.ui.components.NewVersionDialog(
+                    newVersion = newVersion,
+                    onDismissRequest = { newVersionDialogResult = null },
                 )
             }
 

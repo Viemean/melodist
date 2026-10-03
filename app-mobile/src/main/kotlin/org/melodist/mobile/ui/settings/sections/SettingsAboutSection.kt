@@ -267,64 +267,10 @@ fun SettingsAboutSection(
     }
 
     // 发现新版本弹窗
-    val newVersion = newVersionDialogResult
-    if (newVersion != null) {
-        AlertDialog(
+    newVersionDialogResult?.let { newVersion ->
+        org.melodist.mobile.ui.components.NewVersionDialog(
+            newVersion = newVersion,
             onDismissRequest = { newVersionDialogResult = null },
-            icon = {
-                Icon(
-                    imageVector = Icons.Rounded.SystemUpdateAlt,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            },
-            title = {
-                Text(
-                    text = "发现新版本 ${newVersion.tagName}",
-                    fontWeight = FontWeight.Bold,
-                )
-            },
-            text = {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 280.dp)
-                            .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "更新日志:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = newVersion.releaseNotes.ifBlank { "本次更新包含功能优化与问题修复。" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val downloadUrl = newVersion.downloadUrl ?: "${UpdateChecker.REPO_WEB_URL}/releases"
-                        val intent =
-                            Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                        context.startActivity(intent)
-                        newVersionDialogResult = null
-                    },
-                ) {
-                    Text("前往更新")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { newVersionDialogResult = null }) {
-                    Text("稍后再说")
-                }
-            },
         )
     }
 }
