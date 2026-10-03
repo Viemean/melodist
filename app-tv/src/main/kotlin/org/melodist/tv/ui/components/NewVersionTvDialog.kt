@@ -165,41 +165,49 @@ fun NewVersionTvDialog(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            // 自定义 TV 进度条
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(Color.White.copy(alpha = 0.12f)),
-                            ) {
+                            if (state.totalBytes > 0) {
                                 Box(
                                     modifier =
                                         Modifier
-                                            .fillMaxHeight()
-                                            .fillMaxWidth(state.progress.coerceIn(0f, 1f))
-                                            .background(Color.White),
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
+                                            .fillMaxWidth()
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Color.White.copy(alpha = 0.12f)),
+                                ) {
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(state.progress.coerceIn(0f, 1f))
+                                                .background(Color.White),
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    val downloadedMb = state.bytesDownloaded.toDouble() / (1024 * 1024)
+                                    val totalMb = state.totalBytes.toDouble() / (1024 * 1024)
+                                    val percent = (state.progress * 100).toInt()
+                                    Text(
+                                        text = "正在下载: %.1f MB / %.1f MB".format(Locale.CHINA, downloadedMb, totalMb),
+                                        fontSize = 12.sp,
+                                        color = Color.White.copy(alpha = 0.70f),
+                                    )
+                                    Text(
+                                        text = "$percent%",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                    )
+                                }
+                            } else {
                                 val downloadedMb = state.bytesDownloaded.toDouble() / (1024 * 1024)
-                                val totalMb = state.totalBytes.toDouble() / (1024 * 1024)
-                                val percent = (state.progress * 100).toInt()
                                 Text(
-                                    text = "正在下载: %.1f MB / %.1f MB".format(Locale.CHINA, downloadedMb, totalMb),
+                                    text = "正在下载: %.1f MB".format(Locale.CHINA, downloadedMb),
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.70f),
-                                )
-                                Text(
-                                    text = "$percent%",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
                                 )
                             }
                         }

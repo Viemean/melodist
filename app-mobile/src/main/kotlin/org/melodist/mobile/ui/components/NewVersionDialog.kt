@@ -88,28 +88,40 @@ fun NewVersionDialog(
                 when (val state = downloadState) {
                     is UpdateDownloadState.Downloading -> {
                         Spacer(modifier = Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { state.progress },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
+                        if (state.totalBytes > 0) {
+                            LinearProgressIndicator(
+                                progress = { state.progress },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                val downloadedMb = state.bytesDownloaded.toDouble() / (1024 * 1024)
+                                val totalMb = state.totalBytes.toDouble() / (1024 * 1024)
+                                val percent = (state.progress * 100).toInt()
+                                Text(
+                                    text = "正在下载: %.1f MB / %.1f MB".format(Locale.CHINA, downloadedMb, totalMb),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline,
+                                )
+                                Text(
+                                    text = "$percent%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        } else {
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                             val downloadedMb = state.bytesDownloaded.toDouble() / (1024 * 1024)
-                            val totalMb = state.totalBytes.toDouble() / (1024 * 1024)
-                            val percent = (state.progress * 100).toInt()
                             Text(
-                                text = "正在下载: %.1f MB / %.1f MB".format(Locale.CHINA, downloadedMb, totalMb),
+                                text = "正在下载: %.1f MB".format(Locale.CHINA, downloadedMb),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.outline,
-                            )
-                            Text(
-                                text = "$percent%",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
