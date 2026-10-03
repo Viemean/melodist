@@ -2,6 +2,8 @@ package org.melodist.data.download
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaScannerConnection
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +26,9 @@ import org.melodist.api.getLyrics
 import org.melodist.api.getPlayUrl
 import org.melodist.data.AppSettingsManager
 import org.melodist.model.AudioQualityTier
+import org.melodist.model.CoverUrlResolver
 import org.melodist.model.Song
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -471,7 +475,7 @@ object DownloadManager {
         }
 
         // 将元数据（歌曲名、歌手名、专辑名、最高清原图、双语歌词）直接内嵌写入音频文件
-        embedMetadata(song, file, apiService)
+        embedMetadata(song, tier, file, apiService)
 
         // 通知系统 MediaStore 刷新
         appContext?.let { ctx ->
@@ -481,25 +485,79 @@ object DownloadManager {
         onDownloadSuccess(task.id, song, tier, file)
     }
 
+    private const val MAX_RAW_COVER_BYTES = (2.5 * 1024 * 1024).toLong() // 2.5 MB
+    private const val COVER_COMPRESSION_QUALITY = 88
+
+    fun sanitizeCoverArt(rawBytes: ByteArray): ByteArray {
+        if (rawBytes.size <= MAX_RAW_COVER_BYTES) {
+            return rawBytes
+        }
+        return try {
+            val bitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size) ?: return rawBytes
+            try {
+                val bos = ByteArrayOutputStream(rawBytes.size / 4)
+                val success = bitmap.compress(Bitmap.CompressFormat.JPEG, COVER_COMPRESSION_QUALITY, bos)
+                if (success) {
+                    val compressed = bos.toByteArray()
+                    if (compressed.isNotEmpty() && compressed.size < rawBytes.size) {
+                        Log.i(TAG, "Compressed oversized cover from ${rawBytes.size} bytes to ${compressed.size} bytes (${bitmap.width}x${bitmap.height})")
+                        return compressed
+                    }
+                }
+                rawBytes
+            } finally {
+                bitmap.recycle()
+            }
+        } catch (t: Throwable) {
+            try {
+                Log.w(TAG, "Failed to compress oversized cover art, keeping raw bytes", t)
+            } catch (_: Throwable) {
+            }
+            rawBytes
+        }
+    }
+
     private suspend fun embedMetadata(
         song: Song,
+        tier: AudioQualityTier,
         file: File,
         apiService: MusicApiService,
     ) {
         var coverBytes: ByteArray? = null
         var lyricsMerged: String? = null
 
-        try {
-            val coverCandidateUrl = song.playerCoverCandidates.firstOrNull() ?: song.coverUrl
-            if (coverCandidateUrl.isNotBlank() && !coverCandidateUrl.startsWith("file://")) {
-                val coverReq = Request.Builder().url(coverCandidateUrl).build()
+        val isStandardOrHq = tier == AudioQualityTier.Standard || tier == AudioQualityTier.HQ
+        val candidateUrls =
+            if (isStandardOrHq) {
+                listOf(
+                    CoverUrlResolver.replaceDimension(song.coverUrl, 1200),
+                    CoverUrlResolver.replaceDimension(song.coverUrl, 800),
+                    song.coverUrl,
+                )
+            } else {
+                song.rawCoverCandidates.ifEmpty {
+                    listOf(
+                        CoverUrlResolver.getRawUrlOnly(song.coverUrl) ?: "",
+                        CoverUrlResolver.replaceDimension(song.coverUrl, 1200),
+                        song.coverUrl,
+                    )
+                }
+            }.filter { it.isNotBlank() && !it.startsWith("file://") }.distinct()
+
+        for (candidateUrl in candidateUrls) {
+            try {
+                val coverReq = Request.Builder().url(candidateUrl).build()
                 val coverResp = httpClient.newCall(coverReq).execute()
                 if (coverResp.isSuccessful) {
-                    coverBytes = coverResp.body.bytes()
+                    val bodyBytes = coverResp.body.bytes()
+                    if (bodyBytes.isNotEmpty()) {
+                        coverBytes = sanitizeCoverArt(bodyBytes)
+                        break
+                    }
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to fetch candidate cover from $candidateUrl", e)
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error fetching cover art for download", e)
         }
 
         try {

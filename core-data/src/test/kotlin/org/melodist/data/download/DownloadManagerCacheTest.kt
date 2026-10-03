@@ -84,4 +84,20 @@ class DownloadManagerCacheTest {
             DownloadManager.cacheExporter = null
         }
     }
+
+    @Test
+    fun `sanitizeCoverArt preserves original bytes when size is within 2_5MB threshold`() {
+        val safeBytes = ByteArray(1024 * 1024) { 0x42 } // 1MB
+        val result = DownloadManager.sanitizeCoverArt(safeBytes)
+        assertEquals(safeBytes.size, result.size)
+        assertEquals(safeBytes[0], result[0])
+    }
+
+    @Test
+    fun `sanitizeCoverArt gracefully handles corrupted non-image bytes above threshold`() {
+        val largeInvalidBytes = ByteArray(3 * 1024 * 1024) { 0x11 } // 3MB invalid
+        val result = DownloadManager.sanitizeCoverArt(largeInvalidBytes)
+        // If decoding fails, it should safely return raw bytes without throwing exception
+        assertEquals(largeInvalidBytes.size, result.size)
+    }
 }
