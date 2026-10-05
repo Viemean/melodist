@@ -52,6 +52,14 @@ class PlaybackQueueManager(
     @Volatile
     private var isFetchingMoreRadio = false
 
+    /**
+     * 从持久化存储恢复播放队列与回放状态。
+     *
+     * @param playlist 待恢复的播放列表
+     * @param index 恢复的当前索引
+     * @param loopMode 循环模式
+     * @param isRadio 是否处于电台模式
+     */
     fun restoreState(
         playlist: List<Song>,
         currentIndex: Int,
@@ -67,6 +75,11 @@ class PlaybackQueueManager(
         shuffleQueue.restore(shuffledIndices, shuffledPointer, playlist.size)
     }
 
+    /**
+     * 设置播放队列的循环模式。
+     *
+     * @param mode 目标循环模式
+     */
     fun setLoopMode(mode: PlaybackLoopMode) {
         val oldMode = _loopMode.value
         _loopMode.value = mode
@@ -79,10 +92,20 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
+    /**
+     * 设置是否处于电台连续推荐模式。
+     *
+     * @param isRadio 是否为电台模式
+     */
     fun setRadioMode(isRadio: Boolean) {
         _isRadioMode.value = isRadio
     }
 
+    /**
+     * 直接更新当前曲目索引位置。
+     *
+     * @param index 目标有效索引
+     */
     fun setCurrentIndex(index: Int) {
         pendingNextSongMid = null
         _currentIndex.value = index
@@ -95,6 +118,13 @@ class PlaybackQueueManager(
         checkPrefetchQueueNextPage()
     }
 
+    /**
+     * 全量重置并配置播放列表。
+     *
+     * @param playlist 目标歌曲列表
+     * @param initialIndex 初始起播索引
+     * @param isRadio 是否为电台模式
+     */
     fun setPlaylist(
         songs: List<Song>,
         startIndex: Int = 0,
@@ -124,11 +154,19 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
+    /**
+     * 配置队列分页数据加载源。
+     *
+     * @param source 分页加载提供者
+     */
     fun setPaginationSource(source: QueuePaginationSource?) {
         _paginationSource.value = source
         checkPrefetchQueueNextPage()
     }
 
+    /**
+     * 检查当前播放位置并在接近队列末尾时触发预加载下一页。
+     */
     fun checkPrefetchQueueNextPage() {
         if (_isRadioMode.value) return
         val source = _paginationSource.value ?: return
@@ -141,6 +179,11 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 主动拉取并向当前播放队列追加下一页歌曲。
+     *
+     * @return 成功加载新曲目返回 true，无更多数据或失败返回 false
+     */
     suspend fun loadMoreForQueue(): Boolean {
         val source = _paginationSource.value ?: return false
         if (!source.hasMore || source.isLoadingMore || _isLoadingMoreForQueue.value) return false
@@ -158,6 +201,12 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 向当前播放队列末尾追加歌曲。
+     *
+     * @param songs 待追加的歌曲列表
+     * @param paginationSource 关联的分页加载源
+     */
     fun appendPlaylist(
         newSongs: List<Song>,
         targetTag: String? = null,
@@ -177,6 +226,11 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 将指定歌曲插入至当前播放曲目的下一位置。
+     *
+     * @param song 待插入的曲目
+     */
     fun insertNextPlay(song: Song) {
         if (song.songMid.isBlank()) return
         val current = _playlist.value.toMutableList()
@@ -215,6 +269,12 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
+    /**
+     * 将指定歌曲插入当前位置并立即切换播放。
+     *
+     * @param song 目标曲目
+     * @param isRadio 是否重置为电台模式
+     */
     fun insertAndPlay(
         song: Song,
         seekToMs: Long = 0L,
@@ -240,6 +300,11 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 按索引从播放列表中移除单首曲目。
+     *
+     * @param index 待移除的曲目索引
+     */
     fun removeFromPlaylist(index: Int) {
         val list = _playlist.value.toMutableList()
         if (index !in list.indices) return
@@ -265,6 +330,12 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
+    /**
+     * 按曲目列表批量从播放列表中移除歌曲。
+     *
+     * @param songs 待移除的歌曲列表
+     * @param currentPlayingMid 当前播放歌曲 MID（用于重定向播放指针）
+     */
     fun removeFromPlaylist(
         songs: List<Song>,
         currentPlayingMid: String?,
@@ -296,6 +367,9 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
+    /**
+     * 清空当前播放队列与关联分页状态。
+     */
     fun clearPlaylist() {
         pendingNextSongMid = null
         _paginationSource.value = null
@@ -307,6 +381,9 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
+    /**
+     * 按顺序轮转切换循环模式（列表循环 -> 单曲循环 -> 随机播放）。
+     */
     fun cycleLoopMode() {
         if (_isRadioMode.value) return
         val newMode =
@@ -323,6 +400,9 @@ class PlaybackQueueManager(
         onStateChanged()
     }
 
+    /**
+     * 检查电台模式余量并在剩余曲目不足时预拉取推荐歌曲。
+     */
     fun checkPrefetchRadioSongs() {
         if (!_isRadioMode.value || isFetchingMoreRadio) return
         val currentList = _playlist.value
@@ -344,6 +424,13 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 计算并返回上一首曲目。
+     *
+     * @param historyPopThresholdMs 历史记录出栈时间阈值（毫秒）
+     * @param currentPosMs 当前播放进度（毫秒）
+     * @return 计算得到的上一首曲目，无可用曲目返回 null
+     */
     fun getPreviousSong(
         isRemoteActive: Boolean,
         remotePrevSong: Song?,
@@ -368,6 +455,12 @@ class PlaybackQueueManager(
         return if (prevIndex in list.indices) list[prevIndex] else null
     }
 
+    /**
+     * 计算并返回下一首曲目。
+     *
+     * @param autoPlay 是否为曲目播放结束后的自动顺延
+     * @return 计算得到的下一首曲目，队列穷尽返回 null
+     */
     fun getNextSong(
         isRemoteActive: Boolean,
         remoteNextSong: Song?,
@@ -398,6 +491,11 @@ class PlaybackQueueManager(
         return if (nextIndex in list.indices) list[nextIndex] else null
     }
 
+    /**
+     * 更新播放列表中指定歌曲的元数据信息。
+     *
+     * @param song 包含最新元数据的歌曲对象
+     */
     fun updateSongInPlaylist(song: Song) {
         val current = _playlist.value
         val idx = current.indexOfFirst { it.songMid == song.songMid }
@@ -408,6 +506,9 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 移动队列指针至下一首曲目。
+     */
     fun playNext() {
         val list = _playlist.value
         if (list.isEmpty()) return
@@ -471,6 +572,9 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 移动队列指针至上一首曲目。
+     */
     fun playPrevious() {
         val list = _playlist.value
         if (list.isEmpty()) return
@@ -507,6 +611,13 @@ class PlaybackQueueManager(
         }
     }
 
+    /**
+     * 全量同步对端传入的远程播放队列与状态。
+     *
+     * @param songs 远端歌曲列表
+     * @param currentMid 远端当前播放曲目 MID
+     * @param loopMode 远端循环模式
+     */
     fun syncRemoteQueue(
         queue: List<Song>,
         currentIndex: Int,

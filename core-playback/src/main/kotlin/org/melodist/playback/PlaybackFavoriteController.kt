@@ -36,16 +36,31 @@ class PlaybackFavoriteController(
     @Volatile
     private var isSyncingFavorites = false
 
+    /**
+     * 恢复本地持久化的收藏歌曲 MID 集合。
+     *
+     * @param mids 收藏歌曲 MID 集合
+     */
     fun restoreFavorites(mids: Set<String>) {
         _favoriteSongMids.value = mids
     }
 
+    /**
+     * 全量更新内存中的收藏歌曲 MID 集合。
+     *
+     * @param mids 最新的收藏歌曲 MID 集合
+     */
     fun setFavoriteSongMids(mids: Set<String>) {
         if (mids.isEmpty()) return
         _favoriteSongMids.value = _favoriteSongMids.value + mids
         onStateChanged()
     }
 
+    /**
+     * 增量合并收藏歌曲 MID 至内存集合。
+     *
+     * @param mids 待追加的收藏歌曲 MID 集合
+     */
     fun addFavoriteSongMids(mids: Collection<String>) {
         if (mids.isEmpty()) return
         val validMids = mids.filter { it.isNotBlank() }
@@ -54,6 +69,11 @@ class PlaybackFavoriteController(
         onStateChanged()
     }
 
+    /**
+     * 异步从云端同步用户收藏歌曲列表。
+     *
+     * @param forceRefresh 是否强制刷新跳过本地缓存
+     */
     fun syncFavoriteSongsAsync(forceRefresh: Boolean = false) {
         if (!UserSession.isLoggedIn) return
         if (isSyncingFavorites) return
@@ -92,6 +112,12 @@ class PlaybackFavoriteController(
         }
     }
 
+    /**
+     * 检查指定歌曲是否支持收藏操作。
+     *
+     * @param song 待检测的曲目对象
+     * @return 若曲目有效且非未知音源返回 true，否则返回 false
+     */
     fun isSongFavoriteSupported(song: Song?): Boolean {
         if (song == null) return false
         if (song.songMid.startsWith("webdav_") || !song.localFilePath.isNullOrBlank()) {
@@ -100,11 +126,25 @@ class PlaybackFavoriteController(
         return true
     }
 
+    /**
+     * 查询指定歌曲 MID 是否处于收藏状态。
+     *
+     * @param songMid 歌曲 MID
+     * @return 已收藏返回 true，未收藏或 MID 为空返回 false
+     */
     fun isSongFavorite(songMid: String?): Boolean {
         if (songMid == null || songMid.startsWith("webdav_")) return false
         return _favoriteSongMids.value.contains(songMid)
     }
 
+    /**
+     * 设置指定歌曲的收藏状态并向云端同步。
+     *
+     * @param song 目标曲目
+     * @param targetState 目标收藏状态
+     * @param context 上下文对象
+     * @param onSyncLibrary 状态变更后的库同步回调
+     */
     fun setSongFavoriteState(
         songMid: String,
         isFav: Boolean,
@@ -122,6 +162,13 @@ class PlaybackFavoriteController(
         }
     }
 
+    /**
+     * 反转指定歌曲的当前收藏状态。
+     *
+     * @param song 目标曲目
+     * @param context 上下文对象
+     * @param onSyncLibrary 状态变更后的库同步回调
+     */
     fun toggleSongFavorite(
         song: Song,
         appContext: Context?,

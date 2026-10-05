@@ -41,6 +41,11 @@ class UsbAudioRouter(
             }
         }
 
+    /**
+     * 注册 USB 音频设备插拔监听回调。
+     *
+     * @param context 上下文对象
+     */
     fun register(context: Context) {
         if (!registeredCallback) {
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -49,6 +54,11 @@ class UsbAudioRouter(
         }
     }
 
+    /**
+     * 注销 USB 音频设备监听回调。
+     *
+     * @param context 上下文对象
+     */
     fun unregister(context: Context) {
         if (registeredCallback) {
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -57,17 +67,37 @@ class UsbAudioRouter(
         }
     }
 
+    /**
+     * 判定音频设备是否为 USB 音频输出外设。
+     *
+     * @param device 待检测的音频设备信息
+     * @return 为 USB 音频输出设备返回 true
+     */
     fun isUsbAudioDevice(device: AudioDeviceInfo): Boolean =
         device.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
             device.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
             device.type == AudioDeviceInfo.TYPE_USB_ACCESSORY
 
+    /**
+     * 在系统当前连接的音频设备列表中查找 USB 输出设备。
+     *
+     * @param audioManager 系统音频管理器
+     * @return 找到的首个 USB 音频设备，未连接返回 null
+     */
     fun findUsbAudioDevice(audioManager: AudioManager?): AudioDeviceInfo? {
         if (audioManager == null) return null
         val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
         return devices.firstOrNull { isUsbAudioDevice(it) }
     }
 
+    /**
+     * 配置 Android 14+ USB 位完美（Bit-Perfect）混音器属性。
+     *
+     * @param audioManager 系统音频管理器
+     * @param usbDevice 目标 USB 输出设备
+     * @param targetSampleRate 目标采样率（Hz）
+     * @param bitDepth 目标位深（bit）
+     */
     fun configureBitPerfectMixer(
         audioManager: AudioManager,
         usbDevice: AudioDeviceInfo,
@@ -158,6 +188,15 @@ class UsbAudioRouter(
         }
     }
 
+    /**
+     * 更新 AudioTrack 的 USB 独占路由与混音器模式。
+     *
+     * @param audioTrack 活跃的底层音频输出轨道
+     * @param audioManager 系统音频管理器
+     * @param usbExclusiveEnabled 是否启用 USB 独占输出
+     * @param targetSampleRate 音频采样率
+     * @param bitDepth 音频位深
+     */
     fun updateUsbExclusiveRouting(
         context: Context?,
         player: ExoPlayer?,
