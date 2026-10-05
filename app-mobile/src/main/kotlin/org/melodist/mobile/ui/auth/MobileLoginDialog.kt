@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import org.melodist.api.ApiLogger
 import org.melodist.api.LoginApiService
 import org.melodist.api.MusicApiService
 import org.melodist.api.QrStatus
@@ -292,7 +293,8 @@ fun MobileLoginDialog(
                                                 statusText = "登录成功"
                                                 try {
                                                     MusicApiService().refreshCurrentUserProfile()
-                                                } catch (_: Exception) {
+                                                } catch (e: Exception) {
+                                                    ApiLogger.w("MobileLoginDialog", "Failed to refresh user profile after QQ login", e)
                                                 }
                                                 UserSessionManager.save(context)
                                                 isPolling = false
@@ -337,7 +339,8 @@ fun MobileLoginDialog(
                                                 statusText = "登录成功"
                                                 try {
                                                     MusicApiService().refreshCurrentUserProfile()
-                                                } catch (_: Exception) {
+                                                } catch (e: Exception) {
+                                                    ApiLogger.w("MobileLoginDialog", "Failed to refresh user profile after WeChat login", e)
                                                 }
                                                 UserSessionManager.save(context)
                                                 isPolling = false
@@ -382,7 +385,8 @@ fun MobileLoginDialog(
                                                 statusText = "登录成功"
                                                 try {
                                                     MusicApiService().refreshCurrentUserProfile()
-                                                } catch (_: Exception) {
+                                                } catch (e: Exception) {
+                                                    ApiLogger.w("MobileLoginDialog", "Failed to refresh user profile after official app login", e)
                                                 }
                                                 UserSessionManager.save(context)
                                                 isPolling = false

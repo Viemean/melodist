@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import org.melodist.api.ApiLogger
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.refreshCurrentUserProfile
@@ -107,7 +108,8 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     MusicApiService().refreshCurrentUserProfile()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    ApiLogger.w("MainActivity", "Failed to refresh user profile on app start", e)
                 }
             }
         }
