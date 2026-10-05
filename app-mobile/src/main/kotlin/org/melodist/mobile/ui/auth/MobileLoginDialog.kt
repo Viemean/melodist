@@ -4,6 +4,8 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -92,6 +94,7 @@ fun MobileLoginDialog(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                         .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -477,6 +480,17 @@ fun MobileLoginDialog(
                                 modifier = Modifier.size(18.dp),
                             )
                         }
+                    }
+
+                    if (selectedChannel == MobileLoginChannel.WeChat) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "若您只有单设备可尝试微信登录官方APP后再使用QQ音乐扫码登录",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                        )
                     }
                 }
             }
