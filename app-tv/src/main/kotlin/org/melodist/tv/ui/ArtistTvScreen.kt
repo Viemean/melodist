@@ -641,6 +641,14 @@ private fun ArtistAlbumGridItem(
                         contentDescription = album.title,
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxSize(),
+                        errorContent = {
+                            Icon(
+                                imageVector = Icons.Filled.Album,
+                                contentDescription = null,
+                                tint = MelodistColors.TextMuted,
+                                modifier = Modifier.size(40.dp),
+                            )
+                        },
                     )
                 } else {
                     Icon(

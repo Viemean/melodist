@@ -27,6 +27,7 @@ fun MelodistAsyncImage(
     bleedCrop: Boolean = true,
     contentScale: ContentScale = ContentScale.Crop,
     preferRawCover: Boolean = false,
+    errorContent: (@Composable () -> Unit)? = null,
 ) {
     var dynamicVisualMid by remember(songMid) { mutableStateOf("") }
 
@@ -91,9 +92,10 @@ fun MelodistAsyncImage(
         }
 
     var candidateIndex by remember(candidates) { mutableIntStateOf(0) }
+    var hasFailedAll by remember(candidates) { mutableStateOf(false) }
     val currentUrl = candidates.getOrNull(candidateIndex).orEmpty()
 
-    if (currentUrl.isNotEmpty()) {
+    if (!hasFailedAll && currentUrl.isNotEmpty()) {
         val finalModifier =
             remember(modifier, shape, bleedCrop) {
                 var m = modifier
@@ -118,8 +120,25 @@ fun MelodistAsyncImage(
             onError = {
                 if (candidateIndex + 1 < candidates.size) {
                     candidateIndex++
+                } else {
+                    hasFailedAll = true
                 }
             },
         )
+    } else if (errorContent != null) {
+        val fallbackModifier =
+            remember(modifier, shape) {
+                var m = modifier
+                if (shape != null) {
+                    m = m.clip(shape)
+                }
+                m
+            }
+        androidx.compose.foundation.layout.Box(
+            modifier = fallbackModifier,
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            errorContent()
+        }
     }
 }

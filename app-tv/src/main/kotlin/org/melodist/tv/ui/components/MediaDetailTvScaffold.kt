@@ -16,6 +16,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -271,6 +273,8 @@ fun MediaDetailTvScaffold(
             val effectiveArtistMid =
                 if (isPlayerMode) "" else displayArtistMid
 
+            val isArtistScreen = isHeaderImageCircle || effectiveArtistMid.isNotBlank()
+
             // 统一大屏大封面展示 (320dp 居中)
             if (effectiveCoverUrl.isNotEmpty() || effectiveAlbumMid.isNotEmpty() || effectiveArtistMid.isNotEmpty()) {
                 MelodistElevatedCover(
@@ -283,6 +287,15 @@ fun MediaDetailTvScaffold(
                     shape = if (isPlayerMode) RoundedCornerShape(6.dp) else headerImageShape,
                     isCircle = if (isPlayerMode) false else isHeaderImageCircle,
                     modifier = Modifier.size(coverSize),
+                    errorContent = {
+                        val iconVector = if (isArtistScreen && !isPlayerMode) Icons.Filled.Person else Icons.Filled.Album
+                        Icon(
+                            imageVector = iconVector,
+                            contentDescription = if (isPlayerMode) activePlayingSong?.name.orEmpty() else title,
+                            tint = Color.White.copy(alpha = 0.55f),
+                            modifier = Modifier.size(coverSize * 0.40f),
+                        )
+                    },
                 )
             } else {
                 Box(
@@ -293,11 +306,12 @@ fun MediaDetailTvScaffold(
                             .background(MelodistColors.ContainerDarkSecondary),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = if (isPlayerMode) (activePlayingSong?.name?.take(2) ?: "音乐") else title.take(2),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                    val iconVector = if (isArtistScreen && !isPlayerMode) Icons.Filled.Person else Icons.Filled.Album
+                    Icon(
+                        imageVector = iconVector,
+                        contentDescription = if (isPlayerMode) activePlayingSong?.name.orEmpty() else title,
+                        tint = Color.White.copy(alpha = 0.55f),
+                        modifier = Modifier.size(coverSize * 0.40f),
                     )
                 }
             }

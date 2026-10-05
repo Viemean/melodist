@@ -37,6 +37,7 @@ fun MelodistElevatedCover(
     elevation: Dp = 10.dp,
     preferRawCover: Boolean = false,
     onClick: (() -> Unit)? = null,
+    errorContent: (@Composable () -> Unit)? = null,
 ) {
     val actualShape = if (isCircle) CircleShape else shape
 
@@ -78,6 +79,7 @@ fun MelodistElevatedCover(
             contentDescription = contentDescription,
             shape = actualShape,
             preferRawCover = preferRawCover,
+            errorContent = errorContent,
             modifier = Modifier.fillMaxSize(),
         )
     }

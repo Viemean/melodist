@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -245,36 +248,35 @@ private fun ArtistActionCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // 圆形头像（带文字徽章兜底，内层移除绿色高亮边框）
+            // 圆形头像（默认人物矢量图标）
             Box(
                 modifier =
                     Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
+                        .background(if (isFocused) Color.Black.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.08f))
                         .border(
                             1.dp,
-                            if (isFocused) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.22f),
+                            if (isFocused) Color.Black.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.22f),
                             CircleShape,
                         ),
                 contentAlignment = Alignment.Center,
             ) {
-                if (avatarUrl.isNotBlank() || resolvedMid.isNotBlank()) {
-                    MelodistAsyncImage(
-                        coverUrl = avatarUrl,
-                        artistMid = resolvedMid,
-                        contentDescription = artist.name,
-                        shape = CircleShape,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Text(
-                        text = artist.name.take(1).uppercase(),
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isFocused) Color.Black else Color.White,
-                    )
-                }
+                MelodistAsyncImage(
+                    coverUrl = avatarUrl,
+                    artistMid = resolvedMid,
+                    contentDescription = artist.name,
+                    shape = CircleShape,
+                    modifier = Modifier.fillMaxSize(),
+                    errorContent = {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = artist.name,
+                            tint = if (isFocused) Color(0xFF1E232A) else Color.White.copy(alpha = 0.70f),
+                            modifier = Modifier.size(46.dp),
+                        )
+                    },
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -343,36 +345,35 @@ private fun AlbumActionCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            // 方形圆角封面（内层移除绿色高亮边框）
+            // 方形圆角封面（默认专辑矢量图标）
             Box(
                 modifier =
                     Modifier
                         .size(100.dp)
                         .clip(MelodistShapes.CardCorner)
-                        .background(Color.White.copy(alpha = 0.08f))
+                        .background(if (isFocused) Color.Black.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.08f))
                         .border(
                             1.dp,
-                            if (isFocused) Color.Black.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.22f),
+                            if (isFocused) Color.Black.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.22f),
                             MelodistShapes.CardCorner,
                         ),
                 contentAlignment = Alignment.Center,
             ) {
-                if (resolvedCover.isNotBlank() || albumMid.isNotBlank()) {
-                    MelodistAsyncImage(
-                        coverUrl = resolvedCover,
-                        albumMid = albumMid,
-                        contentDescription = albumTitle,
-                        shape = MelodistShapes.CardCorner,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Text(
-                        text = albumTitle.take(1).uppercase(),
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isFocused) Color.Black else Color.White,
-                    )
-                }
+                MelodistAsyncImage(
+                    coverUrl = resolvedCover,
+                    albumMid = albumMid,
+                    contentDescription = albumTitle,
+                    shape = MelodistShapes.CardCorner,
+                    modifier = Modifier.fillMaxSize(),
+                    errorContent = {
+                        Icon(
+                            imageVector = Icons.Filled.Album,
+                            contentDescription = albumTitle,
+                            tint = if (isFocused) Color(0xFF1E232A) else Color.White.copy(alpha = 0.70f),
+                            modifier = Modifier.size(46.dp),
+                        )
+                    },
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
