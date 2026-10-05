@@ -44,6 +44,7 @@ import java.util.Locale
  *
  * 已对齐 OriginOS 开放标准，但由于系统端原子随身听暂未正式开放第三方应用白名单接入，待系统侧后续开放后即可直接生效。
  */
+@Suppress("DEPRECATION")
 class VivoMusicMixSupportService : MediaBrowserServiceCompat() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var mediaSessionCompat: MediaSessionCompat? = null
