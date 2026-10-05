@@ -624,7 +624,7 @@ class WebDavService {
         }
 
     /**
-     * 解析真正的音频播放直链
+     * 解析音频播放直链
      * 若 WebDAV 服务重定向至第三方对象存储（如 Alist 挂载云盘返回 302 S3 直链），提取重定向目标 URL，并移除 Authorization 头（避免 S3 校验失败报 400）
      */
     suspend fun resolvePlaybackUrl(

@@ -165,7 +165,7 @@ private fun ListeningPillContent(
             modifier = Modifier.size(18.dp),
         )
 
-        // 识别计时文本 (0.1秒开始精准计时递增，如 "0.1s", "1.2s", "4.5s")
+        // 识别计时文本 (0.1s 起计时递增，如 "0.1s", "1.2s", "4.5s")
         val formattedTime = String.format(Locale.US, "%.1fs", elapsedSeconds)
         Text(
             text = "正在识别 $formattedTime",
@@ -178,7 +178,7 @@ private fun ListeningPillContent(
             fontSize = 13.sp,
         )
 
-        // 固定的取消识别按鈕（独立事件拦截，不再参与高频动画闪烁）
+        // 固定的取消识别按钮（独立事件拦截，不跟随高频动画重绘）
         Box(
             modifier =
                 Modifier

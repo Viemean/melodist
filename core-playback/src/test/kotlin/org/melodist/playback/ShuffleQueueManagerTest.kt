@@ -88,7 +88,7 @@ class ShuffleQueueManagerTest {
 
         assertEquals(targetIndex, manager.currentOriginalIndex)
 
-        // 接下来切下一首，应继续沿着洗牌队列前进，而不是重置
+        // 接下来切下一首，应继续沿洗牌队列前进
         val nextAfterSync = manager.next(songs)
         assertNotEquals(targetIndex, nextAfterSync)
     }

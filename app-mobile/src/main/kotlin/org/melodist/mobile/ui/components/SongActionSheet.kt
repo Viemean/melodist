@@ -163,7 +163,7 @@ fun SongActionSheet(
 
     val currentDest = navController.currentDestination
 
-    // 处于专辑界面时，所有曲目均属于该专辑，无条件隐藏“查看专辑”，彻底杜绝套娃
+    // 处于专辑界面时隐藏“查看专辑”选项
     val isCurrentAlbumPage = currentDest is ScreenDestination.AlbumDetail
 
     // 处于歌手界面时：仅当歌曲是单个歌手且为当前歌手时才隐藏“查看歌手”；多位歌手合唱时完整保留所有歌手

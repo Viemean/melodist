@@ -64,7 +64,7 @@ object ScreenSaverManager {
 
         val isPlaying = PlaybackManager.isPlaying.value
         if (!settings.enableScreenSaverDuringPlayback && isPlaying) {
-            // 播放期间不允许进入屏保时，持续重置空闲时间戳，避免暂停瞬间立即触发屏保
+            // 播放期间不允许进入屏保时，持续重置空闲时间戳，避免暂停后立即触发屏保
             lastInteractionTimeMs = System.currentTimeMillis()
             return
         }

@@ -198,7 +198,7 @@ fun PlayerContainer(
 
         val isDark = isAppInDarkTheme()
 
-        // 只要全屏播放器未展开，且不是正在从底部拉升到顶，底部的 MiniPlayerBar 均保持可见
+        // 当全屏播放器未展开且未在底部拉升过程中时，底部的 MiniPlayerBar 保持可见
         val isMiniPlayerVisible by remember {
             derivedStateOf {
                 currentSong != null &&

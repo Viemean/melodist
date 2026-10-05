@@ -65,7 +65,7 @@ object MobileCoverCacheResolver {
 
     /**
      * 莫奈取色专用的轻量级候选链：
-     * 1. 500x500 缩略图：优先复用歌曲列表与抽屉在 Coil 中已沉淀的本地缓存，实现零网络等待与轻量级解码；
+     * 1. 500x500 缩略图：优先复用歌曲列表与抽屉已缓存的缩略图，避免重复网络请求并降低解码开销；
      * 2. 1200x1200 播放器大图：若 500 图像未能解析则回退至播放器常规大图。
      */
     fun resolvePaletteCandidates(song: Song?): List<String> {

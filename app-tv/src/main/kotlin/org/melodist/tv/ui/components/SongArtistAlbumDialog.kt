@@ -105,7 +105,7 @@ fun SongArtistAlbumDialog(
                                     event.key == Key.Enter ||
                                     event.key == Key.NumPadEnter
                             if (isConfirmKey) {
-                                // 刚性拦截 0.5 秒内的确认按键（包括长按松开时的 KeyUp 与重复按压），防止误触自动进入
+                                // 拦截打开弹窗后 0.5 秒内的确认按键，避免长按误触直接触发点击
                                 return@onPreviewKeyEvent true
                             }
                         }

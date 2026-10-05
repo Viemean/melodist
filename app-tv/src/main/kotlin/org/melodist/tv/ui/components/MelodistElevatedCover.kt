@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * 封面展示组件
- * 还原纯粹的 12 寸实体印刷封套质感，拒绝露底生硬黑块
+ * 封面展示组件，支持投影阴影与边框样式
  */
 @Composable
 fun MelodistElevatedCover(

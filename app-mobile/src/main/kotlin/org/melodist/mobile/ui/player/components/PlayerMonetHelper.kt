@@ -28,7 +28,7 @@ data class PlayerMonetColors(
 fun resolveMonetColors(palette: Palette): PlayerMonetColors {
     val hsl = FloatArray(3)
 
-    // 过滤纯黑纯白极度过曝与死灰噪点（明度限定 0.08f..0.92f，饱和度 >= 0.10f）
+    // 过滤纯黑纯白、高曝光与灰阶噪点（明度限定 0.08f..0.92f，饱和度 >= 0.10f）
     fun isValidColor(swatch: Palette.Swatch?): Boolean {
         if (swatch == null) return false
         ColorUtils.colorToHSL(swatch.rgb, hsl)
@@ -70,12 +70,12 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         hue = hsl[0]
         sat = hsl[1]
     } else {
-        // 全黑白图片默认回退优雅微冷蓝调
+        // 黑白图片默认回退低饱和灰蓝调
         hue = 215f
         sat = 0.22f
     }
 
-    // 1. 亮色背景色：优雅淡雅的莫奈微粉/微蓝/微青微色底（明度 0.93f，饱和度 0.12f..0.20f）
+    // 1. 亮色背景色：低饱和浅色底（明度 0.93f，饱和度 0.12f..0.20f）
     val lightBgHsl =
         floatArrayOf(
             hue,

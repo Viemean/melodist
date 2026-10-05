@@ -173,7 +173,7 @@ fun PlayerControlBar(
             }
         }
 
-        // 播放/暂停大按键（68dp M3 标志性 Squircle 圆角方块，带弹性物理按压与形态切换动画）
+        // 播放/暂停按键（68dp Squircle 圆角方块，支持按压与形态切换动画）
         FilledIconButton(
             onClick = onTogglePlayPause,
             interactionSource = playPauseInteractionSource,

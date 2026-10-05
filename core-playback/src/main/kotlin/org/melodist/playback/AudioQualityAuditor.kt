@@ -50,14 +50,13 @@ data class AudioAuditResult(
 )
 
 /**
- * 工业级假音质（假无损 / 升频）检测与频谱分析引擎
- * 核心设计哲学：
- * 1. 疑罪从无，零误杀：假无损坚决锁定 14.0kHz ~ 19.2kHz 铁证区间（精准抓获 128k/192k/256k MP3/AAC），放弃 20kHz 边缘模糊区，杜绝正版 CD 误杀；
- * 2. 升频假 Hi-Res 优先级前置且锁定 20.0kHz ~ 24.5kHz 物理断崖，彻底消除规则遮蔽；
- * 3. 相对阶跃深度比对（Cliff Depth: pre - post >= 18dB），免疫 Dither 噪声整形；
- * 4. 恒定时域观测窗口（>= 0.4s），自适应 44.1k/96k/192k，避免瞬态空洞；
- * 5. 自然平缓滚降曲目提示性通过（AUTHENTIC + 风格偏暖说明）；
- * 6. 严格按 N^2 归一化功率谱密度（PSD），物理分贝刻度与标准对齐。
+ * 判定策略与参数约束：
+ * 1. 假无损检测区间设定为 14.0kHz ~ 19.2kHz（覆盖 128k/192k/256k 有损转码特征），避开 20kHz 临界区以减少正版 CD 误判；
+ * 2. 升频假 Hi-Res 优先匹配 20.0kHz ~ 24.5kHz 截断特征；
+ * 3. 相对阶跃深度判定（pre - post >= 18dB），降低 Dither 噪声干扰；
+ * 4. 恒定时域观测窗口（>= 0.4s），按采样率自适应；
+ * 5. 频谱平缓滚降曲目判定为通过（AUTHENTIC）；
+ * 6. 按 N^2 归一化功率谱密度（PSD）计算分贝值。
  */
 object AudioQualityAuditor {
     private const val TAG = "AudioQualityAuditor"
@@ -74,7 +73,7 @@ object AudioQualityAuditor {
             val cacheKey = "${song.songMid}_${tier.name}"
             auditCache.get(cacheKey)?.let { return@withContext it }
 
-            // 1. 标准有损音质直接返回 LOSSY，无需打假
+            // 1. 标准有损音质直接返回 LOSSY，无需频谱检测
             if (tier == AudioQualityTier.Standard || tier == AudioQualityTier.HQ) {
                 val result =
                     AudioAuditResult(
@@ -224,7 +223,7 @@ object AudioQualityAuditor {
                 Request
                     .Builder()
                     .url(url)
-                    .header("Range", "bytes=0-2621439") // 2.5MB 探针切片，彻底穿透大封面图与前置元数据
+                    .header("Range", "bytes=0-2621439") // 2.5MB 探针切片，避开内嵌封面与前置元数据
                     .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) MelodistMobile/1.0")
 
             if (!authHeader.isNullOrBlank()) {
@@ -447,11 +446,11 @@ object AudioQualityAuditor {
     }
 
     /**
-     * 多采样点表决决议机制（2/3 投票制，疑罪从无）：
-     * 1. 单切片防护：单切片若测出假音质，由于样本置信度不足，疑罪从无降级为 INDETERMINATE，避免单点误杀；
-     * 2. 假无损：>= 2 个切片一致测出低通硬截断特征才判定为假无损；
-     * 3. 升频假 Hi-Res：>= 2 个切片一致测出标准母带截断才判定为升频；
-     * 4. 矛盾切片（如 1 个切片能量弱，另 2 个全频延伸）：疑罪从无，判定为真无损。
+     * 多采样点表决机制（多数表决制）：
+     * 1. 单切片样本置信度不足时标记为 INDETERMINATE；
+     * 2. 假无损：>= 2 个切片测出低通截断特征时判定为假无损；
+     * 3. 升频假 Hi-Res：>= 2 个切片测出标准截断时判定为升频；
+     * 4. 切片结果分歧时（多数切片具备高频延伸特征），判定为真无损。
      */
     fun voteAuditResults(sliceResults: List<AudioAuditResult>): AudioAuditResult {
         if (sliceResults.isEmpty()) {
@@ -490,14 +489,14 @@ object AudioQualityAuditor {
             return upsampledList.maxByOrNull { it.cutoffFrequencyHz } ?: upsampledList[0]
         }
 
-        // 3. 疑罪从无机制：若仅有 1 个切片测出假断崖，其余切片具备全频无损延伸特征，判定为真无损
+        // 3. 若仅单个切片呈现截断而其余切片具备高频延伸特征，判定为真无损
         if (authenticList.isNotEmpty()) {
             val baseAuthentic = authenticList.first()
             val hasDivergence = fakeList.isNotEmpty() || upsampledList.isNotEmpty()
             return if (hasDivergence) {
                 baseAuthentic.copy(
                     confidenceScore = 0.95f,
-                    details = "个别采样切片能量偏弱，但多数采样点高频频响自然完整，根据疑罪从无原则判定为真无损。",
+                    details = "个别采样切片能量偏弱，但多数采样点高频延伸完整，判定为真无损。复核通过。",
                 )
             } else {
                 baseAuthentic
@@ -771,11 +770,11 @@ object AudioQualityAuditor {
     }
 
     /**
-     * 终极稳健声学判定引擎（疑罪从无，聚焦铁证）：
-     * 1. 假无损坚决锁定 14.0kHz ~ 19.2kHz 铁证区间（128k ~ 256k 转码），放弃 20kHz 边缘模糊区，正版 CD 零误杀；
-     * 2. 升频假 Hi-Res 优先级前置（20.0k ~ 24.5k），彻底消除规则遮蔽；
-     * 3. 相对能量阶深（Cliff Depth: pre - post >= 18dB）比对，免疫 Dither 噪声；
-     * 4. 自然平缓滚降曲目提示性通过（AUTHENTIC + 风格偏暖说明）。
+     * 频谱特征判定逻辑：
+     * 1. 假无损检测区间设定为 14.0kHz ~ 19.2kHz（对应 128k ~ 256k 转码低通截断点）；
+     * 2. 升频假 Hi-Res 匹配 19.2k ~ 24.5k 频段截断；
+     * 3. 相对能量阶深（pre - post >= 18dB）比对，降低 Dither 噪声干扰；
+     * 4. 频谱平缓滚降曲目判定为通过（AUTHENTIC）。
      */
     fun evaluateSpectrum(
         spectrum: FloatArray,
@@ -795,8 +794,8 @@ object AudioQualityAuditor {
         // 2. 中频基准能量 (2k~8k)
         val midRefDb = getBandAverageDb(smoothed, binResolutionHz, 2000, 8000)
 
-        // 3. 扫描真正的砖墙硬截断：
-        // 上限死锁在 25kHz（因为 MP3/AAC 截断与 44.1k/48k 升频绝不可能高于 24.5kHz，规避硬件 Nyquist 滤波）
+        // 3. 扫描砖墙式低通截断：
+        // 扫描上限限制在 25kHz，避免硬件 Nyquist 滤波器频响干扰
         val scanStartBin = (10000 / binResolutionHz).toInt().coerceIn(0, smoothed.size - 1)
         val scanEndBin = ((min(nyquistHz.toFloat(), 25000f)) / binResolutionHz).toInt().coerceIn(0, smoothed.size - 1)
         val stepBins = max(3, (800 / binResolutionHz).toInt())
@@ -822,7 +821,7 @@ object AudioQualityAuditor {
             }
         }
 
-        // 4. 判定假 Hi-Res (频窗完全闭合：19201Hz ~ 24500Hz，消除规则遮蔽与频段黑洞)
+        // 4. 判定假 Hi-Res (检测区间：19201Hz ~ 24500Hz)
         if (sampleRate >= 88200 && (tier == AudioQualityTier.HiRes || tier == AudioQualityTier.Master)) {
             if (brickwallCutoffHz in 19201..24500 && maxCliffDepthDb >= 18f) {
                 val baseRate = if (brickwallCutoffHz <= 22500) "44.1kHz" else "48kHz"
@@ -840,7 +839,7 @@ object AudioQualityAuditor {
             }
         }
 
-        // 5. 判定假无损：聚焦 14.0kHz ~ 19.2kHz 铁证区间（128k ~ 256k MP3/AAC 转码），放弃 20kHz 边缘模糊区
+        // 5. 判定假无损：检查 14.0kHz ~ 19.2kHz 区间是否存在低通截断特征
         if (tier == AudioQualityTier.SQ || tier == AudioQualityTier.HiRes || tier == AudioQualityTier.Master) {
             if (maxCliffDepthDb >= 18f && brickwallCutoffHz in 14000..19200) {
                 val (verdictDesc, detailsDesc) =

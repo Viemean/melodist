@@ -316,7 +316,7 @@ fun HomeCoreTracksRow(
             favoriteCount,
         ) {
             listOf(
-                // 1. 猜你喜欢（排在第一位，唯一保留播放按钮）
+                // 1. 猜你喜欢（排在首位，包含播放按钮）
                 RotatingCardItem(
                     id = "radar",
                     badgeText = "猜你喜欢",

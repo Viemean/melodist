@@ -34,7 +34,7 @@ import org.melodist.playback.PlaybackManager
 /**
  * 播放器进度滑块与时间显示组件（Android 13/14 官方 M3 动态波浪 Squiggle 风格）。
  * 核心性能优化：独立在此叶子 Composable 内部订阅 [PlaybackManager.currentPositionMs]，
- * 彻底阻断 60ms 高频更新向上级父容器扩散，实现重组隔离。
+ * 隔离高频进度更新，避免向上级父容器扩散重组。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -107,7 +107,7 @@ object LyricParser {
                     // 精确匹配到占位符 "//" 时明确该行无翻译，不应被后续容差候选覆盖
                 } else if (cleanTrans.isNotEmpty()) {
                     // 2. 容差候选匹配 (<= 600ms)：
-                    // 必须满足候选翻译行最匹配的是当前 orig，而不是后续更接近的 orig
+                    // 匹配当前原文行，避免与后续更接近的原文行混淆
                     val candidates =
                         cleanTrans.filter { cand ->
                             cand !in usedSet &&

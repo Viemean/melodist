@@ -187,7 +187,7 @@ object MobileConnectManager {
                                 if (tvSong?.songMid == pendingTrackTargetMid) {
                                     pendingTrackTargetMid = null
                                 } else {
-                                    // TV 处于换轨过渡期仍回报旧曲目，跳过同步以杜绝旧曲目残响倒灌起播
+                                    // TV 处于换轨过渡期仍回报旧曲目时跳过同步，避免旧曲目状态回写
                                     return@collect
                                 }
                             } else if (pendingTrackTargetMid != null) {
@@ -282,7 +282,7 @@ object MobileConnectManager {
                                                     PlaybackManager.setPlaybackSpeed(1.05f)
                                                 }
                                                 diffMs > 90L -> {
-                                                    // 手机轻度落后 90ms ~ 350ms：1.025x 无感微调追赶
+                                                    // 手机轻度落后 90ms ~ 350ms：通过 1.025x 播放速度追赶
                                                     PlaybackManager.setPlaybackSpeed(1.025f)
                                                 }
                                                 diffMs < -800L -> {
@@ -294,7 +294,7 @@ object MobileConnectManager {
                                                     PlaybackManager.setPlaybackSpeed(0.95f)
                                                 }
                                                 diffMs < -90L -> {
-                                                    // 手机轻度超前 90ms ~ 350ms：0.975x 无感微调等待
+                                                    // 手机轻度超前 90ms ~ 350ms：通过 0.975x 播放速度对齐
                                                     PlaybackManager.setPlaybackSpeed(0.975f)
                                                 }
                                                 else -> {

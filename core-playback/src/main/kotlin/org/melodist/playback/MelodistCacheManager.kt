@@ -574,7 +574,7 @@ object MelodistCacheManager : MediaCacheExporter {
     }
 
     /**
-     * 主动扫描磁盘缓存，获取曲目当前真正 100% 完整落盘的最佳音质
+     * 扫描磁盘缓存，获取曲目当前已完整下载的最佳音质
      */
     fun getBestFullyCachedTier(songMid: String): org.melodist.model.AudioQualityTier? {
         if (songMid.isBlank()) return null

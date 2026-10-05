@@ -405,7 +405,7 @@ object PlaybackManager {
     private val playerListener =
         object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
-                // 无缝音质切换期间，忽略 ExoPlayer 内部重加载媒体源引起的短暂 isPlaying=false 抖动
+                // 音质切换期间，忽略 ExoPlayer 内部重新加载媒体源引起的短暂 isPlaying=false 状态
                 if (_isSwitchingQuality.value && !playing && exoPlayer?.playWhenReady == true) {
                     return
                 }
@@ -1515,7 +1515,7 @@ object PlaybackManager {
     }
 
     /**
-     * 接管模式下触发切歌时的本地乐观曲目推进，杜绝网络回传等待期间 UI 闪烁回跳旧曲目
+     * 接管模式下触发切歌时的本地乐观曲目推进，避免等待网络回传期间显示旧曲目
      */
     fun optimisticSwitchRemoteTrack(
         targetSong: Song,
@@ -1678,7 +1678,7 @@ object PlaybackManager {
                         _fileCacheFraction.value = if (isTargetFullyCached) 1f else 0f
                         val player = exoPlayer ?: return@launch
 
-                        // 在新媒体就绪并即将注入播放器的瞬间，抓取最新实时播放进度，消除位置断层与回跳
+                        // 在新媒体注入播放器前抓取实时播放进度，保持播放位置连续
                         val livePositionMs =
                             if (isPlayerValid) {
                                 player.currentPosition.takeIf { it > 0L } ?: _currentPositionMs.value
@@ -1816,8 +1816,7 @@ object PlaybackManager {
             .newKeySet<String>()
 
     /**
-     * 方案 B：后台静默预加载相邻曲目（优先下一首）的原始大图与歌曲信息，
-     * 使切歌时无需等待现场提取，实现 4K 原画秒开。
+     * 后台预加载相邻曲目（优先下一首）的原始封面图与歌曲信息。
      */
     fun prefetchAdjacentCoversAndMetadata() {
         val next = getNextSong()

@@ -328,7 +328,7 @@ private fun CoverCard(
                 },
         contentAlignment = Alignment.Center,
     ) {
-        // 1. 底层实体圆角阴影板：无动态 alpha，阻断 Android RenderNode 离屏缓冲与矩形裁切，杜绝直角阴影与回弹闪烁
+        // 1. 底层实体圆角阴影板：固定 alpha，避免 RenderNode 离屏缓冲引发的裁切与阴影闪烁
         Spacer(
             modifier =
                 Modifier

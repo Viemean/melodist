@@ -110,7 +110,7 @@ object LocalLyricAutoMatcher {
 
             val cacheKey = getCacheKey(song)
 
-            // 1. 优先从私有缓存读取（零网络请求、零延迟）
+            // 1. 优先从本地私有缓存读取
             val cached = readFromPrivateCache(cacheKey)
             if (cached != null && cached.isNotEmpty()) {
                 Log.i(TAG, "Loaded matched lyrics from private cache for: ${song.name}")

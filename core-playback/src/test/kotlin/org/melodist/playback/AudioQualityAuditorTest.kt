@@ -44,7 +44,7 @@ class AudioQualityAuditorTest {
         val binRes = (sampleRate / 2f) / bins
         val spectrum = FloatArray(bins)
 
-        // 构造频谱：在 11kHz 处有一个 20dB 的陷波凹陷（随后在 13kHz 又反弹回 -20dB），而在 16kHz 处发生真正的持续死寂低通截断
+        // 构造频谱：在 11kHz 处设置 20dB 陷波凹陷（13kHz 恢复至 -20dB），在 16kHz 处设置持续低通截断
         for (i in 0 until bins) {
             val f = i * binRes
             when {
@@ -133,7 +133,7 @@ class AudioQualityAuditorTest {
         val binRes = (sampleRate / 2f) / bins
         val spectrum = FloatArray(bins)
 
-        // 构造 96k 录音但乐器（大提琴/木吉他）在 22kHz 以上无泛音的母带（自然衰减到底噪 -85dB，无任何 44.1k/48k 升频断崖）
+        // 构造 96k 录音但乐器在 22kHz 以上无泛音的母带（自然衰减到底噪 -85dB，无 44.1k/48k 升频截止）
         for (i in 0 until bins) {
             val f = i * binRes
             spectrum[i] = -22f - (f / 22000f) * 60f
@@ -191,7 +191,7 @@ class AudioQualityAuditorTest {
         val binRes = (sampleRate / 2f) / bins
         val spectrum = FloatArray(bins)
 
-        // 构造 19.5kHz 处截断的 96k 升频文件（消除 19.2k ~ 20k 黑洞）
+        // 构造 19.5kHz 处截断的 96k 升频测试数据
         for (i in 0 until bins) {
             val f = i * binRes
             if (f < 19500) {
@@ -239,7 +239,7 @@ class AudioQualityAuditorTest {
                 sampleRateHz = sampleRate,
             )
 
-        // 1 票假无损（局部弱音切片），2 票真无损 -> 疑罪从无判定为真无损
+        // 1 票假无损（局部弱音切片），2 票真无损 -> 表决判定为真无损
         val voted = AudioQualityAuditor.voteAuditResults(listOf(fakeSlice, authenticSlice1, authenticSlice2))
         assertEquals(AudioQualityVerdict.AUTHENTIC, voted.verdict)
     }
@@ -301,7 +301,7 @@ class AudioQualityAuditorTest {
                 tier = AudioQualityTier.HiRes,
             )
 
-        // 必须确认为真实 Hi-Res，绝不能因 46kHz 硬件断崖被误杀或降级
+        // 判定为 Hi-Res，避免受 46kHz 硬件低通截止影响导致降级
         assertEquals(AudioQualityVerdict.AUTHENTIC, result.verdict)
         assertTrue(result.description.contains("高解析"))
     }
@@ -317,7 +317,7 @@ class AudioQualityAuditorTest {
                 sampleRateHz = sampleRate,
             )
 
-        // 单切片孤证不足以定罪 -> 疑罪从无降级为 INDETERMINATE
+        // 单切片样本置信度不足 -> 降级为 INDETERMINATE
         val voted = AudioQualityAuditor.voteAuditResults(listOf(singleFakeSlice))
         assertEquals(AudioQualityVerdict.INDETERMINATE, voted.verdict)
     }
@@ -508,7 +508,7 @@ class AudioQualityAuditorTest {
         val binRes = (sampleRate / 2f) / bins
         val spectrum = FloatArray(bins)
 
-        // 模拟 48kHz 母带升频至 96kHz：在 23.9kHz 处出现 48k 原生低通断崖
+        // 模拟 48kHz 母带升频至 96kHz：在 23.9kHz 处出现 48k 原生低通截止
         for (i in 0 until bins) {
             val f = i * binRes
             if (f < 23900) {
