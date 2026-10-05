@@ -23,8 +23,10 @@ java-websocket = "1.6.0"
 zxing = "3.5.4"
 camerax = "1.7.0-alpha03"
 leakcanary = "3.0-alpha-9"
+androidx-media = "1.8.0"
 
 [libraries]
+androidx-media = { module = "androidx.media:media", version.ref = "androidx-media" }
 leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
 camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }

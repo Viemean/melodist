@@ -136,7 +136,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.media3.ui)
-    implementation("androidx.media:media:1.7.0")
+    implementation(libs.androidx.media)
 
     // Coil 3 图片异步加载
     implementation(libs.coil.compose)
