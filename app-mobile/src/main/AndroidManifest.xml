@@ -78,6 +78,14 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name="org.melodist.mobile.origin.VivoMusicMixSupportService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.vivo.musicwidgetmix.support.service" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>
