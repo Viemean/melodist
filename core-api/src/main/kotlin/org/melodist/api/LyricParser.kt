@@ -9,6 +9,12 @@ object LyricParser {
     private val TIMESTAMP_REGEX = Regex("""\[(\d{1,2}):(\d{1,2})(?:[\.:](\d{1,3}))?\]""")
     private val QRC_WORD_REGEX = Regex("""\((\d+),(\d+)\)([^(]*)""")
 
+    /**
+     * 将 Base64 编码的歌词原始字符串解码为 UTF-8 明文文本。
+     *
+     * @param b64 Base64 编码字符串
+     * @return 解码后的纯文本字符串
+     */
     fun decodeBase64(b64: String?): String {
         if (b64.isNullOrBlank()) return ""
         return try {
@@ -174,6 +180,13 @@ object LyricParser {
         )
     }
 
+    /**
+     * 判定指定歌词文本行是否属于元数据信息行。
+     *
+     * @param text 歌词文本
+     * @param isFirstFewLines 是否处于歌词起始前几行范围内
+     * @return 为元数据行返回 true，属于正文歌词返回 false
+     */
     fun isMetaInfoLine(
         timestampMs: Long,
         text: String,

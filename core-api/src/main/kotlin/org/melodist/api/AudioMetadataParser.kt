@@ -18,6 +18,12 @@ data class ParsedAudioMetadata(
     val pictureLength: Long? = null,
     val metadataTotalBytes: Long? = null,
 ) {
+    /**
+     * 依据采样率、位深与 MIME 类型推断音频质量级别。
+     *
+     * @param mimeType 音频媒体类型字符串
+     * @return 推断出的音质级别枚举，无法判定返回 null
+     */
     fun inferTier(mimeType: String? = null): AudioQualityTier? {
         if (sampleRate == null) return null
         return AudioQualityTier.inferFromAudioFormat(
@@ -36,6 +42,12 @@ data class ParsedAudioMetadata(
  * 规避 Android MediaMetadataRetriever 因尾部/大封面截断直接崩溃或报错抛出的问题。
  */
 object AudioMetadataParser {
+    /**
+     * 解析音频二进制流前导字节提取内嵌 ID3v2/FLAC 元数据与封面。
+     *
+     * @param bytes 音频前导字节切片
+     * @return 提取得到的音频元数据对象
+     */
     fun parse(bytes: ByteArray): ParsedAudioMetadata {
         if (bytes.size < 16) return ParsedAudioMetadata()
 

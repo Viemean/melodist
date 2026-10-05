@@ -85,6 +85,11 @@ object UserLibraryCacheManager {
         tid: Long,
     ): String = "${dirId}_$tid"
 
+    /**
+     * 初始化用户音乐库缓存管理器并加载持久化数据。
+     *
+     * @param context 应用上下文对象
+     */
     fun init(context: Context) {
         val appContext = context.applicationContext
         cacheFile = File(appContext.cacheDir, CACHE_FILE_NAME)
@@ -187,11 +192,22 @@ object UserLibraryCacheManager {
         }
     }
 
+    /**
+     * 检查指定 UIN 当前是否存在未过期的本地音乐库缓存。
+     *
+     * @param currentUin 用户唯一标识
+     * @return 缓存有效且属于当前用户返回 true
+     */
     fun hasValidCache(currentUin: String): Boolean {
         val data = _libraryFlow.value
         return data.accountUin == currentUin && (data.playlists.isNotEmpty() || data.favoriteCount > 0)
     }
 
+    /**
+     * 检查本地收藏歌曲缓存是否处于有效期内。
+     *
+     * @return 缓存存在且未过期返回 true
+     */
     fun isFavoriteSongsCacheValid(): Boolean {
         val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else return false
         if (favSongsCache.accountUin != currentUin) return false
@@ -199,6 +215,14 @@ object UserLibraryCacheManager {
         return System.currentTimeMillis() - favSongsCache.fetchTimestamp < FAVORITE_SONGS_CACHE_TTL_MS
     }
 
+    /**
+     * 加载用户收藏歌曲列表，支持本地缓存优先或从网络同步。
+     *
+     * @param forceRefresh 是否忽略缓存强制刷新
+     * @param page 分页页码
+     * @param pageSize 单页记录上限
+     * @return 收藏歌曲列表
+     */
     suspend fun loadFavoriteSongs(
         apiService: MusicApiService,
         forceRefresh: Boolean = false,
@@ -340,6 +364,12 @@ object UserLibraryCacheManager {
         }
     }
 
+    /**
+     * 响应歌曲收藏状态反转事件，同步更新内存缓存。
+     *
+     * @param song 发生变更的歌曲
+     * @param isFavorite 变更后的收藏状态
+     */
     fun onFavoriteToggled(
         song: Song,
         isFavorited: Boolean,
@@ -369,6 +399,12 @@ object UserLibraryCacheManager {
         }
     }
 
+    /**
+     * 响应单曲加入歌单事件，增量更新本地歌单曲目缓存。
+     *
+     * @param dirId 歌单目录 ID
+     * @param song 新增曲目
+     */
     fun onSongAddedToPlaylist(
         dirId: Long,
         song: Song,
@@ -376,6 +412,12 @@ object UserLibraryCacheManager {
         onSongsAddedToPlaylist(dirId, listOf(song))
     }
 
+    /**
+     * 响应批量曲目加入歌单事件，增量更新本地歌单曲目缓存。
+     *
+     * @param dirId 歌单目录 ID
+     * @param songs 批量新增曲目列表
+     */
     fun onSongsAddedToPlaylist(
         dirId: Long,
         songs: List<Song>,
@@ -444,6 +486,12 @@ object UserLibraryCacheManager {
         }
     }
 
+    /**
+     * 响应歌单批量移除歌曲事件，同步更新本地缓存与歌曲总数。
+     *
+     * @param dissId 歌单唯一 ID
+     * @param songMids 待移除曲目的 MID 集合
+     */
     fun onSongsRemovedFromPlaylist(
         dirId: Long,
         songs: List<Song>,
@@ -502,6 +550,12 @@ object UserLibraryCacheManager {
         }
     }
 
+    /**
+     * 响应专辑收藏状态反转事件，同步更新收藏专辑列表。
+     *
+     * @param album 专辑对象
+     * @param isFavorited 变更后的收藏状态
+     */
     fun onAlbumFavoriteToggled(
         album: Album,
         isFavorited: Boolean,
@@ -558,6 +612,13 @@ object UserLibraryCacheManager {
             }
     }
 
+    /**
+     * 全量加载用户音乐库核心资产（创建歌单、收藏歌单、收藏专辑）。
+     *
+     * @param apiService 网络 API 实例
+     * @param forceRefresh 是否强制自网络刷新
+     * @return 包含歌单与专辑集合的用户音乐库对象
+     */
     suspend fun loadLibrary(
         apiService: MusicApiService,
         forceRefresh: Boolean = false,
@@ -618,6 +679,13 @@ object UserLibraryCacheManager {
         return File(dir, "${dirId}_$tid.json")
     }
 
+    /**
+     * 从内存或本地磁盘获取指定歌单的曲目缓存包装对象。
+     *
+     * @param dirId 歌单目录 ID
+     * @param tid 歌单全局唯一 ID
+     * @return 歌单曲目缓存包装，不存在返回 null
+     */
     fun getPlaylistSongsCache(
         dirId: Long,
         tid: Long,
@@ -642,11 +710,25 @@ object UserLibraryCacheManager {
         return null
     }
 
+    /**
+     * 快速读取已缓存的歌单曲目列表。
+     *
+     * @param dirId 歌单目录 ID
+     * @param tid 歌单全局唯一 ID
+     * @return 缓存的歌曲列表，未命中返回 null
+     */
     fun getCachedPlaylistSongs(
         dirId: Long,
         tid: Long,
     ): List<Song>? = getPlaylistSongsCache(dirId, tid)?.songs
 
+    /**
+     * 判定指定歌单的曲目缓存是否处于有效期内。
+     *
+     * @param dirId 歌单目录 ID
+     * @param tid 歌单全局唯一 ID
+     * @return 缓存未过期返回 true
+     */
     fun isPlaylistSongsCacheValid(
         dirId: Long,
         tid: Long,
@@ -656,6 +738,13 @@ object UserLibraryCacheManager {
         return System.currentTimeMillis() - cache.fetchTimestamp < FAVORITE_SONGS_CACHE_TTL_MS
     }
 
+    /**
+     * 持久化保存指定歌单的完整曲目缓存。
+     *
+     * @param dissId 歌单唯一 ID
+     * @param songs 待缓存的歌曲列表
+     * @param songNum 歌单官方歌曲总数
+     */
     fun savePlaylistSongsCache(
         dirId: Long,
         tid: Long,
@@ -682,6 +771,13 @@ object UserLibraryCacheManager {
         }
     }
 
+    /**
+     * 加载指定歌单的完整歌曲列表（自动处理网络拉取与磁盘写入）。
+     *
+     * @param dissId 歌单唯一 ID
+     * @param forceRefresh 是否忽略缓存强制全量拉取
+     * @return 歌单内全部歌曲列表
+     */
     suspend fun loadPlaylistSongs(
         apiService: MusicApiService,
         dirId: Long,
@@ -719,6 +815,14 @@ object UserLibraryCacheManager {
         }
     }
 
+    /**
+     * 探测歌单首屏差量并与本地缓存合并对齐。
+     *
+     * @param dissId 歌单唯一 ID
+     * @param cachedSongs 当前持有的本地缓存列表
+     * @param officialSongNum 官方最新歌曲总数
+     * @return 对齐合并后的最新歌曲列表
+     */
     suspend fun probeAndSyncPlaylistFirstPage(
         apiService: MusicApiService,
         dirId: Long,
