@@ -123,7 +123,7 @@ object UpdateChecker {
 
                     val downloadUrl = resolveDownloadUrl(apkAssets, targetKeyword, htmlUrl)
                     if (!targetKeyword.isNullOrBlank() && downloadUrl == null) {
-                        // 该 Release 仅包含其他平台的专属包，当前平台判定为无适用更新
+                        // 当前平台判定为无适用更新
                         return@withContext UpdateResult.Latest(currentVersion)
                     }
 

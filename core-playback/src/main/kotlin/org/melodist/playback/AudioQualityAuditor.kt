@@ -795,7 +795,7 @@ object AudioQualityAuditor {
         val midRefDb = getBandAverageDb(smoothed, binResolutionHz, 2000, 8000)
 
         // 3. 扫描砖墙式低通截断：
-        // 扫描上限限制在 25kHz，避免硬件 Nyquist 滤波器频响干扰
+        // 扫描上限限制在 25kHz（Nyquist 频带上限）
         val scanStartBin = (10000 / binResolutionHz).toInt().coerceIn(0, smoothed.size - 1)
         val scanEndBin = ((min(nyquistHz.toFloat(), 25000f)) / binResolutionHz).toInt().coerceIn(0, smoothed.size - 1)
         val stepBins = max(3, (800 / binResolutionHz).toInt())

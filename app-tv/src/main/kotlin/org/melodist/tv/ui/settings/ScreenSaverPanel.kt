@@ -413,7 +413,7 @@ fun ScreenSaverOverlay(
         focusRequester.requestFocus()
     }
 
-    // 像素微移：业界 OLED 防烧屏采用离散微步策略（每 60 秒平滑微移一步，其余 57.5 秒完全静止）
+    // 像素微移：每 60 秒位移一步，其余 57.5 秒保持静止
     val shiftCoordinates =
         remember {
             listOf(

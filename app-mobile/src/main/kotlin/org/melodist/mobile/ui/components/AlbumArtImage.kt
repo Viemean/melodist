@@ -33,7 +33,7 @@ import coil3.request.crossfade
  * 统一风格的专辑封面展示组件。
  * 具备精致圆角、微光立体描边与柔和落地阴影；
  * 支持多清晰度候选列表 (candidates) 与自动降级重试；
- * 显式配置 FilterQuality.Medium 抗锯齿滤波，避免图像下采样时产生摩尔纹与模糊失真；
+ * 配置 FilterQuality.Medium 抗锯齿滤波；
  * 默认关闭 crossfade 避免列表滑动时并发动画引起 Choreographer 丢帧，仅当 elevation > 0 时添加动态阴影。
  */
 @Composable

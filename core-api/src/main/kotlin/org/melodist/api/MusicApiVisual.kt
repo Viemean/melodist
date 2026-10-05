@@ -45,7 +45,7 @@ object MusicApiVisual {
     fun getAlbumCoverUrl(albumMid: String): String = getAlbumCoverCandidates(albumMid).firstOrNull().orEmpty()
 
     /**
-     * 获取单曲专属视觉封面候选列表 (T062 前缀: 1200x1200 -> 800x800 -> gtimg -> 500x500 -> 原画)
+     * 获取单曲封面候选列表 (T062 前缀: 1200x1200 -> 800x800 -> gtimg -> 500x500 -> 原画)
      */
     fun getSingleCoverCandidates(visualMid: String): List<String> {
         if (visualMid.isBlank()) return emptyList()
@@ -71,7 +71,7 @@ object MusicApiVisual {
 }
 
 /**
- * 针对无专辑或未带封面的单曲，通过歌曲详情接口动态解析单曲专属视觉 MID (vs[1])
+ * 针对无专辑封面单曲，通过歌曲详情接口解析视觉 MID (vs[1])
  */
 suspend fun MusicApiService.getSongVisualMid(songMid: String): String? =
     withContext(Dispatchers.IO) {

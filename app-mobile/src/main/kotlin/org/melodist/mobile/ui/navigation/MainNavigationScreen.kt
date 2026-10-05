@@ -267,7 +267,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
     val acrUiState by acrViewModel.uiState.collectAsState()
     // 识别成功后保存歌曲数据、时间戳与耗时文案，用于计算展开时的进度补偿及胶囊展示
     var acrSuccessData by remember { mutableStateOf<MobileAcrSuccessData?>(null) }
-    // 识别成功卡片展示状态（弹出后平滑缩回胶囊，胶囊继续常驻）
+    // 识别成功卡片展示状态
     var showAcrResultCard by remember { mutableStateOf(false) }
     // 卡片触摸/拖拽交互中状态（交互中挂起倒计时，防止中途强行缩回）
     var isAcrCardInteracting by remember { mutableStateOf(false) }
@@ -836,7 +836,7 @@ private fun RenderAppScreen(
                         }
                     }
 
-                    // 听歌识曲识别成功卡片（弹出 4 秒，宽度与顶栏胶囊一致，平滑缩回胶囊）
+                    // 听歌识曲识别成功卡片（展示 4 秒后缩回顶栏胶囊）
                     AnimatedVisibility(
                         visible = showAcrResultCard && acrSuccessData != null,
                         enter =

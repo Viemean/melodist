@@ -27,7 +27,7 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
         val authst = UserSession.profile.musicKey
 
         try {
-            // 阶段一：通过推荐 Feed 获取今日“每日30首”歌单专属 ID (disstid)
+            // 阶段一：通过推荐 Feed 获取“每日30首”歌单 ID (disstid)
             val feedPayload =
                 """
                 {
@@ -78,7 +78,7 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
 
             if (dailyDisstid <= 0L) dailyDisstid = 202L
 
-            // 阶段二：通过 uniform_get_Dissinfo 拉取专属推荐歌单全部歌曲与官方描述
+            // 阶段二：通过 uniform_get_Dissinfo 拉取推荐歌单全部歌曲与描述
             val dissPayload =
                 """
                 {
@@ -137,7 +137,7 @@ suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult 
         val authst = UserSession.profile.musicKey
 
         try {
-            // 阶段一：通过推荐 Feed 获取今日“百万收藏”专属 ID (disstid) 与封面
+            // 阶段一：通过推荐 Feed 获取“百万收藏”歌单 ID (disstid) 与封面
             val feedPayload =
                 """
                 {
@@ -190,7 +190,7 @@ suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult 
                 millionDisstid = 211111L
             }
 
-            // 阶段二：通过 uniform_get_Dissinfo 拉取专属推荐歌单全部歌曲与官方描述
+            // 阶段二：通过 uniform_get_Dissinfo 拉取推荐歌单全部歌曲与描述
             val dissPayload =
                 """
                 {
@@ -453,7 +453,7 @@ suspend fun MusicApiService.getRecommendFeed(
                     continue
                 }
 
-                // 仅保留基于特定种子衍生的“听「xxxx」的也在听 / 喜欢”专属货架，过滤掉“今日为你推荐”等非「xxxx」货架
+                // 仅保留“听「xxxx」的也在听 / 喜欢”货架，过滤非相关货架
                 val isTargetShelf =
                     titleContent.isNotBlank() &&
                         (rawTemplate.contains("听") || title.contains("听「")) &&

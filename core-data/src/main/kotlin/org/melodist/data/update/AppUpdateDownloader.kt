@@ -117,7 +117,7 @@ object AppUpdateDownloader {
                             output.write(buffer, 0, read)
                             bytesDownloaded += read
                             val now = System.currentTimeMillis()
-                            // 节流推送进度，避免过于高频触发 Compose 重组
+                            // 节流推送进度更新
                             if (now - lastEmitTime >= 100L || bytesDownloaded == totalBytes) {
                                 lastEmitTime = now
                                 val progress = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f

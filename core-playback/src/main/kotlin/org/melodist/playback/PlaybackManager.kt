@@ -1636,7 +1636,7 @@ object PlaybackManager {
         val isPlayerPlaying = exoPlayer?.isPlaying == true
         val isPlayerValid = exoPlayer?.currentMediaItem != null
 
-        // 异步平滑切换：保持当前音质继续发声不断流，在后台预加载新音质
+        // 保持当前音频流，后台预加载新音质
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = true
 

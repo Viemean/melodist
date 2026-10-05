@@ -801,7 +801,7 @@ fun PlaylistTvScreen(
         }
 
     // 左侧封面联动逻辑：随列表光标上下移动动态展示当前获焦单曲封面；光标在控制区时展示歌单固定封面。
-    // 返回态下在实际 FocusRequester 获得焦点前的首帧预置为目标曲目，防止封面回退产生瞬时闪烁。
+    // 返回态首帧预置焦点目标曲目
     val effectiveFocusSongIndex =
         focusedSongIndex ?: if (isReturning && returnTargetIndex in playlistSongs.indices) {
             returnTargetIndex
@@ -875,7 +875,7 @@ fun PlaylistTvScreen(
         }
     }
 
-    // 播放态拦截返回键：平滑收起歌词并回到歌单列表
+    // 播放态拦截返回键：收起歌词并返回歌单列表
     BackHandler(enabled = screenMode == PlaylistScreenMode.Player) {
         if (showArtistAlbumDialog) {
             showArtistAlbumDialog = false

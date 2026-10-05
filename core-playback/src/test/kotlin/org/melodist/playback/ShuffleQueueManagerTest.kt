@@ -71,9 +71,9 @@ class ShuffleQueueManagerTest {
         val song2 = manager.next(songs)
         manager.next(songs)
 
-        // 按上一首：精准退回 song2
+        // 按上一首：回退至 song2
         assertEquals(song2, manager.previous())
-        // 再按上一首：精准退回 song1
+        // 再按上一首：回退至 song1
         assertEquals(song1, manager.previous())
     }
 
@@ -103,7 +103,7 @@ class ShuffleQueueManagerTest {
         val targetIndex = 8
         manager.promoteToNext(targetIndex)
 
-        // peekNext 与 next 必须精准返回 targetIndex
+        // peekNext 与 next 返回 targetIndex
         assertEquals(targetIndex, manager.peekNext())
         val actualNext = manager.next(songs)
         assertEquals(targetIndex, actualNext)

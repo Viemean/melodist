@@ -176,7 +176,7 @@ fun AcrTvScreen(
         }
     }
 
-    // 首次进入自动暂停原播放（避免麦克风自拾音干扰）并启动识别
+    // 暂停当前播放并启动识别
     LaunchedEffect(Unit) {
         if (originalIsPlaying) {
             PlaybackManager.pause()
@@ -210,7 +210,7 @@ fun AcrTvScreen(
         }
     }
 
-    // 点击静音按钮：平滑解除静音，按钮向下滑出，播放控制栏向上浮现
+    // 解除静音并展示底部控制栏
     fun unmuteAndShowPlayerControls() {
         PlaybackManager.setMuted(false)
         hasUnmutedToPlayer = true
@@ -350,7 +350,7 @@ fun AcrTvScreen(
 
                         Spacer(modifier = Modifier.height(18.dp))
 
-                        // 操作控制按钮组：点击静音后平滑向下隐藏，给用户一直在一个界面的沉浸感
+                        // 操作控制按钮组
                         val isFav = favoriteSongMids.contains(activeSong.songMid)
                         AnimatedVisibility(
                             visible = !hasUnmutedToPlayer,
@@ -593,7 +593,7 @@ fun AcrTvScreen(
             }
         }
 
-        // 解除静音后，底部播放器控制栏平滑向上浮现
+        // 解除静音后展示底部控制栏
         val activeSong = (uiState as? AcrUiState.Success)?.song ?: currentSong
         val canFavorite = PlaybackManager.isSongFavoriteSupported(activeSong)
         val isFav = activeSong != null && favoriteSongMids.contains(activeSong.songMid)

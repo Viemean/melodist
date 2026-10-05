@@ -632,7 +632,7 @@ fun FullPlayerSheet(
                     isMuted = isMuted,
                     onTogglePlayPause = {
                         if (isMuted) {
-                            // 静音中：解除静音，若音质不同则平滑切回用户首选音质
+                            // 解除静音，若音质不同则切换为首选音质
                             PlaybackManager.setMuted(false)
                             val preferred = PlaybackManager.preferredTier.value
                             if (PlaybackManager.currentTier.value != preferred) {

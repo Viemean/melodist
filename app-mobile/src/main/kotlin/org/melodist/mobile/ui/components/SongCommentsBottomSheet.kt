@@ -86,7 +86,7 @@ fun SongCommentsBottomSheet(
     song: Song,
     onDismissRequest: () -> Unit,
 ) {
-    // 锁定打开评论弹窗时的目标歌曲，防止后台自动切歌导致当前阅读的评论区被意外刷新
+    // 绑定打开弹窗时的目标歌曲 ID
     val targetSong = remember { song }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -299,7 +299,7 @@ fun SongCommentsBottomSheet(
                         }
                     }
 
-                    // 滑动到底部自动加载下一页（采用 snapshotFlow 精准监听，避免重组循环振荡）
+                    // 滑动到底部触发加载下一页
                     LaunchedEffect(listState, hasMore) {
                         snapshotFlow {
                             val layoutInfo = listState.layoutInfo

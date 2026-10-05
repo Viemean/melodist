@@ -39,7 +39,7 @@ import org.melodist.tv.ui.theme.toMonetContainer
 
 /**
  * 通用曲目关联歌手与专辑操作面板（长按或播放页呼出）
- * 支持多歌手卡片左右平滑横滑，单专辑卡片直接跳转
+ * 支持多歌手卡片横向滑动与单专辑卡片跳转
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -105,7 +105,7 @@ fun SongArtistAlbumDialog(
                                     event.key == Key.Enter ||
                                     event.key == Key.NumPadEnter
                             if (isConfirmKey) {
-                                // 拦截打开弹窗后 0.5 秒内的确认按键，避免长按误触直接触发点击
+                                // 拦截打开弹窗后 0.5 秒内的确认按键
                                 return@onPreviewKeyEvent true
                             }
                         }

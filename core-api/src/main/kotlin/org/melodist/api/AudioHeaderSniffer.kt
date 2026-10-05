@@ -30,7 +30,7 @@ object AudioHeaderSniffer {
             .readTimeout(3, TimeUnit.SECONDS)
             .build()
 
-    // 缓存已嗅探的 URL 规格，容量 200，避免重复弹窗时再次触发网络请求
+    // 缓存已嗅探的 URL 规格，容量 200
     private val specCache =
         object : java.util.LinkedHashMap<String, SniffedAudioSpec>(64, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SniffedAudioSpec>?): Boolean = size > 200

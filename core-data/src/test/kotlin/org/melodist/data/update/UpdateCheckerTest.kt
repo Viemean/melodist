@@ -49,7 +49,7 @@ class UpdateCheckerTest {
                 "melodist-mobile-1.2.0.apk" to "https://github.com/melodist/mobile.apk",
             )
 
-        // 混合包时精准匹配各自端
+        // 混合包时匹配目标平台
         org.junit.jupiter.api.Assertions.assertEquals(
             "https://github.com/melodist/mobile.apk",
             UpdateChecker.resolveDownloadUrl(mixedAssets, "mobile", "https://fallback.com"),
@@ -80,7 +80,7 @@ class UpdateCheckerTest {
             "https://github.com/melodist/mobile-standard.apk",
             UpdateChecker.resolveDownloadUrl(fullMixedAssets, "mobile", "https://fallback.com"),
         )
-        // originos 请求必须精准匹配 originos 包
+        // originos 请求匹配 originos 包
         org.junit.jupiter.api.Assertions.assertEquals(
             "https://github.com/melodist/mobile-originos.apk",
             UpdateChecker.resolveDownloadUrl(fullMixedAssets, "originos", "https://fallback.com"),

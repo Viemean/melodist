@@ -111,7 +111,7 @@ fun MobileLyricsView(
         var isUserInteracting by remember { mutableStateOf(false) }
         var isInitialAligned by remember { mutableStateOf(false) }
 
-        // 仅在用户手指手动拖拽歌词时暂停自动滚动，手指抬起 3 秒后自动恢复并居中平滑对齐
+        // 手动拖拽歌词时暂停自动滚动，抬手 3 秒后恢复居中滚动
         LaunchedEffect(isDragged) {
             if (isDragged) {
                 isUserInteracting = true
@@ -150,7 +150,7 @@ fun MobileLyricsView(
             }
         }
 
-        // 歌曲播放行进或跳转时，整屏歌词平滑滚动使高亮行居中
+        // 播放或跳转时滚动使高亮行居中
         LaunchedEffect(activeIndex, isUserInteracting) {
             if (!isUserInteracting && activeIndex in lyrics.indices) {
                 val targetIndex = activeIndex + 1

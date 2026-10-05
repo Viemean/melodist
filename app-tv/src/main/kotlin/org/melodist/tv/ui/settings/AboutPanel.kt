@@ -186,7 +186,7 @@ fun AboutPanel(menuRequester: FocusRequester) {
             }
         }
 
-        // 1. 系统与运行环境 (平滑随焦点滑动，无多余嵌套方框)
+        // 1. 系统与运行环境
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(2.dp),

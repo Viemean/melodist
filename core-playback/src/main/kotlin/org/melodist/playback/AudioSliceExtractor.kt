@@ -19,7 +19,7 @@ data class AudioSliceResult(
 
 /**
  * 高性能本地/缓存音频切片声学指纹提取器
- * 使用 Android 原生 MediaExtractor + MediaCodec 精准 seek 到歌曲高潮/主歌切片 (15s ~ 23s)，
+ * 使用 MediaExtractor + MediaCodec 定位音频切片 (15s ~ 23s)，
  * 解码后重采样为 8000Hz 单声道 PCM，送入 AcousticFingerprintExtractor 提取声学特征。
  */
 object AudioSliceExtractor {

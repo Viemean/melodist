@@ -124,7 +124,7 @@ class MainActivity : ComponentActivity() {
                 intent: Intent?,
             ) {
                 if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                    // 电视机休眠息屏：主动暂停并保存播放进度，防止开机继续播放惊吓用户
+                    // 电视休眠息屏：暂停播放并保存当前进度
                     PlaybackManager.pause()
                     PlaybackManager.savePlaybackState()
                 }
@@ -228,7 +228,7 @@ class MainActivity : ComponentActivity() {
                         var newVersionDialogResult by remember { mutableStateOf<org.melodist.data.update.UpdateResult.NewVersion?>(null) }
 
                         LaunchedEffect(Unit) {
-                            // 启动错峰延时 3 秒，避开 TV 冷启动首屏数据渲染高峰
+                            // 延迟 3 秒启动后台预加载任务
                             kotlinx.coroutines.delay(3000)
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                 val result =

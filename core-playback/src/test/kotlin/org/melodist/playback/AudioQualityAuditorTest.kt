@@ -76,7 +76,7 @@ class AudioQualityAuditorTest {
         val binRes = (sampleRate / 2f) / bins
         val spectrum = FloatArray(bins)
 
-        // 构造真无损平滑衰减频谱 (2kHz=-20dB, 20kHz=-32dB, 22kHz=-38dB)
+        // 构造真无损衰减频谱 (2kHz=-20dB, 20kHz=-32dB, 22kHz=-38dB)
         for (i in 0 until bins) {
             val f = i * binRes
             spectrum[i] = -20f - (f / 22050f) * 18f
@@ -301,7 +301,7 @@ class AudioQualityAuditorTest {
                 tier = AudioQualityTier.HiRes,
             )
 
-        // 判定为 Hi-Res，避免受 46kHz 硬件低通截止影响导致降级
+        // 判定为 Hi-Res（46kHz 硬件低通频段）
         assertEquals(AudioQualityVerdict.AUTHENTIC, result.verdict)
         assertTrue(result.description.contains("高解析"))
     }
@@ -539,7 +539,7 @@ class AudioQualityAuditorTest {
         val binRes = (sampleRate / 2f) / bins
         val spectrum = FloatArray(bins)
 
-        // 模拟早期 70 年代暖色模拟磁带录音：高频从 10k 开始自然平滑滚降，在 20k 处降至 -65dB，无任何阶跃截断
+        // 模拟磁带录音：高频自 10k 滚降至 20k 处 -65dB，无阶跃截断
         for (i in 0 until bins) {
             val f = i * binRes
             spectrum[i] = -18f - (f / 22050f) * 48f

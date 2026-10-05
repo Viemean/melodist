@@ -51,7 +51,7 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
     if (selectedSwatch == null) {
         val validSwatches = palette.swatches.filter { isValidColor(it) }
         if (validSwatches.isNotEmpty()) {
-            // 对高饱和度赋予极高权重，确保白底插画中的小面积彩色（美甲、腮红等）能被精准识别并放大为背景主题
+            // 提升高饱和度样本权重，提取主视觉强调色
             selectedSwatch =
                 validSwatches.maxByOrNull { swatch ->
                     ColorUtils.colorToHSL(swatch.rgb, hsl)

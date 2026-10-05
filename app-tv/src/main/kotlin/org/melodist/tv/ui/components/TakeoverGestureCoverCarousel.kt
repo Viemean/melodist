@@ -101,7 +101,7 @@ fun TakeoverGestureCoverCarousel(
         when (gesturePayload.state) {
             GestureSwipeState.DRAGGING -> {
                 animFraction.snapTo(gesturePayload.fraction)
-                // 超时看门狗：若 400ms 内未收到后续手势帧或结算指令，自动平滑弹回原位
+                // 超时看门狗：400ms 内未收到后续手势帧或指令则复位
                 delay(400L)
                 if (animFraction.value != 0f) {
                     animFraction.animateTo(

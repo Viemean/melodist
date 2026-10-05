@@ -4,7 +4,7 @@ import org.melodist.model.Song
 import kotlin.random.Random
 
 /**
- * 主流播放器洗牌算法管理器 (Fisher-Yates 伪随机置换队列 + 历史回溯 + 歌手平滑去聚集)
+ * 随机播放队列管理器 (Fisher-Yates 伪随机置换 + 历史回溯 + 歌手去聚集)
  */
 class ShuffleQueueManager(
     private val random: Random = Random.Default,
@@ -43,7 +43,7 @@ class ShuffleQueueManager(
             remaining[j] = temp
         }
 
-        // Spotify 平滑优化：若存在歌手信息，分散相邻同一歌手
+        // 分散相邻同一歌手
         if (songs.size == totalCount) {
             smoothArtistClustering(remaining, songs)
         }
@@ -168,7 +168,7 @@ class ShuffleQueueManager(
     }
 
     /**
-     * 平滑同一歌手聚集：在不破坏随机分布的前提下，尽量避免相邻歌曲为同一歌手
+     * 分散同一歌手聚集：降低相邻歌曲为同一歌手的概率
      */
     private fun smoothArtistClustering(
         indices: MutableList<Int>,

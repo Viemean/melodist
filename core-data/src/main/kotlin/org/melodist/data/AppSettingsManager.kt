@@ -498,7 +498,7 @@ object AppSettingsManager {
     }
 
     /**
-     * 异步后台精准统计应用缓存体积
+     * 异步统计应用缓存体积
      */
     fun refreshCacheUsage(context: Context? = null) {
         if (context != null && appContext == null) {

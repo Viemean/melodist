@@ -52,7 +52,7 @@ enum class MediaDetailScreenMode {
 
 /**
  * 电视端通用媒体详情骨架屏（专辑 / 歌手通用）
- * 底层基于 TvSplitPlaybackScaffold 统一分栏底座，支持就地双模态播放展开与平滑返回
+ * 基于 TvSplitPlaybackScaffold 分栏底座，支持双模态播放展开与返回
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -174,7 +174,7 @@ fun MediaDetailTvScaffold(
         }
     }
 
-    // 播放态拦截返回键：优先收起弹窗/全屏隐藏，最后平滑返回详情模式
+    // 播放态拦截返回键：优先收起弹窗/全屏，最终返回详情模式
     BackHandler(enabled = screenMode == MediaDetailScreenMode.Player) {
         if (showArtistAlbumDialog) {
             showArtistAlbumDialog = false
@@ -318,7 +318,7 @@ fun MediaDetailTvScaffold(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 标题、副信息与控制区通过 Crossfade 顺畅过渡
+            // 标题、副信息与控制区 Crossfade 过渡
             Crossfade(
                 targetState = isPlayerMode,
                 animationSpec = tween(durationMillis = 250),

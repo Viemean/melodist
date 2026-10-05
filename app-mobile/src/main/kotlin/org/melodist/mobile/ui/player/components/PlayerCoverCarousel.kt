@@ -280,7 +280,7 @@ private fun CoverCard(
 
     val cardShape = RoundedCornerShape(8.dp)
 
-    // 色相匹配的平滑复合落影（消除色阶断层与摩尔纹）
+    // 封面投影层
     val spotColor =
         if (isDark) {
             shadowTint.copy(alpha = 0.55f)

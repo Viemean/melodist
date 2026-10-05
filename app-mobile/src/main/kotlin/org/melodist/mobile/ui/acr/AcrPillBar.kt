@@ -51,7 +51,7 @@ private enum class PillMode {
 /**
  * 灵动岛风格识别胶囊条。
  *
- * - Listening 态：识别计时（0.1s 开始精准递增）+ 固定取消按鈕
+ * - Listening 态：识别计时（0.1s 递增）+ 固定取消按钮
  * - Success 态：封面缩略图 + 歌名/歌手 + 关闭按鈕，点击展开播放界面
  */
 @Composable

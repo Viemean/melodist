@@ -253,7 +253,7 @@ class LoginApiService(
             avatarUrl = defaultAvatar,
         )
 
-        // 第二阶段：自动通过 OAuth2 换取专属 musickey 完整 VIP 凭据
+        // 第二阶段：通过 OAuth2 换取 musickey VIP 凭据
         exchangeOAuthForMusicKey(cookies)
     }
 

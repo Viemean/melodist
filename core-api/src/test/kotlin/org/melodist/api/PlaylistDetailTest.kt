@@ -150,7 +150,7 @@ class PlaylistDetailTest {
         // 用户在选项列表中点击第 5 首
         val targetSong = partialUiList[4]
 
-        // 判定保护条件：若播放队列规模大于当前 UI 列表且包含该歌曲，则避免执行覆盖
+        // 队列保护判定：播放队列包含当前曲目且长度大于目标列表时不予覆盖
         val shouldProtectQueue =
             fullPlaybackQueue.size > partialUiList.size &&
                 fullPlaybackQueue.any { it.songMid == targetSong.songMid }

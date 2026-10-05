@@ -52,7 +52,7 @@ fun SettingsTvScreen(
     var selectedCategory by remember { mutableStateOf(SettingsCategory.Account) }
     var selectedChannel by remember { mutableStateOf(LoginChannel.QQ) }
 
-    // 焦点流转拓扑：为每个左侧分类创建专属 FocusRequester
+    // 焦点流转：为每个左侧分类创建 FocusRequester
     val menuFocusRequesters =
         remember {
             SettingsCategory.entries.associateWith { FocusRequester() }
@@ -100,7 +100,7 @@ fun SettingsTvScreen(
                 modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(32.dp),
             ) {
-                // 左侧设置分类列表 (使用 LazyColumn 支持 D-Pad 顺畅导航与平滑带入视口)
+                // 左侧设置分类列表
                 LazyColumn(
                     modifier =
                         Modifier

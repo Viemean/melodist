@@ -72,7 +72,7 @@ suspend fun MusicApiService.getLyrics(
             }
         }
 
-        // 若本曲未提供有效歌词（如翻唱单曲、未挂载专辑的原声单曲返回 code 24001），通过歌名与歌手进行同名曲目歌词智能匹配
+        // 若本曲未提供有效歌词（code 24001），通过歌名与歌手检索匹配歌词
         if (rawLyric.isBlank() && songName.isNotBlank()) {
             try {
                 val cleanTitle = songName.replace(Regex("""\s*[\(\[（【].*?[\)\]）】]"""), "").trim().ifBlank { songName.trim() }

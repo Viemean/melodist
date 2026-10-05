@@ -249,7 +249,7 @@ object MonetColorExtractor {
 
 /**
  * 提取专辑主色作为背景色
- * 支持切歌时平滑淡入过渡动画
+ * 支持切歌时的淡入过渡动画
  */
 @Composable
 fun rememberMonetSurfaceColor(coverUrl: String? = null): Color {

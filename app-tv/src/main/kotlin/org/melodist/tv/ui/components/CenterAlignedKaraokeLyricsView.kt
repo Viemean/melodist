@@ -69,7 +69,7 @@ fun CenterAlignedKaraokeLyricsView(
     val takeoverScroll by org.melodist.tv.connect.TakeoverLyricsState.scrollFlow
         .collectAsState()
 
-    // 自动平滑居中滚动至当前行 / 接收接管端歌词滚动同步
+    // 居中滚动至当前行 / 接收接管端歌词滚动同步
     LaunchedEffect(activeIndex, takeoverScroll) {
         val takeover = takeoverScroll
         if (takeover != null && takeover.isUserScrolling) {
@@ -232,7 +232,7 @@ private fun LyricLineItem(
             lineHeight = (baseFontSize * 1.42f).sp,
         )
 
-        // 译文渲染 (置于下方，颜色平滑过渡)
+        // 译文渲染 (置于下方，带颜色过渡)
         if (line.hasTranslation && showBilingual) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(

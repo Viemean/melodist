@@ -116,7 +116,7 @@ fun PlayerProgressSlider(
                     val activeWidth = size.width * progressFraction
                     val cachedWidth = size.width * actualCacheFraction
 
-                    // 1. 未播放平滑底轨（高对比度半透明凹槽）
+                    // 1. 未播放底轨（半透明底色）
                     drawLine(
                         color = trackInactiveColor,
                         start = Offset(0f, centerY),
@@ -136,7 +136,7 @@ fun PlayerProgressSlider(
                         )
                     }
 
-                    // 3. 已播放进度线（莫奈强调色平滑覆盖）
+                    // 3. 已播放进度线（强调色覆盖）
                     if (activeWidth > 0f) {
                         drawLine(
                             color = effectiveAccent,
@@ -147,7 +147,7 @@ fun PlayerProgressSlider(
                         )
                     }
 
-                    // 4. 纯实色平滑滑块（拖拽或按压时微放大反馈，无任何外圈割裂）
+                    // 4. 进度条滑块（支持拖拽与按压尺寸反馈）
                     if (isEngaged || activeWidth > 0f) {
                         drawCircle(
                             color = effectiveAccent,

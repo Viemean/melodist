@@ -52,7 +52,7 @@ data class RotatingCardItem(
 )
 
 /**
- * 通用平滑轮换卡片组件：支持水平滑出滑入 + 渐显渐隐 + 动态 Monet 取色
+ * 轮换卡片组件：支持水平滑出滑入与动态 Monet 取色
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -243,7 +243,7 @@ fun RotatingTrackCard(
             }
 
             // 下半部：大字标题 + 小字副标题 + 悬浮播放按钮
-            // 垂直渐变过渡层，用于平滑过渡上方封面与底部文字区域
+            // 垂直渐变过渡层：连接上方封面与底部文字区域
             Box(
                 modifier =
                     Modifier

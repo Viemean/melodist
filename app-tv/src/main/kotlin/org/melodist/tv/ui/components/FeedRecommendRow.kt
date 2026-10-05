@@ -60,7 +60,7 @@ fun FeedRecommendRow(
     // 轮换槽位控制：0..5（每轮 6 张卡片，6 轮完整轮播 36 首）
     var rotationIndex by remember { mutableIntStateOf(0) }
 
-    // 15 秒固定轮换定时器：持续平滑更新
+    // 15 秒固定轮换定时器
     LaunchedEffect(songs.size) {
         if (songs.size < 6) return@LaunchedEffect
         while (isActive) {

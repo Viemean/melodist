@@ -290,7 +290,7 @@ object WebDavManager {
                         parsedPicLen > 512 &&
                         parsedPicLen <= 8 * 1024 * 1024
                     ) {
-                        // 若内嵌封面声明长度超过 256KB，按偏移量精准拉取完整图片
+                        // 若内嵌封面声明长度超过 256KB，按偏移量拉取完整图片
                         val picStart = parsedPicOffset
                         val picEnd = picStart + parsedPicLen - 1
                         val picBytes = webDavService.fetchRangeBytes(server, rawCache.href, picStart, picEnd)

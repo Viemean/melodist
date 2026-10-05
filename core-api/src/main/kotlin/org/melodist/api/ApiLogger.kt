@@ -1,7 +1,7 @@
 package org.melodist.api
 
 /**
- * 跨平台轻量级日志抽象门面
+ * 跨平台日志抽象门面
  * 允许 Android 宿主端注入 Log.w/e，在纯 JVM 测试与非 Android 环境下默认输出至标准错误流。
  */
 object ApiLogger {

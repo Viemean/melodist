@@ -252,7 +252,7 @@ fun HomeTvScreen(
                 },
             )
 
-            // 专属推荐轨道（听 xxx 的也喜欢听，平滑轮换与就地播放）
+            // 推荐轨道（包含“听 xxx 的也喜欢听”轮换与就地播放）
             org.melodist.tv.ui.components.FeedRecommendRow(
                 cardWidth = metrics.trackCardWidth,
                 rowFocusRequester = feedRowRequester,

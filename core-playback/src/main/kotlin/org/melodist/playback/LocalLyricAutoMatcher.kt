@@ -92,7 +92,7 @@ object LocalLyricAutoMatcher {
     }
 
     /**
-     * 异步为本地或 WebDAV 歌曲智能匹配官方歌词
+     * 异步为本地或 WebDAV 歌曲匹配歌词
      * @param song 当前播放歌曲
      * @param audioFile 可读的本地音频文件或已缓存的 WebDAV 文件
      * @param currentLyrics 当前已装载的本地歌词
@@ -214,7 +214,7 @@ object LocalLyricAutoMatcher {
      * 1. 若已有校准记录则直接返回 (0 网络开销)
      * 2. 若本地音频文件存在，提取切片声学指纹与精确起始秒数送入 ACR
      * 3. 毫秒级差分计算: offsetMs = ((acrOffset - sliceStart) * 1000).toLong()
-     * 4. 误差小于 150ms 视为精准对齐，保存 0ms；反之持久化 offsetMs，供播放与歌词组件动态平移
+     * 4. 误差小于 150ms 保存为 0ms；反之持久化 offsetMs 供歌词平移
      */
     suspend fun calibrateOffsetAsync(
         song: Song,

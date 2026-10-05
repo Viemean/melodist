@@ -800,7 +800,7 @@ object MelodistCacheManager : MediaCacheExporter {
         }
 
     /**
-     * 字节单位友好格式化
+     * 字节单位容量格式化
      */
     fun formatBytes(bytes: Long): String {
         if (bytes <= 0L) return "0 B"
