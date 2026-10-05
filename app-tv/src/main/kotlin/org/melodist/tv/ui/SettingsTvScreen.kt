@@ -144,7 +144,7 @@ fun SettingsTvScreen(
                             .border(
                                 BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
                                 MelodistShapes.CardCorner,
-                            ).padding(32.dp),
+                            ).padding(horizontal = 32.dp, vertical = 24.dp),
                 ) {
                     CompositionLocalProvider(LocalMonetSurface provides surfaceColor) {
                         when (selectedCategory) {

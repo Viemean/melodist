@@ -6,8 +6,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
@@ -323,15 +325,20 @@ fun AccountLoginPanel(
     val seconds = remainingSeconds % 60
     val timerText = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 
+    val scrollState = rememberScrollState()
+
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.Center,
     ) {
         // 顶部横向 3 个登录渠道切换按钮
         Row(
-            modifier = Modifier.width(420.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.width(390.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             LoginChannel.entries.forEachIndexed { index, channel ->
@@ -339,7 +346,7 @@ fun AccountLoginPanel(
                 val btnModifier =
                     Modifier
                         .weight(1f)
-                        .height(44.dp)
+                        .height(38.dp)
                         .then(if (index == 0 && menuRequester != null) Modifier.focusProperties { left = menuRequester } else Modifier)
 
                 Button(
@@ -380,7 +387,7 @@ fun AccountLoginPanel(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = channel.label,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
@@ -390,16 +397,16 @@ fun AccountLoginPanel(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // 登录二维码卡片
         Box(
             modifier =
                 Modifier
-                    .size(280.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .size(210.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(Color.White)
-                    .padding(16.dp),
+                    .padding(12.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (qrImageBitmap != null) {
@@ -417,26 +424,26 @@ fun AccountLoginPanel(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 状态文字与倒计时
         Text(
             text = statusText,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             color = Color.White,
             textAlign = TextAlign.Center,
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = "二维码剩余有效时间：$timerText",
-            fontSize = 13.sp,
-            color = Color.White,
+            fontSize = 12.sp,
+            color = Color.White.copy(alpha = 0.8f),
             textAlign = TextAlign.Center,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 底部刷新按钮
         Button(
@@ -467,21 +474,21 @@ fun AccountLoginPanel(
                             shape = MelodistShapes.ButtonCorner,
                         ),
                 ),
-            scale = ButtonDefaults.scale(focusedScale = 1.08f),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
+            scale = ButtonDefaults.scale(focusedScale = 1.06f),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
                     contentDescription = "刷新",
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
                 Text(
                     text = "手动刷新二维码",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                 )
             }
