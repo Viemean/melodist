@@ -143,6 +143,7 @@ fun PlaylistTvScreen(
     albumMid: String = "",
     isFavoritePlaylist: Boolean = (categoryId == "favorites"),
     isReturningFromPlayer: Boolean = false,
+    isReturningFromSubScreen: Boolean = false,
     songs: List<Song> = emptyList(),
     currentPlayingSongId: Long? = null,
     onPlayAll: () -> Unit = {},
@@ -445,7 +446,8 @@ fun PlaylistTvScreen(
             return@LaunchedEffect
         }
 
-        if (hasValidCache && isReturningFromPlayer) {
+        val isReturning = isReturningFromPlayer || isReturningFromSubScreen
+        if (hasValidCache && isReturning) {
             playlistSongs = PlaylistScreenCache.songs
             totalCount = PlaylistScreenCache.totalCount
             hasMore = PlaylistScreenCache.hasMore
@@ -758,10 +760,58 @@ fun PlaylistTvScreen(
             else -> subtitle
         }
 
-    // 左侧封面联动逻辑：随列表光标上下移动动态展示当前获焦单曲封面；光标在控制区时展示歌单固定封面
+    val isReturning = isReturningFromPlayer || isReturningFromSubScreen
+
+    val returnTargetIndex =
+        remember(playlistSongs, isReturning) {
+            if (!isReturning || playlistSongs.isEmpty()) {
+                -1
+            } else {
+                // 1. 如果有由于长按进入歌手/专辑而记录的目标歌曲，优先恢复到该歌曲位置
+                val actionSongIndex =
+                    if (!PlaylistScreenCache.targetReturnSongMid.isNullOrBlank() || (PlaylistScreenCache.targetReturnSongId ?: 0L) != 0L) {
+                        playlistSongs.indexOfFirst { song ->
+                            (!PlaylistScreenCache.targetReturnSongMid.isNullOrBlank() && song.songMid == PlaylistScreenCache.targetReturnSongMid) ||
+                                ((PlaylistScreenCache.targetReturnSongId ?: 0L) != 0L && song.songId == PlaylistScreenCache.targetReturnSongId)
+                        }
+                    } else {
+                        -1
+                    }
+                val cachedActionIndex = PlaylistScreenCache.targetReturnIndex
+
+                // 2. 如果是从全屏播放器返回且没有明确的长按目标歌曲，尝试定位当前正在播放的曲目
+                val playingIndex =
+                    if (isReturningFromPlayer && actionSongIndex < 0 && cachedActionIndex !in playlistSongs.indices) {
+                        playlistSongs.indexOfFirst {
+                            (it.songMid.isNotBlank() && it.songMid == currentSong?.songMid) ||
+                                (it.songId != 0L && it.songId == currentSong?.songId)
+                        }
+                    } else {
+                        -1
+                    }
+
+                when {
+                    actionSongIndex >= 0 -> actionSongIndex
+                    cachedActionIndex in playlistSongs.indices -> cachedActionIndex
+                    playingIndex >= 0 -> playingIndex
+                    PlaylistScreenCache.lastFocusedIndex in playlistSongs.indices -> PlaylistScreenCache.lastFocusedIndex
+                    else -> PlaylistScreenCache.lastPlayedIndex.coerceIn(0, playlistSongs.size - 1)
+                }
+            }
+        }
+
+    // 左侧封面联动逻辑：随列表光标上下移动动态展示当前获焦单曲封面；光标在控制区时展示歌单固定封面。
+    // 返回态下在实际 FocusRequester 获得焦点前的首帧预置为目标曲目，防止封面回退产生瞬时闪烁。
+    val effectiveFocusSongIndex =
+        focusedSongIndex ?: if (isReturning && returnTargetIndex in playlistSongs.indices) {
+            returnTargetIndex
+        } else {
+            null
+        }
+
     val activeCoverSong =
-        if (focusedSongIndex != null) {
-            playlistSongs.getOrNull(focusedSongIndex!!)
+        if (effectiveFocusSongIndex != null) {
+            playlistSongs.getOrNull(effectiveFocusSongIndex)
         } else {
             null
         }
@@ -785,24 +835,6 @@ fun PlaylistTvScreen(
             playlistSongs.firstOrNull()?.coverUrl?.isNotBlank() == true -> playlistSongs.first().coverUrl
             displayAlbumMid.isNotBlank() -> MusicApiService.getAlbumCoverUrl(displayAlbumMid)
             else -> ""
-        }
-
-    val returnTargetIndex =
-        remember(playlistSongs, isReturningFromPlayer) {
-            if (!isReturningFromPlayer || playlistSongs.isEmpty()) {
-                -1
-            } else {
-                val playingIndex =
-                    playlistSongs.indexOfFirst {
-                        (it.songMid.isNotBlank() && it.songMid == currentSong?.songMid) ||
-                            (it.songId != 0L && it.songId == currentSong?.songId)
-                    }
-                when {
-                    playingIndex >= 0 -> playingIndex
-                    PlaylistScreenCache.lastFocusedIndex in playlistSongs.indices -> PlaylistScreenCache.lastFocusedIndex
-                    else -> PlaylistScreenCache.lastPlayedIndex.coerceIn(0, playlistSongs.size - 1)
-                }
-            }
         }
 
     var screenMode by remember { mutableStateOf(PlaylistScreenMode.List) }
@@ -897,11 +929,13 @@ fun PlaylistTvScreen(
     }
 
     // 焦点与滚动生命周期：首次进入默认选中“播放全部”按钮；播放后或二级页面返回时定位并聚焦到记忆曲目
-    LaunchedEffect(isReturningFromPlayer, playlistSongs.size) {
-        if (isReturningFromPlayer && returnTargetIndex >= 0 && playlistSongs.isNotEmpty()) {
+    LaunchedEffect(isReturning, playlistSongs.size) {
+        if (isReturning && returnTargetIndex >= 0 && playlistSongs.isNotEmpty()) {
+            dynamicReturnTargetIndex = returnTargetIndex
+            isPlayAllFocused = false
             listState.scrollToItem((returnTargetIndex - 1).coerceAtLeast(0))
             var focused = false
-            for (attempt in 0..5) {
+            for (attempt in 0..7) {
                 kotlinx.coroutines.delay(if (attempt == 0) 100L else 60L)
                 try {
                     returnSongRequester.requestFocus()
@@ -915,12 +949,19 @@ fun PlaylistTvScreen(
                     playAllRequester.requestFocus()
                 } catch (_: Exception) {
                 }
+            } else {
+                PlaylistScreenCache.clearTargetReturnSong()
             }
-        } else if (!isReturningFromPlayer) {
-            kotlinx.coroutines.delay(60)
-            try {
-                playAllRequester.requestFocus()
-            } catch (_: Exception) {
+        } else if (!isReturning) {
+            var focused = false
+            for (attempt in 0..3) {
+                kotlinx.coroutines.delay(if (attempt == 0) 60L else 40L)
+                try {
+                    playAllRequester.requestFocus()
+                    focused = true
+                    break
+                } catch (_: Exception) {
+                }
             }
         }
     }
@@ -1015,6 +1056,12 @@ fun PlaylistTvScreen(
                 },
                 onSongLongClick = { song ->
                     if (song.canShowArtistAlbumDialog) {
+                        val index =
+                            playlistSongs.indexOfFirst {
+                                (it.songMid.isNotBlank() && it.songMid == song.songMid) ||
+                                    (it.songId != 0L && it.songId == song.songId)
+                            }
+                        PlaylistScreenCache.setTargetReturnSong(song, index)
                         actionSong = song
                     }
                 },
@@ -1091,9 +1138,55 @@ fun PlaylistTvScreen(
                 showArtistAlbumDialog = showArtistAlbumDialog,
                 onDismissArtistAlbumDialog = { showArtistAlbumDialog = false },
                 actionSong = actionSong,
-                onDismissActionSongDialog = { actionSong = null },
-                onNavigateToArtist = onNavigateToArtist,
-                onNavigateToAlbum = onNavigateToAlbum,
+                onDismissActionSongDialog = {
+                    val songToRestore = actionSong
+                    actionSong = null
+                    if (songToRestore != null) {
+                        val index =
+                            playlistSongs.indexOfFirst {
+                                (it.songMid.isNotBlank() && it.songMid == songToRestore.songMid) ||
+                                    (it.songId != 0L && it.songId == songToRestore.songId)
+                            }
+                        if (index >= 0) {
+                            dynamicReturnTargetIndex = index
+                            isPlayAllFocused = false
+                            coroutineScope.launch {
+                                for (attempt in 0..3) {
+                                    kotlinx.coroutines.delay(if (attempt == 0) 50L else 40L)
+                                    try {
+                                        returnSongRequester.requestFocus()
+                                        break
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                onNavigateToArtist = { mid, name ->
+                    actionSong?.let { song ->
+                        val index =
+                            playlistSongs.indexOfFirst {
+                                (it.songMid.isNotBlank() && it.songMid == song.songMid) ||
+                                    (it.songId != 0L && it.songId == song.songId)
+                            }
+                        PlaylistScreenCache.setTargetReturnSong(song, index)
+                    }
+                    actionSong = null
+                    onNavigateToArtist(mid, name)
+                },
+                onNavigateToAlbum = { mid, name ->
+                    actionSong?.let { song ->
+                        val index =
+                            playlistSongs.indexOfFirst {
+                                (it.songMid.isNotBlank() && it.songMid == song.songMid) ||
+                                    (it.songId != 0L && it.songId == song.songId)
+                            }
+                        PlaylistScreenCache.setTargetReturnSong(song, index)
+                    }
+                    actionSong = null
+                    onNavigateToAlbum(mid, name)
+                },
             )
         },
     )

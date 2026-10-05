@@ -186,6 +186,7 @@ class MainActivity : ComponentActivity() {
                         var currentDestination by remember { mutableStateOf<TvScreenDestination>(TvScreenDestination.Home) }
                         val routeStack = remember { mutableStateListOf<TvScreenDestination>() }
                         var isReturningFromPlayer by remember { mutableStateOf(false) }
+                        var isReturningFromSubScreen by remember { mutableStateOf(false) }
 
                         fun navigateTo(
                             destination: TvScreenDestination,
@@ -196,10 +197,12 @@ class MainActivity : ComponentActivity() {
                                 routeStack.clear()
                                 currentDestination = destination
                                 isReturningFromPlayer = false
+                                isReturningFromSubScreen = false
                                 return
                             }
                             if (currentDestination != destination) {
                                 isReturningFromPlayer = false
+                                isReturningFromSubScreen = false
                                 while (routeStack.size >= MAX_BACK_DEPTH) {
                                     val removed = routeStack.removeAt(0)
                                     saveableStateHolder.removeState(removed.key)
@@ -218,6 +221,7 @@ class MainActivity : ComponentActivity() {
                                 currentDestination = TvScreenDestination.Home
                             }
                             isReturningFromPlayer = (previous is TvScreenDestination.Player)
+                            isReturningFromSubScreen = true
                         }
 
                         var lastBackTime by remember { mutableLongStateOf(0L) }
@@ -436,6 +440,7 @@ class MainActivity : ComponentActivity() {
                                         albumMid = dest.albumMid,
                                         isFavoritePlaylist = (dest.categoryId == "favorites"),
                                         isReturningFromPlayer = isReturningFromPlayer,
+                                        isReturningFromSubScreen = isReturningFromSubScreen,
                                         onPlayAll = {},
                                         onPlayShuffle = {},
                                         onSongClick = {},

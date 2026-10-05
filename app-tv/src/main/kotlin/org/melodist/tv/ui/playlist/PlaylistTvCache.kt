@@ -14,6 +14,24 @@ object PlaylistScreenCache {
     var lockedAlbumMid: String = ""
     var lastPlayedIndex: Int = 0
     var lastFocusedIndex: Int = -1
+    var targetReturnSongMid: String? = null
+    var targetReturnSongId: Long? = null
+    var targetReturnIndex: Int = -1
+
+    fun setTargetReturnSong(
+        song: Song,
+        index: Int = -1,
+    ) {
+        targetReturnSongMid = song.songMid
+        targetReturnSongId = song.songId
+        targetReturnIndex = index
+    }
+
+    fun clearTargetReturnSong() {
+        targetReturnSongMid = null
+        targetReturnSongId = null
+        targetReturnIndex = -1
+    }
 
     fun matches(key: String): Boolean = lastCacheKey == key && songs.isNotEmpty()
 
@@ -27,6 +45,7 @@ object PlaylistScreenCache {
     ) {
         if (this.lastCacheKey != key) {
             this.lastFocusedIndex = -1
+            clearTargetReturnSong()
         }
         this.lastCacheKey = key
         this.songs = songs

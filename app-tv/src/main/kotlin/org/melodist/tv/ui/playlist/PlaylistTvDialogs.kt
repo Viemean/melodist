@@ -90,10 +90,12 @@ fun BoxScope.PlaylistTvDialogs(
             song = song,
             onDismissRequest = onDismissActionSongDialog,
             onSelectArtist = { mid, name ->
+                PlaylistScreenCache.setTargetReturnSong(song)
                 onDismissActionSongDialog()
                 onNavigateToArtist(mid, name)
             },
             onSelectAlbum = { mid, name ->
+                PlaylistScreenCache.setTargetReturnSong(song)
                 onDismissActionSongDialog()
                 onNavigateToAlbum(mid, name)
             },
