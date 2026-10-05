@@ -622,9 +622,13 @@ class PlaybackQueueManager(
         queue: List<Song>,
         currentIndex: Int,
     ) {
+        val curMid = _playlist.value.getOrNull(_currentIndex.value)?.songMid
+        val keepRadio = _isRadioMode.value && (queue.isEmpty() || queue.any { it.songMid == curMid })
         _playlist.value = queue
         _currentIndex.value = currentIndex
-        _isRadioMode.value = false
+        if (!keepRadio) {
+            _isRadioMode.value = false
+        }
         if (_loopMode.value == PlaybackLoopMode.Shuffle && queue.isNotEmpty()) {
             shuffleQueue.syncTo(currentIndex.coerceAtLeast(0), queue.size, queue)
         }

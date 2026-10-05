@@ -15,6 +15,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import org.melodist.api.MusicApiService
+import org.melodist.api.getGuessRecommendSongs
 import org.melodist.core.connect.client.MobileConnectClient
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.core.connect.discovery.ConnectNsdHelper
@@ -55,6 +57,9 @@ object MobileConnectManager {
     private var pendingTrackTransitionTimestamp = 0L
     private const val PENDING_TRACK_TRANSITION_TIMEOUT_MS = 2500L
     private val AUTO_CONNECT_BACKOFF_DELAYS = longArrayOf(3000L, 6000L, 12000L, 20000L, 35000L, 60000L)
+
+    @Volatile
+    private var isFetchingRadioBatch = false
 
     private val _connectionState = MutableStateFlow<MobileConnectionState>(MobileConnectionState.Disconnected)
     val connectionState: StateFlow<MobileConnectionState> = _connectionState.asStateFlow()
@@ -197,6 +202,7 @@ object MobileConnectManager {
                             val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
                             appContext?.let { PlaybackManager.startPlaybackService(it) }
                             PlaybackManager.setRemoteActive(true, pairedName)
+                            val effectiveRadioMode = PlaybackManager.isRadioMode.value || resolvedState.isRadioMode
                             PlaybackManager.syncRemotePlaybackState(
                                 song = tvSong,
                                 isPlaying = isPlaying,
@@ -208,9 +214,10 @@ object MobileConnectManager {
                                 nextSong = resolvedState.nextSong,
                                 currentTier = resolvedState.currentTier,
                                 availableTiers = resolvedState.availableTiers,
-                                isRadioMode = resolvedState.isRadioMode,
+                                isRadioMode = effectiveRadioMode,
                                 lyricOffsetMs = resolvedState.lyricOffsetMs,
                             )
+                            checkAndExpandRadioQueue(resolvedState.currentIndex)
 
                             if (localMute.value) {
                                 // 开启本地静音：保持静音保活且不发声，仅同步 UI 与系统媒体控制通知
@@ -336,6 +343,9 @@ object MobileConnectManager {
                     }
                     if (PlaybackManager.isRemoteActive.value || tvPlayerState.value?.isPlaying == true) {
                         val resolvedQueue = qState.queue.map { resolveWebDavCoverLocally(it) }
+                        if (PlaybackManager.isRadioMode.value && resolvedQueue.size < PlaybackManager.playlist.value.size) {
+                            return@collect
+                        }
                         PlaybackManager.syncRemoteQueue(resolvedQueue, qState.currentIndex)
                     }
                 }
@@ -716,39 +726,27 @@ object MobileConnectManager {
                     Triple(src, effSong, prepQueue)
                 }
 
+            val isRadio = PlaybackManager.isRadioMode.value
+            val effectiveAudioSource =
+                if (isRadio) {
+                    audioSource.copy(headers = audioSource.headers + ("x-playback-radio" to "true"))
+                } else {
+                    audioSource
+                }
+
             connectClient?.playSong(
                 song = effectiveSong,
                 queue = preparedInitialQueue,
                 index = initialIdx,
                 startPositionMs = startPositionMs,
-                audioSource = audioSource,
+                audioSource = effectiveAudioSource,
                 qualityTier = effectiveTier,
             )
 
-            queueBatchSyncJob?.cancel()
-            if (needsChunkedSync) {
-                queueBatchSyncJob =
-                    scope.launch(Dispatchers.IO) {
-                        delay(350L)
-                        val syncId =
-                            java.util.UUID
-                                .randomUUID()
-                                .toString()
-                        val preparedAllSongs = currentPlaylist.map { prepareSongForTv(it) }
-                        val chunks = preparedAllSongs.chunked(QUEUE_CHUNK_BATCH_SIZE)
-                        val totalChunks = chunks.size
-                        for ((chunkIdx, chunkSongs) in chunks.withIndex()) {
-                            if (!isActive || !isTvOnline) break
-                            connectClient?.syncQueueChunk(
-                                syncId = syncId,
-                                chunkIndex = chunkIdx,
-                                totalChunks = totalChunks,
-                                songs = chunkSongs,
-                                targetMid = song.songMid,
-                            )
-                            delay(40L)
-                        }
-                    }
+            if (isRadio && currentPlaylist.size <= 10) {
+                checkAndExpandRadioQueue(initialIdx, force = true)
+            } else if (needsChunkedSync) {
+                syncFullQueueToRemote(song, delayMs = 350L)
             }
             if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
                 pendingTrackTargetMid = song.songMid
@@ -765,6 +763,78 @@ object MobileConnectManager {
                 }
             } else if (localMute.value && remoteControlMode.value == RemoteControlMode.BROWSE) {
                 PlaybackManager.pause()
+            }
+        }
+    }
+
+    fun syncFullQueueToRemote(
+        targetSong: Song? = null,
+        delayMs: Long = 0L,
+    ) {
+        queueBatchSyncJob?.cancel()
+        queueBatchSyncJob =
+            scope.launch(Dispatchers.IO) {
+                if (delayMs > 0L) {
+                    delay(delayMs)
+                }
+                val currentPlaylist = PlaybackManager.playlist.value
+                if (currentPlaylist.isEmpty() || !isTvOnline) return@launch
+                val curSong = targetSong ?: PlaybackManager.currentSong.value ?: currentPlaylist.firstOrNull() ?: return@launch
+                val syncId =
+                    java.util.UUID
+                        .randomUUID()
+                        .toString()
+                val preparedAllSongs = currentPlaylist.map { prepareSongForTv(it) }
+                val chunks = preparedAllSongs.chunked(QUEUE_CHUNK_BATCH_SIZE)
+                val totalChunks = chunks.size
+                for ((chunkIdx, chunkSongs) in chunks.withIndex()) {
+                    if (!isActive || !isTvOnline) break
+                    connectClient?.syncQueueChunk(
+                        syncId = syncId,
+                        chunkIndex = chunkIdx,
+                        totalChunks = totalChunks,
+                        songs = chunkSongs,
+                        targetMid = curSong.songMid,
+                    )
+                    delay(40L)
+                }
+            }
+    }
+
+    private fun checkAndExpandRadioQueue(
+        currentIndex: Int,
+        force: Boolean = false,
+    ) {
+        if (!PlaybackManager.isRadioMode.value || isFetchingRadioBatch) return
+        if (remoteControlMode.value != RemoteControlMode.TAKEOVER || !isTvOnline) return
+        val currentPlaylist = PlaybackManager.playlist.value
+        if (currentPlaylist.isEmpty()) return
+
+        val shouldExpand = force || currentIndex >= (currentPlaylist.size - 3).coerceAtLeast(0)
+        if (!shouldExpand) return
+
+        isFetchingRadioBatch = true
+        scope.launch(Dispatchers.IO) {
+            try {
+                val apiService = MusicApiService()
+                val moreSongs = apiService.getGuessRecommendSongs(count = 15)
+                if (moreSongs.isNotEmpty()) {
+                    val existingMids =
+                        PlaybackManager.playlist.value
+                            .map { it.songMid }
+                            .toSet()
+                    val uniqueMore = moreSongs.filter { it.songMid.isNotBlank() && !existingMids.contains(it.songMid) }
+                    if (uniqueMore.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            PlaybackManager.appendPlaylist(uniqueMore)
+                        }
+                        syncFullQueueToRemote(PlaybackManager.currentSong.value)
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            } finally {
+                isFetchingRadioBatch = false
             }
         }
     }
@@ -790,8 +860,9 @@ object MobileConnectManager {
     }
 
     fun tvNext() {
+        val remoteNext = tvPlayerState.value?.nextSong
         val targetSong =
-            tvPlayerState.value?.nextSong
+            remoteNext
                 ?: PlaybackManager.getNextSong()
                 ?: run {
                     val list = PlaybackManager.playlist.value
@@ -803,7 +874,11 @@ object MobileConnectManager {
             pendingTrackTransitionTimestamp = System.currentTimeMillis()
             PlaybackManager.optimisticSwitchRemoteTrack(targetSong, isNext = true)
         }
-        connectClient?.next()
+        if (remoteNext == null && targetSong != null) {
+            playOnTv(targetSong)
+        } else {
+            connectClient?.next()
+        }
     }
 
     fun tvPrev() {

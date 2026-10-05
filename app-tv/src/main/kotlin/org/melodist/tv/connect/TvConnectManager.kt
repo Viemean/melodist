@@ -150,6 +150,16 @@ object TvConnectManager {
             }
         }
 
+        scope.launch {
+            var lastQueueSize = -1
+            PlaybackManager.playlist.collect { q ->
+                if (lastQueueSize != -1 && q.size != lastQueueSize) {
+                    broadcastQueueNow()
+                }
+                lastQueueSize = q.size
+            }
+        }
+
         // 持续同步播放状态给连接端
         scope.launch(Dispatchers.IO) {
             var lastPosition = -1L
@@ -306,10 +316,12 @@ object TvConnectManager {
                             seekToMs = cmd.startPositionMs,
                         )
                     } else {
+                        val isRadio = audioSource?.headers?.get("x-playback-radio") == "true"
                         if (cmd.queue.isNotEmpty()) {
                             PlaybackManager.setPlaylist(
                                 songs = cmd.queue,
                                 startIndex = cmd.index,
+                                isRadio = isRadio,
                                 forceTier = cmd.qualityTier,
                                 initialSeekToMs = cmd.startPositionMs,
                             )
