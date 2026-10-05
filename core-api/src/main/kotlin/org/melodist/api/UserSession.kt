@@ -89,17 +89,25 @@ object UserSession {
                     ?: cookies["openid"]
                     ?: ""
             }
+        val isWeChatAccount =
+            musicKey.startsWith("W_X") ||
+                cookies["tmeLoginType"] == "1"
+
         val resolvedAvatar =
             avatarUrl.ifBlank {
-                val qq =
-                    cookies["pt2gguin"]?.trimStart('o')
-                        ?: cookies["uin"]?.trimStart('o')
-                        ?: cookies["qqmusic_uin"]?.trimStart('o')
-                        ?: resolvedUin.takeIf { it.isNotBlank() && it.all { c -> c.isDigit() } }
-                if (!qq.isNullOrBlank() && qq.all { it.isDigit() }) {
-                    "https://q1.qlogo.cn/g?b=qq&nk=$qq&s=640"
-                } else {
+                if (isWeChatAccount) {
                     ""
+                } else {
+                    val qq =
+                        cookies["pt2gguin"]?.trimStart('o')
+                            ?: cookies["uin"]?.trimStart('o')
+                            ?: cookies["qqmusic_uin"]?.trimStart('o')
+                            ?: resolvedUin.takeIf { it.isNotBlank() && it.all { c -> c.isDigit() } && it.length <= 11 }
+                    if (!qq.isNullOrBlank() && qq.all { it.isDigit() } && qq.length in 5..11) {
+                        "https://q1.qlogo.cn/g?b=qq&nk=$qq&s=640"
+                    } else {
+                        ""
+                    }
                 }
             }
         profile =

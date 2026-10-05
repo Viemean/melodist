@@ -139,7 +139,7 @@ fun normalizeHighResAvatar(
         url = url.replace(Regex("/(132|96|64|46)$"), "/0")
     }
 
-    if (url.isBlank() && uin.isNotBlank() && uin.all { it.isDigit() }) {
+    if (url.isBlank() && uin.isNotBlank() && uin.all { it.isDigit() } && uin.length in 5..11) {
         url = "https://q1.qlogo.cn/g?b=qq&nk=$uin&s=640"
     }
     return url

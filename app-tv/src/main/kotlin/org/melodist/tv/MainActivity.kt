@@ -14,14 +14,19 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
+import org.melodist.api.UserSession
+import org.melodist.api.refreshCurrentUserProfile
 import org.melodist.data.UserSessionManager
 import org.melodist.playback.DeviceAudioCapability
 import org.melodist.playback.PlaybackManager
@@ -161,6 +166,15 @@ class MainActivity : ComponentActivity() {
         ScreenSaverManager.init()
         TvConnectManager.init(this)
         checkAndRequestStoragePermissions()
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (UserSession.isLoggedIn) {
+                try {
+                    MusicApiService().refreshCurrentUserProfile()
+                } catch (e: Exception) {
+                    android.util.Log.w("MelodistTV", "Failed to refresh user profile on startup", e)
+                }
+            }
+        }
         setContent {
             MelodistTvTheme {
                 val currentPlayingSong by PlaybackManager.currentSong.collectAsState()

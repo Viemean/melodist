@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import org.melodist.api.ApiLogger
 import org.melodist.api.LoginApiService
 import org.melodist.api.MusicApiService
 import org.melodist.api.QrStatus
@@ -211,6 +212,11 @@ fun AccountLoginPanel(
                             }
                             QrStatus.Success -> {
                                 statusText = "授权成功，正在同步登录态..."
+                                try {
+                                    MusicApiService().refreshCurrentUserProfile()
+                                } catch (e: Exception) {
+                                    ApiLogger.w("AccountLoginPanel", "Failed to refresh user profile after QQ login", e)
+                                }
                                 UserSessionManager.save(context)
                                 isPolling = false
                                 break
@@ -251,6 +257,11 @@ fun AccountLoginPanel(
                             }
                             QrStatus.Success -> {
                                 statusText = "授权成功，正在同步登录态..."
+                                try {
+                                    MusicApiService().refreshCurrentUserProfile()
+                                } catch (e: Exception) {
+                                    ApiLogger.w("AccountLoginPanel", "Failed to refresh user profile after WeChat login", e)
+                                }
                                 UserSessionManager.save(context)
                                 isPolling = false
                                 break
@@ -293,7 +304,8 @@ fun AccountLoginPanel(
                                 statusText = "授权成功，正在同步登录态..."
                                 try {
                                     MusicApiService().refreshCurrentUserProfile()
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    ApiLogger.w("AccountLoginPanel", "Failed to refresh user profile after QQMusic login", e)
                                 }
                                 UserSessionManager.save(context)
                                 isPolling = false
