@@ -653,7 +653,7 @@ class LoginApiService(
         withContext(Dispatchers.IO) {
             val payload =
                 """
-                {"comm":{"ct":24,"cv":0},"req_0":{"module":"music.login.LoginServer","method":"CreateQRCode","param":{"tmeAppID":"qqmusic","ct":24,"cv":0}}}
+                {"comm":{"ct":11,"cv":14090008},"req_0":{"module":"music.login.LoginServer","method":"CreateQRCode","param":{"tmeAppID":"qqmusic","ct":11,"cv":14090008}}}
                 """.trimIndent()
 
             val request =
@@ -721,9 +721,10 @@ class LoginApiService(
         token: String,
     ): Boolean =
         withContext(Dispatchers.IO) {
+            val numericUin = uin.trimStart('o').toLongOrNull() ?: 0L
             val payload =
                 """
-                {"comm":{"tmeLoginType":6},"req_0":{"module":"music.login.LoginServer","method":"Login","param":{"musicid":$uin,"qrCodeID":"$qrcodeId","token":"$token"}}}
+                {"comm":{"ct":11,"cv":14090008,"v":14090008,"chid":"10003505","tmeAppID":"qqmusic","tmeLoginType":6},"req_0":{"module":"music.login.LoginServer","method":"Login","param":{"musicid":$numericUin,"qrCodeID":"$qrcodeId","token":"$token"}}}
                 """.trimIndent()
 
             val request =
@@ -734,17 +735,21 @@ class LoginApiService(
                     .header("User-Agent", "QQMusic 14090008(android 14)")
                     .build()
 
-            client.newCall(request).execute().use { resp ->
-                val json = resp.body.string()
-                val jsonElement = Json.parseToJsonElement(json).jsonObject
-                val req0 = jsonElement["req_0"]?.jsonObject ?: return@withContext false
-                if (req0["code"]?.jsonPrimitive?.intOrNull != 0) return@withContext false
+            try {
+                client.newCall(request).execute().use { resp ->
+                    val json = resp.body.string()
+                    val jsonElement = Json.parseToJsonElement(json).jsonObject
+                    val req0 = jsonElement["req_0"]?.jsonObject ?: return@withContext false
+                    if (req0["code"]?.jsonPrimitive?.intOrNull != 0) {
+                        ApiLogger.e("LoginApiService", "exchangeOfficialAppLogin rejected: $json")
+                        return@withContext false
+                    }
 
-                val data = req0["data"]?.jsonObject ?: return@withContext false
-                val musicId =
-                    data["str_musicid"]?.jsonPrimitive?.contentOrNull
-                        ?: data["musicid"]?.jsonPrimitive?.contentOrNull
-                        ?: uin
+                    val data = req0["data"]?.jsonObject ?: return@withContext false
+                    val musicId =
+                        data["str_musicid"]?.jsonPrimitive?.contentOrNull
+                            ?: data["musicid"]?.jsonPrimitive?.contentOrNull
+                            ?: uin
                 val musicKey = data["musickey"]?.jsonPrimitive?.contentOrNull ?: token
                 val nick = data["nick"]?.jsonPrimitive?.contentOrNull ?: "QQ音乐用户_$musicId"
                 val rawLoginType = data["loginType"]?.jsonPrimitive?.intOrNull ?: 6
@@ -775,8 +780,12 @@ class LoginApiService(
                             nick = nick,
                             cookies = cookies.toMap(),
                         )
+                    }
+                    true
                 }
-                true
+            } catch (e: Exception) {
+                ApiLogger.e("LoginApiService", "exchangeOfficialAppLogin exception", e)
+                false
             }
         }
 
@@ -882,13 +891,15 @@ class LoginApiService(
             type: String,
             payload: ByteArray,
         ) {
+            val payloadStr = String(payload, Charsets.UTF_8)
+            ApiLogger.d("LoginApiService", "OfficialApp handleEvent: type=$type, payload=$payloadStr")
             when (type) {
                 "scanned" -> {
                     resultRef.set(PollResult(QrStatus.Confirming, "已扫码，请在手机端确认授权"))
                 }
                 "cookies" -> {
                     try {
-                        val json = Json.parseToJsonElement(String(payload, Charsets.UTF_8)).jsonObject
+                        val json = Json.parseToJsonElement(payloadStr).jsonObject
                         val cookiesObj = json["cookies"]?.jsonObject
                         val uin =
                             cookiesObj
@@ -906,6 +917,7 @@ class LoginApiService(
                         if (uin.isNotEmpty() && key.isNotEmpty()) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 val success = onExchange(uin, qrcodeId, key)
+                                ApiLogger.d("LoginApiService", "OfficialApp onExchange result=$success for uin=$uin")
                                 if (success) {
                                     resultRef.set(PollResult(QrStatus.Success, "登录成功"))
                                 } else {

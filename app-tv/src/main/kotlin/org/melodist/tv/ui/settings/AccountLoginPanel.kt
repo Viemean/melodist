@@ -191,7 +191,7 @@ fun AccountLoginPanel(
 
         try {
             when (selectedChannel) {
-                LoginChannel.QQ, LoginChannel.QQMusic -> {
+                LoginChannel.QQ -> {
                     val qrInfo = loginService.fetchQqQrCode()
                     val bitmap = BitmapFactory.decodeByteArray(qrInfo.imageBytes, 0, qrInfo.imageBytes.size)
                     if (bitmap != null) {
