@@ -63,6 +63,14 @@ object AudioQualityAuditor {
     private const val FFT_SIZE = 4096
     private val auditCache = LruCache<String, AudioAuditResult>(100)
 
+    /**
+     * 对指定曲目执行频谱特征采样与音频质量真实性审计。
+     *
+     * @param context 上下文对象
+     * @param song 待鉴定的曲目对象
+     * @param explicitFilePath 显式指定的本地音频文件路径（若为 null 则自动解析在线直链或缓存）
+     * @return 包含判定结论、采样率、位深与特征描述的审计结果
+     */
     suspend fun auditSong(
         context: Context,
         song: Song,
@@ -127,6 +135,11 @@ object AudioQualityAuditor {
         }
     }
 
+    /**
+     * 清理指定歌曲的音频质量审计内存缓存。
+     *
+     * @param songMid 歌曲唯一标识 MID
+     */
     fun invalidateCache(songMid: String) {
         for (tier in AudioQualityTier.entries) {
             auditCache.remove("${songMid}_${tier.name}")

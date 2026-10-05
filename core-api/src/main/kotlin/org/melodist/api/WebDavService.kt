@@ -97,6 +97,11 @@ class WebDavService {
             }
         }
 
+        /**
+         * 清除指定 WebDAV 服务器 ID 的客户端缓存实例。
+         *
+         * @param serverId 服务器配置唯一标识
+         */
         fun invalidateClient(serverId: String) {
             clientCache.remove(serverId)
         }
@@ -154,6 +159,12 @@ class WebDavService {
             return serverUri.resolve(finalRelPath)
         }
 
+        /**
+         * 判定文件名是否属于应过滤的隐藏文件、系统目录或回收站。
+         *
+         * @param name 文件或目录名称
+         * @return 属于忽略条目返回 true，正常文件返回 false
+         */
         fun isIgnoredEntry(name: String): Boolean {
             val clean = name.trim()
             if (clean.isBlank()) return true
@@ -184,6 +195,12 @@ class WebDavService {
             return Pair(strippedIndex.ifBlank { nameWithoutExt }, "WebDAV 音频")
         }
 
+        /**
+         * 从音频二进制流切片中解析内嵌歌词（支持 Vorbis Comment 与 ID3v2 USLT）。
+         *
+         * @param bytes 音频文件前导或局部二进制数据
+         * @return 提取出的歌词纯文本，未解析到返回 null
+         */
         fun extractEmbeddedLyricsFromBytes(bytes: ByteArray): String? {
             if (bytes.size < 64) return null
             return AudioMetadataParser.parse(bytes).lyrics

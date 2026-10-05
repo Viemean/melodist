@@ -280,6 +280,11 @@ object PlaybackManager {
     private val _isMuted = MutableStateFlow(false)
     val isMuted: StateFlow<Boolean> = _isMuted.asStateFlow()
 
+    /**
+     * 设置播放器静音状态。
+     *
+     * @param muted true 为静音，false 为解除静音
+     */
     fun setMuted(muted: Boolean) {
         _isMuted.value = muted
         exoPlayer?.volume = if (muted) 0f else 1f
@@ -328,6 +333,11 @@ object PlaybackManager {
     val actualAudioIsPlaying: Boolean
         get() = exoPlayer?.isPlaying == true || (exoPlayer?.playWhenReady == true && exoPlayer?.playbackState != androidx.media3.common.Player.STATE_ENDED)
 
+    /**
+     * 设置播放器回放倍速。
+     *
+     * @param speed 目标倍速（如 1.0f、1.25f、1.5f）
+     */
     fun setPlaybackSpeed(speed: Float) {
         val player = exoPlayer ?: return
         if (Math.abs(player.playbackParameters.speed - speed) > 0.005f) {
@@ -335,6 +345,9 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 重置播放器回放倍速至标准 1.0x。
+     */
     fun resetPlaybackSpeed() {
         setPlaybackSpeed(1.0f)
     }
@@ -878,6 +891,9 @@ object PlaybackManager {
 
     private fun startProgressLoop() = progressTracker.start()
 
+    /**
+     * 将当前播放队列、曲目索引与循环模式持久化保存至本地存储。
+     */
     fun savePlaybackState() {
         PlaybackStateStorage.savePlaybackState(
             context = appContext,
@@ -991,6 +1007,13 @@ object PlaybackManager {
         queueManager.clearPlaylist()
     }
 
+    /**
+     * 起播指定歌曲，支持从指定断点续播与音质级联降级。
+     *
+     * @param song 目标曲目
+     * @param forceTier 强制指定的音质级别，为 null 时采用用户偏好级别
+     * @param seekToMs 起播位置（毫秒），默认 0L
+     */
     fun playSong(
         song: Song,
         forceTier: AudioQualityTier? = null,
@@ -1315,6 +1338,9 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 反转当前回放状态（正在播放则暂停，已暂停则恢复播放）。
+     */
     fun togglePlayPause() {
         if (playbackInterceptor?.onInterceptTogglePlayPause() == true) return
         val player = exoPlayer ?: return
@@ -1341,6 +1367,9 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 暂停当前音频回放并同步状态。
+     */
     fun pause() {
         if (playbackInterceptor?.onInterceptPause() == true) return
         val player = exoPlayer ?: return
@@ -1348,6 +1377,9 @@ object PlaybackManager {
         savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
     }
 
+    /**
+     * 恢复或启动当前音频回放。
+     */
     fun play() {
         if (playbackInterceptor?.onInterceptResume() == true) return
         val player = exoPlayer ?: return
@@ -1366,12 +1398,25 @@ object PlaybackManager {
 
     private var targetVolume = 1f
 
+    /**
+     * 设置播放器音量大小。
+     *
+     * @param volume 音量比例（0.0f ~ 1.0f）
+     */
     fun setVolume(volume: Float) {
         val clamped = volume.coerceIn(0f, 1f)
         targetVolume = clamped
         exoPlayer?.volume = if (_isMuted.value) 0f else clamped
     }
 
+    /**
+     * 播放自定义直链音频流（支持 WebDAV 或外部流式播放）。
+     *
+     * @param song 曲目元数据对象
+     * @param streamUrl 音频媒体资源 URL
+     * @param headers 自定义 HTTP 请求头映射
+     * @param seekToMs 起播跳转位置（毫秒）
+     */
     fun playCustomStream(
         song: Song,
         streamUrl: String,
@@ -1444,6 +1489,11 @@ object PlaybackManager {
         loadLyricsForSong(song)
     }
 
+    /**
+     * 跳转至当前曲目的指定播放时间位置。
+     *
+     * @param positionMs 目标绝对时间戳（毫秒）
+     */
     fun seekTo(positionMs: Long) {
         if (playbackInterceptor?.onInterceptSeekTo(positionMs) == true) return
         exoPlayer?.seekTo(positionMs)
@@ -1451,6 +1501,21 @@ object PlaybackManager {
         savePlaybackProgress(positionMs)
     }
 
+    /**
+     * 同步远端设备推送的实时播放状态（曲目、播放状态、进度、时长与队列拓扑）。
+     *
+     * @param song 远端当前播放曲目
+     * @param isPlaying 远端播放状态
+     * @param positionMs 远端播放进度（毫秒）
+     * @param durationMs 远端音频总时长（毫秒）
+     * @param currentIndex 远端当前索引
+     * @param loopModeName 循环模式名称
+     * @param prevSong 远端上一首曲目
+     * @param nextSong 远端下一首曲目
+     * @param currentTier 当前音质级别
+     * @param availableTiers 可选音质级别集合
+     * @param isRadioMode 是否处于电台模式
+     */
     fun syncRemotePlaybackState(
         song: Song?,
         isPlaying: Boolean,
@@ -1546,6 +1611,12 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 同步远端设备推送的播放队列与当前曲目索引。
+     *
+     * @param queue 远端播放队列
+     * @param currentIndex 远端当前索引
+     */
     fun syncRemoteQueue(
         queue: List<Song>,
         currentIndex: Int,
@@ -1555,6 +1626,11 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 异步为指定歌曲拉取并解析在线或本地匹配歌词。
+     *
+     * @param song 目标曲目
+     */
     fun loadLyricsForSong(song: Song) {
         lyricsCoordinator.loadLyricsForSong(song)
     }
@@ -1610,6 +1686,11 @@ object PlaybackManager {
 
     fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? = PlaybackSourceResolver.getFallbackTier(current)
 
+    /**
+     * 切换当前播放歌曲的音质级别并平滑续播。
+     *
+     * @param tier 目标音质级别
+     */
     fun switchTier(tier: AudioQualityTier) {
         val current = _currentSong.value ?: return
         val effectiveTier = clampCellularTier(tier, current)
@@ -1774,6 +1855,9 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 播放队列中的下一首曲目。
+     */
     fun playNext() {
         if (playbackInterceptor?.onInterceptPlayNext() == true) {
             return
@@ -1781,6 +1865,9 @@ object PlaybackManager {
         queueManager.playNext()
     }
 
+    /**
+     * 播放队列中的上一首曲目。
+     */
     fun playPrevious() {
         if (playbackInterceptor?.onInterceptPlayPrevious() == true) {
             return
@@ -1798,6 +1885,9 @@ object PlaybackManager {
      */
     fun getNextSong(): Song? = queueManager.getNextSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remoteNextSong.value)
 
+    /**
+     * 顺次循环切换播放模式（顺序循环 -> 单曲循环 -> 随机播放）。
+     */
     fun cycleLoopMode() {
         if (playbackInterceptor?.onInterceptCycleLoopMode() == true) {
             return
@@ -1806,6 +1896,11 @@ object PlaybackManager {
         prefetchAdjacentWebDavCovers()
     }
 
+    /**
+     * 设置播放队列的循环模式。
+     *
+     * @param mode 目标循环模式
+     */
     fun setLoopMode(mode: PlaybackLoopMode) {
         queueManager.setLoopMode(mode)
         prefetchAdjacentWebDavCovers()

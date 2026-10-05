@@ -31,6 +31,11 @@ data class CachedLyricLine(
     val text: String,
     val transText: String = "",
 ) {
+    /**
+     * 将当前缓存歌词行模型转换为标准歌词实体。
+     *
+     * @return 转换后的 LyricLine 对象
+     */
     fun toLyricLine(): LyricLine = LyricLine(timestampMs, text, transText)
 }
 
@@ -52,6 +57,11 @@ object LocalLyricAutoMatcher {
     private var appContext: Context? = null
     private var cacheDir: File? = null
 
+    /**
+     * 初始化本地歌词自动匹配器并加载磁盘持久化匹配记录。
+     *
+     * @param context 应用上下文对象
+     */
     fun init(context: Context) {
         val appCtx = context.applicationContext
         appContext = appCtx

@@ -28,6 +28,9 @@ class MelodistForwardingPlayer(
             PlaybackManager.isRemoteActive.value &&
                 (PlaybackManager.isSilentKeepAlive.value || !super.getPlayWhenReady() || super.getPlaybackState() == Player.STATE_IDLE)
 
+    /**
+     * 向双端互联控制器分发本地播放状态变更通知。
+     */
     fun notifyRemoteStateChanged() {
         val song = PlaybackManager.currentSong.value
         val isPlaying = PlaybackManager.isPlaying.value
@@ -256,6 +259,9 @@ class MelodistForwardingPlayer(
 
     override fun getShuffleModeEnabled(): Boolean = PlaybackManager.loopMode.value == PlaybackLoopMode.Shuffle
 
+    /**
+     * 向双端互联控制器分发循环模式变更通知。
+     */
     fun notifyLoopModeChanged() {
         val repeat = repeatMode
         val shuffle = shuffleModeEnabled
