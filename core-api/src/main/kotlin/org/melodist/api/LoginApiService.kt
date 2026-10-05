@@ -459,17 +459,17 @@ class LoginApiService(
 
     suspend fun ensureMusicKey(forceRefresh: Boolean = false): Boolean =
         withContext(Dispatchers.IO) {
-            val cookies = UserSession.profile.cookies
-            val qmKey = cookies["qm_keyst"]
+            val qmKey = UserSession.profile.cookies["qm_keyst"]
             if (!forceRefresh && !qmKey.isNullOrEmpty()) {
                 return@withContext true
             }
-            forceRefreshMusicKey()
-        }
-
-    suspend fun forceRefreshMusicKey(): Boolean =
-        withContext(Dispatchers.IO) {
             refreshMutex.withLock {
+                if (!forceRefresh) {
+                    val keyAfterLock = UserSession.profile.cookies["qm_keyst"]
+                    if (!keyAfterLock.isNullOrEmpty()) {
+                        return@withLock true
+                    }
+                }
                 val cookies = UserSession.profile.cookies.toMutableMap()
                 val openid = cookies["psrf_qqopenid"]
                 val accessToken = cookies["psrf_qqaccess_token"]
@@ -485,6 +485,8 @@ class LoginApiService(
                 false
             }
         }
+
+    suspend fun forceRefreshMusicKey(): Boolean = ensureMusicKey(forceRefresh = true)
 
     // ================== 微信扫码登录 ==================
 

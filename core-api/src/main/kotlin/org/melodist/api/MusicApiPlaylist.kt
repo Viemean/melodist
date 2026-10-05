@@ -293,7 +293,7 @@ private suspend fun MusicApiService.createPlaylistInternal(
             """.trimIndent()
 
         try {
-            val respJson = postAppGateway(payload)
+            val respJson = postAppGateway(payload, customCookieHeader = "")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
             val obj = root["createNewPlayList"]?.jsonObject ?: return@withContext Triple(false, 0L, "响应为空")
@@ -365,7 +365,7 @@ private suspend fun MusicApiService.deletePlaylistInternal(
             }
 
         try {
-            val respJson = postAppGateway(payload)
+            val respJson = postAppGateway(payload, customCookieHeader = "")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
             val key = if (playlist.isCreated) "deletePlayList" else "deleteFavPlayList"
@@ -383,6 +383,52 @@ private suspend fun MusicApiService.deletePlaylistInternal(
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiPlaylist", "deletePlaylist failed", e)
+            false
+        }
+    }
+
+suspend fun MusicApiService.collectPlaylist(playlist: Playlist): Boolean = collectPlaylist(dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId)
+
+suspend fun MusicApiService.collectPlaylist(dissId: Long): Boolean = collectPlaylistInternal(dissId, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.collectPlaylistInternal(
+    dissId: Long,
+    canRetryWithRenew: Boolean,
+): Boolean =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn || dissId <= 0L) return@withContext false
+        ensureMusicKeySafe()
+        val comm = MusicApiService.buildAppCommJson()
+        val payload =
+            """
+            {
+              "comm": $comm,
+              "addFavPlayList": {
+                "module": "music.musicasset.PlaylistFavWrite",
+                "method": "FavPlaylist",
+                "param": { "dirId": $dissId }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postAppGateway(payload, customCookieHeader = "")
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val obj = root["addFavPlayList"]?.jsonObject
+            val code = obj?.get("code")?.jsonPrimitive?.intOrNull ?: rootCode
+            if (code == 0) {
+                true
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "collectPlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                collectPlaylistInternal(dissId, canRetryWithRenew = false)
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "collectPlaylist failed: dissId=$dissId", e)
             false
         }
     }
@@ -536,7 +582,7 @@ private suspend fun MusicApiService.addSongsToPlaylistInternal(
             """.trimIndent()
 
         try {
-            val respJson = postAppGateway(payload)
+            val respJson = postAppGateway(payload, customCookieHeader = "")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
             val addObj = root["addSongsToPlayList"]?.jsonObject
@@ -610,7 +656,7 @@ private suspend fun MusicApiService.deleteSongsFromPlaylistInternal(
             """.trimIndent()
 
         try {
-            val respJson = postAppGateway(payload)
+            val respJson = postAppGateway(payload, customCookieHeader = "")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
             val delObj = root["delSongsFromPlayList"]?.jsonObject
