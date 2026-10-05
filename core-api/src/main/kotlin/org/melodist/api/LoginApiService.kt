@@ -750,36 +750,36 @@ class LoginApiService(
                         data["str_musicid"]?.jsonPrimitive?.contentOrNull
                             ?: data["musicid"]?.jsonPrimitive?.contentOrNull
                             ?: uin
-                val musicKey = data["musickey"]?.jsonPrimitive?.contentOrNull ?: token
-                val nick = data["nick"]?.jsonPrimitive?.contentOrNull ?: "QQ音乐用户_$musicId"
-                val rawLoginType = data["loginType"]?.jsonPrimitive?.intOrNull ?: 6
+                    val musicKey = data["musickey"]?.jsonPrimitive?.contentOrNull ?: token
+                    val nick = data["nick"]?.jsonPrimitive?.contentOrNull ?: "QQ音乐用户_$musicId"
+                    val rawLoginType = data["loginType"]?.jsonPrimitive?.intOrNull ?: 6
 
-                val cookies =
-                    mutableMapOf(
-                        "tmeLoginType" to rawLoginType.toString(),
-                        "qqmusic_uin" to musicId,
-                        "qqmusic_key" to musicKey,
-                        "qm_keyst" to musicKey,
-                        "musickey" to musicKey,
-                        "uin" to musicId,
-                        "musicid" to musicId,
-                    )
-                data["refresh_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_token"] = it }
-                data["refresh_key"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_key"] = it }
-                data["openid"]?.jsonPrimitive?.contentOrNull?.let { cookies["openid"] = it }
-                data["access_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["access_token"] = it }
-                data["encryptUin"]?.jsonPrimitive?.contentOrNull?.let { cookies["euin"] = it }
-
-                UserSession.apply {
-                    cookies.clear()
-                    cookies.putAll(cookies)
-                    profile =
-                        UserProfile(
-                            uin = musicId,
-                            musicKey = musicKey,
-                            nick = nick,
-                            cookies = cookies.toMap(),
+                    val cookies =
+                        mutableMapOf(
+                            "tmeLoginType" to rawLoginType.toString(),
+                            "qqmusic_uin" to musicId,
+                            "qqmusic_key" to musicKey,
+                            "qm_keyst" to musicKey,
+                            "musickey" to musicKey,
+                            "uin" to musicId,
+                            "musicid" to musicId,
                         )
+                    data["refresh_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_token"] = it }
+                    data["refresh_key"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_key"] = it }
+                    data["openid"]?.jsonPrimitive?.contentOrNull?.let { cookies["openid"] = it }
+                    data["access_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["access_token"] = it }
+                    data["encryptUin"]?.jsonPrimitive?.contentOrNull?.let { cookies["euin"] = it }
+
+                    UserSession.apply {
+                        cookies.clear()
+                        cookies.putAll(cookies)
+                        profile =
+                            UserProfile(
+                                uin = musicId,
+                                musicKey = musicKey,
+                                nick = nick,
+                                cookies = cookies.toMap(),
+                            )
                     }
                     true
                 }
