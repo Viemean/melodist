@@ -1514,6 +1514,38 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 接管模式下触发切歌时的本地乐观曲目推进，杜绝网络回传等待期间 UI 闪烁回跳旧曲目
+     */
+    fun optimisticSwitchRemoteTrack(
+        targetSong: Song,
+        isNext: Boolean,
+    ) {
+        if (!remoteStateHolder.isRemoteActive.value) return
+        val current = _currentSong.value
+        _currentSong.value = targetSong
+        _currentPositionMs.value = 0L
+        _durationMs.value = 0L
+        loadLyricsForSong(targetSong)
+        val list = queueManager.playlist.value
+        val idx = list.indexOfFirst { it.songMid == targetSong.songMid }
+        if (idx >= 0) {
+            queueManager.setCurrentIndex(idx)
+            val newPrev = if (isNext) current else (if (idx - 1 in list.indices) list[idx - 1] else null)
+            val newNext = if (!isNext) current else (if (idx + 1 in list.indices) list[idx + 1] else null)
+            remoteStateHolder.setRemotePrevSong(newPrev)
+            remoteStateHolder.setRemoteNextSong(newNext)
+        } else {
+            if (isNext) {
+                remoteStateHolder.setRemotePrevSong(current)
+                remoteStateHolder.setRemoteNextSong(null)
+            } else {
+                remoteStateHolder.setRemotePrevSong(null)
+                remoteStateHolder.setRemoteNextSong(current)
+            }
+        }
+    }
+
     fun syncRemoteQueue(
         queue: List<Song>,
         currentIndex: Int,

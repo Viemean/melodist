@@ -756,6 +756,7 @@ object MobileConnectManager {
                 val pairedName = (connectionState.value as? MobileConnectionState.Paired)?.targetDevice?.name
                 appContext?.let { PlaybackManager.startPlaybackService(it) }
                 PlaybackManager.setRemoteActive(true, pairedName)
+                PlaybackManager.optimisticSwitchRemoteTrack(song, isNext = true)
                 isSyncingFromTv = true
                 try {
                     PlaybackManager.pause()
@@ -789,19 +790,35 @@ object MobileConnectManager {
     }
 
     fun tvNext() {
-        val nextMid = tvPlayerState.value?.nextSong?.songMid
-        if (!nextMid.isNullOrBlank()) {
-            pendingTrackTargetMid = nextMid
+        val targetSong =
+            tvPlayerState.value?.nextSong
+                ?: PlaybackManager.getNextSong()
+                ?: run {
+                    val list = PlaybackManager.playlist.value
+                    val curIdx = PlaybackManager.currentIndex.value
+                    if (curIdx + 1 in list.indices) list[curIdx + 1] else null
+                }
+        if (targetSong != null) {
+            pendingTrackTargetMid = targetSong.songMid
             pendingTrackTransitionTimestamp = System.currentTimeMillis()
+            PlaybackManager.optimisticSwitchRemoteTrack(targetSong, isNext = true)
         }
         connectClient?.next()
     }
 
     fun tvPrev() {
-        val prevMid = tvPlayerState.value?.prevSong?.songMid
-        if (!prevMid.isNullOrBlank()) {
-            pendingTrackTargetMid = prevMid
+        val targetSong =
+            tvPlayerState.value?.prevSong
+                ?: PlaybackManager.getPreviousSong()
+                ?: run {
+                    val list = PlaybackManager.playlist.value
+                    val curIdx = PlaybackManager.currentIndex.value
+                    if (curIdx - 1 in list.indices) list[curIdx - 1] else null
+                }
+        if (targetSong != null) {
+            pendingTrackTargetMid = targetSong.songMid
             pendingTrackTransitionTimestamp = System.currentTimeMillis()
+            PlaybackManager.optimisticSwitchRemoteTrack(targetSong, isNext = false)
         }
         connectClient?.previous()
     }
