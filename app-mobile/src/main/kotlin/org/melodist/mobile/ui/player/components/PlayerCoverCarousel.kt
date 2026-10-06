@@ -50,6 +50,9 @@ import org.melodist.model.Song
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.runtime.key
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerCoverCarousel(
@@ -62,6 +65,7 @@ fun PlayerCoverCarousel(
     onLongClick: (() -> Unit)? = null,
     shadowTint: Color = Color(0xFF0D1016),
     isDark: Boolean = isAppInDarkTheme(),
+    bottomOverlay: (@Composable BoxScope.(dragFraction: Float) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -92,7 +96,6 @@ fun PlayerCoverCarousel(
         val flingVelocityThreshold = 1000f
 
         val velocityTracker = remember { VelocityTracker() }
-        var totalDragAccumulator by remember { mutableFloatStateOf(0f) }
 
         Box(
             modifier =
@@ -117,17 +120,17 @@ fun PlayerCoverCarousel(
                             onDragStart = {
                                 isDragging = true
                                 velocityTracker.resetTracking()
-                                totalDragAccumulator = 0f
                             },
                             onHorizontalDrag = { change, dragAmount ->
                                 change.consume()
                                 velocityTracker.addPosition(change.uptimeMillis, change.position)
-                                totalDragAccumulator += dragAmount
+                                val currentVal = dragOffsetX.value
+                                val prospectiveOffset = currentVal + dragAmount
                                 val isBlocked =
-                                    (totalDragAccumulator > 0 && currentPrevSong == null) ||
-                                        (totalDragAccumulator < 0 && currentNextSong == null)
+                                    (prospectiveOffset > 0f && currentPrevSong == null) ||
+                                        (prospectiveOffset < 0f && currentNextSong == null)
                                 val factor = if (isBlocked) 0.25f else 1.0f
-                                val newOffset = dragOffsetX.value + dragAmount * factor
+                                val newOffset = currentVal + dragAmount * factor
                                 org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
                                     state = org.melodist.core.connect.model.GestureSwipeState.DRAGGING,
                                     fraction = (newOffset / fullStepPx).coerceIn(-1f, 1f),
@@ -193,7 +196,7 @@ fun PlayerCoverCarousel(
                                             targetValue = 0f,
                                             animationSpec =
                                                 spring(
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    dampingRatio = Spring.DampingRatioNoBouncy,
                                                     stiffness = Spring.StiffnessMediumLow,
                                                 ),
                                         )
@@ -213,7 +216,7 @@ fun PlayerCoverCarousel(
                                         targetValue = 0f,
                                         animationSpec =
                                             spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                dampingRatio = Spring.DampingRatioNoBouncy,
                                                 stiffness = Spring.StiffnessMediumLow,
                                             ),
                                     )
@@ -225,41 +228,75 @@ fun PlayerCoverCarousel(
         ) {
             val offsetVal = dragOffsetX.value
 
-            if (currentPrevSong != null && offsetVal > 0f) {
-                val progress = (offsetVal / fullStepPx).coerceIn(0f, 1f)
-                val prevX = -fullStepPx + offsetVal
-                CoverCard(
-                    song = currentPrevSong,
-                    coverWidthDp = coverWidthDp,
-                    translationX = prevX,
-                    scale = 0.92f + 0.08f * progress,
-                    shadowTint = shadowTint,
-                    isDark = isDark,
-                )
+            // 上一首卡片：常驻挂载，位移小于等于 0 时隐藏，避免反向滑动卸载重建导致图片重载闪白
+            if (currentPrevSong != null) {
+                key(currentPrevSong?.songMid ?: "prev") {
+                    val isVisible = offsetVal > 0.5f
+                    val progress = (offsetVal / fullStepPx).coerceIn(0f, 1f)
+                    val prevX = -fullStepPx + offsetVal
+                    CoverCard(
+                        song = currentPrevSong,
+                        coverWidthDp = coverWidthDp,
+                        translationX = prevX,
+                        scale = 0.92f + 0.08f * progress,
+                        shadowTint = shadowTint,
+                        isDark = isDark,
+                        modifier =
+                            Modifier.graphicsLayer {
+                                alpha = if (isVisible) 1f else 0f
+                            },
+                    )
+                }
             }
 
-            if (currentNextSong != null && offsetVal < 0f) {
-                val progress = (-offsetVal / fullStepPx).coerceIn(0f, 1f)
-                val nextX = fullStepPx + offsetVal
-                CoverCard(
-                    song = currentNextSong,
-                    coverWidthDp = coverWidthDp,
-                    translationX = nextX,
-                    scale = 0.92f + 0.08f * progress,
-                    shadowTint = shadowTint,
-                    isDark = isDark,
-                )
+            // 下一首卡片：常驻挂载，位移大于等于 0 时隐藏，避免反向滑动卸载重建导致图片重载闪白
+            if (currentNextSong != null) {
+                key(currentNextSong?.songMid ?: "next") {
+                    val isVisible = offsetVal < -0.5f
+                    val progress = (-offsetVal / fullStepPx).coerceIn(0f, 1f)
+                    val nextX = fullStepPx + offsetVal
+                    CoverCard(
+                        song = currentNextSong,
+                        coverWidthDp = coverWidthDp,
+                        translationX = nextX,
+                        scale = 0.92f + 0.08f * progress,
+                        shadowTint = shadowTint,
+                        isDark = isDark,
+                        modifier =
+                            Modifier.graphicsLayer {
+                                alpha = if (isVisible) 1f else 0f
+                            },
+                    )
+                }
             }
 
-            val currentScale = 1f - 0.08f * (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
-            CoverCard(
-                song = currentSong,
-                coverWidthDp = coverWidthDp,
-                translationX = offsetVal,
-                scale = currentScale,
-                shadowTint = shadowTint,
-                isDark = isDark,
-            )
+            key(currentSong?.songMid ?: "current") {
+                val currentScale = 1f - 0.08f * (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
+                val dragFraction = (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
+                CoverCard(
+                    song = currentSong,
+                    coverWidthDp = coverWidthDp,
+                    translationX = offsetVal,
+                    scale = currentScale,
+                    shadowTint = shadowTint,
+                    isDark = isDark,
+                    overlay =
+                        bottomOverlay?.let { overlay ->
+                            {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .graphicsLayer {
+                                                alpha = (1f - dragFraction * 2.5f).coerceIn(0f, 1f)
+                                            },
+                                ) {
+                                    overlay(dragFraction)
+                                }
+                            }
+                        },
+                )
+            }
         }
     }
 }
@@ -272,6 +309,8 @@ private fun CoverCard(
     scale: Float,
     shadowTint: Color,
     isDark: Boolean,
+    overlay: (@Composable BoxScope.() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val candidates =
         remember(song) {
@@ -325,7 +364,7 @@ private fun CoverCard(
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
-                },
+                }.then(modifier),
         contentAlignment = Alignment.Center,
     ) {
         // 1. 底层实体圆角阴影板：固定 alpha，避免 RenderNode 离屏缓冲引发的裁切与阴影闪烁
@@ -363,6 +402,7 @@ private fun CoverCard(
                 border = null,
                 modifier = Modifier.fillMaxSize(),
             )
+            overlay?.invoke(this)
         }
     }
 }
