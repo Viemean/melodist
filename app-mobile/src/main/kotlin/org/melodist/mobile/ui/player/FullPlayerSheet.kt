@@ -81,6 +81,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.BorderStroke
@@ -348,60 +349,380 @@ fun FullPlayerSheet(
         val configuration = LocalConfiguration.current
         val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .displayCutoutPadding()
-                    .systemBarsPadding()
-                    .padding(
-                        start = if (isLandscape) 20.dp else 16.dp,
-                        end = if (isLandscape) 20.dp else 16.dp,
-                        top = if (isLandscape) 6.dp else 4.dp,
-                        bottom = if (isLandscape) 8.dp else 4.dp,
-                    ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        if (isLandscape) {
+            // 横屏黄金三栏流：[左: 204dp大封面+收起] + [中: 歌曲信息+逐字歌词+进度条] + [右: 52dp纵向悬浮播控]
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .displayCutoutPadding()
+                        .systemBarsPadding()
+                        .padding(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // 1. 左栏：大封面 + 左下角音质/右下角收藏 + 底部进度条与时间
+                Column(
+                    modifier = Modifier.width(260.dp).fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    // 大尺寸专辑封面（内嵌左下角音质与右下角收藏）
+                    val isLocalOrWebDav =
+                        song?.songMid?.startsWith("webdav_") == true ||
+                            song?.songMid?.startsWith("local_") == true ||
+                            !song?.localFilePath.isNullOrBlank()
+
+                    val badgeText = AudioQualityTier.getBadge(currentTier)
+
+                    // 大尺寸专辑封面（内嵌随卡片平滑滑移与淡出的音质与收藏操作按钮）
+                    Box(
+                        modifier = Modifier.size(240.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PlayerCoverCarousel(
+                            currentSong = song,
+                            prevSong = prevSong,
+                            nextSong = nextSong,
+                            onPlayNext = onPlayNext,
+                            onPlayPrevious = onPlayPrevious,
+                            onClick = {},
+                            onLongClick = { actionTargetSong = song },
+                            shadowTint = monetColors.shadowTint,
+                            isDark = isDark,
+                            bottomOverlay = {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    // 专辑左下角：音质徽标（严格 100% 照搬竖屏规格）
+                                    Surface(
+                                        onClick = {
+                                            if (!isLocalOrWebDav) {
+                                                PlaybackManager.ensureQualityProbed()
+                                                showQualitySheet = true
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = animatedAccentColor.copy(alpha = 0.12f),
+                                        border = BorderStroke(0.75.dp, animatedAccentColor.copy(alpha = 0.35f)),
+                                    ) {
+                                        Text(
+                                            text = badgeText,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = animatedAccentColor,
+                                            modifier = Modifier.padding(horizontal = 4.5.dp, vertical = 1.dp),
+                                        )
+                                    }
+
+                                    // 专辑右下角：收藏按钮（严格 100% 照搬竖屏规格）
+                                    if (isFavSupported) {
+                                        FilledTonalIconButton(
+                                            onClick = { PlaybackManager.toggleCurrentSongFavorite() },
+                                            modifier = Modifier.size(28.dp),
+                                            colors =
+                                                IconButtonDefaults.filledTonalIconButtonColors(
+                                                    containerColor = controlContainerColor,
+                                                    contentColor = if (isFavorite) MaterialTheme.colorScheme.error else contentPrimary,
+                                                ),
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                                contentDescription = "收藏",
+                                                tint = if (isFavorite) MaterialTheme.colorScheme.error else contentPrimary,
+                                                modifier = Modifier.size(17.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 专辑封面下方：进度滑块与时间（时间置于轨道上方，充分利用专辑下方的空间）
+                    PlayerProgressSlider(
+                        durationMs = durationMs,
+                        accentColor = animatedAccentColor,
+                        onSeekTo = onSeekTo,
+                        textColor = contentSecondary,
+                        timeOnTop = true,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                // 2. 中栏：歌词主舞台（顶部居中歌曲信息 + 沉浸逐字歌词流）
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Top,
+                ) {
+                    // 歌曲信息放在歌词部分界面居中顶部
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                                .padding(top = 2.dp, bottom = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = song?.name ?: "未在播放",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = contentPrimary,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier = Modifier.basicMarquee(),
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = song?.singer?.ifBlank { "未知歌手" } ?: "未知歌手",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = contentSecondary,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                        )
+                    }
+
+                    // 沉浸逐字歌词流
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 2.dp),
+                    ) {
+                        val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+                        MobileLyricsView(
+                            lyrics = lyrics,
+                            currentPositionMs = lyricPositionMs,
+                            onSeekTo = onSeekTo,
+                            highlightColor = animatedAccentColor,
+                            textColor = contentPrimary.copy(alpha = 0.72f),
+                            transColor = contentPrimary.copy(alpha = 0.55f),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // 3. 右栏：纵向悬浮操作列（严格保持与竖屏一致的 Squircle 圆角矩形与阴影规范）
+                val auxButtonShape = RoundedCornerShape(16.dp)
+                val auxButtonBgColor =
+                    if (isDark) {
+                        Color.White.copy(alpha = 0.08f)
+                    } else {
+                        Color.Black.copy(alpha = 0.05f)
+                    }
+
+                val queueInteractionSource = remember { MutableInteractionSource() }
+                val isQueuePressed by queueInteractionSource.collectIsPressedAsState()
+                val queueScale by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (isQueuePressed) 0.86f else 1f,
+                    animationSpec =
+                        androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                        ),
+                    label = "queue_scale",
+                )
+
+                val playPauseInteractionSource = remember { MutableInteractionSource() }
+                val isPlayPausePressed by playPauseInteractionSource.collectIsPressedAsState()
+                val playPauseScale by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (isPlayPausePressed) 0.88f else 1f,
+                    animationSpec =
+                        androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                        ),
+                    label = "play_pause_scale",
+                )
+
+                val loopInteractionSource = remember { MutableInteractionSource() }
+                val isLoopPressed by loopInteractionSource.collectIsPressedAsState()
+                val loopScale by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (isLoopPressed) 0.86f else 1f,
+                    animationSpec =
+                        androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+                        ),
+                    label = "loop_scale",
+                )
+
+                Column(
+                    modifier = Modifier.width(60.dp).fillMaxHeight(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    // 播放队列（与竖屏一致的 Squircle 圆角矩形与半透明背景）
+                    FilledTonalIconButton(
+                        onClick = { showQueueSheet = true },
+                        interactionSource = queueInteractionSource,
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .graphicsLayer {
+                                    scaleX = queueScale
+                                    scaleY = queueScale
+                                },
+                        shape = auxButtonShape,
+                        colors =
+                            IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = auxButtonBgColor,
+                                contentColor = contentPrimary.copy(alpha = 0.85f),
+                            ),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+                            contentDescription = "播放队列",
+                            tint = contentPrimary.copy(alpha = 0.85f),
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+
+                    // 播放/暂停大按键（严格保持与竖屏完全一致的 Squircle 圆角矩形与彩色外发光阴影）
+                    val playPauseContentColor =
+                        if (ColorUtils.calculateLuminance(animatedAccentColor.toArgb()) < 0.45) {
+                            Color.White
+                        } else {
+                            Color(0xFF1C1B1F)
+                        }
+                    FilledIconButton(
+                        onClick = {
+                            if (isMuted) {
+                                PlaybackManager.setMuted(false)
+                                val preferred = PlaybackManager.preferredTier.value
+                                if (PlaybackManager.currentTier.value != preferred) {
+                                    PlaybackManager.switchTier(preferred)
+                                } else if (!isPlaying) {
+                                    onTogglePlayPause()
+                                }
+                            } else {
+                                onTogglePlayPause()
+                            }
+                        },
+                        interactionSource = playPauseInteractionSource,
+                        modifier =
+                            Modifier
+                                .size(58.dp)
+                                .graphicsLayer {
+                                    scaleX = playPauseScale
+                                    scaleY = playPauseScale
+                                }.shadow(
+                                    elevation = 4.dp,
+                                    shape = RoundedCornerShape(22.dp),
+                                    spotColor = animatedAccentColor.copy(alpha = if (isDark) 0.38f else 0.22f),
+                                    ambientColor = animatedAccentColor.copy(alpha = 0.08f),
+                                    clip = false,
+                                ),
+                        shape = RoundedCornerShape(22.dp),
+                        colors =
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = animatedAccentColor,
+                                contentColor = playPauseContentColor,
+                            ),
+                    ) {
+                        AnimatedContent(
+                            targetState = isPlaying && !isMuted,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.75f))
+                                    .togetherWith(fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.75f))
+                            },
+                            label = "PlayPauseLandscapeIconTransition",
+                        ) { playing ->
+                            Icon(
+                                imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = if (playing) "暂停" else "播放",
+                                modifier = Modifier.size(32.dp),
+                            )
+                        }
+                    }
+
+                    // 循环模式（与竖屏一致的 Squircle 圆角矩形与图标过渡动画）
+                    val isLoopHighlighted = loopMode == org.melodist.playback.PlaybackLoopMode.SingleRepeat
+                    FilledTonalIconButton(
+                        onClick = onToggleLoopMode,
+                        interactionSource = loopInteractionSource,
+                        modifier =
+                            Modifier
+                                .size(48.dp)
+                                .graphicsLayer {
+                                    scaleX = loopScale
+                                    scaleY = loopScale
+                                },
+                        shape = auxButtonShape,
+                        colors =
+                            IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = if (isLoopHighlighted) animatedAccentColor.copy(alpha = 0.20f) else auxButtonBgColor,
+                                contentColor = if (isLoopHighlighted) animatedAccentColor else contentPrimary.copy(alpha = 0.85f),
+                            ),
+                    ) {
+                        AnimatedContent(
+                            targetState = loopMode,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.78f))
+                                    .togetherWith(fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.78f))
+                            },
+                            label = "LoopModeLandscapeIconTransition",
+                        ) { mode ->
+                            val loopIcon =
+                                when (mode) {
+                                    org.melodist.playback.PlaybackLoopMode.ListRepeat -> Icons.Rounded.Repeat
+                                    org.melodist.playback.PlaybackLoopMode.SingleRepeat -> Icons.Rounded.RepeatOne
+                                    org.melodist.playback.PlaybackLoopMode.Shuffle -> Icons.Rounded.Shuffle
+                                }
+                            Icon(
+                                imageVector = loopIcon,
+                                contentDescription = "播放模式",
+                                tint = if (isLoopHighlighted) animatedAccentColor else contentPrimary.copy(alpha = 0.85f),
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            // 竖屏保留经典全高流式布局
             Column(
                 modifier =
-                    (if (isLandscape) Modifier.weight(0.38f) else Modifier.fillMaxWidth())
-                        .fillMaxHeight(),
+                    Modifier
+                        .fillMaxSize()
+                        .displayCutoutPadding()
+                        .systemBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = if (isLandscape) Arrangement.SpaceBetween else Arrangement.Top,
+                verticalArrangement = Arrangement.Top,
             ) {
-                // 1. 顶部操作条（无缝形态切换）
+                // 1. 顶部操作条（拖拽指示柄）
                 Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .height(if (isLandscape) 26.dp else 32.dp),
+                            .height(32.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (isLandscape) {
-                        IconButton(
-                            onClick = onCollapse,
-                            modifier = Modifier.size(26.dp).align(Alignment.CenterStart),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowDown,
-                                contentDescription = "收起",
-                                tint = contentSecondary,
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                    } else {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(width = 38.dp, height = 4.5.dp)
-                                    .background(contentTertiary.copy(alpha = 0.35f), CircleShape)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = onCollapse,
-                                    ),
-                        )
-                    }
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(width = 38.dp, height = 4.5.dp)
+                                .background(contentTertiary.copy(alpha = 0.35f), CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onCollapse,
+                                ),
+                    )
 
                     val curConnectState = connectState
                     if (curConnectState is MobileConnectionState.Paired) {
@@ -409,13 +730,13 @@ fun FullPlayerSheet(
                         Box(modifier = Modifier.align(Alignment.CenterEnd)) {
                             IconButton(
                                 onClick = { showTvMenu = true },
-                                modifier = Modifier.size(if (isLandscape) 26.dp else 32.dp),
+                                modifier = Modifier.size(32.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Computer,
                                     contentDescription = "已连接 ${pairedDevice.name}",
                                     tint = animatedAccentColor,
-                                    modifier = Modifier.size(if (isLandscape) 18.dp else 20.dp),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
 
@@ -459,14 +780,14 @@ fun FullPlayerSheet(
                                         }
                                     },
                                 )
-                                val isTakeover =
+                                val isTakeoverPortrait =
                                     MobileConnectManager.remoteControlMode.collectAsState().value == org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
                                 DropdownMenuItem(
-                                    text = { Text(if (isTakeover) "接管模式" else "进度接力") },
+                                    text = { Text(if (isTakeoverPortrait) "接管模式" else "进度接力") },
                                     leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
                                     onClick = {
                                         showTvMenu = false
-                                        if (isTakeover) {
+                                        if (isTakeoverPortrait) {
                                             android.widget.Toast
                                                 .makeText(
                                                     context,
@@ -506,113 +827,93 @@ fun FullPlayerSheet(
                     }
                 }
 
-                // 2. 中间主区域（横屏固定精致 130dp 封面；竖屏全高流式封面/歌词）
-                if (isLandscape) {
-                    Box(
-                        modifier = Modifier.size(130.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        PlayerCoverCarousel(
-                            currentSong = song,
-                            prevSong = prevSong,
-                            nextSong = nextSong,
-                            onPlayNext = onPlayNext,
-                            onPlayPrevious = onPlayPrevious,
-                            onClick = { coverTargetSong = song },
-                            onLongClick = { actionTargetSong = song },
-                            shadowTint = monetColors.shadowTint,
-                            isDark = isDark,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                } else {
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        AnimatedContent(
-                            targetState = displayMode,
-                            transitionSpec = {
-                                if (targetState == PlayerDisplayMode.Lyrics) {
-                                    (
-                                        fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing))
-                                    ).togetherWith(
-                                        fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                                            scaleOut(targetScale = 1.04f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
-                                    )
-                                } else {
-                                    (
-                                        fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 1.04f, animationSpec = tween(280, easing = FastOutSlowInEasing))
-                                    ).togetherWith(
-                                        fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                                            scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
-                                    )
-                                }
-                            },
-                            label = "PlayerCoverLyricsTransition",
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) { currentMode ->
-                            if (currentMode == PlayerDisplayMode.Cover) {
-                                PlayerCoverCarousel(
-                                    currentSong = song,
-                                    prevSong = prevSong,
-                                    nextSong = nextSong,
-                                    onPlayNext = onPlayNext,
-                                    onPlayPrevious = onPlayPrevious,
-                                    onClick = { displayMode = PlayerDisplayMode.Lyrics },
-                                    onLongClick = { actionTargetSong = song },
-                                    shadowTint = monetColors.shadowTint,
-                                    isDark = isDark,
+                // 2. 中间主区域（竖屏全高流式封面/歌词切换）
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AnimatedContent(
+                        targetState = displayMode,
+                        transitionSpec = {
+                            if (targetState == PlayerDisplayMode.Lyrics) {
+                                (
+                                    fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                        scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                                ).togetherWith(
+                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                        scaleOut(targetScale = 1.04f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
                                 )
                             } else {
-                                var lyricDragX by remember { mutableFloatStateOf(0f) }
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .pointerInput(Unit) {
-                                                detectHorizontalDragGestures(
-                                                    onDragStart = { lyricDragX = 0f },
-                                                    onHorizontalDrag = { _, dragAmount -> lyricDragX += dragAmount },
-                                                    onDragEnd = {
-                                                        if (abs(lyricDragX) > 70f) {
-                                                            displayMode = PlayerDisplayMode.Cover
-                                                        }
-                                                        lyricDragX = 0f
-                                                    },
-                                                    onDragCancel = { lyricDragX = 0f },
-                                                )
-                                            },
-                                ) {
-                                    val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
-                                    MobileLyricsView(
-                                        lyrics = lyrics,
-                                        currentPositionMs = lyricPositionMs,
-                                        onSeekTo = onSeekTo,
-                                        highlightColor = animatedAccentColor,
-                                        textColor = contentPrimary.copy(alpha = 0.72f),
-                                        transColor = contentPrimary.copy(alpha = 0.55f),
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                }
+                                (
+                                    fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                        scaleIn(initialScale = 1.04f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                                ).togetherWith(
+                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                        scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                                )
+                            }
+                        },
+                        label = "PlayerCoverLyricsTransition",
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) { currentMode ->
+                        if (currentMode == PlayerDisplayMode.Cover) {
+                            PlayerCoverCarousel(
+                                currentSong = song,
+                                prevSong = prevSong,
+                                nextSong = nextSong,
+                                onPlayNext = onPlayNext,
+                                onPlayPrevious = onPlayPrevious,
+                                onClick = { displayMode = PlayerDisplayMode.Lyrics },
+                                onLongClick = { actionTargetSong = song },
+                                shadowTint = monetColors.shadowTint,
+                                isDark = isDark,
+                            )
+                        } else {
+                            var lyricDragX by remember { mutableFloatStateOf(0f) }
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures(
+                                                onDragStart = { lyricDragX = 0f },
+                                                onHorizontalDrag = { _, dragAmount -> lyricDragX += dragAmount },
+                                                onDragEnd = {
+                                                    if (abs(lyricDragX) > 70f) {
+                                                        displayMode = PlayerDisplayMode.Cover
+                                                    }
+                                                    lyricDragX = 0f
+                                                },
+                                                onDragCancel = { lyricDragX = 0f },
+                                            )
+                                        },
+                            ) {
+                                val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+                                MobileLyricsView(
+                                    lyrics = lyrics,
+                                    currentPositionMs = lyricPositionMs,
+                                    onSeekTo = onSeekTo,
+                                    highlightColor = animatedAccentColor,
+                                    textColor = contentPrimary.copy(alpha = 0.72f),
+                                    transColor = contentPrimary.copy(alpha = 0.55f),
+                                    modifier = Modifier.fillMaxSize(),
+                                )
                             }
                         }
                     }
                 }
 
-                // 3. 下方歌曲信息 + 进度条 + 播控栏（全部支持 isLandscape 平滑无缝形变）
+                // 3. 下方歌曲信息 + 进度条 + 播控栏
                 Column(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .pointerInput(displayMode) {
-                                if (displayMode == PlayerDisplayMode.Lyrics && !isLandscape) {
+                                if (displayMode == PlayerDisplayMode.Lyrics) {
                                     detectVerticalDragGestures(
                                         onDragStart = {
                                             accumulatedDragY = 0f
@@ -671,9 +972,7 @@ fun FullPlayerSheet(
                             },
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    if (!isLandscape) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // 歌曲信息
                     PlayerSongInfoSection(
@@ -688,7 +987,7 @@ fun FullPlayerSheet(
                         contentSecondary = contentSecondary,
                         contentTertiary = contentTertiary,
                         onSongInfoClick = {
-                            if (displayMode == PlayerDisplayMode.Lyrics && !isLandscape) {
+                            if (displayMode == PlayerDisplayMode.Lyrics) {
                                 displayMode = PlayerDisplayMode.Cover
                             }
                         },
@@ -699,10 +998,10 @@ fun FullPlayerSheet(
                                 showQualitySheet = true
                             }
                         },
-                        isLandscape = isLandscape,
+                        isLandscape = false,
                     )
 
-                    Spacer(modifier = Modifier.height(if (isLandscape) 4.dp else 14.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // 进度滑块
                     PlayerProgressSlider(
@@ -712,9 +1011,9 @@ fun FullPlayerSheet(
                         textColor = contentSecondary,
                     )
 
-                    Spacer(modifier = Modifier.height(if (isLandscape) 4.dp else 12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // 控制按钮栏（平滑尺寸形变）
+                    // 控制按钮栏
                     PlayerControlBar(
                         isPlaying = isPlaying,
                         loopMode = loopMode,
@@ -738,25 +1037,7 @@ fun FullPlayerSheet(
                         onToggleLoopMode = onToggleLoopMode,
                         onOpenQueue = { showQueueSheet = true },
                         onDislikeClick = { showDislikeConfirmDialog = true },
-                        isLandscape = isLandscape,
-                    )
-                }
-            }
-
-            if (isLandscape) {
-                // 右侧歌词展开区（横屏全高度沉浸逐字歌词流）
-                Box(
-                    modifier = Modifier.weight(0.62f).fillMaxHeight().padding(start = 24.dp, top = 4.dp, bottom = 4.dp),
-                ) {
-                    val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
-                    MobileLyricsView(
-                        lyrics = lyrics,
-                        currentPositionMs = lyricPositionMs,
-                        onSeekTo = onSeekTo,
-                        highlightColor = animatedAccentColor,
-                        textColor = contentPrimary.copy(alpha = 0.72f),
-                        transColor = contentPrimary.copy(alpha = 0.55f),
-                        modifier = Modifier.fillMaxSize(),
+                        isLandscape = false,
                     )
                 }
             }
