@@ -87,11 +87,13 @@ class MobileAcrViewModel(
             viewModelScope.launch {
                 val startTime = System.currentTimeMillis()
                 val sessionUniqueId = startTime
-                val probeMilestones = listOf(3000L, 4500L, 6500L, 9000L, 11500L)
+                // 优化后的探测阶梯：前段更紧凑敏捷，后段兼顾特征增量与频次安全
+                val probeMilestones = listOf(3000L, 4200L, 5600L, 7200L, 9000L, 11200L, 13800L, 16600L, 19500L)
                 var nextProbeIndex = 0
-                val maxDurationMs = 12000L
+                val maxDurationMs = 20000L
 
                 var isSearching = false
+                var lastSearchFinishTime = 0L
 
                 while (isActive) {
                     delay(100)
@@ -102,7 +104,12 @@ class MobileAcrViewModel(
                         _uiState.value = MobileAcrUiState.Listening(elapsedSeconds)
                     }
 
-                    if (!isSearching && nextProbeIndex < probeMilestones.size && elapsedMs >= probeMilestones[nextProbeIndex]) {
+                    val canLaunchProbe = !isSearching &&
+                        nextProbeIndex < probeMilestones.size &&
+                        elapsedMs >= probeMilestones[nextProbeIndex] &&
+                        (System.currentTimeMillis() - lastSearchFinishTime >= 200L)
+
+                    if (canLaunchProbe) {
                         val milestone = probeMilestones[nextProbeIndex]
                         nextProbeIndex++
                         isSearching = true
@@ -147,20 +154,17 @@ class MobileAcrViewModel(
                                     val durationSec = (System.currentTimeMillis() - startTime) / 1000f
                                     _uiState.value =
                                         MobileAcrUiState.Success(
-                                            song = matchedSong,
-                                            offsetSeconds = result.offsetSeconds,
-                                            anchorRealtimeMs = recordStartRealtimeMs,
-                                            matchDurationSeconds = durationSec,
+                                             song = matchedSong,
+                                             offsetSeconds = result.offsetSeconds,
+                                             anchorRealtimeMs = recordStartRealtimeMs,
+                                             matchDurationSeconds = durationSec,
                                         )
                                     return@launch
                                 }
                             }
                         }
 
-                        val currentElapsed = System.currentTimeMillis() - startTime
-                        while (nextProbeIndex < probeMilestones.size && currentElapsed >= probeMilestones[nextProbeIndex]) {
-                            nextProbeIndex++
-                        }
+                        lastSearchFinishTime = System.currentTimeMillis()
                         isSearching = false
                     }
 
