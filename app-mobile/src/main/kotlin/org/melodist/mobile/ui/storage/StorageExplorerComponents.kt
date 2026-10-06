@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -230,8 +231,10 @@ fun StorageDirectoryListView(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     emptyMessage: String = "当前目录暂无音频文件或子目录",
+    isLoading: Boolean = false,
+    headerItems: (LazyListScope.() -> Unit)? = null,
 ) {
-    if (items.isEmpty()) {
+    if (items.isEmpty() && headerItems == null && !isLoading) {
         Box(
             modifier =
                 modifier
@@ -259,81 +262,122 @@ fun StorageDirectoryListView(
             modifier = modifier.fillMaxSize(),
             contentPadding = contentPadding,
         ) {
-            items(items, key = { it.id }) { item ->
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onItemClick(item) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            headerItems?.invoke(this)
+
+            if (isLoading) {
+                item(key = "storage_loading") {
                     Box(
                         modifier =
                             Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (item.isDirectory) {
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHigh
-                                    },
-                                ),
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector =
-                                if (item.isDirectory) {
-                                    Icons.Rounded.Folder
-                                } else {
-                                    Icons.Rounded.AudioFile
-                                },
-                            contentDescription = null,
-                            tint =
-                                if (item.isDirectory) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            modifier = Modifier.size(24.dp),
-                        )
+                        CircularProgressIndicator(modifier = Modifier.size(36.dp))
                     }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = item.name,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        if (item.detailText.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(2.dp))
+                }
+            } else if (items.isEmpty()) {
+                item(key = "storage_empty") {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.FolderOpen,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.size(56.dp),
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = item.detailText,
-                                style = MaterialTheme.typography.bodySmall,
+                                text = emptyMessage,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-
-                    if (!item.isDirectory) {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "播放",
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
                 }
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 70.dp, end = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                )
+            } else {
+                items(items, key = { it.id }) { item ->
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onItemClick(item) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (item.isDirectory) {
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceContainerHigh
+                                        },
+                                    ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector =
+                                    if (item.isDirectory) {
+                                        Icons.Rounded.Folder
+                                    } else {
+                                        Icons.Rounded.AudioFile
+                                    },
+                                contentDescription = null,
+                                tint =
+                                    if (item.isDirectory) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = item.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (item.detailText.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = item.detailText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+
+                        if (!item.isDirectory) {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = "播放",
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 70.dp, end = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    )
+                }
             }
         }
     }

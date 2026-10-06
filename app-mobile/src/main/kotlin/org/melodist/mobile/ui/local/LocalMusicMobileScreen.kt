@@ -250,81 +250,25 @@ fun LocalMusicMobileScreen(
                 }
             }
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 顶部控制栏：模式切换药丸
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilterChip(
-                            selected = viewMode == LocalMusicViewMode.Library,
-                            onClick = {
-                                viewMode = LocalMusicViewMode.Library
-                                refreshScannedSongs()
-                            },
-                            label = { Text("音乐库 (${scannedSongs.size})") },
-                            leadingIcon = {
-                                Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                        )
-                        FilterChip(
-                            selected = viewMode == LocalMusicViewMode.Directory,
-                            onClick = {
-                                viewMode = LocalMusicViewMode.Directory
-                                loadDirectory(currentPath)
-                            },
-                            label = { Text("文件目录") },
-                            leadingIcon = {
-                                Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                        )
-                    }
-
-                    // 扫描系统音乐选项
-                    FilledTonalButton(
-                        onClick = { startSystemScan() },
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp),
-                    ) {
-                        Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("扫描", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-
-                // 扫描进度卡片
-                if (isScanning && scanStatus != null) {
-                    StorageScanProgressCard(
-                        scanStatus = scanStatus!!,
-                        onCancel = {
-                            scanJob?.cancel()
-                            isScanning = false
-                            scanStatus = null
-                            refreshScannedSongs()
-                        },
-                    )
-                }
-
-                // 主内容区
-                when (viewMode) {
-                    LocalMusicViewMode.Library -> {
-                        if (scannedSongs.isEmpty()) {
+            when (viewMode) {
+                LocalMusicViewMode.Library -> {
+                    CommonSongList(
+                        songs = scannedSongs,
+                        sortOrder = sortOrder,
+                        showLocalBadge = false,
+                        deleteType = SongListDeleteType.LocalFile,
+                        enableDownload = false,
+                        contentPadding =
+                            PaddingValues(
+                                top = 2.dp,
+                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                            ),
+                        emptyContent = {
                             Box(
                                 modifier =
                                     Modifier
-                                        .fillMaxSize()
-                                        .padding(contentPadding),
+                                        .fillMaxWidth()
+                                        .padding(vertical = 48.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -358,198 +302,230 @@ fun LocalMusicMobileScreen(
                                     }
                                 }
                             }
-                        } else {
-                            CommonSongList(
-                                songs = scannedSongs,
-                                sortOrder = sortOrder,
-                                showLocalBadge = false,
-                                deleteType = SongListDeleteType.LocalFile,
-                                enableDownload = false,
-                                contentPadding =
-                                    PaddingValues(
-                                        top = 2.dp,
-                                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                    ),
-                                headerItems = {
-                                    item(key = "local_library_header") {
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Text(
-                                                text = "共 ${scannedSongs.size} 首歌曲",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                var showSortMenu by remember { mutableStateOf(false) }
-                                                Box {
-                                                    TextButton(
-                                                        onClick = { showSortMenu = true },
-                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.AutoMirrored.Rounded.Sort,
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(16.dp),
-                                                        )
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = sortOrder.label,
-                                                            style = MaterialTheme.typography.labelMedium,
-                                                        )
-                                                    }
-                                                    DropdownMenu(
-                                                        expanded = showSortMenu,
-                                                        onDismissRequest = { showSortMenu = false },
-                                                    ) {
-                                                        SongSortOrder.entries.forEach { order ->
-                                                            DropdownMenuItem(
-                                                                text = {
-                                                                    Text(
-                                                                        text = order.label,
-                                                                        fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
-                                                                        color =
-                                                                            if (sortOrder ==
-                                                                                order
-                                                                            ) {
-                                                                                MaterialTheme.colorScheme.primary
-                                                                            } else {
-                                                                                MaterialTheme.colorScheme.onSurface
-                                                                            },
-                                                                    )
-                                                                },
-                                                                onClick = {
-                                                                    sortOrder = order
-                                                                    LocalMusicManager.setSortOrder(order)
-                                                                    showSortMenu = false
-                                                                },
-                                                                leadingIcon =
-                                                                    if (sortOrder == order) {
-                                                                        {
-                                                                            Icon(
-                                                                                Icons.Rounded.Check,
-                                                                                contentDescription = null,
-                                                                                tint = MaterialTheme.colorScheme.primary,
-                                                                            )
-                                                                        }
-                                                                    } else {
-                                                                        null
-                                                                    },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-
-                                                Spacer(modifier = Modifier.width(4.dp))
-
-                                                TextButton(onClick = { showClearConfirmDialog = true }) {
-                                                    Text("清空库", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                            )
-                        }
-                    }
-
-                    LocalMusicViewMode.Directory -> {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            StoragePathBreadcrumbs(
-                                currentPath = currentPath,
-                                onNavigateToSegment = { segmentPath ->
-                                    pathHistory = pathHistory.takeWhile { it != segmentPath } + segmentPath
-                                    loadDirectory(segmentPath)
-                                },
-                                onNavigateUp = {
-                                    if (pathHistory.size > 1) {
-                                        val nextHist = pathHistory.dropLast(1)
-                                        pathHistory = nextHist
-                                        loadDirectory(nextHist.last())
-                                    }
-                                },
-                                canNavigateUp = pathHistory.size > 1,
-                            )
-
-                            // 目录快捷操作栏
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = "当前包含 ${directoryItems.size} 项",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                FilledTonalButton(
-                                    onClick = { startScan(currentPath) },
-                                    enabled = !isScanning,
-                                ) {
-                                    Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("扫描此目录到音乐库", style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-
-                            if (isLoadingDirectory) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(modifier = Modifier.size(36.dp))
-                                }
-                            } else {
-                                val storageItems =
-                                    directoryItems.map { item ->
-                                        val detail =
-                                            if (item.isDirectory) {
-                                                "文件夹"
-                                            } else {
-                                                "%.1f MB".format(item.size / (1024f * 1024f))
-                                            }
-                                        StorageItemModel(
-                                            id = item.path,
-                                            name = item.name,
-                                            isDirectory = item.isDirectory,
-                                            detailText = detail,
-                                            raw = item,
-                                        )
-                                    }
-
-                                StorageDirectoryListView(
-                                    items = storageItems,
-                                    onItemClick = { clicked ->
-                                        val item = clicked.raw as LocalFileItem
-                                        if (item.isDirectory) {
-                                            pathHistory = pathHistory + item.path
-                                            loadDirectory(item.path)
+                        },
+                        headerItems = {
+                            item(key = "local_top_header") {
+                                LocalMusicTopHeader(
+                                    viewMode = viewMode,
+                                    scannedSongsCount = scannedSongs.size,
+                                    isScanning = isScanning,
+                                    scanStatus = scanStatus,
+                                    onViewModeChange = { mode ->
+                                        viewMode = mode
+                                        if (mode == LocalMusicViewMode.Library) {
+                                            refreshScannedSongs()
                                         } else {
-                                            val (inferredTitle, inferredArtist) = LocalMusicManager.inferTitleArtist(item.name)
-                                            val song =
-                                                Song(
-                                                    songMid = "local_${item.path.hashCode()}",
-                                                    name = inferredTitle,
-                                                    singer = inferredArtist,
-                                                    album = "本地音频",
-                                                    localFilePath = item.path,
-                                                )
-                                            PlaybackManager.playSong(song)
+                                            loadDirectory(currentPath)
                                         }
                                     },
-                                    contentPadding =
-                                        PaddingValues(
-                                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                        ),
+                                    onScanClick = { startSystemScan() },
+                                    onCancelScan = {
+                                        scanJob?.cancel()
+                                        isScanning = false
+                                        scanStatus = null
+                                        refreshScannedSongs()
+                                    },
                                 )
                             }
+                            if (scannedSongs.isNotEmpty()) {
+                                item(key = "local_library_sort_header") {
+                                    Row(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = "共 ${scannedSongs.size} 首歌曲",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            var showSortMenu by remember { mutableStateOf(false) }
+                                            Box {
+                                                TextButton(
+                                                    onClick = { showSortMenu = true },
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.AutoMirrored.Rounded.Sort,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = sortOrder.label,
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                    )
+                                                }
+                                                DropdownMenu(
+                                                    expanded = showSortMenu,
+                                                    onDismissRequest = { showSortMenu = false },
+                                                ) {
+                                                    SongSortOrder.entries.forEach { order ->
+                                                        DropdownMenuItem(
+                                                            text = {
+                                                                Text(
+                                                                    text = order.label,
+                                                                    fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
+                                                                    color =
+                                                                        if (sortOrder ==
+                                                                            order
+                                                                        ) {
+                                                                            MaterialTheme.colorScheme.primary
+                                                                        } else {
+                                                                            MaterialTheme.colorScheme.onSurface
+                                                                        },
+                                                                )
+                                                            },
+                                                            onClick = {
+                                                                sortOrder = order
+                                                                LocalMusicManager.setSortOrder(order)
+                                                                showSortMenu = false
+                                                            },
+                                                            leadingIcon =
+                                                                if (sortOrder == order) {
+                                                                    {
+                                                                        Icon(
+                                                                            Icons.Rounded.Check,
+                                                                            contentDescription = null,
+                                                                            tint = MaterialTheme.colorScheme.primary,
+                                                                        )
+                                                                    }
+                                                                } else {
+                                                                    null
+                                                                },
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.width(4.dp))
+
+                                            TextButton(onClick = { showClearConfirmDialog = true }) {
+                                                Text("清空库", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    )
+                }
+
+                LocalMusicViewMode.Directory -> {
+                    val storageItems =
+                        directoryItems.map { item ->
+                            val detail =
+                                if (item.isDirectory) {
+                                    "文件夹"
+                                } else {
+                                    "%.1f MB".format(item.size / (1024f * 1024f))
+                                }
+                            StorageItemModel(
+                                id = item.path,
+                                name = item.name,
+                                isDirectory = item.isDirectory,
+                                detailText = detail,
+                                raw = item,
+                            )
                         }
-                    }
+
+                    StorageDirectoryListView(
+                        items = storageItems,
+                        isLoading = isLoadingDirectory,
+                        onItemClick = { clicked ->
+                            val item = clicked.raw as LocalFileItem
+                            if (item.isDirectory) {
+                                pathHistory = pathHistory + item.path
+                                loadDirectory(item.path)
+                            } else {
+                                val (inferredTitle, inferredArtist) = LocalMusicManager.inferTitleArtist(item.name)
+                                val song =
+                                    Song(
+                                        songMid = "local_${item.path.hashCode()}",
+                                        name = inferredTitle,
+                                        singer = inferredArtist,
+                                        album = "本地音频",
+                                        localFilePath = item.path,
+                                    )
+                                PlaybackManager.playSong(song)
+                            }
+                        },
+                        contentPadding =
+                            PaddingValues(
+                                top = 2.dp,
+                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                            ),
+                        headerItems = {
+                            item(key = "local_top_header") {
+                                LocalMusicTopHeader(
+                                    viewMode = viewMode,
+                                    scannedSongsCount = scannedSongs.size,
+                                    isScanning = isScanning,
+                                    scanStatus = scanStatus,
+                                    onViewModeChange = { mode ->
+                                        viewMode = mode
+                                        if (mode == LocalMusicViewMode.Library) {
+                                            refreshScannedSongs()
+                                        } else {
+                                            loadDirectory(currentPath)
+                                        }
+                                    },
+                                    onScanClick = { startSystemScan() },
+                                    onCancelScan = {
+                                        scanJob?.cancel()
+                                        isScanning = false
+                                        scanStatus = null
+                                        refreshScannedSongs()
+                                    },
+                                )
+                            }
+                            item(key = "local_breadcrumbs") {
+                                StoragePathBreadcrumbs(
+                                    currentPath = currentPath,
+                                    onNavigateToSegment = { segmentPath ->
+                                        pathHistory = pathHistory.takeWhile { it != segmentPath } + segmentPath
+                                        loadDirectory(segmentPath)
+                                    },
+                                    onNavigateUp = {
+                                        if (pathHistory.size > 1) {
+                                            val nextHist = pathHistory.dropLast(1)
+                                            pathHistory = nextHist
+                                            loadDirectory(nextHist.last())
+                                        }
+                                    },
+                                    canNavigateUp = pathHistory.size > 1,
+                                )
+                            }
+                            item(key = "local_dir_actions") {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = "当前包含 ${directoryItems.size} 项",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    FilledTonalButton(
+                                        onClick = { startScan(currentPath) },
+                                        enabled = !isScanning,
+                                    ) {
+                                        Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("扫描此目录到音乐库", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -577,5 +553,75 @@ fun LocalMusicMobileScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun LocalMusicTopHeader(
+    viewMode: LocalMusicViewMode,
+    scannedSongsCount: Int,
+    isScanning: Boolean,
+    scanStatus: String?,
+    onViewModeChange: (LocalMusicViewMode) -> Unit,
+    onScanClick: () -> Unit,
+    onCancelScan: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = viewMode == LocalMusicViewMode.Library,
+                    onClick = { onViewModeChange(LocalMusicViewMode.Library) },
+                    label = { Text("音乐库 ($scannedSongsCount)") },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                )
+                FilterChip(
+                    selected = viewMode == LocalMusicViewMode.Directory,
+                    onClick = { onViewModeChange(LocalMusicViewMode.Directory) },
+                    label = { Text("文件目录") },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                )
+            }
+
+            // 扫描系统音乐选项
+            FilledTonalButton(
+                onClick = onScanClick,
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier.height(32.dp),
+            ) {
+                Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("扫描", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+
+        // 扫描进度卡片
+        if (isScanning && scanStatus != null) {
+            StorageScanProgressCard(
+                scanStatus = scanStatus,
+                onCancel = onCancelScan,
+            )
+        }
     }
 }

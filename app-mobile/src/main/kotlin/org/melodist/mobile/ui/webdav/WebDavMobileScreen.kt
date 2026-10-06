@@ -244,150 +244,28 @@ fun WebDavMobileScreen(
                 }
             }
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // 顶部控制栏：服务器信息行与模式切换行
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // 当前服务器切换胶囊
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Surface(
-                            onClick = { showServerSelectSheet = true },
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Dns,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = currentServer?.name ?: "WebDAV",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Rounded.ArrowDropDown,
-                                    contentDescription = "切换服务器",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        }
-
-                        // 服务器地址提示
-                        currentServer?.let { server ->
-                            Text(
-                                text = server.url,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                    }
-
-                    // 视图模式切换：音乐库 vs 目录文件 + 右侧扫描按钮
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FilterChip(
-                                selected = viewMode == WebDavViewMode.Library,
-                                onClick = {
-                                    viewMode = WebDavViewMode.Library
-                                    refreshCachedSongs()
-                                },
-                                label = { Text("音乐库 (${cachedSongs.size})") },
-                                leadingIcon = {
-                                    Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                            FilterChip(
-                                selected = viewMode == WebDavViewMode.Directory,
-                                onClick = {
-                                    viewMode = WebDavViewMode.Directory
-                                    loadPath(currentPath)
-                                },
-                                label = { Text("文件目录") },
-                                leadingIcon = {
-                                    Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                            )
-                        }
-
-                        // 扫描与自愈按钮
-                        FilledTonalButton(
-                            onClick = {
-                                if (viewMode == WebDavViewMode.Directory) {
-                                    startScan(currentPath)
-                                } else {
-                                    startScanMissingMetadata(silent = false)
-                                }
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp),
-                            enabled = currentServer != null && !isScanning && !isScanningMetadata,
-                        ) {
-                            Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                if (isScanning || isScanningMetadata) "扫描中" else "扫描",
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    }
-                }
-
-                // 扫描进度卡片
-                if ((isScanning || isScanningMetadata) && scanStatus != null) {
-                    StorageScanProgressCard(
-                        scanStatus = scanStatus!!,
-                        onCancel = {
-                            scanJob?.cancel()
-                            isScanning = false
-                            isScanningMetadata = false
-                            scanStatus = null
-                            refreshCachedSongs()
+            when (viewMode) {
+                WebDavViewMode.Library -> {
+                    CommonSongList(
+                        songs = cachedSongs,
+                        sortOrder = sortOrder,
+                        showWebDavBadge = false,
+                        deleteType = SongListDeleteType.WebDavFile,
+                        enableDownload = false,
+                        onDeleteSelected = {
+                            cachedSongs = WebDavManager.getAllCachedSongs()
                         },
-                    )
-                }
-
-                // 主内容区
-                when (viewMode) {
-                    WebDavViewMode.Library -> {
-                        if (cachedSongs.isEmpty()) {
+                        contentPadding =
+                            PaddingValues(
+                                top = 2.dp,
+                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                            ),
+                        emptyContent = {
                             Box(
                                 modifier =
                                     Modifier
-                                        .fillMaxSize()
-                                        .padding(contentPadding),
+                                        .fillMaxWidth()
+                                        .padding(vertical = 48.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -414,196 +292,244 @@ fun WebDavMobileScreen(
                                     }
                                 }
                             }
-                        } else {
-                            CommonSongList(
-                                songs = cachedSongs,
-                                sortOrder = sortOrder,
-                                showWebDavBadge = false,
-                                deleteType = SongListDeleteType.WebDavFile,
-                                enableDownload = false,
-                                onDeleteSelected = {
-                                    cachedSongs = WebDavManager.getAllCachedSongs()
-                                },
-                                contentPadding =
-                                    PaddingValues(
-                                        top = 2.dp,
-                                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                    ),
-                                headerItems = {
-                                    item(key = "webdav_library_header") {
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Text(
-                                                text = "共 ${cachedSongs.size} 首歌曲",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                var showSortMenu by remember { mutableStateOf(false) }
-                                                Box {
-                                                    TextButton(
-                                                        onClick = { showSortMenu = true },
-                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.AutoMirrored.Rounded.Sort,
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(16.dp),
-                                                        )
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = sortOrder.label,
-                                                            style = MaterialTheme.typography.labelMedium,
-                                                        )
-                                                    }
-                                                    DropdownMenu(
-                                                        expanded = showSortMenu,
-                                                        onDismissRequest = { showSortMenu = false },
-                                                    ) {
-                                                        SongSortOrder.entries.forEach { order ->
-                                                            DropdownMenuItem(
-                                                                text = {
-                                                                    Text(
-                                                                        text = order.label,
-                                                                        fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
-                                                                        color =
-                                                                            if (sortOrder ==
-                                                                                order
-                                                                            ) {
-                                                                                MaterialTheme.colorScheme.primary
-                                                                            } else {
-                                                                                MaterialTheme.colorScheme.onSurface
-                                                                            },
-                                                                    )
-                                                                },
-                                                                onClick = {
-                                                                    sortOrder = order
-                                                                    WebDavManager.setSortOrder(order, currentServer?.id)
-                                                                    showSortMenu = false
-                                                                },
-                                                                leadingIcon =
-                                                                    if (sortOrder == order) {
-                                                                        {
-                                                                            Icon(
-                                                                                Icons.Rounded.Check,
-                                                                                contentDescription = null,
-                                                                                tint = MaterialTheme.colorScheme.primary,
-                                                                            )
-                                                                        }
-                                                                    } else {
-                                                                        null
-                                                                    },
-                                                            )
-                                                        }
-                                                    }
-                                                }
-
-                                                Spacer(modifier = Modifier.width(4.dp))
-
-                                                TextButton(onClick = { showClearConfirmDialog = true }) {
-                                                    Text("清空库", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                            )
-                        }
-                    }
-
-                    WebDavViewMode.Directory -> {
-                        // 面包屑导航与当前目录扫描操作
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            StoragePathBreadcrumbs(
-                                currentPath = currentPath,
-                                onNavigateToSegment = { segmentPath ->
-                                    pathHistory = pathHistory.takeWhile { it != segmentPath } + segmentPath
-                                    loadPath(segmentPath)
-                                },
-                                onNavigateUp = {
-                                    if (pathHistory.size > 1) {
-                                        val nextHist = pathHistory.dropLast(1)
-                                        pathHistory = nextHist
-                                        loadPath(nextHist.last())
-                                    }
-                                },
-                                canNavigateUp = pathHistory.size > 1,
-                            )
-
-                            // 目录快捷操作栏
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = "当前包含 ${directoryItems.size} 项",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                FilledTonalButton(
-                                    onClick = { startScan(currentPath) },
-                                    enabled = !isScanning,
-                                ) {
-                                    Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("扫描此目录到音乐库", style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-
-                            if (isLoadingDirectory) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(modifier = Modifier.size(36.dp))
-                                }
-                            } else {
-                                val storageItems =
-                                    directoryItems.map { item ->
-                                        val sizeFormatted =
-                                            if (!item.isDirectory && item.contentLength > 0) {
-                                                "%.1f MB".format(item.contentLength / (1024f * 1024f))
-                                            } else {
-                                                ""
-                                            }
-                                        StorageItemModel(
-                                            id = item.href,
-                                            name = item.name,
-                                            isDirectory = item.isDirectory,
-                                            detailText = sizeFormatted,
-                                            raw = item,
-                                        )
-                                    }
-
-                                StorageDirectoryListView(
-                                    items = storageItems,
-                                    onItemClick = { clicked ->
-                                        val item = clicked.raw as WebDavItem
-                                        if (item.isDirectory) {
-                                            pathHistory = pathHistory + item.href
-                                            loadPath(item.href)
+                        },
+                        headerItems = {
+                            item(key = "webdav_top_header") {
+                                WebDavTopHeader(
+                                    currentServer = currentServer,
+                                    viewMode = viewMode,
+                                    cachedSongsCount = cachedSongs.size,
+                                    isScanning = isScanning,
+                                    isScanningMetadata = isScanningMetadata,
+                                    scanStatus = scanStatus,
+                                    onServerClick = { showServerSelectSheet = true },
+                                    onViewModeChange = { mode ->
+                                        viewMode = mode
+                                        if (mode == WebDavViewMode.Library) {
+                                            refreshCachedSongs()
                                         } else {
-                                            val (title, artist) = WebDavService.inferTitleArtist(item.name)
-                                            val coverUrl = WebDavManager.getSongCoverPath(currentServer!!.id, item.href)
-                                            val song = item.toSong(currentServer!!.id, title, artist, localPath = coverUrl)
-                                            PlaybackManager.playSong(song)
+                                            loadPath(currentPath)
                                         }
                                     },
-                                    contentPadding =
-                                        PaddingValues(
-                                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                        ),
+                                    onScanClick = {
+                                        if (viewMode == WebDavViewMode.Directory) {
+                                            startScan(currentPath)
+                                        } else {
+                                            startScanMissingMetadata(silent = false)
+                                        }
+                                    },
+                                    onCancelScan = {
+                                        scanJob?.cancel()
+                                        isScanning = false
+                                        isScanningMetadata = false
+                                        scanStatus = null
+                                        refreshCachedSongs()
+                                    },
                                 )
                             }
+                            if (cachedSongs.isNotEmpty()) {
+                                item(key = "webdav_library_sort_header") {
+                                    Row(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = "共 ${cachedSongs.size} 首歌曲",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            var showSortMenu by remember { mutableStateOf(false) }
+                                            Box {
+                                                TextButton(
+                                                    onClick = { showSortMenu = true },
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.AutoMirrored.Rounded.Sort,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = sortOrder.label,
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                    )
+                                                }
+                                                DropdownMenu(
+                                                    expanded = showSortMenu,
+                                                    onDismissRequest = { showSortMenu = false },
+                                                ) {
+                                                    SongSortOrder.entries.forEach { order ->
+                                                        DropdownMenuItem(
+                                                            text = {
+                                                                Text(
+                                                                    text = order.label,
+                                                                    fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
+                                                                    color =
+                                                                        if (sortOrder ==
+                                                                            order
+                                                                        ) {
+                                                                            MaterialTheme.colorScheme.primary
+                                                                        } else {
+                                                                            MaterialTheme.colorScheme.onSurface
+                                                                        },
+                                                                )
+                                                            },
+                                                            onClick = {
+                                                                sortOrder = order
+                                                                WebDavManager.setSortOrder(order, currentServer?.id)
+                                                                showSortMenu = false
+                                                            },
+                                                            leadingIcon =
+                                                                if (sortOrder == order) {
+                                                                    {
+                                                                        Icon(
+                                                                            Icons.Rounded.Check,
+                                                                            contentDescription = null,
+                                                                            tint = MaterialTheme.colorScheme.primary,
+                                                                        )
+                                                                    }
+                                                                } else {
+                                                                    null
+                                                                },
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.width(4.dp))
+
+                                            TextButton(onClick = { showClearConfirmDialog = true }) {
+                                                Text("清空库", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    )
+                }
+
+                WebDavViewMode.Directory -> {
+                    val storageItems =
+                        directoryItems.map { item ->
+                            val sizeFormatted =
+                                if (!item.isDirectory && item.contentLength > 0) {
+                                    "%.1f MB".format(item.contentLength / (1024f * 1024f))
+                                } else {
+                                    ""
+                                }
+                            StorageItemModel(
+                                id = item.href,
+                                name = item.name,
+                                isDirectory = item.isDirectory,
+                                detailText = sizeFormatted,
+                                raw = item,
+                            )
                         }
-                    }
+
+                    StorageDirectoryListView(
+                        items = storageItems,
+                        isLoading = isLoadingDirectory,
+                        onItemClick = { clicked ->
+                            val item = clicked.raw as WebDavItem
+                            if (item.isDirectory) {
+                                pathHistory = pathHistory + item.href
+                                loadPath(item.href)
+                            } else {
+                                val (title, artist) = WebDavService.inferTitleArtist(item.name)
+                                val coverUrl = WebDavManager.getSongCoverPath(currentServer!!.id, item.href)
+                                val song = item.toSong(currentServer!!.id, title, artist, localPath = coverUrl)
+                                PlaybackManager.playSong(song)
+                            }
+                        },
+                        contentPadding =
+                            PaddingValues(
+                                top = 2.dp,
+                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                            ),
+                        headerItems = {
+                            item(key = "webdav_top_header") {
+                                WebDavTopHeader(
+                                    currentServer = currentServer,
+                                    viewMode = viewMode,
+                                    cachedSongsCount = cachedSongs.size,
+                                    isScanning = isScanning,
+                                    isScanningMetadata = isScanningMetadata,
+                                    scanStatus = scanStatus,
+                                    onServerClick = { showServerSelectSheet = true },
+                                    onViewModeChange = { mode ->
+                                        viewMode = mode
+                                        if (mode == WebDavViewMode.Library) {
+                                            refreshCachedSongs()
+                                        } else {
+                                            loadPath(currentPath)
+                                        }
+                                    },
+                                    onScanClick = {
+                                        if (viewMode == WebDavViewMode.Directory) {
+                                            startScan(currentPath)
+                                        } else {
+                                            startScanMissingMetadata(silent = false)
+                                        }
+                                    },
+                                    onCancelScan = {
+                                        scanJob?.cancel()
+                                        isScanning = false
+                                        isScanningMetadata = false
+                                        scanStatus = null
+                                        refreshCachedSongs()
+                                    },
+                                )
+                            }
+                            item(key = "webdav_breadcrumbs") {
+                                StoragePathBreadcrumbs(
+                                    currentPath = currentPath,
+                                    onNavigateToSegment = { segmentPath ->
+                                        pathHistory = pathHistory.takeWhile { it != segmentPath } + segmentPath
+                                        loadPath(segmentPath)
+                                    },
+                                    onNavigateUp = {
+                                        if (pathHistory.size > 1) {
+                                            val nextHist = pathHistory.dropLast(1)
+                                            pathHistory = nextHist
+                                            loadPath(nextHist.last())
+                                        }
+                                    },
+                                    canNavigateUp = pathHistory.size > 1,
+                                )
+                            }
+                            item(key = "webdav_dir_actions") {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = "当前包含 ${directoryItems.size} 项",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    FilledTonalButton(
+                                        onClick = { startScan(currentPath) },
+                                        enabled = !isScanning,
+                                    ) {
+                                        Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("扫描此目录到音乐库", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        },
+                    )
                 }
             }
         }
@@ -677,5 +603,140 @@ fun WebDavMobileScreen(
                 showConfigDialog = false
             },
         )
+    }
+}
+
+@Composable
+private fun WebDavTopHeader(
+    currentServer: WebDavServer?,
+    viewMode: WebDavViewMode,
+    cachedSongsCount: Int,
+    isScanning: Boolean,
+    isScanningMetadata: Boolean,
+    scanStatus: String?,
+    onServerClick: () -> Unit,
+    onViewModeChange: (WebDavViewMode) -> Unit,
+    onScanClick: () -> Unit,
+    onCancelScan: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // 当前服务器切换胶囊
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Surface(
+                    onClick = onServerClick,
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Dns,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = currentServer?.name ?: "WebDAV",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowDropDown,
+                            contentDescription = "切换服务器",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+
+                // 服务器地址提示
+                currentServer?.let { server ->
+                    Text(
+                        text = server.url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+
+            // 视图模式切换：音乐库 vs 目录文件 + 右侧扫描按钮
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = viewMode == WebDavViewMode.Library,
+                        onClick = { onViewModeChange(WebDavViewMode.Library) },
+                        label = { Text("音乐库 ($cachedSongsCount)") },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(16.dp))
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                    FilterChip(
+                        selected = viewMode == WebDavViewMode.Directory,
+                        onClick = { onViewModeChange(WebDavViewMode.Directory) },
+                        label = { Text("文件目录") },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                }
+
+                // 扫描与自愈按钮
+                FilledTonalButton(
+                    onClick = onScanClick,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp),
+                    enabled = currentServer != null && !isScanning && !isScanningMetadata,
+                ) {
+                    Icon(Icons.Rounded.Sync, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        if (isScanning || isScanningMetadata) "扫描中" else "扫描",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
+
+        // 扫描进度卡片
+        if ((isScanning || isScanningMetadata) && scanStatus != null) {
+            StorageScanProgressCard(
+                scanStatus = scanStatus,
+                onCancel = onCancelScan,
+            )
+        }
     }
 }
