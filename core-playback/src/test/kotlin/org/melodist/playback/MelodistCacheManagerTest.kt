@@ -257,4 +257,11 @@ class MelodistCacheManagerTest {
             )
         assertEquals(null, result)
     }
+
+    @Test
+    fun `isKeyFullyCached returns false for blank key or uninitialized cache`() {
+        assertFalse(MelodistCacheManager.isKeyFullyCached(null))
+        assertFalse(MelodistCacheManager.isKeyFullyCached(""))
+        assertFalse(MelodistCacheManager.isKeyFullyCached("non_existent_key"))
+    }
 }

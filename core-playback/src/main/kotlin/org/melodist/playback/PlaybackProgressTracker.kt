@@ -85,7 +85,7 @@ class PlaybackProgressTracker(
                                 val fileProgress = MelodistCacheManager.getSongFileCacheProgress(mid, curTier)
                                 val combinedFraction = maxOf(fileProgress.fraction, streamBufFraction)
                                 onFileCacheFractionUpdated(combinedFraction)
-                                if (fileProgress.isFullyCached || combinedFraction >= 1f) {
+                                if (fileProgress.isFullyCached) {
                                     onFileCacheFractionUpdated(1f)
                                     onTrackFromCacheConfirmed()
                                     MelodistCacheManager.confirmCacheRetention(mid, curTier)

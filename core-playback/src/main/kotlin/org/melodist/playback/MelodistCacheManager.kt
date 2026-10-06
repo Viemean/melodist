@@ -266,7 +266,13 @@ object MelodistCacheManager : MediaCacheExporter {
         return try {
             val metadata = cache.getContentMetadata(cacheKey)
             val contentLength = ContentMetadata.getContentLength(metadata)
-            contentLength > 0L && cache.isCached(cacheKey, 0L, contentLength)
+            if (contentLength <= 0L) return false
+            if (cache.isCached(cacheKey, 0L, contentLength)) return true
+            // 尾部安全容差判定：针对 MP3/FLAC 流式播放中解码器提前遇到 EOS 导致文件末尾几 KB 未读取的情况
+            val cachedBytes = cache.getCachedBytes(cacheKey, 0L, contentLength)
+            val isContinuousFromZero = cache.isCached(cacheKey, 0L, cachedBytes)
+            val isTailGapTolerated = (contentLength - cachedBytes) in 1..65536L || (cachedBytes.toFloat() / contentLength >= 0.995f)
+            isContinuousFromZero && isTailGapTolerated
         } catch (e: Exception) {
             Log.w(TAG, "Failed to inspect full cache status for key: $cacheKey", e)
             false
@@ -296,8 +302,8 @@ object MelodistCacheManager : MediaCacheExporter {
             val contentLength = ContentMetadata.getContentLength(metadata)
             if (contentLength > 0L) {
                 val cachedBytes = cache.getCachedBytes(key, 0L, contentLength)
-                val isFullyCached = cachedBytes >= contentLength && cache.isCached(key, 0L, contentLength)
-                val fraction = (cachedBytes.toFloat() / contentLength).coerceIn(0f, 1f)
+                val isFullyCached = isKeyFullyCached(key)
+                val fraction = if (isFullyCached) 1f else (cachedBytes.toFloat() / contentLength).coerceIn(0f, 1f)
                 FileCacheProgress(cachedBytes, contentLength, fraction, isFullyCached)
             } else {
                 val isCached = cache.isCached(key, 0L, 65536L)
@@ -444,10 +450,16 @@ object MelodistCacheManager : MediaCacheExporter {
                 return null
             }
 
-            if (!cache.isCached(cacheKey, 0L, contentLength)) {
-                Log.w(TAG, "Cache span incomplete for key: $cacheKey (expected length: $contentLength)")
+            val actualLength = cache.getCachedBytes(cacheKey, 0L, contentLength)
+            val isFullSpan = cache.isCached(cacheKey, 0L, contentLength)
+            val isTailToleratedSpan = cache.isCached(cacheKey, 0L, actualLength) &&
+                ((contentLength - actualLength) in 1..65536L || (contentLength > 0L && actualLength.toFloat() / contentLength >= 0.995f))
+
+            if (!isFullSpan && !isTailToleratedSpan) {
+                Log.w(TAG, "Cache span incomplete for key: $cacheKey (expected length: $contentLength, continuous: $actualLength)")
                 return null
             }
+            val exportLength = if (isFullSpan) contentLength else actualLength
 
             if (!targetDir.exists()) {
                 targetDir.mkdirs()
@@ -474,14 +486,14 @@ object MelodistCacheManager : MediaCacheExporter {
                         .setUri(android.net.Uri.parse("melodist://cache/$cacheKey"))
                         .setKey(cacheKey)
                         .setPosition(0L)
-                        .setLength(contentLength)
+                        .setLength(exportLength)
                         .build()
 
                 cacheDataSource.open(dataSpec)
                 FileOutputStream(tempFile).use { fos ->
                     val buffer = ByteArray(64 * 1024)
-                    while (totalRead < contentLength) {
-                        val toRead = minOf(buffer.size.toLong(), contentLength - totalRead).toInt()
+                    while (totalRead < exportLength) {
+                        val toRead = minOf(buffer.size.toLong(), exportLength - totalRead).toInt()
                         val read = cacheDataSource.read(buffer, 0, toRead)
                         if (read == C.RESULT_END_OF_INPUT || read <= 0) break
                         fos.write(buffer, 0, read)
@@ -496,8 +508,8 @@ object MelodistCacheManager : MediaCacheExporter {
                 }
             }
 
-            if (totalRead != contentLength || tempFile.length() != contentLength) {
-                Log.w(TAG, "Exported cache truncated: expected $contentLength bytes, wrote $totalRead bytes (file: ${tempFile.length()})")
+            if (totalRead != exportLength || tempFile.length() != exportLength) {
+                Log.w(TAG, "Exported cache truncated: expected $exportLength bytes, wrote $totalRead bytes (file: ${tempFile.length()})")
                 tempFile.delete()
                 return null
             }
