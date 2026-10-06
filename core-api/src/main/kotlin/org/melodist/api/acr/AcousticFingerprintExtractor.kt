@@ -44,6 +44,7 @@ object AcousticFingerprintExtractor {
     const val FREQ_WINDOW = 20
     const val MAX_PEAKS_PER_FRAME = 5
     const val MAG_THRESHOLD = 20000.0f
+    const val MAG_THRESHOLD_SQ = MAG_THRESHOLD * MAG_THRESHOLD
 
     private val _hW =
         FloatArray(WINDOW_SIZE) { n ->
@@ -127,30 +128,34 @@ object AcousticFingerprintExtractor {
         return pcm8k
     }
 
+    private class IntArrayList(capacity: Int = 256) {
+        var data = IntArray(capacity)
+        var size = 0
+
+        fun add(value: Int) {
+            if (size == data.size) {
+                data = data.copyOf(data.size * 2)
+            }
+            data[size++] = value
+        }
+
+        operator fun get(index: Int): Int = data[index]
+    }
+
     fun extract(samples: ShortArray): AcousticFeature? {
         if (samples.size < WINDOW_SIZE + HOP_SIZE * (TIME_WINDOW * CHANNEL_COUNT)) {
             return null
         }
 
-        val landmarks = extractLandmarks(samples)
-        val featBytes = packLandmarks(landmarks)
-        if (featBytes.isEmpty()) {
-            return null
-        }
-
-        val duration = samples.size.toFloat() / SAMPLE_RATE
-        return AcousticFeature(featBytes, duration, 0, 0.0f)
-    }
-
-    fun extractLandmarks(samples: ShortArray): Array<List<Landmark>> {
         val totalSamples = samples.size
         val numFrames = (totalSamples - WINDOW_SIZE) / HOP_SIZE + 1
         if (numFrames <= TIME_WINDOW * CHANNEL_COUNT) {
-            return Array(CHANNEL_COUNT) { emptyList() }
+            return null
         }
 
         val halfFft = FFT_SIZE / 2
-        val spectrogram = Array(numFrames) { FloatArray(halfFft + 1) }
+        val binsPerFrame = halfFft + 1
+        val spectrogram = FloatArray(numFrames * binsPerFrame)
         val fftRe = FloatArray(FFT_SIZE)
         val fftIm = FloatArray(FFT_SIZE)
 
@@ -167,34 +172,37 @@ object AcousticFingerprintExtractor {
 
             _cFft(fftRe, fftIm)
 
-            val mag = spectrogram[i]
+            val frameOffset = i * binsPerFrame
             for (f in 0..halfFft) {
                 val re = fftRe[f]
                 val im = fftIm[f]
-                mag[f] = sqrt(re * re + im * im)
+                spectrogram[frameOffset + f] = re * re + im * im
             }
         }
 
-        val channelSpecs = Array(CHANNEL_COUNT) { ArrayList<FloatArray>(numFrames / CHANNEL_COUNT + 1) }
-        for (i in 0 until numFrames) {
-            channelSpecs[i % CHANNEL_COUNT].add(spectrogram[i])
-        }
+        val out = ByteArrayOutputStream(1024)
+        val topFreqs = IntArray(MAX_PEAKS_PER_FRAME)
+        val topVals = FloatArray(MAX_PEAKS_PER_FRAME)
 
-        val result = Array<List<Landmark>>(CHANNEL_COUNT) { emptyList() }
-        val cands = ArrayList<CandidatePeak>(64)
+        val chTimes = IntArrayList(256)
+        val chFreqs = IntArrayList(256)
 
         for (ch in 0 until CHANNEL_COUNT) {
-            val spec = channelSpecs[ch]
-            val numT = spec.size
-            val list = ArrayList<Landmark>()
+            chTimes.size = 0
+            chFreqs.size = 0
 
+            val numT = (numFrames - ch + CHANNEL_COUNT - 1) / CHANNEL_COUNT
             val targetEnd = max(0, numT - TIME_WINDOW)
+
             for (t in 0 until targetEnd) {
-                cands.clear()
-                val rowT = spec[t]
+                var candCount = 0
+                val frameIdx = t * CHANNEL_COUNT + ch
+                val rowOffset = frameIdx * binsPerFrame
+
                 for (f in 3..510) {
-                    val v = rowT[f]
-                    if (v < MAG_THRESHOLD) continue
+                    val v = spectrogram[rowOffset + f]
+                    if (v < MAG_THRESHOLD_SQ) continue
+                    if (candCount == MAX_PEAKS_PER_FRAME && v <= topVals[MAX_PEAKS_PER_FRAME - 1]) continue
 
                     val tStart = max(0, t - TIME_WINDOW)
                     val tEnd = t + TIME_WINDOW
@@ -203,9 +211,9 @@ object AcousticFingerprintExtractor {
 
                     var isLocalMax = true
                     for (tPrime in tStart..tEnd) {
-                        val rowPrime = spec[tPrime]
+                        val primeOffset = (tPrime * CHANNEL_COUNT + ch) * binsPerFrame
                         for (fPrime in fStart..fEnd) {
-                            if (rowPrime[fPrime] > v) {
+                            if (spectrogram[primeOffset + fPrime] > v) {
                                 isLocalMax = false
                                 break
                             }
@@ -214,16 +222,141 @@ object AcousticFingerprintExtractor {
                     }
 
                     if (isLocalMax) {
-                        cands.add(CandidatePeak(f, v))
+                        if (candCount < MAX_PEAKS_PER_FRAME) {
+                            var insertPos = candCount
+                            while (insertPos > 0 && topVals[insertPos - 1] < v) {
+                                topVals[insertPos] = topVals[insertPos - 1]
+                                topFreqs[insertPos] = topFreqs[insertPos - 1]
+                                insertPos--
+                            }
+                            topVals[insertPos] = v
+                            topFreqs[insertPos] = f
+                            candCount++
+                        } else {
+                            var insertPos = MAX_PEAKS_PER_FRAME - 1
+                            while (insertPos > 0 && topVals[insertPos - 1] < v) {
+                                topVals[insertPos] = topVals[insertPos - 1]
+                                topFreqs[insertPos] = topFreqs[insertPos - 1]
+                                insertPos--
+                            }
+                            topVals[insertPos] = v
+                            topFreqs[insertPos] = f
+                        }
                     }
                 }
 
-                if (cands.size > 1) {
-                    cands.sortByDescending { it.value }
+                for (k in 0 until candCount) {
+                    chTimes.add(t)
+                    chFreqs.add(topFreqs[k])
                 }
-                val take = min(MAX_PEAKS_PER_FRAME, cands.size)
-                for (k in 0 until take) {
-                    list.add(Landmark(t, cands[k].freq))
+            }
+
+            packPart1Direct(chTimes, out)
+            packPart2Direct(chFreqs, out)
+        }
+
+        val featBytes = out.toByteArray()
+        if (featBytes.isEmpty()) return null
+        val duration = samples.size.toFloat() / SAMPLE_RATE
+        return AcousticFeature(featBytes, duration, 0, 0.0f)
+    }
+
+    fun extractLandmarks(samples: ShortArray): Array<List<Landmark>> {
+        val totalSamples = samples.size
+        val numFrames = (totalSamples - WINDOW_SIZE) / HOP_SIZE + 1
+        if (numFrames <= TIME_WINDOW * CHANNEL_COUNT) {
+            return Array(CHANNEL_COUNT) { emptyList() }
+        }
+
+        val halfFft = FFT_SIZE / 2
+        val binsPerFrame = halfFft + 1
+        val spectrogram = FloatArray(numFrames * binsPerFrame)
+        val fftRe = FloatArray(FFT_SIZE)
+        val fftIm = FloatArray(FFT_SIZE)
+
+        for (i in 0 until numFrames) {
+            val stStart = i * HOP_SIZE
+            for (n in 0 until WINDOW_SIZE) {
+                fftRe[n] = samples[stStart + n] * _hW[n]
+                fftIm[n] = 0.0f
+            }
+            for (n in WINDOW_SIZE until FFT_SIZE) {
+                fftRe[n] = 0.0f
+                fftIm[n] = 0.0f
+            }
+
+            _cFft(fftRe, fftIm)
+
+            val frameOffset = i * binsPerFrame
+            for (f in 0..halfFft) {
+                val re = fftRe[f]
+                val im = fftIm[f]
+                spectrogram[frameOffset + f] = re * re + im * im
+            }
+        }
+
+        val result = Array<List<Landmark>>(CHANNEL_COUNT) { emptyList() }
+        val topFreqs = IntArray(MAX_PEAKS_PER_FRAME)
+        val topVals = FloatArray(MAX_PEAKS_PER_FRAME)
+
+        for (ch in 0 until CHANNEL_COUNT) {
+            val numT = (numFrames - ch + CHANNEL_COUNT - 1) / CHANNEL_COUNT
+            val list = ArrayList<Landmark>()
+            val targetEnd = max(0, numT - TIME_WINDOW)
+
+            for (t in 0 until targetEnd) {
+                var candCount = 0
+                val frameIdx = t * CHANNEL_COUNT + ch
+                val rowOffset = frameIdx * binsPerFrame
+
+                for (f in 3..510) {
+                    val v = spectrogram[rowOffset + f]
+                    if (v < MAG_THRESHOLD_SQ) continue
+                    if (candCount == MAX_PEAKS_PER_FRAME && v <= topVals[MAX_PEAKS_PER_FRAME - 1]) continue
+
+                    val tStart = max(0, t - TIME_WINDOW)
+                    val tEnd = t + TIME_WINDOW
+                    val fStart = max(3, f - FREQ_WINDOW)
+                    val fEnd = min(510, f + FREQ_WINDOW)
+
+                    var isLocalMax = true
+                    for (tPrime in tStart..tEnd) {
+                        val primeOffset = (tPrime * CHANNEL_COUNT + ch) * binsPerFrame
+                        for (fPrime in fStart..fEnd) {
+                            if (spectrogram[primeOffset + fPrime] > v) {
+                                isLocalMax = false
+                                break
+                            }
+                        }
+                        if (!isLocalMax) break
+                    }
+
+                    if (isLocalMax) {
+                        if (candCount < MAX_PEAKS_PER_FRAME) {
+                            var insertPos = candCount
+                            while (insertPos > 0 && topVals[insertPos - 1] < v) {
+                                topVals[insertPos] = topVals[insertPos - 1]
+                                topFreqs[insertPos] = topFreqs[insertPos - 1]
+                                insertPos--
+                            }
+                            topVals[insertPos] = v
+                            topFreqs[insertPos] = f
+                            candCount++
+                        } else {
+                            var insertPos = MAX_PEAKS_PER_FRAME - 1
+                            while (insertPos > 0 && topVals[insertPos - 1] < v) {
+                                topVals[insertPos] = topVals[insertPos - 1]
+                                topFreqs[insertPos] = topFreqs[insertPos - 1]
+                                insertPos--
+                            }
+                            topVals[insertPos] = v
+                            topFreqs[insertPos] = f
+                        }
+                    }
+                }
+
+                for (k in 0 until candCount) {
+                    list.add(Landmark(t, topFreqs[k]))
                 }
             }
             result[ch] = list
@@ -232,17 +365,46 @@ object AcousticFingerprintExtractor {
         return result
     }
 
-    private data class CandidatePeak(
-        val freq: Int,
-        val value: Float,
-    )
-
-    fun packPart1(times: List<Int>): ByteArray {
+    private fun packPart1Direct(times: IntArrayList, out: ByteArrayOutputStream) {
         val n = times.size
-        if (n == 0) return byteArrayOf(0, 0, 0, 0)
+        if (n == 0) {
+            out.write(0)
+            out.write(0)
+            out.write(0)
+            out.write(0)
+            return
+        }
 
-        val blocks = ArrayList<Block>()
+        var blockCount = 0
         var currIdx = 0
+        while (currIdx < n) {
+            var chosenMode = 7
+            for (m in 0 until 8) {
+                val cnt = _mic[m]
+                val maxVal = _mxd[m]
+                var valid = true
+                for (k in 0 until cnt) {
+                    val idx2 = currIdx + 1 + k
+                    val diff = if (idx2 < n) times[idx2] - times[idx2 - 1] else 0
+                    if (diff > maxVal) {
+                        valid = false
+                        break
+                    }
+                }
+                if (valid) {
+                    chosenMode = m
+                    break
+                }
+            }
+            blockCount++
+            currIdx += 1 + _mic[chosenMode]
+        }
+
+        val bw = _bWr()
+        bw._wB(n, 16)
+        bw._wB(blockCount, 16)
+
+        currIdx = 0
         while (currIdx < n) {
             val t0 = times[currIdx]
             var chosenMode = 7
@@ -264,41 +426,107 @@ object AcousticFingerprintExtractor {
                 }
             }
 
+            bw._wB(t0 and 0x1FF, 9)
+            bw._wB(chosenMode and 7, 3)
+            val w = _mbw[chosenMode]
             val blockCnt = _mic[chosenMode]
-            val blockDiffs = IntArray(blockCnt)
             for (k in 0 until blockCnt) {
                 val idx2 = currIdx + 1 + k
-                blockDiffs[k] = if (idx2 < n) times[idx2] - times[idx2 - 1] else 0
+                val diff = if (idx2 < n) times[idx2] - times[idx2 - 1] else 0
+                bw._wB(diff, w)
+            }
+            if (_mpb[chosenMode] > 0) {
+                bw._wB(0, 1)
             }
 
-            blocks.add(Block(t0, chosenMode, blockDiffs))
             currIdx += 1 + blockCnt
+        }
+
+        bw.writeTo(out)
+    }
+
+    private fun packPart2Direct(freqs: IntArrayList, out: ByteArrayOutputStream) {
+        val bw = _bWr()
+        bw._wB(freqs.size, 16)
+        for (i in 0 until freqs.size) {
+            bw._wB(freqs[i] and 0x1FF, 9)
+        }
+        bw.writeTo(out)
+    }
+
+    fun packPart1(times: List<Int>): ByteArray {
+        val n = times.size
+        if (n == 0) return byteArrayOf(0, 0, 0, 0)
+
+        var blockCount = 0
+        var currIdx = 0
+        while (currIdx < n) {
+            var chosenMode = 7
+            for (m in 0 until 8) {
+                val cnt = _mic[m]
+                val maxVal = _mxd[m]
+                var valid = true
+                for (k in 0 until cnt) {
+                    val idx2 = currIdx + 1 + k
+                    val diff = if (idx2 < n) times[idx2] - times[idx2 - 1] else 0
+                    if (diff > maxVal) {
+                        valid = false
+                        break
+                    }
+                }
+                if (valid) {
+                    chosenMode = m
+                    break
+                }
+            }
+            blockCount++
+            currIdx += 1 + _mic[chosenMode]
         }
 
         val bw = _bWr()
         bw._wB(n, 16)
-        bw._wB(blocks.size, 16)
+        bw._wB(blockCount, 16)
 
-        for (block in blocks) {
-            bw._wB(block.t0 and 0x1FF, 9)
-            bw._wB(block.mode and 7, 3)
-            val w = _mbw[block.mode]
-            for (d in block.diffs) {
-                bw._wB(d, w)
+        currIdx = 0
+        while (currIdx < n) {
+            val t0 = times[currIdx]
+            var chosenMode = 7
+            for (m in 0 until 8) {
+                val cnt = _mic[m]
+                val maxVal = _mxd[m]
+                var valid = true
+                for (k in 0 until cnt) {
+                    val idx2 = currIdx + 1 + k
+                    val diff = if (idx2 < n) times[idx2] - times[idx2 - 1] else 0
+                    if (diff > maxVal) {
+                        valid = false
+                        break
+                    }
+                }
+                if (valid) {
+                    chosenMode = m
+                    break
+                }
             }
-            if (_mpb[block.mode] > 0) {
+
+            bw._wB(t0 and 0x1FF, 9)
+            bw._wB(chosenMode and 7, 3)
+            val w = _mbw[chosenMode]
+            val blockCnt = _mic[chosenMode]
+            for (k in 0 until blockCnt) {
+                val idx2 = currIdx + 1 + k
+                val diff = if (idx2 < n) times[idx2] - times[idx2 - 1] else 0
+                bw._wB(diff, w)
+            }
+            if (_mpb[chosenMode] > 0) {
                 bw._wB(0, 1)
             }
+
+            currIdx += 1 + blockCnt
         }
 
         return bw.toBytes()
     }
-
-    private class Block(
-        val t0: Int,
-        val mode: Int,
-        val diffs: IntArray,
-    )
 
     fun packPart2(freqs: List<Int>): ByteArray {
         val bw = _bWr()
@@ -355,14 +583,25 @@ object AcousticFingerprintExtractor {
             val stageTwiddlesIm = twiddlesIm[stage]
             stage++
             val step = l shl 1
-            var m = 0
-            while (m < FFT_SIZE) {
-                for (k in 0 until l) {
-                    val p = m + k
-                    val q = p + l
 
-                    val curRe = stageTwiddlesRe[k]
-                    val curIm = stageTwiddlesIm[k]
+            var p0 = 0
+            while (p0 < FFT_SIZE) {
+                val q = p0 + l
+                val tRe = re[q]
+                val tIm = im[q]
+                re[q] = re[p0] - tRe
+                im[q] = im[p0] - tIm
+                re[p0] += tRe
+                im[p0] += tIm
+                p0 += step
+            }
+
+            for (k in 1 until l) {
+                val curRe = stageTwiddlesRe[k]
+                val curIm = stageTwiddlesIm[k]
+                var p = k
+                while (p < FFT_SIZE) {
+                    val q = p + l
                     val tRe = curRe * re[q] - curIm * im[q]
                     val tIm = curRe * im[q] + curIm * re[q]
 
@@ -370,41 +609,58 @@ object AcousticFingerprintExtractor {
                     im[q] = im[p] - tIm
                     re[p] += tRe
                     im[p] += tIm
+                    p += step
                 }
-                m += step
             }
             l = l shl 1
         }
     }
 
-    private class _bWr {
-        private var buffer = ByteArray(256)
-        private var bitCount = 0
+    private class _bWr(initialCapacity: Int = 256) {
+        private var buffer = ByteArray(initialCapacity)
+        private var byteCount = 0
+        private var bitBuf = 0L
+        private var bitsInBuf = 0
 
         fun _wB(
             value: Int,
             numBits: Int,
         ) {
-            for (i in numBits - 1 downTo 0) {
-                val bit = (value shr i) and 1
-                val byteIdx = bitCount shr 3
-                val bitPos = 7 - (bitCount and 7)
-
-                if (byteIdx >= buffer.size) {
+            bitBuf = (bitBuf shl numBits) or (value.toLong() and ((1L shl numBits) - 1))
+            bitsInBuf += numBits
+            while (bitsInBuf >= 8) {
+                bitsInBuf -= 8
+                if (byteCount >= buffer.size) {
                     buffer = buffer.copyOf(buffer.size * 2)
                 }
-
-                if (bit != 0) {
-                    buffer[byteIdx] = (buffer[byteIdx].toInt() or (1 shl bitPos)).toByte()
-                }
-
-                bitCount++
+                buffer[byteCount++] = ((bitBuf ushr bitsInBuf) and 0xFF).toByte()
             }
         }
 
+        fun writeTo(out: ByteArrayOutputStream) {
+            if (bitsInBuf > 0) {
+                val padBits = 8 - bitsInBuf
+                val finalByte = ((bitBuf shl padBits) and 0xFF).toByte()
+                if (byteCount >= buffer.size) {
+                    buffer = buffer.copyOf(buffer.size * 2)
+                }
+                buffer[byteCount++] = finalByte
+                bitsInBuf = 0
+            }
+            out.write(buffer, 0, byteCount)
+        }
+
         fun toBytes(): ByteArray {
-            val totalBytes = (bitCount + 7) shr 3
-            return buffer.copyOf(totalBytes)
+            if (bitsInBuf > 0) {
+                val padBits = 8 - bitsInBuf
+                val finalByte = ((bitBuf shl padBits) and 0xFF).toByte()
+                if (byteCount >= buffer.size) {
+                    buffer = buffer.copyOf(buffer.size * 2)
+                }
+                buffer[byteCount++] = finalByte
+                bitsInBuf = 0
+            }
+            return buffer.copyOf(byteCount)
         }
     }
 }
