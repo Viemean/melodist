@@ -39,6 +39,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.mobile.ui.components.songlist.SongListBatchDialogs
+import org.melodist.mobile.ui.components.songlist.SongListFastScroller
 import org.melodist.mobile.ui.components.songlist.SongListFloatingActions
 import org.melodist.mobile.util.SongSorter
 import org.melodist.model.Song
@@ -122,6 +123,8 @@ fun CommonSongList(
             }
         }
     }
+
+    var isFastScrolling by remember { mutableStateOf(false) }
 
     val displaySongs by remember(songs, filterQuery, sortOrder) {
         derivedStateOf {
@@ -290,7 +293,7 @@ fun CommonSongList(
         val isImeVisible = WindowInsets.isImeVisible
         val effectiveBottomPadding = if (isImeVisible) 16.dp else bottomPadding.coerceAtLeast(16.dp)
         val isFloatingVisible =
-            (songs.isNotEmpty() && isFloatingButtonsVisible) || isFilterExpanded || filterQuery.isNotEmpty() || isMultiSelectMode
+            ((songs.isNotEmpty() && isFloatingButtonsVisible) || isFilterExpanded || filterQuery.isNotEmpty() || isMultiSelectMode) && !isFastScrolling
 
         SongListFloatingActions(
             visible = isFloatingVisible,
@@ -377,6 +380,23 @@ fun CommonSongList(
             },
             modifier = Modifier.align(Alignment.BottomEnd),
         )
+
+        // 超过 100 首歌曲时显示右侧快速滚动条
+        if (displaySongs.size >= 100) {
+            val headerCount = (state.layoutInfo.totalItemsCount - displaySongs.size).coerceAtLeast(0)
+            SongListFastScroller(
+                listState = state,
+                totalItems = displaySongs.size,
+                headerCount = headerCount,
+                currentSongProvider = { index -> displaySongs.getOrNull(index) },
+                sortOrder = sortOrder,
+                onDragStateChanged = { isFastScrolling = it },
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(top = 16.dp, bottom = effectiveBottomPadding),
+            )
+        }
 
         // 单曲更多操作弹窗
         internalActionSong?.let { song ->
