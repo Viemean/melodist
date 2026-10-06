@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.player
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +39,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.melodist.mobile.ui.components.CommonSongList
@@ -52,6 +59,8 @@ fun PlayerQueueBottomSheet(
     onNavigate: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val playlist by PlaybackManager.playlist.collectAsState()
     val currentSong by PlaybackManager.currentSong.collectAsState()
@@ -106,6 +115,23 @@ fun PlayerQueueBottomSheet(
         }
     }
 
+    val queueNestedScrollConnection =
+        remember {
+            object : NestedScrollConnection {
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset =
+                    if (available.y < 0f) {
+                        // 消费向上剩余未消费的滚动量，阻止冒泡至父级 ModalBottomSheet 触发抖动回弹
+                        Offset(0f, available.y)
+                    } else {
+                        Offset.Zero
+                    }
+            }
+        }
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
@@ -116,14 +142,21 @@ fun PlayerQueueBottomSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.75f)
-                    .navigationBarsPadding(),
+                    .then(
+                        if (isLandscape) {
+                            Modifier
+                                .fillMaxHeight()
+                                .statusBarsPadding()
+                        } else {
+                            Modifier.fillMaxHeight(0.75f)
+                        },
+                    ).navigationBarsPadding(),
         ) {
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = if (isLandscape) 4.dp else 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -163,11 +196,17 @@ fun PlayerQueueBottomSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                        .padding(horizontal = 20.dp, vertical = if (isLandscape) 2.dp else 6.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
             )
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Box(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(queueNestedScrollConnection),
+            ) {
                 CommonSongList(
                     songs = displayPlaylist,
                     state = listState,
