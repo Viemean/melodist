@@ -81,6 +81,9 @@ object PlaybackSourceResolver {
         if (isLocalOrWebDavSong(song)) {
             return requestedTier
         }
+        if (!isCellularNetwork(context)) {
+            return requestedTier
+        }
         val mid = song?.songMid.orEmpty()
         val downloadedTier =
             if (mid.isNotBlank()) {
@@ -107,9 +110,6 @@ object PlaybackSourceResolver {
             } else if (localRank > getAudioQualityRank(cellularLimit)) {
                 return localTier
             }
-        }
-        if (!isCellularNetwork(context)) {
-            return requestedTier
         }
         val reqRank = getAudioQualityRank(requestedTier)
         val limitRank = getAudioQualityRank(cellularLimit)

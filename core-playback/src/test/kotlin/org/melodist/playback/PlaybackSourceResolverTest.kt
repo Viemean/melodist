@@ -126,6 +126,21 @@ class PlaybackSourceResolverTest {
     }
 
     @Test
+    fun `clampCellularTier does not restrict higher quality on non-cellular network`() {
+        val onlineSong = Song(songId = 12, songMid = "003mQIjO4e38e6", name = "Test Online")
+        val mobileContext = TestTvContext("org.melodist.mobile")
+        // On non-cellular network (such as Wi-Fi), requesting Master should not be clamped even if cellular limit is HQ
+        val clamped =
+            PlaybackSourceResolver.clampCellularTier(
+                requestedTier = AudioQualityTier.Master,
+                song = onlineSong,
+                context = mobileContext,
+                cellularLimit = AudioQualityTier.HQ,
+            )
+        assertEquals(AudioQualityTier.Master, clamped)
+    }
+
+    @Test
     fun `shouldTriggerPrefetch accurately identifies timing window`() {
         // 短曲目（<= 20秒）不触发
         assertFalse(PlaybackSourceResolver.shouldTriggerPrefetch(durationMs = 20_000L, positionMs = 15_000L))
