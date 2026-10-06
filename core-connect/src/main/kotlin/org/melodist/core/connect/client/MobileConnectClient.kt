@@ -1,5 +1,7 @@
 package org.melodist.core.connect.client
 
+import kotlinx.coroutines.CancellationException
+
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -239,7 +241,9 @@ class MobileConnectClient(
         activeSocket?.let {
             try {
                 it.close(1000, "Normal closure")
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("Disconnected", "Operation failed", e)
             }
         }
         activeSocket = null
@@ -259,7 +263,9 @@ class MobileConnectClient(
                     )
                 it.send(msg)
                 it.close(1000, "Disconnect requested")
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("Disconnected", "Operation failed", e)
             }
         }
         activeSocket = null

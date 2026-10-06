@@ -1,5 +1,7 @@
 package org.melodist.tv.ui
 
+import android.util.Log
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -86,7 +88,8 @@ fun MediaCollectionTvScreen(
             } else {
                 albums = apiService.getFavoriteAlbums()
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("MediaCollectionTvScreen", "Operation failed", e)
         } finally {
             isLoading = false
         }

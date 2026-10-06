@@ -1,5 +1,8 @@
 package org.melodist.mobile.connect
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
@@ -67,7 +70,9 @@ class LocalAudioStreamServer(
     fun stop() {
         try {
             serverSocket?.close()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("LocalAudioStreamServer", "Operation failed", e)
         }
         serverSocket = null
     }

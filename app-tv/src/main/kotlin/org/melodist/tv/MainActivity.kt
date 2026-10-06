@@ -1,5 +1,8 @@
 package org.melodist.tv
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -669,7 +672,9 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         try {
             unregisterReceiver(screenPowerReceiver)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("Home", "Operation failed", e)
         }
         super.onDestroy()
     }
@@ -687,7 +692,9 @@ class MainActivity : ComponentActivity() {
                     try {
                         val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
                         startActivity(intent)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("Home", "Operation failed", e)
                     }
                 }
             }

@@ -1,5 +1,7 @@
 package org.melodist.tv
 
+import android.util.Log
+
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
@@ -31,7 +33,8 @@ class MelodistApp :
         org.melodist.data.AppLifecycleManager.onTrimMemoryAction = {
             try {
                 SingletonImageLoader.get(this@MelodistApp).memoryCache?.clear()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("MelodistApp", "Operation failed", e)
             }
         }
         org.melodist.data.AppSettingsManager

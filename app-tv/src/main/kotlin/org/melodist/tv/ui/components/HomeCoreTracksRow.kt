@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -141,7 +144,9 @@ fun HomeCoreTracksRow(
         launch {
             try {
                 DailyRecommendCacheManager.loadRecommendSongs(apiService, forceRefresh = false)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("HomeCardsCache", "Operation failed", e)
             }
         }
 
@@ -153,7 +158,9 @@ fun HomeCoreTracksRow(
                 } else {
                     UserLibraryCacheManager.probeAndSyncFavoritesFirstPage(apiService)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("HomeCardsCache", "Operation failed", e)
             }
         }
 
@@ -161,7 +168,9 @@ fun HomeCoreTracksRow(
         launch {
             try {
                 UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = false)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("HomeCardsCache", "Operation failed", e)
             }
         }
 
@@ -179,7 +188,9 @@ fun HomeCoreTracksRow(
                         HomeCardsCache.lastRadarFetchTimeMs = System.currentTimeMillis()
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("HomeCardsCache", "Operation failed", e)
             }
         }
 
@@ -188,7 +199,9 @@ fun HomeCoreTracksRow(
             try {
                 org.melodist.data.MillionRecommendManager
                     .refresh(apiService, forceRefresh = false)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("HomeCardsCache", "Operation failed", e)
             }
         }
 
@@ -197,7 +210,9 @@ fun HomeCoreTracksRow(
             try {
                 org.melodist.data.RecentPlaybackManager
                     .syncFromCloud(force = false)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("HomeCardsCache", "Operation failed", e)
             }
         }
     }
@@ -224,7 +239,9 @@ fun HomeCoreTracksRow(
                             HomeCardsCache.radarAlbumMid = valid.first().albumMid
                             HomeCardsCache.lastRadarFetchTimeMs = System.currentTimeMillis()
                         }
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("HomeCardsCache", "Operation failed", e)
                     }
                 }
             }

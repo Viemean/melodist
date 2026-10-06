@@ -1,5 +1,7 @@
 package org.melodist.mobile.ui.settings.sections
 
+import android.util.Log
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -136,7 +138,8 @@ fun SettingsPlaybackSection(
                         } catch (_: Exception) {
                             try {
                                 context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS))
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.w("SettingsPlaybackSection", "Operation failed", e)
                             }
                         }
                     }

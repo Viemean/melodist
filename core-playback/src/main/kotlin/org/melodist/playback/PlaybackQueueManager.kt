@@ -1,5 +1,8 @@
 package org.melodist.playback
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -416,7 +419,9 @@ class PlaybackQueueManager(
                             appendPlaylist(moreSongs)
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaybackQueueManager", "Operation failed", e)
                 } finally {
                     isFetchingMoreRadio = false
                 }
@@ -548,7 +553,9 @@ class PlaybackQueueManager(
                                 }
                             }
                         }
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("PlaybackQueueManager", "Operation failed", e)
                     }
                 }
             }

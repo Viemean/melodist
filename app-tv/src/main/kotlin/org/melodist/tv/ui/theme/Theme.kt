@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.theme
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -103,7 +106,9 @@ object MonetColorExtractor {
                             colorCache.put(url, color)
                             return@withContext color
                         }
-                    } catch (_: Throwable) {
+                    } catch (e: Throwable) {
+                        if (e is CancellationException) throw e
+                        Log.w("MonetColorExtractor", "Operation failed", e)
                     }
                 }
 

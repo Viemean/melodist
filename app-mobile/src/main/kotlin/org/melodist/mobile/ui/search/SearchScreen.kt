@@ -99,7 +99,9 @@ fun SearchScreen(
         kotlinx.coroutines.delay(120)
         try {
             focusRequester.requestFocus()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("SearchTab", "Operation failed", e)
         }
     }
 

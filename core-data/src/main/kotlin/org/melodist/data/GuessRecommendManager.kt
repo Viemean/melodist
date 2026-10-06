@@ -1,5 +1,8 @@
 package org.melodist.data
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -113,7 +116,9 @@ object GuessRecommendManager {
                 if (fetched.isNotEmpty()) {
                     nextBatch = fetched
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("GuessRecommendManager", "Operation failed", e)
             } finally {
                 isPrefetching = false
             }
@@ -155,7 +160,9 @@ object GuessRecommendManager {
                     _songsFlow.value = songs
                     nextBatch = null
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("GuessRecommendManager", "Operation failed", e)
             } finally {
                 lastRefreshTimestamp = System.currentTimeMillis()
                 _isLoadingFlow.value = false

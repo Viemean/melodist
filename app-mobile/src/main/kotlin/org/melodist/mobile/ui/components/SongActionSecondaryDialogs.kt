@@ -1,5 +1,7 @@
 package org.melodist.mobile.ui.components
 
+import android.util.Log
+
 import android.media.MediaScannerConnection
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
@@ -79,7 +81,8 @@ fun DeleteLocalFileDialog(
                             null,
                             null,
                         )
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        Log.w("SongActionSecondaryDialogs", "Operation failed", e)
                     }
                     Toast.makeText(context, "已删除本地文件", Toast.LENGTH_SHORT).show()
                     onDeleteConfirmed()

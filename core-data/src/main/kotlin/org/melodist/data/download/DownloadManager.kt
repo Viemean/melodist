@@ -1,5 +1,7 @@
 package org.melodist.data.download
 
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
@@ -514,7 +516,9 @@ object DownloadManager {
         } catch (t: Throwable) {
             try {
                 Log.w(TAG, "Failed to compress oversized cover art, keeping raw bytes", t)
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                if (e is CancellationException) throw e
+                Log.w("DownloadStatus", "Operation failed", e)
             }
             rawBytes
         }

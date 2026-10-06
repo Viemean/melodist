@@ -1,5 +1,7 @@
 package org.melodist.data.acr
 
+import android.util.Log
+
 import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -284,20 +286,23 @@ class AudioRecordingManager {
 
         try {
             audioRecord?.stop()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("AudioRecordingManager", "Operation failed", e)
         }
 
         val thread = recordingThread
         recordingThread = null
         try {
             thread?.join(600)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("AudioRecordingManager", "Operation failed", e)
         }
 
         synchronized(lock) {
             try {
                 audioRecord?.release()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("AudioRecordingManager", "Operation failed", e)
             }
             audioRecord = null
         }

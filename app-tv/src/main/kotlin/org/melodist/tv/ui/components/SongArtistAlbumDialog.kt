@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -170,7 +173,9 @@ fun SongArtistAlbumDialog(
         kotlinx.coroutines.delay(100)
         try {
             firstFocusRequester.requestFocus()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("SongArtistAlbumDialog", "Operation failed", e)
         }
     }
 }
@@ -205,7 +210,9 @@ private fun ArtistActionCard(
                     if (foundMid.isNotBlank()) {
                         resolvedMid = foundMid
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("SongArtistAlbumDialog", "Operation failed", e)
                 }
             }
         }

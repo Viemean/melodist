@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import kotlinx.coroutines.CancellationException
+
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -199,11 +201,15 @@ object AudioSliceExtractor {
                 try {
                     codec?.stop()
                     codec?.release()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("AudioSliceResult", "Operation failed", e)
                 }
                 try {
                     extractor?.release()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("AudioSliceResult", "Operation failed", e)
                 }
             }
         }

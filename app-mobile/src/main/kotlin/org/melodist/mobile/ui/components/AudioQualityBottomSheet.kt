@@ -1,5 +1,7 @@
 package org.melodist.mobile.ui.components
 
+import android.util.Log
+
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -76,7 +78,8 @@ fun AudioQualityBottomSheet(
             isSniffing = true
             try {
                 enrichedOptions = AudioHeaderSniffer.enrichQualityOptions(probedQualityOptions, songDurationSec)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("AudioQualityBottomSheet", "Operation failed", e)
             } finally {
                 isSniffing = false
             }

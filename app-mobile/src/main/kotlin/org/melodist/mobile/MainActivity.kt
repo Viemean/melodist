@@ -1,5 +1,8 @@
 package org.melodist.mobile
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -76,7 +79,9 @@ class MainActivity : ComponentActivity() {
                                     .diskCachePolicy(CachePolicy.ENABLED)
                                     .build()
                             imageLoader.execute(request)
-                        } catch (_: Throwable) {
+                        } catch (e: Throwable) {
+                            if (e is CancellationException) throw e
+                            Log.w("MainActivity", "Operation failed", e)
                         }
                     }
                 }
@@ -179,7 +184,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("MainActivity", "Operation failed", e)
         }
     }
 

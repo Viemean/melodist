@@ -394,7 +394,9 @@ object UserLibraryCacheManager {
             if (!UserSession.isLoggedIn) return@launch
             try {
                 probeAndSyncFavoritesFirstPage(MusicApiService())
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("UserLibraryData", "Operation failed", e)
             }
         }
     }
@@ -481,7 +483,9 @@ object UserLibraryCacheManager {
                             ?.tid ?: 0L
                     loadPlaylistSongs(MusicApiService(), dirId, tid, forceRefresh = true)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("UserLibraryData", "Operation failed", e)
             }
         }
     }
@@ -545,7 +549,9 @@ object UserLibraryCacheManager {
                             ?.tid ?: 0L
                     loadPlaylistSongs(MusicApiService(), dirId, tid, forceRefresh = true)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("UserLibraryData", "Operation failed", e)
             }
         }
     }
@@ -583,7 +589,9 @@ object UserLibraryCacheManager {
                 }
                 delay(1500)
                 loadLibrary(MusicApiService(), forceRefresh = true)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("UserLibraryData", "Operation failed", e)
             }
         }
     }
@@ -604,7 +612,9 @@ object UserLibraryCacheManager {
                         try {
                             probeAndSyncFavoritesFirstPage(MusicApiService())
                             loadLibrary(MusicApiService(), forceRefresh = false)
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.w("UserLibraryData", "Operation failed", e)
                         }
                     }
                     delay(FAVORITE_SONGS_CACHE_TTL_MS)
@@ -705,7 +715,9 @@ object UserLibraryCacheManager {
                     return cache
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("UserLibraryData", "Operation failed", e)
         }
         return null
     }

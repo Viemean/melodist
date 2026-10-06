@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import android.util.Log
+
 import android.app.UiModeManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -24,7 +26,8 @@ object PlaybackSourceResolver {
                 ) {
                     return true
                 }
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                Log.w("PlaybackSourceResolver", "Operation failed", e)
             }
         }
         try {
@@ -32,7 +35,8 @@ object PlaybackSourceResolver {
             if (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) {
                 return true
             }
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            Log.w("PlaybackSourceResolver", "Operation failed", e)
         }
         return false
     }

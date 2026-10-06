@@ -65,7 +65,8 @@ object AudioMetadataPipeline {
             if (shouldRelease) {
                 try {
                     localRetriever.release()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w("ParsedAudioMetadata", "Operation failed", e)
                 }
             }
         }

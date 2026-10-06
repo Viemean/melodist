@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -160,7 +163,9 @@ fun MediaDetailTvScaffold(
         scaffoldCoroutineScope.launch {
             try {
                 playAllFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MediaDetailScreenMode", "Operation failed", e)
             }
         }
         true
@@ -206,7 +211,9 @@ fun MediaDetailTvScaffold(
             kotlinx.coroutines.delay(60)
             try {
                 returnSongFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MediaDetailScreenMode", "Operation failed", e)
             }
         }
     }
@@ -217,7 +224,9 @@ fun MediaDetailTvScaffold(
             kotlinx.coroutines.delay(80)
             try {
                 playAllFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MediaDetailScreenMode", "Operation failed", e)
             }
         }
     }
@@ -244,7 +253,9 @@ fun MediaDetailTvScaffold(
             kotlinx.coroutines.delay(60)
             try {
                 pageFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MediaDetailScreenMode", "Operation failed", e)
             }
             pageTargetFocusIndex = null
         }

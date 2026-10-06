@@ -1,5 +1,7 @@
 package org.melodist.core.connect.discovery
 
+import android.util.Log
+
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -76,7 +78,8 @@ class ConnectNsdHelper(
         registrationListener?.let {
             try {
                 nsdManager?.unregisterService(it)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("ConnectNsdHelper", "Operation failed", e)
             }
             registrationListener = null
         }
@@ -191,7 +194,8 @@ class ConnectNsdHelper(
         discoveryListener?.let {
             try {
                 nsdManager?.stopServiceDiscovery(it)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("ConnectNsdHelper", "Operation failed", e)
             }
             discoveryListener = null
         }

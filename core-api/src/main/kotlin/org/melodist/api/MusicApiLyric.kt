@@ -1,5 +1,7 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -67,7 +69,9 @@ suspend fun MusicApiService.getLyrics(
                             rawTrans = fallback.second
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    ApiLogger.w("MusicApiLyric", "fetchLegacyLyric fallback failed: songMid=$songMid", e)
                 }
             }
         }
@@ -105,7 +109,9 @@ suspend fun MusicApiService.getLyrics(
                         }
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("MusicApiLyric", "fetchAlternativeLyric failed", e)
             }
         }
 

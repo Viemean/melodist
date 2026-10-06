@@ -1,5 +1,7 @@
 package org.melodist.data
 
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.media.MediaMetadataRetriever
@@ -230,13 +232,17 @@ object LocalMusicManager {
                             healedMap[s.path] = webpPath
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("LocalSongCache", "Operation failed", e)
                 }
             }
 
             try {
                 retriever.release()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("LocalSongCache", "Operation failed", e)
             }
 
             if (healedMap.isNotEmpty()) {
@@ -336,7 +342,9 @@ object LocalMusicManager {
                     null,
                     null,
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("LocalSongCache", "Operation failed", e)
             }
         }
     }
@@ -612,7 +620,9 @@ object LocalMusicManager {
 
             try {
                 retriever.release()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("LocalSongCache", "Operation failed", e)
             }
 
             inMemoryConfig =
@@ -696,7 +706,9 @@ object LocalMusicManager {
                 } catch (_: Exception) {
                     try {
                         return@withContext lrcFile.readText(Charset.forName("GBK"))
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("LocalSongCache", "Operation failed", e)
                     }
                 }
             }
@@ -724,7 +736,9 @@ object LocalMusicManager {
                         return@withContext lyrics
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("LocalSongCache", "Operation failed", e)
             }
 
             null
@@ -805,7 +819,9 @@ object LocalMusicManager {
 
             try {
                 retriever.release()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("LocalSongCache", "Operation failed", e)
             }
 
             // 与现有库合并去重

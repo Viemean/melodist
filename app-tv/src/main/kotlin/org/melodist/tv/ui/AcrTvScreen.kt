@@ -1,5 +1,8 @@
 package org.melodist.tv.ui
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
@@ -202,7 +205,9 @@ fun AcrTvScreen(
             // 自动将遥控器焦点定在“静音中”按钮上
             try {
                 muteButtonFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("AcrTvScreen", "Operation failed", e)
             }
         } else {
             syncedSongMid = null

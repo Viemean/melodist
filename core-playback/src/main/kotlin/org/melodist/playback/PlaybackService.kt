@@ -1,5 +1,8 @@
 package org.melodist.playback
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -232,7 +235,9 @@ class PlaybackService : MediaSessionService() {
             try {
                 manager?.deleteNotificationChannel("melodist_playback_channel")
                 manager?.deleteNotificationChannel("melodist_playback_channel_v2")
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("PlaybackService", "Operation failed", e)
             }
             val channel =
                 NotificationChannel(

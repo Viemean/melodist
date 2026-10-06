@@ -1,5 +1,8 @@
 package org.melodist.mobile.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -146,7 +149,9 @@ fun SongActionSheet(
                 if (probed.isNotEmpty()) {
                     probedQualityOptions = probed
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("SongActionSheet", "Operation failed", e)
             } finally {
                 isProbing = false
             }

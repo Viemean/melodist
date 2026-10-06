@@ -1,5 +1,7 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -131,7 +133,8 @@ class WebDavService {
                 if (abs.scheme.equals("http", ignoreCase = true) || abs.scheme.equals("https", ignoreCase = true)) {
                     return abs
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                ApiLogger.w("WebDavService", "Failed to parse relativeHref as absolute URI: $relativeHref", e)
             }
 
             // 路径拼接
@@ -398,7 +401,9 @@ class WebDavService {
 
                 // 文件夹优先，同级文件名升序排序
                 items.sortWith(compareBy<WebDavItem> { !it.isDirectory }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name })
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("WebDavService", "listDirectory failed for relativeHref: $relativeHref", e)
             }
             items
         }
@@ -572,7 +577,9 @@ class WebDavService {
                     if (candidateBytes != null) {
                         return@withContext candidateBytes
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    ApiLogger.w("WebDavService", "Failed to probe candidate image", e)
                 }
             }
             null
@@ -692,7 +699,9 @@ class WebDavService {
                         }
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("WebDavService", "Failed to resolve redirect location: $originalUri", e)
             }
 
             Pair(originalUri, authHeader)

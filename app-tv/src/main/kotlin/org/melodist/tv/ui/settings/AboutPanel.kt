@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.settings
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.media.AudioFormat
 import android.media.MediaCodecList
@@ -521,7 +524,9 @@ private fun probeAudioCapabilities(context: Context): AudioProbeReport {
                 codecList.add(CodecItem(name, mime, decoder.name, isHw, maxCh, sampleRateDesc))
             }
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Log.w("CodecItem", "Operation failed", e)
     }
 
     return AudioProbeReport(

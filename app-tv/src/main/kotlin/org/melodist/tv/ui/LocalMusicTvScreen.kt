@@ -1,5 +1,8 @@
 package org.melodist.tv.ui
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -316,7 +319,9 @@ fun LocalMusicTvScreen(
                                             try {
                                                 val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
                                                 context.startActivity(intent)
-                                            } catch (_: Exception) {
+                                            } catch (e: Exception) {
+                                                if (e is CancellationException) throw e
+                                                Log.w("LocalMusicViewMode", "Operation failed", e)
                                             }
                                         }
                                     }

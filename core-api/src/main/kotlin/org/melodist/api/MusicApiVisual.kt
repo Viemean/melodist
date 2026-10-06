@@ -1,5 +1,7 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -110,7 +112,9 @@ suspend fun MusicApiService.getSongVisualMid(songMid: String): String? =
                 MusicApiVisual.cacheVisualMid(songMid, visualMid)
                 return@withContext visualMid
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiVisual", "fetchVisualMid failed: songMid=$songMid", e)
         }
         null
     }

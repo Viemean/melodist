@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -1566,7 +1568,9 @@ object PlaybackManager {
         if (!loopModeName.isNullOrBlank()) {
             try {
                 queueManager.setLoopMode(PlaybackLoopMode.valueOf(loopModeName))
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                if (e is CancellationException) throw e
+                Log.w("PlaybackLoopMode", "Operation failed", e)
             }
         }
         if (song != null) {

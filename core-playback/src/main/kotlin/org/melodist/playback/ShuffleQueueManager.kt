@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import android.util.Log
+
 import org.melodist.model.Song
 import kotlin.random.Random
 
@@ -163,7 +165,8 @@ class ShuffleQueueManager(
                 _shuffledIndices.addAll(list)
                 _pointer = restoredPointer.coerceIn(0, _shuffledIndices.size - 1)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("ShuffleQueueManager", "Operation failed", e)
         }
     }
 

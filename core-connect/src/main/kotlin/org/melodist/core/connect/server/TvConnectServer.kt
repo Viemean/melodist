@@ -1,5 +1,7 @@
 package org.melodist.core.connect.server
 
+import kotlinx.coroutines.CancellationException
+
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -131,7 +133,9 @@ class TvConnectServer(
                 java.net.ServerSocket(candidate).use {
                     return candidate
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("PlaySong", "Operation failed", e)
             }
         }
         return startPort
@@ -150,7 +154,9 @@ class TvConnectServer(
     fun stop() {
         try {
             server?.stop()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("PlaySong", "Operation failed", e)
         }
         server = null
         activeClients.clear()
@@ -193,7 +199,9 @@ class TvConnectServer(
         )
         try {
             request.socket.close()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("PlaySong", "Operation failed", e)
         }
     }
 
@@ -390,7 +398,9 @@ class TvConnectServer(
                 }
                 try {
                     conn.close()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaySong", "Operation failed", e)
                 }
             }
             ConnectActions.CMD_PLAY_SONG -> {

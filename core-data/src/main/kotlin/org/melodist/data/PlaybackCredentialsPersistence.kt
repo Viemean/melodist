@@ -1,5 +1,8 @@
 package org.melodist.data
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +41,9 @@ object PlaybackCredentialsPersistence {
                     } else {
                         prefs.edit().remove(KEY_CREDS_JSON).apply()
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaybackCredentialsPersistence", "Operation failed", e)
                 }
             }
         }

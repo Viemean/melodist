@@ -73,7 +73,9 @@ object FavoriteArtistsManager {
                     _followedArtistMids.value = merged
                     persist(merged)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("FavoriteArtistsManager", "Operation failed", e)
             }
         }
     }
@@ -94,7 +96,9 @@ object FavoriteArtistsManager {
                     _followedArtistMids.value = currentSet
                     persist(currentSet)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("FavoriteArtistsManager", "Operation failed", e)
             }
         }
     }

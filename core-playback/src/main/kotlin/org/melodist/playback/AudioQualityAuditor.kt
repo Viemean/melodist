@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.media.AudioFormat
 import android.media.MediaCodec
@@ -131,7 +133,9 @@ object AudioQualityAuditor {
             context.cacheDir.listFiles { _, name -> name.startsWith("audit_probe_") }?.forEach {
                 it.delete()
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("AudioQualityVerdict", "Operation failed", e)
         }
     }
 
@@ -285,7 +289,9 @@ object AudioQualityAuditor {
         } finally {
             try {
                 tempFile?.delete()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("AudioQualityVerdict", "Operation failed", e)
             }
         }
     }
@@ -449,11 +455,15 @@ object AudioQualityAuditor {
             try {
                 codec?.stop()
                 codec?.release()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("AudioQualityVerdict", "Operation failed", e)
             }
             try {
                 extractor?.release()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("AudioQualityVerdict", "Operation failed", e)
             }
         }
     }

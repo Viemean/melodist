@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import android.util.Log
+
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -51,7 +53,8 @@ class MelodistForwardingPlayer(
                 listener.onIsPlayingChanged(isPlaying)
                 listener.onRepeatModeChanged(repeat)
                 listener.onShuffleModeEnabledChanged(shuffle)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("MelodistForwardingPlayer", "Operation failed", e)
             }
         }
     }
@@ -269,7 +272,8 @@ class MelodistForwardingPlayer(
             try {
                 listener.onRepeatModeChanged(repeat)
                 listener.onShuffleModeEnabledChanged(shuffle)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("MelodistForwardingPlayer", "Operation failed", e)
             }
         }
     }

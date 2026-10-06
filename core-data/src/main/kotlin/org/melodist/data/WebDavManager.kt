@@ -1,5 +1,7 @@
 package org.melodist.data
 
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
@@ -92,7 +94,9 @@ object WebDavManager {
         try {
             val raw = json.encodeToString(inMemoryConfig)
             prefs?.edit()?.putString(KEY_CONFIG, raw)?.apply()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("WebDavManager", "Operation failed", e)
         }
     }
 
@@ -327,11 +331,15 @@ object WebDavManager {
                             if (coverPath.isNullOrBlank() && meta.pictureBytes != null) {
                                 saveWebDavThumbnail(meta.pictureBytes)
                             }
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.w("WebDavManager", "Operation failed", e)
                         } finally {
                             try {
                                 retriever.release()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.w("WebDavManager", "Operation failed", e)
                             }
                         }
                     }
@@ -367,7 +375,9 @@ object WebDavManager {
                             val lrcFile = File(lrcDir, "webdav_$hash.lrc")
                             try {
                                 lrcFile.writeText(lyrics)
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.w("WebDavManager", "Operation failed", e)
                             }
                         }
                     }
@@ -383,11 +393,15 @@ object WebDavManager {
                             embeddedLyrics = lyrics ?: updated.embeddedLyrics,
                         )
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("WebDavManager", "Operation failed", e)
             } finally {
                 try {
                     if (tmpHdrFile.exists()) tmpHdrFile.delete()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("WebDavManager", "Operation failed", e)
                 }
             }
 
@@ -424,7 +438,9 @@ object WebDavManager {
             if (!remoteLrc.isNullOrBlank()) {
                 try {
                     lrcFile.writeText(remoteLrc)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("WebDavManager", "Operation failed", e)
                 }
                 return@withContext remoteLrc
             }
@@ -782,11 +798,15 @@ object WebDavManager {
                             org.melodist.model.AudioQualityTier
                                 .inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("WebDavManager", "Operation failed", e)
                 } finally {
                     try {
                         retriever.release()
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("WebDavManager", "Operation failed", e)
                     }
                 }
             }
@@ -841,11 +861,15 @@ object WebDavManager {
                                                 .inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
                                     }
                                 }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.w("WebDavManager", "Operation failed", e)
                             } finally {
                                 try {
                                     retriever.release()
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    Log.w("WebDavManager", "Operation failed", e)
                                 }
                             }
                         }

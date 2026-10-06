@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import android.util.Log
+
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -40,7 +42,8 @@ object PlaybackMediaItemFactory {
                     if (file.exists() && file.length() in 1..(2 * 1024 * 1024)) {
                         builder.setArtworkData(file.readBytes(), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w("PlaybackMediaItemFactory", "Operation failed", e)
                 }
             }
         }

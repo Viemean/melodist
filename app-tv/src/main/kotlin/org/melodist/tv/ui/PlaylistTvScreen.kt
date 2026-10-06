@@ -1,5 +1,8 @@
 package org.melodist.tv.ui
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
@@ -424,7 +427,9 @@ fun PlaylistTvScreen(
                         }
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("PlaylistScreenMode", "Operation failed", e)
             } finally {
                 isLoadingMore = false
             }
@@ -479,7 +484,9 @@ fun PlaylistTvScreen(
                                     saveToCache(updated, updated.size, false)
                                     PlaybackManager.addFavoriteSongMids(updated.map { it.songMid })
                                 }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.w("PlaylistScreenMode", "Operation failed", e)
                             }
                         }
                     } else {
@@ -545,7 +552,9 @@ fun PlaylistTvScreen(
                                     totalCount = updated.size
                                     saveToCache(updated, updated.size, false)
                                 }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.w("PlaylistScreenMode", "Operation failed", e)
                             }
                         }
                     }
@@ -592,7 +601,9 @@ fun PlaylistTvScreen(
                                         totalCount = synced.size
                                         saveToCache(synced, synced.size, false)
                                     }
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    Log.w("PlaylistScreenMode", "Operation failed", e)
                                 }
                             }
                         } else {
@@ -916,13 +927,17 @@ fun PlaylistTvScreen(
                     returnSongRequester.requestFocus()
                     focused = true
                     break
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaylistScreenMode", "Operation failed", e)
                 }
             }
             if (!focused) {
                 try {
                     playAllRequester.requestFocus()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaylistScreenMode", "Operation failed", e)
                 }
             }
         }
@@ -941,13 +956,17 @@ fun PlaylistTvScreen(
                     returnSongRequester.requestFocus()
                     focused = true
                     break
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaylistScreenMode", "Operation failed", e)
                 }
             }
             if (!focused) {
                 try {
                     playAllRequester.requestFocus()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaylistScreenMode", "Operation failed", e)
                 }
             } else {
                 PlaylistScreenCache.clearTargetReturnSong()
@@ -960,7 +979,9 @@ fun PlaylistTvScreen(
                     playAllRequester.requestFocus()
                     focused = true
                     break
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("PlaylistScreenMode", "Operation failed", e)
                 }
             }
         }
@@ -1156,7 +1177,9 @@ fun PlaylistTvScreen(
                                     try {
                                         returnSongRequester.requestFocus()
                                         break
-                                    } catch (_: Exception) {
+                                    } catch (e: Exception) {
+                                        if (e is CancellationException) throw e
+                                        Log.w("PlaylistScreenMode", "Operation failed", e)
                                     }
                                 }
                             }

@@ -1,5 +1,7 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -219,7 +221,8 @@ class LoginApiService(
                     }
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            ApiLogger.w("LoginApiService", "Failed to parse uin from cookie", e)
         }
 
         if (uin.isEmpty()) {
@@ -953,7 +956,9 @@ class LoginApiService(
             if (isClosed.compareAndSet(false, true)) {
                 try {
                     webSocket?.close(1000, "close")
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    ApiLogger.w("QrStatus", "Operation failed", e)
                 }
                 webSocket = null
             }

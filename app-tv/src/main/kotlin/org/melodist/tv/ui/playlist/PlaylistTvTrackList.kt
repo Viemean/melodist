@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.playlist
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -261,7 +264,9 @@ fun PlaylistTvTrackList(
                         delay(60)
                         try {
                             pageFocusRequester.requestFocus()
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.w("PlaylistTvTrackList", "Operation failed", e)
                         }
                         pageTargetFocusIndex = null
                     }

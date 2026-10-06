@@ -1,5 +1,8 @@
 package org.melodist.mobile.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
@@ -121,7 +124,9 @@ fun CommonSongList(
             delay(120)
             try {
                 filterFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("SongListDeleteType", "Operation failed", e)
             }
         }
     }

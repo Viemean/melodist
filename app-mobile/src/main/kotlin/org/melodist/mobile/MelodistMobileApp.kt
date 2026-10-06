@@ -1,5 +1,7 @@
 package org.melodist.mobile
 
+import android.util.Log
+
 import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -29,7 +31,8 @@ class MelodistMobileApp :
         org.melodist.data.AppLifecycleManager.onTrimMemoryAction = {
             try {
                 SingletonImageLoader.get(this@MelodistMobileApp).memoryCache?.clear()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("MelodistMobileApp", "Operation failed", e)
             }
         }
         org.melodist.data.AppSettingsManager
@@ -53,7 +56,8 @@ class MelodistMobileApp :
                     }
                 startService(serviceIntent)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("MelodistMobileApp", "Operation failed", e)
         }
     }
 

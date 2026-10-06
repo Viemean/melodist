@@ -211,7 +211,9 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                         if (len > 0L) {
                             resolvedSize = len
                         }
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        ApiLogger.w("QualityResult", "Operation failed", e)
                     }
                 }
 

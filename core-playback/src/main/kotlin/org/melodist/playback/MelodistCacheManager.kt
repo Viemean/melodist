@@ -1,5 +1,7 @@
 package org.melodist.playback
 
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import android.util.Log
 import androidx.annotation.OptIn
@@ -165,7 +167,9 @@ object MelodistCacheManager : MediaCacheExporter {
                         org.melodist.model.AudioQualityTier.fromTierName(tierName)?.let {
                             cachedSongTiers[mid] = it
                         }
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("MelodistCacheManager", "Operation failed", e)
                     }
                 }
             } catch (e: Exception) {
@@ -504,7 +508,9 @@ object MelodistCacheManager : MediaCacheExporter {
             } finally {
                 try {
                     cacheDataSource.close()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("MelodistCacheManager", "Operation failed", e)
                 }
             }
 

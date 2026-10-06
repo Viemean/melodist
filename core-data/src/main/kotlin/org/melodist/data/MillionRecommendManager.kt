@@ -1,5 +1,8 @@
 package org.melodist.data
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,7 +78,9 @@ object MillionRecommendManager {
     private fun deleteCurrentCacheFile() {
         try {
             getTodayCacheFile()?.delete()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("MillionRecommendData", "Operation failed", e)
         }
     }
 
@@ -91,7 +96,9 @@ object MillionRecommendManager {
                     file.delete()
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("MillionRecommendData", "Operation failed", e)
         }
     }
 
@@ -109,7 +116,9 @@ object MillionRecommendManager {
                         pickRandomDisplaySong()
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MillionRecommendData", "Operation failed", e)
             }
         }
     }
@@ -122,7 +131,9 @@ object MillionRecommendManager {
                 val file = getTodayCacheFile() ?: return@launch
                 val content = json.encodeToString(MillionRecommendData.serializer(), data)
                 file.writeText(content)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MillionRecommendData", "Operation failed", e)
             }
         }
     }
@@ -220,7 +231,9 @@ object MillionRecommendManager {
                     saveToDisk(newData)
                     pickRandomDisplaySong()
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MillionRecommendData", "Operation failed", e)
             } finally {
                 _isLoadingFlow.value = false
             }

@@ -1,5 +1,7 @@
 package org.melodist.mobile.ui.navigation
 
+import android.util.Log
+
 import android.content.res.Configuration
 import androidx.activity.BackEventCompat
 import androidx.activity.compose.BackHandler
@@ -291,7 +293,9 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
             withContext(Dispatchers.IO) {
                 try {
                     MusicApiService().refreshCurrentUserProfile()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("HomeFilter", "Operation failed", e)
                 }
             }
         }

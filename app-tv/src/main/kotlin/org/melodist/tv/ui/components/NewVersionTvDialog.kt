@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
@@ -60,7 +63,9 @@ fun NewVersionTvDialog(
         delay(150)
         try {
             confirmFocusRequester.requestFocus()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("NewVersionTvDialog", "Operation failed", e)
         }
     }
 
@@ -68,7 +73,9 @@ fun NewVersionTvDialog(
         if (downloadState is UpdateDownloadState.Completed) {
             try {
                 confirmFocusRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("NewVersionTvDialog", "Operation failed", e)
             }
         }
     }
@@ -381,7 +388,9 @@ fun NewVersionTvDialog(
                                             }
                                         try {
                                             context.startActivity(intent)
-                                        } catch (_: Exception) {
+                                        } catch (e: Exception) {
+                                            if (e is CancellationException) throw e
+                                            Log.w("NewVersionTvDialog", "Operation failed", e)
                                         }
                                         onDismissRequest()
                                     }

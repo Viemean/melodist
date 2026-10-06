@@ -1,5 +1,8 @@
 package org.melodist.tv.ui
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -243,7 +246,9 @@ fun HomeTvScreen(
                                     PlaybackManager.setPlaylist(fetched, 0, isRadio = true)
                                     onNavigateToPlayer()
                                 }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.w("TopNav", "Operation failed", e)
                             } finally {
                                 isRadarLoading = false
                             }

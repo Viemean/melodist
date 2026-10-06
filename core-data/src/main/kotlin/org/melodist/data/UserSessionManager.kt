@@ -1,5 +1,8 @@
 package org.melodist.data
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +39,9 @@ object UserSessionManager {
                         } else if (profile.uin.isBlank() && profile.cookies.isEmpty()) {
                             prefs.edit().remove(KEY_PROFILE).commit()
                         }
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("UserSessionManager", "Operation failed", e)
                     }
                 }
             }
@@ -48,7 +53,9 @@ object UserSessionManager {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val jsonStr = UserSession.toJson()
             prefs.edit().putString(KEY_PROFILE, jsonStr).apply()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("UserSessionManager", "Operation failed", e)
         }
     }
 
@@ -56,7 +63,9 @@ object UserSessionManager {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().remove(KEY_PROFILE).apply()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("UserSessionManager", "Operation failed", e)
         }
         UserSession.clear()
     }

@@ -1,5 +1,8 @@
 package org.melodist.tv.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -110,7 +113,9 @@ fun PlayerQueueSidebar(
             kotlinx.coroutines.delay(120)
             try {
                 firstRequester.requestFocus()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("PlayerQueueSidebar", "Operation failed", e)
             }
         }
     }

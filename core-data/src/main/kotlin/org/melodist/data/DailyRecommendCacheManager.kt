@@ -100,7 +100,9 @@ object DailyRecommendCacheManager {
     private fun deleteCurrentCacheFile() {
         try {
             getTodayCacheFile()?.delete()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("DailyRecommendData", "Operation failed", e)
         }
     }
 
@@ -120,7 +122,9 @@ object DailyRecommendCacheManager {
                     file.delete()
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("DailyRecommendData", "Operation failed", e)
         }
     }
 

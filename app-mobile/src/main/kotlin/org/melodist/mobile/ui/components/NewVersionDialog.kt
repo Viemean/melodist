@@ -1,5 +1,8 @@
 package org.melodist.mobile.ui.components
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -188,7 +191,9 @@ fun NewVersionDialog(
                                     }
                                 try {
                                     context.startActivity(intent)
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    Log.w("NewVersionDialog", "Operation failed", e)
                                 }
                                 onDismissRequest()
                             }
