@@ -33,9 +33,7 @@ import androidx.compose.ui.unit.dp
 import org.melodist.playback.PlaybackManager
 
 /**
- * 播放器进度滑块与时间显示组件（Android 13/14 官方 M3 动态波浪 Squiggle 风格）。
- * 核心性能优化：独立在此叶子 Composable 内部订阅 [PlaybackManager.currentPositionMs]，
- * 隔离高频进度更新，避免向上级父容器扩散重组。
+ * 播放器进度滑块与时间显示组件。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,13 +60,11 @@ fun PlayerProgressSlider(
             sliderPositionMs.coerceIn(0L, durationSafe)
         }
     val progressFraction = (currentPosSafe.toFloat() / durationSafe).coerceIn(0f, 1f)
-    // 真实音频文件磁盘缓存比例：若曲目已完整落盘则直接 100%，否则按已下载字节呈现
+    // 磁盘缓存比例
     val actualCacheFraction = if (isFromCache) 1f else fileCacheFraction.coerceIn(0f, 1f)
 
-    // 莫奈色彩：使用传入的动态莫奈强调色，确保在动态背景下具备绝佳辨识度与色彩呼应
-    val effectiveAccent = accentColor
-    // 未播底轨：基于高对比度文本/内容色派生，保证在亮色微彩与暗色深色背景下均轮廓鲜明
-    val trackInactiveColor = textColor.copy(alpha = 0.20f)
+        val effectiveAccent = accentColor
+        val trackInactiveColor = textColor.copy(alpha = 0.20f)
 
     val sliderColors =
         SliderDefaults.colors(
@@ -136,7 +132,7 @@ fun PlayerProgressSlider(
                     val activeWidth = size.width * progressFraction
                     val cachedWidth = size.width * actualCacheFraction
 
-                    // 1. 未播放底轨（半透明底色）
+                    // 未播放底轨
                     drawLine(
                         color = trackInactiveColor,
                         start = Offset(0f, centerY),
@@ -145,7 +141,7 @@ fun PlayerProgressSlider(
                         cap = StrokeCap.Round,
                     )
 
-                    // 2. 音频文件磁盘缓存进度（若文件正在下载写入，以 35% 莫奈主色实时展示已落盘范围；已全盘缓存则覆盖整轨）
+                    // 音频文件磁盘缓存进度
                     if (cachedWidth > 0f) {
                         drawLine(
                             color = effectiveAccent.copy(alpha = 0.35f),
@@ -156,7 +152,7 @@ fun PlayerProgressSlider(
                         )
                     }
 
-                    // 3. 已播放进度线（强调色覆盖）
+                    // 已播放进度线
                     if (activeWidth > 0f) {
                         drawLine(
                             color = effectiveAccent,
@@ -167,7 +163,7 @@ fun PlayerProgressSlider(
                         )
                     }
 
-                    // 4. 进度条滑块（支持拖拽与按压尺寸反馈）
+                    // 进度条滑块
                     if (isEngaged || activeWidth > 0f) {
                         drawCircle(
                             color = effectiveAccent,

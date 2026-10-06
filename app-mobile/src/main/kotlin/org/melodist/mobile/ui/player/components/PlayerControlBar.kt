@@ -62,8 +62,7 @@ fun PlayerControlBar(
 ) {
     val isDark = isAppInDarkTheme()
 
-    // 播放/暂停按键采用与进度条高亮完全一致的莫奈强调色，强化界面色彩统一性
-    val playPauseContainerColor = animatedAccentColor
+        val playPauseContainerColor = animatedAccentColor
     val playPauseContentColor =
         if (ColorUtils.calculateLuminance(animatedAccentColor.toArgb()) < 0.45) {
             Color.White
@@ -71,7 +70,7 @@ fun PlayerControlBar(
             Color(0xFF1C1B1F)
         }
 
-    // 横竖屏平滑过渡动画参数（轻量快速缓动）
+    // 横竖屏过渡动画参数
     val animSpec = tween<androidx.compose.ui.unit.Dp>(
         durationMillis = 180,
         easing = androidx.compose.animation.core.FastOutSlowInEasing,
@@ -145,7 +144,7 @@ fun PlayerControlBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (isLandscape) Arrangement.SpaceEvenly else Arrangement.SpaceBetween,
     ) {
-        // 左侧按键：普通模式为循环模式切换，猜你喜欢电台模式为“不喜欢”按键
+        // 循环模式 / 不喜欢按键
         FilledTonalIconButton(
             onClick = {
                 if (isRadioMode) {
@@ -196,7 +195,7 @@ fun PlayerControlBar(
             }
         }
 
-        // 播放/暂停按键（支持横竖屏无缝形变与尺寸过渡、按压与形态切换动画）
+        // 播放/暂停按键
         FilledIconButton(
             onClick = onTogglePlayPause,
             interactionSource = playPauseInteractionSource,
@@ -236,7 +235,7 @@ fun PlayerControlBar(
             }
         }
 
-        // 右侧按钮：播放列表队列（带按压微缩放弹性动画）
+        // 播放队列按键
         FilledTonalIconButton(
             onClick = onOpenQueue,
             enabled = true,

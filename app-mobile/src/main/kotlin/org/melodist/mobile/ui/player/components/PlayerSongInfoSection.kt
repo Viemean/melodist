@@ -63,7 +63,7 @@ fun PlayerSongInfoSection(
         }
 
     if (isLandscape) {
-        // 横屏精致排版：左侧歌名+歌手；右侧垂直居中对齐的收藏爱心(上) + 音质徽标(下)
+        // 横屏布局
         Row(
             modifier =
                 modifier
@@ -76,7 +76,7 @@ fun PlayerSongInfoSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            // 左侧：歌曲名字与歌手
+            // 歌曲信息
             Column(
                 modifier = Modifier.weight(1f).padding(end = 8.dp),
                 horizontalAlignment = Alignment.Start,
@@ -100,7 +100,7 @@ fun PlayerSongInfoSection(
                 )
             }
 
-            // 右侧垂直居中对齐列：上方收藏爱心，下方音质徽标
+            // 收藏与音质标签
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -215,7 +215,7 @@ fun PlayerSongInfoSection(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 if (isLocalOrWebDav) {
-                    // 本地与 WebDAV 音乐：单一固定音源，显示静态规格标签，禁止呼出音质切换
+                    // 静态音质标签
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = animatedAccentColor.copy(alpha = 0.12f),
@@ -234,7 +234,7 @@ fun PlayerSongInfoSection(
                         }
                     }
                 } else {
-                    // 在线音乐：可点击呼出多音质选择弹窗
+                    // 在线音质标签
                     Surface(
                         onClick = onOpenQualitySheet,
                         shape = RoundedCornerShape(6.dp),

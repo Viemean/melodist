@@ -252,7 +252,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
-        // 错峰延迟 2.5 秒，避开应用冷启动渲染高峰
+        // 延迟执行初始化任务
         delay(2500)
         withContext(Dispatchers.IO) {
             val targetKw = if (context.packageName == "com.tencent.qqmusic") "originos" else "mobile"
@@ -271,14 +271,14 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    // ACR 识曲 ViewModel（提升到 Screen 级别，生命周期与页面一致）
+    // ACR 识曲 ViewModel
     val acrViewModel = remember { MobileAcrViewModel() }
     val acrUiState by acrViewModel.uiState.collectAsState()
-    // 识别成功后保存歌曲数据、时间戳与耗时文案，用于计算展开时的进度补偿及胶囊展示
+    // 识曲结果缓存
     var acrSuccessData by remember { mutableStateOf<MobileAcrSuccessData?>(null) }
     // 识别成功卡片展示状态
     var showAcrResultCard by remember { mutableStateOf(false) }
-    // 卡片触摸/拖拽交互中状态（交互中挂起倒计时，防止中途强行缩回）
+    // 卡片交互状态
     var isAcrCardInteracting by remember { mutableStateOf(false) }
     // 是否正在挂载无 UI 识别控制器
     var isAcrControllerActive by remember { mutableStateOf(false) }
@@ -297,7 +297,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    // 识别结果状态机：成功时解析耗时文案并保存数据；失败时延时复位
+    // 识别结果处理
     LaunchedEffect(acrUiState) {
         val state = acrUiState
         when (state) {
@@ -330,7 +330,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    // 独立控制结果卡片 8 秒自动收起，交互中暂停计时，抬起后重新计时
+    // 结果卡片定时收起
     LaunchedEffect(acrSuccessData, isAcrCardInteracting) {
         if (acrSuccessData != null) {
             showAcrResultCard = true
@@ -422,7 +422,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                 onFullPlayerExpandChange = { isFullPlayerExpanded = it },
             ) { innerPadding ->
                 Box(modifier = Modifier.fillMaxSize()) {
-                    // 若正在触发预测返回手势，在底层渲染上一级页面提供实时预览
+                    // 预测返回手势底层预览
                     if (isPageBackActive && previousScreen != null) {
                         Box(
                             modifier =
@@ -502,7 +502,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                         }
                     }
 
-                    // 当前顶层页面：手势过程中跟随手指实时缩放与位移
+                    // 顶层页面跟随手势缩放与位移
                     Box(
                         modifier =
                             Modifier
@@ -635,7 +635,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                 )
             }
 
-            // 无 UI 识曲控制器：挂载时自动检权并开始识别
+            // 识曲控制器
             if (isAcrControllerActive) {
                 AcrRecognitionController(
                     viewModel = acrViewModel,
@@ -720,7 +720,7 @@ private fun RenderAppScreen(
                                 source: NestedScrollSource,
                             ): Offset {
                                 if (isLandscape) {
-                                    // 仅在垂直分量明显大于水平分量时触发，避免左右滑动 Pager 误触
+                                    // 垂直滑动手势判定
                                     if (kotlin.math.abs(available.y) > kotlin.math.abs(available.x) * 1.5f) {
                                         if (available.y < -12f) {
                                             isTabVisible = false
@@ -753,7 +753,7 @@ private fun RenderAppScreen(
                             ) + fadeOut(animationSpec = tween(150)),
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            // 顶部头部：搜索胶囊 + 识曲胶囊/按钮 + 设置按钮
+                            // 顶部搜索与操作栏
                             Row(
                                 modifier =
                                     Modifier
@@ -890,7 +890,7 @@ private fun RenderAppScreen(
                                 }
                             }
 
-                            // 听歌识曲识别成功卡片（展示 4 秒后缩回顶栏胶囊）
+                            // 识曲成功结果卡片
                             AnimatedVisibility(
                                 visible = showAcrResultCard && acrSuccessData != null,
                                 enter =

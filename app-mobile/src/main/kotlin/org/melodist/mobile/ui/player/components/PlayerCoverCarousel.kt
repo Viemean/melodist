@@ -228,7 +228,7 @@ fun PlayerCoverCarousel(
         ) {
             val offsetVal = dragOffsetX.value
 
-            // 上一首卡片：常驻挂载，位移小于等于 0 时隐藏，避免反向滑动卸载重建导致图片重载闪白
+            // 上一首卡片
             if (currentPrevSong != null) {
                 key(currentPrevSong?.songMid ?: "prev") {
                     val isVisible = offsetVal > 0.5f
@@ -249,7 +249,7 @@ fun PlayerCoverCarousel(
                 }
             }
 
-            // 下一首卡片：常驻挂载，位移大于等于 0 时隐藏，避免反向滑动卸载重建导致图片重载闪白
+            // 下一首卡片
             if (currentNextSong != null) {
                 key(currentNextSong?.songMid ?: "next") {
                     val isVisible = offsetVal < -0.5f
@@ -367,7 +367,7 @@ private fun CoverCard(
                 }.then(modifier),
         contentAlignment = Alignment.Center,
     ) {
-        // 1. 底层实体圆角阴影板：固定 alpha，避免 RenderNode 离屏缓冲引发的裁切与阴影闪烁
+        // 阴影层
         Spacer(
             modifier =
                 Modifier
@@ -384,7 +384,7 @@ private fun CoverCard(
                     ),
         )
 
-        // 2. 顶层内容容器：严格按 cardShape 裁剪图片并附带边框，显式禁用内部 AlbumArtImage 默认的 10dp 圆角与 8dp 阴影
+        // 封面卡片容器
         Box(
             modifier =
                 Modifier

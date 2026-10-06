@@ -124,7 +124,7 @@ fun PlayerQueueBottomSheet(
                     source: NestedScrollSource,
                 ): Offset =
                     if (available.y < 0f) {
-                        // 消费向上剩余未消费的滚动量，阻止冒泡至父级 ModalBottomSheet 触发抖动回弹
+                        // 消费未处理的向上滚动增量
                         Offset(0f, available.y)
                     } else {
                         Offset.Zero

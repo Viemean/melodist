@@ -71,7 +71,7 @@ fun SongListFastScroller(
     var dragProgressFraction by remember { mutableFloatStateOf(0f) }
     var currentScrolledIndex by remember { mutableIntStateOf(0) }
 
-    // 监听列表滚动与拖拽：停止移动 3 秒后平滑隐去
+    // 列表滚动与拖拽监听
     val isActivityActive = listState.isScrollInProgress || isDragging
     LaunchedEffect(isActivityActive) {
         if (isActivityActive) {
@@ -82,7 +82,7 @@ fun SongListFastScroller(
         }
     }
 
-    // 拖拽释放后延时恢复悬浮操作栏
+    // 拖拽释放延时
     LaunchedEffect(isDragging) {
         if (!isDragging) {
             delay(500)
@@ -92,7 +92,7 @@ fun SongListFastScroller(
         }
     }
 
-    // 非拖拽状态下根据 LazyListState 动态计算滑块高度比例
+    // 计算滑块高度比例
     val scrollProgress by remember(totalItems, headerCount) {
         derivedStateOf {
             val firstVisible = (listState.firstVisibleItemIndex - headerCount).coerceAtLeast(0)
@@ -106,8 +106,7 @@ fun SongListFastScroller(
 
     val activeFraction = if (isDragging) dragProgressFraction else scrollProgress
 
-    // MD3 规范的加宽尺寸与弹性过渡动画
-    val thumbWidth by animateDpAsState(
+        val thumbWidth by animateDpAsState(
         targetValue = if (isDragging) 15.dp else 10.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "FastScrollerWidth",
@@ -192,7 +191,7 @@ fun SongListFastScroller(
             }
         }
 
-        // 触摸热区（宽 36dp）
+        // 触摸热区
         val maxIndex = (totalItems - 1).coerceAtLeast(0)
         Box(
             modifier =
@@ -231,7 +230,7 @@ fun SongListFastScroller(
                     },
             contentAlignment = Alignment.TopEnd,
         ) {
-            // MD3 悬浮纯净胶囊滑柄（Floating Scrubber Thumb）
+            // 滑柄组件
             Surface(
                 shape = CircleShape,
                 color = thumbColor,

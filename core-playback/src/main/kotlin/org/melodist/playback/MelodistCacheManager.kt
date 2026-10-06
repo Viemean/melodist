@@ -268,7 +268,7 @@ object MelodistCacheManager : MediaCacheExporter {
             val contentLength = ContentMetadata.getContentLength(metadata)
             if (contentLength <= 0L) return false
             if (cache.isCached(cacheKey, 0L, contentLength)) return true
-            // 尾部安全容差判定：针对 MP3/FLAC 流式播放中解码器提前遇到 EOS 导致文件末尾几 KB 未读取的情况
+            // 尾部容差判定
             val cachedBytes = cache.getCachedBytes(cacheKey, 0L, contentLength)
             val isContinuousFromZero = cache.isCached(cacheKey, 0L, cachedBytes)
             val isTailGapTolerated = (contentLength - cachedBytes) in 1..65536L || (cachedBytes.toFloat() / contentLength >= 0.995f)
@@ -544,7 +544,7 @@ object MelodistCacheManager : MediaCacheExporter {
     }
 
     /**
-     * 切歌事件触发：若切走的曲目在试探期内被切走（播放时长未达门槛），异步清理其磁盘残片，防磁盘碎片堆积
+     * 切歌时清理未达播放门槛曲目的磁盘缓存。
      */
     fun handleTrackSwitchEviction(
         songMid: String,
@@ -566,9 +566,7 @@ object MelodistCacheManager : MediaCacheExporter {
     }
 
     /**
-     * 智能准入判定：
-     * 1. 若当前 Profile 禁止母带落盘且当前为 Master 音质，直接返回 false（只播不存）；
-     * 2. 收藏曲目需要有效播放大于等于 1 次；普通曲目需要有效播放大于等于 2 次。
+     * 判定曲目是否满足持久化缓存准入条件。
      */
     fun shouldCacheSong(
         songMid: String,
@@ -685,7 +683,7 @@ object MelodistCacheManager : MediaCacheExporter {
     }
 
     /**
-     * 向上升级替换：更高音质完整留存后，异步清理同曲目的低音质旧文件，立体声只保留一份
+     * 清理同一曲目低于目标音质的历史缓存。
      */
     fun pruneLowerTierCacheAsync(
         songMid: String,
@@ -719,7 +717,7 @@ object MelodistCacheManager : MediaCacheExporter {
     }
 
     /**
-     * 确认收听达标持久留存，并触发同曲目旧版本淘汰
+     * 确认曲目缓存并淘汰低版本文件。
      */
     fun confirmCacheRetention(
         songMid: String,
@@ -762,7 +760,7 @@ object MelodistCacheManager : MediaCacheExporter {
             .Factory()
             .setCache(cache)
             .setUpstreamDataSourceFactory(upstreamFactory)
-            // 当电视闪存由于只读、坏块或突发写满导致缓存异常时，自动忽略错误并降级为直接网络拉取，确保播放不中断
+            // 缓存写入异常时降级为直接网络拉取
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 

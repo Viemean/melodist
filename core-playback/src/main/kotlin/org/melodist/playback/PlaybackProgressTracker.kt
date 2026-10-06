@@ -10,7 +10,7 @@ import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 
 /**
- * 负责高频播放进度轮询、边播边存文件缓存占比计算、自动预拉取触发与定期进度持久化
+ * 播放进度轮询、缓存计算与预拉取管理。
  */
 class PlaybackProgressTracker(
     private val scope: CoroutineScope,

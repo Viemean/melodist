@@ -95,7 +95,7 @@ fun PlayerContainer(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // 当单曲播放变动时，后台静默预热封面调色板并写入全局缓存，消除展开播放器时的色彩补间跳变
+    // 预加载封面调色板
     LaunchedEffect(currentSong?.songMid, currentSong?.coverUrl) {
         val song = currentSong ?: return@LaunchedEffect
         if (PlayerMonetCacheManager.get(song.songMid) == null) {
@@ -182,7 +182,7 @@ fun PlayerContainer(
                             if (pulledPx > expandThreshold || velocityY > 650f) {
                                 sheetOffsetY.animateTo(0f, tween(240, easing = FastOutSlowInEasing))
                                 setExpanded(true)
-                                // 展开后统一为标准播放界面状态，后续手势与正常播放界面一致（再次下滑关闭）
+                                // 展开状态
                                 activeDirection = SheetExpandDirection.BottomToTop
                             } else {
                                 sheetOffsetY.animateTo(-screenHeightPx, spring(dampingRatio = Spring.DampingRatioLowBouncy))
@@ -208,7 +208,7 @@ fun PlayerContainer(
 
         val isDark = isAppInDarkTheme()
 
-        // 当全屏播放器未展开且未在底部拉升过程中时，底部的 MiniPlayerBar 保持可见
+        // 迷你播放栏可见状态
         val isMiniPlayerVisible by remember {
             derivedStateOf {
                 currentSong != null &&
@@ -229,7 +229,7 @@ fun PlayerContainer(
                         val navBars = WindowInsets.navigationBars.asPaddingValues()
                         val layoutDir = LocalLayoutDirection.current
                         val navBottom = navBars.calculateBottomPadding()
-                        // 针对隐藏手势指示线的大物理 R 角机型，底边 Insets 会归零导致贴底被裁切，此处保留至少 10.dp 保底安全边距
+                        // 底部安全边距
                         val safeBottomPadding = maxOf(navBottom, 10.dp)
 
                         Box(
@@ -299,8 +299,7 @@ fun PlayerContainer(
                                         setExpanded(false)
                                     }
                                 },
-                                // pullFraction 读取放在 graphicsLayer{} 里，限制在 Drawing 阶段，不触发重组
-                                modifier =
+                                                                modifier =
                                     Modifier
                                         .then(
                                             if (isLandscape) {

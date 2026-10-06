@@ -315,7 +315,7 @@ fun MiniPlayerBar(
                         .padding(start = 10.dp, end = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 左侧可横滑切歌的歌曲内容展示区
+                // 歌曲信息展示区
                 BoxWithConstraints(
                     modifier =
                         Modifier
@@ -326,7 +326,7 @@ fun MiniPlayerBar(
                     val fullStepPx = with(density) { maxWidth.toPx() + 16.dp.toPx() }
                     val offsetVal = dragOffsetX.value
 
-                    // 滑动切歌时跟随预览：上一首（向右滑露头）
+                    // 上一首预览
                     if (offsetVal > 0f && currentPrevSong != null) {
                         MiniPlayerSongContent(
                             song = currentPrevSong,
@@ -339,7 +339,7 @@ fun MiniPlayerBar(
                         )
                     }
 
-                    // 滑动切歌时跟随预览：下一首（向左滑露头）
+                    // 下一首预览
                     if (offsetVal < 0f && currentNextSong != null) {
                         MiniPlayerSongContent(
                             song = currentNextSong,
@@ -402,7 +402,7 @@ fun MiniPlayerBar(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
 
-                // M3 风格实心播放/暂停按钮 (40dp 圆形容器，深浅主题自适应 Primary 色)
+                // 播放/暂停按钮
                 FilledIconButton(
                     onClick = onTogglePlayPause,
                     interactionSource = playPauseInteractionSource,
@@ -438,7 +438,7 @@ fun MiniPlayerBar(
                 }
             }
 
-            // 底部细进度条（两端内缩 14.dp 避免切入胶囊圆角，保证两端落在平直段内）
+            // 底部进度条
             val progressModifier =
                 Modifier
                     .fillMaxWidth()

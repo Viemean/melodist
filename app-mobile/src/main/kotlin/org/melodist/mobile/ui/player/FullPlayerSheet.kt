@@ -350,7 +350,7 @@ fun FullPlayerSheet(
         val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
         if (isLandscape) {
-            // 横屏黄金三栏流：[左: 204dp大封面+收起] + [中: 歌曲信息+逐字歌词+进度条] + [右: 52dp纵向悬浮播控]
+            // 横屏三栏布局
             Row(
                 modifier =
                     Modifier
@@ -360,13 +360,13 @@ fun FullPlayerSheet(
                         .padding(start = 20.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 1. 左栏：大封面 + 左下角音质/右下角收藏 + 底部进度条与时间
+                // 左栏：封面与进度控制
                 Column(
                     modifier = Modifier.width(260.dp).fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    // 大尺寸专辑封面（内嵌左下角音质与右下角收藏）
+                    // 专辑封面
                     val isLocalOrWebDav =
                         song?.songMid?.startsWith("webdav_") == true ||
                             song?.songMid?.startsWith("local_") == true ||
@@ -374,7 +374,7 @@ fun FullPlayerSheet(
 
                     val badgeText = AudioQualityTier.getBadge(currentTier)
 
-                    // 大尺寸专辑封面（内嵌随卡片平滑滑移与淡出的音质与收藏操作按钮）
+                    // 专辑封面
                     Box(
                         modifier = Modifier.size(240.dp),
                         contentAlignment = Alignment.Center,
@@ -399,7 +399,7 @@ fun FullPlayerSheet(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    // 专辑左下角：音质徽标（严格 100% 照搬竖屏规格）
+                                    // 音质徽标
                                     Surface(
                                         onClick = {
                                             if (!isLocalOrWebDav) {
@@ -420,7 +420,7 @@ fun FullPlayerSheet(
                                         )
                                     }
 
-                                    // 专辑右下角：收藏按钮（严格 100% 照搬竖屏规格）
+                                    // 收藏按钮
                                     if (isFavSupported) {
                                         FilledTonalIconButton(
                                             onClick = { PlaybackManager.toggleCurrentSongFavorite() },
@@ -447,7 +447,7 @@ fun FullPlayerSheet(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // 专辑封面下方：进度滑块与时间（时间置于轨道上方，充分利用专辑下方的空间）
+                    // 进度条与时间
                     PlayerProgressSlider(
                         durationMs = durationMs,
                         accentColor = animatedAccentColor,
@@ -460,13 +460,13 @@ fun FullPlayerSheet(
 
                 Spacer(modifier = Modifier.width(20.dp))
 
-                // 2. 中栏：歌词主舞台（顶部居中歌曲信息 + 沉浸逐字歌词流）
+                // 中栏：歌曲信息与歌词
                 Column(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Top,
                 ) {
-                    // 歌曲信息放在歌词部分界面居中顶部
+                    // 歌曲信息
                     Column(
                         modifier =
                             Modifier
@@ -496,7 +496,7 @@ fun FullPlayerSheet(
                         )
                     }
 
-                    // 沉浸逐字歌词流
+                    // 歌词视图
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 2.dp),
                     ) {
@@ -515,7 +515,7 @@ fun FullPlayerSheet(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // 3. 右栏：纵向悬浮操作列（严格保持与竖屏一致的 Squircle 圆角矩形与阴影规范）
+                // 右栏：播放控制
                 val auxButtonShape = RoundedCornerShape(16.dp)
                 val auxButtonBgColor =
                     if (isDark) {
@@ -565,7 +565,7 @@ fun FullPlayerSheet(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    // 播放队列（与竖屏一致的 Squircle 圆角矩形与半透明背景）
+                    // 播放队列
                     FilledTonalIconButton(
                         onClick = { showQueueSheet = true },
                         interactionSource = queueInteractionSource,
@@ -591,7 +591,7 @@ fun FullPlayerSheet(
                         )
                     }
 
-                    // 播放/暂停大按键（严格保持与竖屏完全一致的 Squircle 圆角矩形与彩色外发光阴影）
+                    // 播放/暂停按键
                     val playPauseContentColor =
                         if (ColorUtils.calculateLuminance(animatedAccentColor.toArgb()) < 0.45) {
                             Color.White
@@ -649,7 +649,7 @@ fun FullPlayerSheet(
                         }
                     }
 
-                    // 循环模式（与竖屏一致的 Squircle 圆角矩形与图标过渡动画）
+                    // 循环模式切换
                     val isLoopHighlighted = loopMode == org.melodist.playback.PlaybackLoopMode.SingleRepeat
                     FilledTonalIconButton(
                         onClick = onToggleLoopMode,
@@ -693,7 +693,7 @@ fun FullPlayerSheet(
                 }
             }
         } else {
-            // 竖屏保留经典全高流式布局
+            // 竖屏布局
             Column(
                 modifier =
                     Modifier
@@ -704,7 +704,7 @@ fun FullPlayerSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
             ) {
-                // 1. 顶部操作条（拖拽指示柄）
+                // 顶部指示条
                 Box(
                     modifier =
                         Modifier
@@ -827,7 +827,7 @@ fun FullPlayerSheet(
                     }
                 }
 
-                // 2. 中间主区域（竖屏全高流式封面/歌词切换）
+                // 封面与歌词区域
                 Box(
                     modifier =
                         Modifier
@@ -907,7 +907,7 @@ fun FullPlayerSheet(
                     }
                 }
 
-                // 3. 下方歌曲信息 + 进度条 + 播控栏
+                // 播放控制区域
                 Column(
                     modifier =
                         Modifier
