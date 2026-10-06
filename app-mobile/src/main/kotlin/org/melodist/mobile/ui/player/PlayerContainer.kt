@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -288,8 +288,7 @@ fun PlayerContainer(
                                         start = navBars.calculateStartPadding(layoutDir),
                                         end = navBars.calculateEndPadding(layoutDir),
                                         bottom = safeBottomPadding,
-                                    )
-                                    .graphicsLayer {
+                                    ).graphicsLayer {
                                         val pullFraction =
                                             if (activeDirection == SheetExpandDirection.BottomToTop) {
                                                 ((screenHeightPx - sheetOffsetY.value) / with(density) { 160.dp.toPx() }).coerceIn(0f, 1f)

@@ -93,10 +93,11 @@ class AcrViewModel(
                         _uiState.value = AcrUiState.Listening(elapsedSeconds)
                     }
 
-                    val canLaunchProbe = !isSearching &&
-                        nextProbeIndex < probeMilestones.size &&
-                        elapsedMs >= probeMilestones[nextProbeIndex] &&
-                        (System.currentTimeMillis() - lastSearchFinishTime >= 200L)
+                    val canLaunchProbe =
+                        !isSearching &&
+                            nextProbeIndex < probeMilestones.size &&
+                            elapsedMs >= probeMilestones[nextProbeIndex] &&
+                            (System.currentTimeMillis() - lastSearchFinishTime >= 200L)
 
                     // 检查是否到达预定的切片探测检查点
                     if (canLaunchProbe) {

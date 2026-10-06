@@ -38,7 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import org.melodist.model.SongSortOrder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +61,7 @@ import org.melodist.mobile.ui.storage.StorageDirectoryListView
 import org.melodist.mobile.ui.storage.StorageItemModel
 import org.melodist.mobile.ui.storage.StoragePathBreadcrumbs
 import org.melodist.mobile.ui.storage.StorageScanProgressCard
+import org.melodist.model.SongSortOrder
 import org.melodist.model.WebDavItem
 import org.melodist.model.WebDavServer
 import org.melodist.playback.PlaybackManager
@@ -472,7 +472,14 @@ fun WebDavMobileScreen(
                                                                     Text(
                                                                         text = order.label,
                                                                         fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
-                                                                        color = if (sortOrder == order) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                                        color =
+                                                                            if (sortOrder ==
+                                                                                order
+                                                                            ) {
+                                                                                MaterialTheme.colorScheme.primary
+                                                                            } else {
+                                                                                MaterialTheme.colorScheme.onSurface
+                                                                            },
                                                                     )
                                                                 },
                                                                 onClick = {

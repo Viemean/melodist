@@ -56,7 +56,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.melodist.data.LocalFileItem
 import org.melodist.data.LocalMusicManager
-import org.melodist.model.SongSortOrder
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.storage.StorageDirectoryListView
@@ -64,6 +63,7 @@ import org.melodist.mobile.ui.storage.StorageItemModel
 import org.melodist.mobile.ui.storage.StoragePathBreadcrumbs
 import org.melodist.mobile.ui.storage.StorageScanProgressCard
 import org.melodist.model.Song
+import org.melodist.model.SongSortOrder
 import org.melodist.playback.PlaybackManager
 import java.io.File
 
@@ -413,7 +413,14 @@ fun LocalMusicMobileScreen(
                                                                     Text(
                                                                         text = order.label,
                                                                         fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
-                                                                        color = if (sortOrder == order) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                                        color =
+                                                                            if (sortOrder ==
+                                                                                order
+                                                                            ) {
+                                                                                MaterialTheme.colorScheme.primary
+                                                                            } else {
+                                                                                MaterialTheme.colorScheme.onSurface
+                                                                            },
                                                                     )
                                                                 },
                                                                 onClick = {

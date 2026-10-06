@@ -148,13 +148,14 @@ fun SongListFastScroller(
 
         // 索引指示气泡：沿 Y 轴动态跟随滑块手柄滑动
         val activeSong = currentSongProvider?.invoke(currentScrolledIndex)
-        val initialLetter = remember(activeSong, sortOrder) {
-            if (activeSong != null) {
-                SongSorter.getInitial(activeSong, sortOrder)
-            } else {
-                ""
+        val initialLetter =
+            remember(activeSong, sortOrder) {
+                if (activeSong != null) {
+                    SongSorter.getInitial(activeSong, sortOrder)
+                } else {
+                    ""
+                }
             }
-        }
 
         val bubbleSizeDp = 52.dp
         val bubbleSizePx = with(density) { bubbleSizeDp.toPx() }

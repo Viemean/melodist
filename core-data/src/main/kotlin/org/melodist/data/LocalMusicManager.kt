@@ -357,13 +357,13 @@ object LocalMusicManager {
         saveConfig()
     }
 
-    fun getSortOrder(): org.melodist.model.SongSortOrder {
-        return try {
-            org.melodist.model.SongSortOrder.valueOf(inMemoryConfig.sortOrder)
+    fun getSortOrder(): org.melodist.model.SongSortOrder =
+        try {
+            org.melodist.model.SongSortOrder
+                .valueOf(inMemoryConfig.sortOrder)
         } catch (_: IllegalArgumentException) {
             org.melodist.model.SongSortOrder.DEFAULT
         }
-    }
 
     fun setSortOrder(order: org.melodist.model.SongSortOrder) {
         if (inMemoryConfig.sortOrder != order.name) {

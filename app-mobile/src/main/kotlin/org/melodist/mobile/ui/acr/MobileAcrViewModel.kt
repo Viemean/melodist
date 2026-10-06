@@ -104,10 +104,11 @@ class MobileAcrViewModel(
                         _uiState.value = MobileAcrUiState.Listening(elapsedSeconds)
                     }
 
-                    val canLaunchProbe = !isSearching &&
-                        nextProbeIndex < probeMilestones.size &&
-                        elapsedMs >= probeMilestones[nextProbeIndex] &&
-                        (System.currentTimeMillis() - lastSearchFinishTime >= 200L)
+                    val canLaunchProbe =
+                        !isSearching &&
+                            nextProbeIndex < probeMilestones.size &&
+                            elapsedMs >= probeMilestones[nextProbeIndex] &&
+                            (System.currentTimeMillis() - lastSearchFinishTime >= 200L)
 
                     if (canLaunchProbe) {
                         val milestone = probeMilestones[nextProbeIndex]
@@ -154,10 +155,10 @@ class MobileAcrViewModel(
                                     val durationSec = (System.currentTimeMillis() - startTime) / 1000f
                                     _uiState.value =
                                         MobileAcrUiState.Success(
-                                             song = matchedSong,
-                                             offsetSeconds = result.offsetSeconds,
-                                             anchorRealtimeMs = recordStartRealtimeMs,
-                                             matchDurationSeconds = durationSec,
+                                            song = matchedSong,
+                                            offsetSeconds = result.offsetSeconds,
+                                            anchorRealtimeMs = recordStartRealtimeMs,
+                                            matchDurationSeconds = durationSec,
                                         )
                                     return@launch
                                 }

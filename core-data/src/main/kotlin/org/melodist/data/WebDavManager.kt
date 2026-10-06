@@ -610,13 +610,17 @@ object WebDavManager {
             } ?: return org.melodist.model.SongSortOrder.DEFAULT
 
         return try {
-            org.melodist.model.SongSortOrder.valueOf(targetServer.sortOrder)
+            org.melodist.model.SongSortOrder
+                .valueOf(targetServer.sortOrder)
         } catch (_: IllegalArgumentException) {
             org.melodist.model.SongSortOrder.DEFAULT
         }
     }
 
-    fun setSortOrder(order: org.melodist.model.SongSortOrder, serverId: String? = null) {
+    fun setSortOrder(
+        order: org.melodist.model.SongSortOrder,
+        serverId: String? = null,
+    ) {
         val targetServer =
             if (serverId != null) {
                 inMemoryConfig.servers.find { it.id == serverId }
