@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -44,6 +45,7 @@ fun PlayerProgressSlider(
     onSeekTo: (Long) -> Unit,
     modifier: Modifier = Modifier,
     textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    timeOnTop: Boolean = false,
 ) {
     val sliderPositionMs by PlaybackManager.currentPositionMs.collectAsState()
     val isFromCache by PlaybackManager.isCurrentTrackFromCache.collectAsState()
@@ -76,6 +78,24 @@ fun PlayerProgressSlider(
         )
 
     Column(modifier = modifier.fillMaxWidth()) {
+        if (timeOnTop) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = formatPlayerTime(currentPosSafe),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor,
+                )
+                Text(
+                    text = formatPlayerTime(durationSafe),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor,
+                )
+            }
+        }
+
         Slider(
             value = progressFraction,
             onValueChange = {
@@ -160,20 +180,22 @@ fun PlayerProgressSlider(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = formatPlayerTime(currentPosSafe),
-                style = MaterialTheme.typography.bodySmall,
-                color = textColor,
-            )
-            Text(
-                text = formatPlayerTime(durationSafe),
-                style = MaterialTheme.typography.bodySmall,
-                color = textColor,
-            )
+        if (!timeOnTop) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = formatPlayerTime(currentPosSafe),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor,
+                )
+                Text(
+                    text = formatPlayerTime(durationSafe),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor,
+                )
+            }
         }
     }
 }
