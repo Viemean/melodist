@@ -2,6 +2,7 @@ package org.melodist.mobile.ui.player.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -56,6 +57,7 @@ fun PlayerControlBar(
     onOpenQueue: () -> Unit,
     onDislikeClick: () -> Unit = {},
     isMuted: Boolean = false,
+    isLandscape: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val isDark = isAppInDarkTheme()
@@ -69,12 +71,33 @@ fun PlayerControlBar(
             Color(0xFF1C1B1F)
         }
 
-    val auxButtonShape = RoundedCornerShape(16.dp)
+    // 横竖屏平滑过渡动画参数（轻量快速缓动）
+    val animSpec = tween<androidx.compose.ui.unit.Dp>(
+        durationMillis = 180,
+        easing = androidx.compose.animation.core.FastOutSlowInEasing,
+    )
+    val playPauseSize by animateDpAsState(targetValue = if (isLandscape) 46.dp else 68.dp, animationSpec = animSpec, label = "pp_size")
+    val playPauseCorner by animateDpAsState(targetValue = if (isLandscape) 23.dp else 24.dp, animationSpec = animSpec, label = "pp_corner")
+    val playPauseIconSize by animateDpAsState(targetValue = if (isLandscape) 26.dp else 38.dp, animationSpec = animSpec, label = "pp_icon_size")
+
+    val auxBtnSize by animateDpAsState(targetValue = if (isLandscape) 38.dp else 48.dp, animationSpec = animSpec, label = "aux_size")
+    val auxBtnCorner by animateDpAsState(targetValue = if (isLandscape) 19.dp else 16.dp, animationSpec = animSpec, label = "aux_corner")
+    val auxIconSize by animateDpAsState(targetValue = if (isLandscape) 20.dp else 24.dp, animationSpec = animSpec, label = "aux_icon_size")
+
+    val padHorizontal by animateDpAsState(targetValue = if (isLandscape) 12.dp else 32.dp, animationSpec = animSpec, label = "pad_h")
+    val padBottom by animateDpAsState(targetValue = if (isLandscape) 0.dp else 16.dp, animationSpec = animSpec, label = "pad_b")
+
+    val safeAuxBtnCorner = auxBtnCorner.coerceAtLeast(0.dp)
+    val safePlayPauseCorner = playPauseCorner.coerceAtLeast(0.dp)
+    val safePadH = padHorizontal.coerceAtLeast(0.dp)
+    val safePadB = padBottom.coerceAtLeast(0.dp)
+
+    val auxButtonShape = RoundedCornerShape(safeAuxBtnCorner)
     val auxButtonBgColor =
         if (isDark) {
-            Color.White.copy(alpha = 0.06f)
+            Color.White.copy(alpha = if (isLandscape) 0.08f else 0.06f)
         } else {
-            Color.Black.copy(alpha = 0.04f)
+            Color.Black.copy(alpha = if (isLandscape) 0.05f else 0.04f)
         }
 
     val loopInteractionSource = remember { MutableInteractionSource() }
@@ -117,10 +140,10 @@ fun PlayerControlBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp)
-                .padding(bottom = 16.dp),
+                .padding(horizontal = safePadH)
+                .padding(bottom = safePadB),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = if (isLandscape) Arrangement.SpaceEvenly else Arrangement.SpaceBetween,
     ) {
         // 左侧按键：普通模式为循环模式切换，猜你喜欢电台模式为“不喜欢”按键
         FilledTonalIconButton(
@@ -141,7 +164,7 @@ fun PlayerControlBar(
                 ),
             modifier =
                 Modifier
-                    .size(48.dp)
+                    .size(auxBtnSize.coerceAtLeast(1.dp))
                     .graphicsLayer {
                         scaleX = loopScale
                         scaleY = loopScale
@@ -168,29 +191,29 @@ fun PlayerControlBar(
                         },
                     contentDescription = if (isRadioMode) "不喜欢" else loopMode.label,
                     tint = contentPrimary.copy(alpha = 0.85f),
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(auxIconSize.coerceAtLeast(1.dp)),
                 )
             }
         }
 
-        // 播放/暂停按键（68dp Squircle 圆角方块，支持按压与形态切换动画）
+        // 播放/暂停按键（支持横竖屏无缝形变与尺寸过渡、按压与形态切换动画）
         FilledIconButton(
             onClick = onTogglePlayPause,
             interactionSource = playPauseInteractionSource,
             modifier =
                 Modifier
-                    .size(68.dp)
+                    .size(playPauseSize.coerceAtLeast(1.dp))
                     .graphicsLayer {
                         scaleX = playPauseScale
                         scaleY = playPauseScale
                     }.shadow(
                         elevation = 4.dp,
-                        shape = RoundedCornerShape(24.dp),
-                        spotColor = animatedAccentColor.copy(alpha = if (isDark) 0.35f else 0.20f),
+                        shape = RoundedCornerShape(safePlayPauseCorner),
+                        spotColor = animatedAccentColor.copy(alpha = if (isDark) 0.38f else 0.22f),
                         ambientColor = animatedAccentColor.copy(alpha = 0.08f),
                         clip = false,
                     ),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(safePlayPauseCorner),
             colors =
                 IconButtonDefaults.filledIconButtonColors(
                     containerColor = playPauseContainerColor,
@@ -208,7 +231,7 @@ fun PlayerControlBar(
                 Icon(
                     imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (playing) "暂停" else "播放",
-                    modifier = Modifier.size(38.dp),
+                    modifier = Modifier.size(playPauseIconSize.coerceAtLeast(1.dp)),
                 )
             }
         }
@@ -226,7 +249,7 @@ fun PlayerControlBar(
                 ),
             modifier =
                 Modifier
-                    .size(48.dp)
+                    .size(auxBtnSize.coerceAtLeast(1.dp))
                     .graphicsLayer {
                         scaleX = queueScale
                         scaleY = queueScale
@@ -236,8 +259,9 @@ fun PlayerControlBar(
                 imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                 contentDescription = if (isRadioMode) "猜你喜欢队列" else "播放队列",
                 tint = contentPrimary.copy(alpha = 0.85f),
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(auxIconSize.coerceAtLeast(1.dp)),
             )
         }
     }
 }
+
