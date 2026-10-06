@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -192,7 +193,7 @@ fun SongListFloatingActions(
                                 defaultElevation = 3.dp,
                                 pressedElevation = 6.dp,
                             ),
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.requiredSize(40.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.FilterList,
@@ -214,7 +215,7 @@ fun SongListFloatingActions(
                             defaultElevation = 3.dp,
                             pressedElevation = 6.dp,
                         ),
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.requiredSize(40.dp),
                 ) {
                     Icon(
                         imageVector = if (isAllSelected) Icons.Rounded.Deselect else Icons.Rounded.SelectAll,
@@ -234,7 +235,7 @@ fun SongListFloatingActions(
                                 defaultElevation = 3.dp,
                                 pressedElevation = 6.dp,
                             ),
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.requiredSize(40.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Download,
@@ -255,7 +256,7 @@ fun SongListFloatingActions(
                                 defaultElevation = 3.dp,
                                 pressedElevation = 6.dp,
                             ),
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.requiredSize(40.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Delete,
@@ -275,7 +276,7 @@ fun SongListFloatingActions(
                             defaultElevation = 3.dp,
                             pressedElevation = 6.dp,
                         ),
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.requiredSize(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.PlaylistAdd,
@@ -294,7 +295,7 @@ fun SongListFloatingActions(
                             defaultElevation = 3.dp,
                             pressedElevation = 6.dp,
                         ),
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.requiredSize(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
@@ -313,7 +314,7 @@ fun SongListFloatingActions(
                             defaultElevation = 3.dp,
                             pressedElevation = 6.dp,
                         ),
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.requiredSize(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowUp,
@@ -332,7 +333,7 @@ fun SongListFloatingActions(
                             defaultElevation = 3.dp,
                             pressedElevation = 6.dp,
                         ),
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.requiredSize(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.MyLocation,

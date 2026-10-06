@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.components
 
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -32,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -289,9 +291,10 @@ fun CommonSongList(
             }
         }
 
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         val bottomPadding = contentPadding.calculateBottomPadding()
         val isImeVisible = WindowInsets.isImeVisible
-        val effectiveBottomPadding = if (isImeVisible) 16.dp else bottomPadding.coerceAtLeast(16.dp)
+        val effectiveBottomPadding = if (isImeVisible || isLandscape) 16.dp else bottomPadding.coerceAtLeast(16.dp)
         val isFloatingVisible =
             ((songs.isNotEmpty() && isFloatingButtonsVisible) || isFilterExpanded || filterQuery.isNotEmpty() || isMultiSelectMode) && !isFastScrolling
 
