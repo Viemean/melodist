@@ -129,13 +129,14 @@ fun MiniPlayerBar(
     var accumulatedY by remember { mutableFloatStateOf(0f) }
     val velocityTracker = remember { VelocityTracker() }
 
+    val cardShape = RoundedCornerShape(14.dp)
+
     Surface(
         modifier =
             modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 6.dp)
                 .height(58.dp)
-                .clip(RoundedCornerShape(14.dp))
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = {
@@ -295,13 +296,18 @@ fun MiniPlayerBar(
                         },
                     )
                 }.clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = cardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
         border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         tonalElevation = 4.dp,
         shadowElevation = 3.dp,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .clip(cardShape),
+        ) {
             Row(
                 modifier =
                     Modifier
@@ -432,25 +438,26 @@ fun MiniPlayerBar(
                 }
             }
 
-            // 底部 2dp 局部细进度条
+            // 底部细进度条（两端内缩 14.dp 避免切入胶囊圆角，保证两端落在平直段内）
+            val progressModifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp)
+                    .height(2.5.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .align(Alignment.BottomCenter)
+
             if (progressFraction != null) {
                 LinearProgressIndicator(
                     progress = progressFraction,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .align(Alignment.BottomCenter),
+                    modifier = progressModifier,
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    gapSize = 0.dp,
                 )
             } else {
                 MiniPlayerProgressBar(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .align(Alignment.BottomCenter),
+                    modifier = progressModifier,
                 )
             }
         }
@@ -473,7 +480,9 @@ private fun MiniPlayerProgressBar(modifier: Modifier = Modifier) {
         progress = { progressFraction },
         modifier = modifier,
         color = MaterialTheme.colorScheme.primary,
-        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        gapSize = 0.dp,
+        drawStopIndicator = {},
     )
 }
 
