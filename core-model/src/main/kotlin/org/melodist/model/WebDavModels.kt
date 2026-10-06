@@ -75,6 +75,7 @@ data class WebDavSongCache(
             rawCoverUrl = validRawCoverUrl,
             localFilePath = localCachedPath,
             mediaMid = href,
+            dateAdded = lastModified ?: 0L,
         )
     }
 }
@@ -117,6 +118,7 @@ data class WebDavItem(
             coverUrl = validCoverUrl,
             localFilePath = localPath,
             mediaMid = href,
+            dateAdded = lastModified ?: 0L,
         )
     }
 }
@@ -132,6 +134,7 @@ data class WebDavServer(
     val rootPath: String = "/",
     val importedPaths: List<String> = emptyList(),
     val cachedSongs: List<WebDavSongCache> = emptyList(),
+    val sortOrder: String = "DEFAULT",
 )
 
 @Serializable

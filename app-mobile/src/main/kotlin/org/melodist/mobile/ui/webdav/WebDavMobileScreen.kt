@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Folder
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -34,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import org.melodist.model.SongSortOrder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,6 +86,10 @@ fun WebDavMobileScreen(
 
     var cachedSongs by remember(currentServer?.id) {
         mutableStateOf(WebDavManager.getAllCachedSongs(currentServer?.id))
+    }
+
+    var sortOrder by remember(currentServer?.id) {
+        mutableStateOf(WebDavManager.getSortOrder(currentServer?.id))
     }
 
     var viewMode by remember(currentServer?.id) {
@@ -408,6 +417,7 @@ fun WebDavMobileScreen(
                         } else {
                             CommonSongList(
                                 songs = cachedSongs,
+                                sortOrder = sortOrder,
                                 showWebDavBadge = false,
                                 deleteType = SongListDeleteType.WebDavFile,
                                 enableDownload = false,
@@ -425,7 +435,7 @@ fun WebDavMobileScreen(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                                                    .padding(horizontal = 16.dp, vertical = 2.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
@@ -434,8 +444,64 @@ fun WebDavMobileScreen(
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
-                                            TextButton(onClick = { showClearConfirmDialog = true }) {
-                                                Text("清空库", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                var showSortMenu by remember { mutableStateOf(false) }
+                                                Box {
+                                                    TextButton(
+                                                        onClick = { showSortMenu = true },
+                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.AutoMirrored.Rounded.Sort,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(16.dp),
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = sortOrder.label,
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                        )
+                                                    }
+                                                    DropdownMenu(
+                                                        expanded = showSortMenu,
+                                                        onDismissRequest = { showSortMenu = false },
+                                                    ) {
+                                                        SongSortOrder.entries.forEach { order ->
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        text = order.label,
+                                                                        fontWeight = if (sortOrder == order) FontWeight.Bold else FontWeight.Normal,
+                                                                        color = if (sortOrder == order) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    sortOrder = order
+                                                                    WebDavManager.setSortOrder(order, currentServer?.id)
+                                                                    showSortMenu = false
+                                                                },
+                                                                leadingIcon =
+                                                                    if (sortOrder == order) {
+                                                                        {
+                                                                            Icon(
+                                                                                Icons.Rounded.Check,
+                                                                                contentDescription = null,
+                                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                            )
+                                                                        }
+                                                                    } else {
+                                                                        null
+                                                                    },
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.width(4.dp))
+
+                                                TextButton(onClick = { showClearConfirmDialog = true }) {
+                                                    Text("清空库", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                                                }
                                             }
                                         }
                                     }

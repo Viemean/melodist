@@ -40,7 +40,9 @@ import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.mobile.ui.components.songlist.SongListBatchDialogs
 import org.melodist.mobile.ui.components.songlist.SongListFloatingActions
+import org.melodist.mobile.util.SongSorter
 import org.melodist.model.Song
+import org.melodist.model.SongSortOrder
 import org.melodist.playback.PlaybackManager
 import org.melodist.playback.QueuePaginationSource
 
@@ -63,6 +65,7 @@ enum class SongListDeleteType {
 fun CommonSongList(
     songs: List<Song>,
     modifier: Modifier = Modifier,
+    sortOrder: SongSortOrder = SongSortOrder.DEFAULT,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     state: LazyListState = rememberLazyListState(),
     headerItems: (LazyListScope.() -> Unit)? = null,
@@ -120,18 +123,20 @@ fun CommonSongList(
         }
     }
 
-    val displaySongs by remember(songs, filterQuery) {
+    val displaySongs by remember(songs, filterQuery, sortOrder) {
         derivedStateOf {
             val q = filterQuery.trim().lowercase()
-            if (q.isEmpty()) {
-                songs
-            } else {
-                songs.filter { song ->
-                    song.name.lowercase().contains(q) ||
-                        song.singer.lowercase().contains(q) ||
-                        song.album.lowercase().contains(q)
+            val filtered =
+                if (q.isEmpty()) {
+                    songs
+                } else {
+                    songs.filter { song ->
+                        song.name.lowercase().contains(q) ||
+                            song.singer.lowercase().contains(q) ||
+                            song.album.lowercase().contains(q)
+                    }
                 }
-            }
+            SongSorter.sort(filtered, sortOrder)
         }
     }
 

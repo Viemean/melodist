@@ -601,6 +601,35 @@ object WebDavManager {
         saveServer(updated)
     }
 
+    fun getSortOrder(serverId: String? = null): org.melodist.model.SongSortOrder {
+        val targetServer =
+            if (serverId != null) {
+                inMemoryConfig.servers.find { it.id == serverId }
+            } else {
+                getActiveServer()
+            } ?: return org.melodist.model.SongSortOrder.DEFAULT
+
+        return try {
+            org.melodist.model.SongSortOrder.valueOf(targetServer.sortOrder)
+        } catch (_: IllegalArgumentException) {
+            org.melodist.model.SongSortOrder.DEFAULT
+        }
+    }
+
+    fun setSortOrder(order: org.melodist.model.SongSortOrder, serverId: String? = null) {
+        val targetServer =
+            if (serverId != null) {
+                inMemoryConfig.servers.find { it.id == serverId }
+            } else {
+                getActiveServer()
+            } ?: return
+
+        if (targetServer.sortOrder != order.name) {
+            val updated = targetServer.copy(sortOrder = order.name)
+            saveServer(updated)
+        }
+    }
+
     fun removeSongsFromCache(
         songs: List<Song>,
         serverId: String? = null,

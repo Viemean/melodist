@@ -21,6 +21,7 @@ data class Song(
     val singerList: List<Artist> = emptyList(),
     val visualMid: String = "",
     val rawCoverUrl: String = "",
+    val dateAdded: Long = 0L,
 ) {
     val effectiveMediaMid: String
         get() = mediaMid.ifBlank { songMid }
