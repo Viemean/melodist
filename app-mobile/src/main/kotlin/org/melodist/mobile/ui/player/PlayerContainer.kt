@@ -11,8 +11,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -33,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -214,6 +219,12 @@ fun PlayerContainer(
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     if (isMiniPlayerVisible) {
+                        val navBars = WindowInsets.navigationBars.asPaddingValues()
+                        val layoutDir = LocalLayoutDirection.current
+                        val navBottom = navBars.calculateBottomPadding()
+                        // 针对隐藏手势指示线的大物理 R 角机型，底边 Insets 会归零导致贴底被裁切，此处保留至少 10.dp 保底安全边距
+                        val safeBottomPadding = maxOf(navBottom, 10.dp)
+
                         MiniPlayerBar(
                             song = currentSong,
                             isPlaying = isPlaying,
@@ -273,7 +284,11 @@ fun PlayerContainer(
                             // pullFraction 读取放在 graphicsLayer{} 里，限制在 Drawing 阶段，不触发重组
                             modifier =
                                 Modifier
-                                    .navigationBarsPadding()
+                                    .padding(
+                                        start = navBars.calculateStartPadding(layoutDir),
+                                        end = navBars.calculateEndPadding(layoutDir),
+                                        bottom = safeBottomPadding,
+                                    )
                                     .graphicsLayer {
                                         val pullFraction =
                                             if (activeDirection == SheetExpandDirection.BottomToTop) {

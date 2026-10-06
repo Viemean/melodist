@@ -133,9 +133,9 @@ fun MiniPlayerBar(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
                 .height(58.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .pointerInput(Unit) {
                     detectDragGestures(
                         onDragStart = {
