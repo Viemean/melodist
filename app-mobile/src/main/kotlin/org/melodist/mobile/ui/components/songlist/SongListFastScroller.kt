@@ -159,9 +159,11 @@ fun SongListFastScroller(
 
         val bubbleSizeDp = 52.dp
         val bubbleSizePx = with(density) { bubbleSizeDp.toPx() }
+        val minBubbleY = 8f
+        val maxBubbleY = (trackHeightPx - bubbleSizePx - 8f).coerceAtLeast(minBubbleY)
         val bubbleOffsetY =
             (thumbOffsetY + (thumbHeightPx - bubbleSizePx) / 2f)
-                .coerceIn(8f, (trackHeightPx - bubbleSizePx - 8f).coerceAtLeast(0f))
+                .coerceIn(minBubbleY, maxBubbleY)
 
         AnimatedVisibility(
             visible = isDragging && initialLetter.isNotBlank(),
@@ -190,7 +192,8 @@ fun SongListFastScroller(
             }
         }
 
-        // 触摸热区（宽 36dp
+        // 触摸热区（宽 36dp）
+        val maxIndex = (totalItems - 1).coerceAtLeast(0)
         Box(
             modifier =
                 Modifier
@@ -202,7 +205,7 @@ fun SongListFastScroller(
                                 isDragging = true
                                 val frac = if (maxTravelPx > 0f) (offset.y / trackHeightPx).coerceIn(0f, 1f) else 0f
                                 dragProgressFraction = frac
-                                val target = (frac * (totalItems - 1)).roundToInt().coerceIn(0, totalItems - 1)
+                                val target = (frac * maxIndex).roundToInt().coerceIn(0, maxIndex)
                                 currentScrolledIndex = target
                                 scope.launch {
                                     listState.scrollToItem(headerCount + target)
@@ -212,7 +215,7 @@ fun SongListFastScroller(
                                 change.consume()
                                 val frac = if (maxTravelPx > 0f) (change.position.y / trackHeightPx).coerceIn(0f, 1f) else 0f
                                 dragProgressFraction = frac
-                                val target = (frac * (totalItems - 1)).roundToInt().coerceIn(0, totalItems - 1)
+                                val target = (frac * maxIndex).roundToInt().coerceIn(0, maxIndex)
                                 currentScrolledIndex = target
                                 scope.launch {
                                     listState.scrollToItem(headerCount + target)
