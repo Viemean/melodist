@@ -163,11 +163,24 @@ open class QQMusicApiService : Service() {
         }
     }
 
+    @Volatile
+    private var cachedLyricsList: List<org.melodist.model.LyricLine>? = null
+
+    @Volatile
+    private var cachedShowBilingual: Boolean = false
+
+    @Volatile
+    private var cachedFormattedLrc: String = ""
+
     private fun formatLyricsToLrc(lyrics: List<org.melodist.model.LyricLine>): String {
         if (lyrics.isEmpty()) return ""
         val showBilingual = org.melodist.data.AppSettingsManager.settings.value.showBilingualLyrics
-        val sb = StringBuilder()
-        var transCount = 0
+        val currentCachedLyrics = cachedLyricsList
+        if (currentCachedLyrics === lyrics && cachedShowBilingual == showBilingual) {
+            return cachedFormattedLrc
+        }
+
+        val sb = java.lang.StringBuilder(lyrics.size * 48)
         for (line in lyrics) {
             val ms = line.timestampMs
             val min = ms / 60000
@@ -175,14 +188,24 @@ open class QQMusicApiService : Service() {
             val hundredths = (ms % 1000) / 10
             val text =
                 if (showBilingual && line.hasTranslation) {
-                    transCount++
                     "${line.text}^${line.transText}"
                 } else {
                     line.text
                 }
-            sb.append(String.format(java.util.Locale.US, "[%02d:%02d.%02d]%s\n", min, sec, hundredths, text))
+            sb.append('[')
+            if (min < 10) sb.append('0')
+            sb.append(min).append(':')
+            if (sec < 10) sb.append('0')
+            sb.append(sec).append('.')
+            if (hundredths < 10) sb.append('0')
+            sb.append(hundredths).append(']')
+            sb.append(text).append('\n')
         }
-        return sb.toString()
+        val formatted = sb.toString()
+        cachedLyricsList = lyrics
+        cachedShowBilingual = showBilingual
+        cachedFormattedLrc = formatted
+        return formatted
     }
 
     private val binder =
@@ -194,7 +217,12 @@ open class QQMusicApiService : Service() {
                 val callingUid = android.os.Binder.getCallingUid()
                 val callingPid = android.os.Binder.getCallingPid()
                 val callingPkg = packageManager.getNameForUid(callingUid)
-                if (action != "getCurrTime" && action != "getTotalTime") {
+                val isHighFrequencyAction =
+                    action == "getCurrTime" ||
+                        action == "getTotalTime" ||
+                        action == "getLyricWithId" ||
+                        action == "isFavouriteMid"
+                if (!isHighFrequencyAction) {
                     Log.d(TAG, "execute: action=$action, callingUid=$callingUid, callingPid=$callingPid, callingPkg=$callingPkg")
                 }
                 val act = action ?: return Bundle().apply { putInt("code", -1) }
@@ -578,8 +606,18 @@ open class QQMusicApiService : Service() {
         return rawUrl
     }
 
+    @Volatile
+    private var cachedSong: Song? = null
+
+    @Volatile
+    private var cachedSongJson: String = "{}"
+
     private fun buildSongJson(song: Song?): String {
         if (song == null) return "{}"
+        val curCached = cachedSong
+        if (curCached === song && cachedSongJson.isNotBlank() && cachedSongJson != "{}") {
+            return cachedSongJson
+        }
         val primaryArtist = song.singerList.firstOrNull()
         val singerObj =
             JSONObject().apply {
@@ -595,16 +633,20 @@ open class QQMusicApiService : Service() {
                 put("title", song.album)
                 put("coverUri", resolvedCover)
             }
-        return JSONObject()
-            .apply {
-                put("id", song.songId.toString())
-                put("mid", song.songMid)
-                put("title", song.name)
-                put("type", 0)
-                put("coverUri", resolvedCover)
-                put("singer", singerObj)
-                put("album", albumObj)
-            }.toString()
+        val json =
+            JSONObject()
+                .apply {
+                    put("id", song.songId.toString())
+                    put("mid", song.songMid)
+                    put("title", song.name)
+                    put("type", 0)
+                    put("coverUri", resolvedCover)
+                    put("singer", singerObj)
+                    put("album", albumObj)
+                }.toString()
+        cachedSong = song
+        cachedSongJson = json
+        return json
     }
 
     companion object {
