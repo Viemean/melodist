@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.navigation
 
+import android.content.res.Configuration
 import androidx.activity.BackEventCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
@@ -8,10 +9,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -61,12 +64,18 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -693,11 +702,45 @@ private fun RenderAppScreen(
     ) {
         when (screen) {
             is AppScreen.Home -> {
+                val configuration = LocalConfiguration.current
+                val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                var isTabVisible by rememberSaveable { mutableStateOf(true) }
+
+                LaunchedEffect(isLandscape) {
+                    if (!isLandscape) {
+                        isTabVisible = true
+                    }
+                }
+
+                LaunchedEffect(pagerState.currentPage) {
+                    isTabVisible = true
+                }
+
+                val homeNestedScrollConnection =
+                    remember(isLandscape) {
+                        object : NestedScrollConnection {
+                            override fun onPreScroll(
+                                available: Offset,
+                                source: NestedScrollSource,
+                            ): Offset {
+                                if (isLandscape) {
+                                    if (available.y < -12f) {
+                                        isTabVisible = false
+                                    } else if (available.y > 12f) {
+                                        isTabVisible = true
+                                    }
+                                }
+                                return Offset.Zero
+                            }
+                        }
+                    }
+
                 Column(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .statusBarsPadding(),
+                            .statusBarsPadding()
+                            .nestedScroll(homeNestedScrollConnection),
                 ) {
                     // 顶部头部：搜索胶囊 + 识曲胶囊/按钮 + 设置按钮
                     Row(
@@ -889,30 +932,42 @@ private fun RenderAppScreen(
                         }
                     }
 
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(chipScrollState)
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    AnimatedVisibility(
+                        visible = !isLandscape || isTabVisible,
+                        enter =
+                            expandVertically(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                            ) + fadeIn(animationSpec = tween(180)),
+                        exit =
+                            shrinkVertically(
+                                animationSpec = tween(200, easing = FastOutSlowInEasing),
+                            ) + fadeOut(animationSpec = tween(150)),
                     ) {
-                        HomeFilter.entries.forEachIndexed { index, filter ->
-                            FilterChip(
-                                selected = pagerState.currentPage == index,
-                                onClick = {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(index)
-                                    }
-                                },
-                                label = { Text(filter.title) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors =
-                                    FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    ),
-                            )
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(chipScrollState)
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            HomeFilter.entries.forEachIndexed { index, filter ->
+                                FilterChip(
+                                    selected = pagerState.currentPage == index,
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(index)
+                                        }
+                                    },
+                                    label = { Text(filter.title) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors =
+                                        FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        ),
+                                )
+                            }
                         }
                     }
 
