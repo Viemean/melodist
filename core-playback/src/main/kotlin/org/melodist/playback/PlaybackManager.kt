@@ -1,7 +1,5 @@
 package org.melodist.playback
 
-import kotlinx.coroutines.CancellationException
-
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -21,6 +19,7 @@ import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService

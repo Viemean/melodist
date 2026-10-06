@@ -1,12 +1,10 @@
 package org.melodist.tv.ui.settings
 
-import android.util.Log
-import kotlinx.coroutines.CancellationException
-
 import android.content.Context
 import android.media.AudioFormat
 import android.media.MediaCodecList
 import android.os.Build
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +32,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaLibraryInfo
 import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.tv.material3.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

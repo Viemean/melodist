@@ -1,10 +1,8 @@
 package org.melodist.mobile
 
-import android.util.Log
-import kotlinx.coroutines.CancellationException
-
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
@@ -14,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore

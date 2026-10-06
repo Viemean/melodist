@@ -63,8 +63,8 @@ fun PlayerProgressSlider(
     // 磁盘缓存比例
     val actualCacheFraction = if (isFromCache) 1f else fileCacheFraction.coerceIn(0f, 1f)
 
-        val effectiveAccent = accentColor
-        val trackInactiveColor = textColor.copy(alpha = 0.20f)
+    val effectiveAccent = accentColor
+    val trackInactiveColor = textColor.copy(alpha = 0.20f)
 
     val sliderColors =
         SliderDefaults.colors(

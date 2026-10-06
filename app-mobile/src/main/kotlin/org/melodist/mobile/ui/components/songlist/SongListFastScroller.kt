@@ -106,7 +106,7 @@ fun SongListFastScroller(
 
     val activeFraction = if (isDragging) dragProgressFraction else scrollProgress
 
-        val thumbWidth by animateDpAsState(
+    val thumbWidth by animateDpAsState(
         targetValue = if (isDragging) 15.dp else 10.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "FastScrollerWidth",

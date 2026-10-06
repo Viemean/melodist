@@ -1,8 +1,6 @@
 package org.melodist.tv.ui.components
 
 import android.util.Log
-import kotlinx.coroutines.CancellationException
-
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -42,6 +40,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager

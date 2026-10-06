@@ -1,8 +1,7 @@
 package org.melodist.core.connect.client
 
-import kotlinx.coroutines.CancellationException
-
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

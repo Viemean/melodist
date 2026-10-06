@@ -299,7 +299,7 @@ fun PlayerContainer(
                                         setExpanded(false)
                                     }
                                 },
-                                                                modifier =
+                                modifier =
                                     Modifier
                                         .then(
                                             if (isLandscape) {

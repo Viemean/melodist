@@ -62,7 +62,7 @@ fun PlayerControlBar(
 ) {
     val isDark = isAppInDarkTheme()
 
-        val playPauseContainerColor = animatedAccentColor
+    val playPauseContainerColor = animatedAccentColor
     val playPauseContentColor =
         if (ColorUtils.calculateLuminance(animatedAccentColor.toArgb()) < 0.45) {
             Color.White
@@ -71,10 +71,11 @@ fun PlayerControlBar(
         }
 
     // 横竖屏过渡动画参数
-    val animSpec = tween<androidx.compose.ui.unit.Dp>(
-        durationMillis = 180,
-        easing = androidx.compose.animation.core.FastOutSlowInEasing,
-    )
+    val animSpec =
+        tween<androidx.compose.ui.unit.Dp>(
+            durationMillis = 180,
+            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+        )
     val playPauseSize by animateDpAsState(targetValue = if (isLandscape) 46.dp else 68.dp, animationSpec = animSpec, label = "pp_size")
     val playPauseCorner by animateDpAsState(targetValue = if (isLandscape) 23.dp else 24.dp, animationSpec = animSpec, label = "pp_corner")
     val playPauseIconSize by animateDpAsState(targetValue = if (isLandscape) 26.dp else 38.dp, animationSpec = animSpec, label = "pp_icon_size")
@@ -263,4 +264,3 @@ fun PlayerControlBar(
         }
     }
 }
-

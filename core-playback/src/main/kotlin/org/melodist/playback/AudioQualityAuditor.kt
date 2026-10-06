@@ -1,7 +1,5 @@
 package org.melodist.playback
 
-import kotlinx.coroutines.CancellationException
-
 import android.content.Context
 import android.media.AudioFormat
 import android.media.MediaCodec
@@ -9,6 +7,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
 import android.util.LruCache
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull

@@ -1,10 +1,9 @@
 package org.melodist.tv
 
-import android.util.Log
-
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader

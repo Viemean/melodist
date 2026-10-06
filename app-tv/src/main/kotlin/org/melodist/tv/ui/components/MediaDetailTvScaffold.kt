@@ -1,8 +1,6 @@
 package org.melodist.tv.ui.components
 
 import android.util.Log
-import kotlinx.coroutines.CancellationException
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -39,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song

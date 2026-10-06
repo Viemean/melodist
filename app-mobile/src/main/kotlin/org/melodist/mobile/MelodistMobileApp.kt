@@ -1,8 +1,7 @@
 package org.melodist.mobile
 
-import android.util.Log
-
 import android.app.Application
+import android.util.Log
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader

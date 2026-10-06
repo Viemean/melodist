@@ -1,7 +1,5 @@
 package org.melodist.data
 
-import kotlinx.coroutines.CancellationException
-
 import android.content.Context
 import android.content.SharedPreferences
 import android.media.MediaMetadataRetriever
@@ -9,6 +7,7 @@ import android.os.Build
 import android.os.Environment
 import android.os.storage.StorageManager
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

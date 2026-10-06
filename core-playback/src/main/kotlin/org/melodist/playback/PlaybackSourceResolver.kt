@@ -1,13 +1,12 @@
 package org.melodist.playback
 
-import android.util.Log
-
 import android.app.UiModeManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.util.Log
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 

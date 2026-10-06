@@ -1,7 +1,5 @@
 package org.melodist.playback
 
-import kotlinx.coroutines.CancellationException
-
 import android.content.Context
 import android.util.Log
 import androidx.annotation.OptIn
@@ -14,6 +12,7 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -456,8 +455,9 @@ object MelodistCacheManager : MediaCacheExporter {
 
             val actualLength = cache.getCachedBytes(cacheKey, 0L, contentLength)
             val isFullSpan = cache.isCached(cacheKey, 0L, contentLength)
-            val isTailToleratedSpan = cache.isCached(cacheKey, 0L, actualLength) &&
-                ((contentLength - actualLength) in 1..65536L || (contentLength > 0L && actualLength.toFloat() / contentLength >= 0.995f))
+            val isTailToleratedSpan =
+                cache.isCached(cacheKey, 0L, actualLength) &&
+                    ((contentLength - actualLength) in 1..65536L || (contentLength > 0L && actualLength.toFloat() / contentLength >= 0.995f))
 
             if (!isFullSpan && !isTailToleratedSpan) {
                 Log.w(TAG, "Cache span incomplete for key: $cacheKey (expected length: $contentLength, continuous: $actualLength)")

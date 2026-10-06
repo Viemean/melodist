@@ -1,10 +1,8 @@
 package org.melodist.tv.ui
 
-import android.util.Log
-import kotlinx.coroutines.CancellationException
-
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.tv.material3.*
+import kotlinx.coroutines.CancellationException
 import org.melodist.model.AudioQualityTier
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.acr.AcrUiState

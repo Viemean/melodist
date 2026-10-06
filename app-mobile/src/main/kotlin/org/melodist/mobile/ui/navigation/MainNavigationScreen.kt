@@ -1,8 +1,7 @@
 package org.melodist.mobile.ui.navigation
 
-import android.util.Log
-
 import android.content.res.Configuration
+import android.util.Log
 import androidx.activity.BackEventCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler

@@ -1,10 +1,9 @@
 package org.melodist.mobile.connect
 
-import android.util.Log
-import kotlinx.coroutines.CancellationException
-
 import android.content.Context
 import android.net.Uri
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

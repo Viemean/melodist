@@ -1,11 +1,10 @@
 package org.melodist.playback
 
-import kotlinx.coroutines.CancellationException
-
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.acr.AcousticFeature
