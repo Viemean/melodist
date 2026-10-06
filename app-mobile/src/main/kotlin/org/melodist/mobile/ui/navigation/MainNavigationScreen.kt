@@ -712,10 +712,6 @@ private fun RenderAppScreen(
                     }
                 }
 
-                LaunchedEffect(pagerState.currentPage) {
-                    isTabVisible = true
-                }
-
                 val homeNestedScrollConnection =
                     remember(isLandscape) {
                         object : NestedScrollConnection {
@@ -724,10 +720,13 @@ private fun RenderAppScreen(
                                 source: NestedScrollSource,
                             ): Offset {
                                 if (isLandscape) {
-                                    if (available.y < -12f) {
-                                        isTabVisible = false
-                                    } else if (available.y > 12f) {
-                                        isTabVisible = true
+                                    // 仅在垂直分量明显大于水平分量时触发，避免左右滑动 Pager 误触
+                                    if (kotlin.math.abs(available.y) > kotlin.math.abs(available.x) * 1.5f) {
+                                        if (available.y < -12f) {
+                                            isTabVisible = false
+                                        } else if (available.y > 12f) {
+                                            isTabVisible = true
+                                        }
                                     }
                                 }
                                 return Offset.Zero
@@ -742,196 +741,6 @@ private fun RenderAppScreen(
                             .statusBarsPadding()
                             .nestedScroll(homeNestedScrollConnection),
                 ) {
-                    // 顶部头部：搜索胶囊 + 识曲胶囊/按钮 + 设置按钮
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        val isAcrActive =
-                            acrUiState is MobileAcrUiState.Listening ||
-                                acrSuccessData != null
-
-                        AnimatedContent(
-                            targetState = isAcrActive,
-                            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
-                            label = "search_bar_morph",
-                            modifier = if (isAcrActive) Modifier else Modifier.weight(1f),
-                        ) { acrActive ->
-                            if (acrActive) {
-                                Surface(
-                                    onClick = onSearchClick,
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.size(44.dp),
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Search,
-                                            contentDescription = "搜索",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                    }
-                                }
-                            } else {
-                                Surface(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .height(44.dp)
-                                            .clip(RoundedCornerShape(22.dp))
-                                            .clickable { onSearchClick() },
-                                    shape = RoundedCornerShape(22.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    border =
-                                        androidx.compose.foundation.BorderStroke(
-                                            0.5.dp,
-                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                        ),
-                                ) {
-                                    Row(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Search,
-                                            contentDescription = "搜索",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "搜索歌曲、歌手或专辑...",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        AnimatedContent(
-                            targetState = isAcrActive,
-                            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
-                            label = "acr_button_morph",
-                            modifier = if (isAcrActive) Modifier.weight(1f) else Modifier,
-                        ) { acrActive ->
-                            if (acrActive) {
-                                val pillUiState =
-                                    if (acrSuccessData != null) {
-                                        MobileAcrUiState.Success(
-                                            song = acrSuccessData.song,
-                                            offsetSeconds = acrSuccessData.offsetSeconds,
-                                            anchorRealtimeMs = acrSuccessData.anchorRealtimeMs,
-                                        )
-                                    } else {
-                                        acrUiState
-                                    }
-                                AcrPillBar(
-                                    uiState = pillUiState,
-                                    onCancel = onCancelAcr,
-                                    onExpand = onExpandAcr,
-                                    onClose = onCloseAcr,
-                                    showBriefSuccess = showAcrResultCard,
-                                    briefSuccessText = acrSuccessData?.durationText ?: "识别成功",
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            } else {
-                                FilledTonalIconButton(
-                                    onClick = onActivateAcr,
-                                    modifier = Modifier.size(44.dp),
-                                    colors =
-                                        IconButtonDefaults.filledTonalIconButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            contentColor = MaterialTheme.colorScheme.primary,
-                                        ),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.GraphicEq,
-                                        contentDescription = "听歌识曲",
-                                        modifier = Modifier.size(22.dp),
-                                    )
-                                }
-                            }
-                        }
-
-                        FilledTonalIconButton(
-                            onClick = onOpenSettings,
-                            modifier = Modifier.size(44.dp),
-                            colors =
-                                IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                ),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Settings,
-                                contentDescription = "设置",
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                    }
-
-                    // 听歌识曲识别成功卡片（展示 4 秒后缩回顶栏胶囊）
-                    AnimatedVisibility(
-                        visible = showAcrResultCard && acrSuccessData != null,
-                        enter =
-                            slideInVertically(
-                                initialOffsetY = { -it },
-                                animationSpec = tween(380, easing = FastOutSlowInEasing),
-                            ) +
-                                scaleIn(
-                                    initialScale = 0.88f,
-                                    transformOrigin = TransformOrigin(0.5f, 0f),
-                                    animationSpec = tween(380, easing = FastOutSlowInEasing),
-                                ) + fadeIn(tween(280)),
-                        exit =
-                            slideOutVertically(
-                                targetOffsetY = { -it },
-                                animationSpec = tween(380, easing = FastOutSlowInEasing),
-                            ) +
-                                scaleOut(
-                                    targetScale = 0.88f,
-                                    transformOrigin = TransformOrigin(0.5f, 0f),
-                                    animationSpec = tween(380, easing = FastOutSlowInEasing),
-                                ) + fadeOut(tween(240)),
-                    ) {
-                        val song = acrSuccessData?.song
-                        if (song != null) {
-                            val currentPlayingSong by PlaybackManager.currentSong.collectAsState()
-                            val isPlaying by PlaybackManager.isPlaying.collectAsState()
-                            val isThisSongPlaying = currentPlayingSong?.songMid == song.songMid && isPlaying
-
-                            AcrResultCard(
-                                song = song,
-                                isPlaying = isThisSongPlaying,
-                                onPlayClick = onPlayAcrCard,
-                                onCollapse = onCollapseAcrCard,
-                                onInteractionStateChange = onAcrCardInteractionChange,
-                                onPrepareSong = {
-                                    val data = acrSuccessData
-                                    val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
-                                    val prepLatencyMs = 850L
-                                    val seekMs =
-                                        ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
-                                            .coerceAtLeast(0L)
-                                    PlaybackManager.insertAndPlay(
-                                        song = data.song,
-                                        seekToMs = seekMs,
-                                    )
-                                },
-                                modifier = Modifier.padding(bottom = 6.dp),
-                            )
-                        }
-                    }
-
                     AnimatedVisibility(
                         visible = !isLandscape || isTabVisible,
                         enter =
@@ -943,30 +752,222 @@ private fun RenderAppScreen(
                                 animationSpec = tween(200, easing = FastOutSlowInEasing),
                             ) + fadeOut(animationSpec = tween(150)),
                     ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(chipScrollState)
-                                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            HomeFilter.entries.forEachIndexed { index, filter ->
-                                FilterChip(
-                                    selected = pagerState.currentPage == index,
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(index)
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // 顶部头部：搜索胶囊 + 识曲胶囊/按钮 + 设置按钮
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                val isAcrActive =
+                                    acrUiState is MobileAcrUiState.Listening ||
+                                        acrSuccessData != null
+
+                                AnimatedContent(
+                                    targetState = isAcrActive,
+                                    transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
+                                    label = "search_bar_morph",
+                                    modifier = if (isAcrActive) Modifier else Modifier.weight(1f),
+                                ) { acrActive ->
+                                    if (acrActive) {
+                                        Surface(
+                                            onClick = onSearchClick,
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            modifier = Modifier.size(44.dp),
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Search,
+                                                    contentDescription = "搜索",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                            }
                                         }
-                                    },
-                                    label = { Text(filter.title) },
-                                    shape = RoundedCornerShape(8.dp),
+                                    } else {
+                                        Surface(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .height(44.dp)
+                                                    .clip(RoundedCornerShape(22.dp))
+                                                    .clickable { onSearchClick() },
+                                            shape = RoundedCornerShape(22.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            border =
+                                                androidx.compose.foundation.BorderStroke(
+                                                    0.5.dp,
+                                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                                ),
+                                        ) {
+                                            Row(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxSize()
+                                                        .padding(horizontal = 14.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Search,
+                                                    contentDescription = "搜索",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "搜索歌曲、歌手或专辑...",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                AnimatedContent(
+                                    targetState = isAcrActive,
+                                    transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
+                                    label = "acr_button_morph",
+                                    modifier = if (isAcrActive) Modifier.weight(1f) else Modifier,
+                                ) { acrActive ->
+                                    if (acrActive) {
+                                        val pillUiState =
+                                            if (acrSuccessData != null) {
+                                                MobileAcrUiState.Success(
+                                                    song = acrSuccessData.song,
+                                                    offsetSeconds = acrSuccessData.offsetSeconds,
+                                                    anchorRealtimeMs = acrSuccessData.anchorRealtimeMs,
+                                                )
+                                            } else {
+                                                acrUiState
+                                            }
+                                        AcrPillBar(
+                                            uiState = pillUiState,
+                                            onCancel = onCancelAcr,
+                                            onExpand = onExpandAcr,
+                                            onClose = onCloseAcr,
+                                            showBriefSuccess = showAcrResultCard,
+                                            briefSuccessText = acrSuccessData?.durationText ?: "识别成功",
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    } else {
+                                        FilledTonalIconButton(
+                                            onClick = onActivateAcr,
+                                            modifier = Modifier.size(44.dp),
+                                            colors =
+                                                IconButtonDefaults.filledTonalIconButtonColors(
+                                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                    contentColor = MaterialTheme.colorScheme.primary,
+                                                ),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.GraphicEq,
+                                                contentDescription = "听歌识曲",
+                                                modifier = Modifier.size(22.dp),
+                                            )
+                                        }
+                                    }
+                                }
+
+                                FilledTonalIconButton(
+                                    onClick = onOpenSettings,
+                                    modifier = Modifier.size(44.dp),
                                     colors =
-                                        FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        IconButtonDefaults.filledTonalIconButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                         ),
-                                )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Settings,
+                                        contentDescription = "设置",
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                }
+                            }
+
+                            // 听歌识曲识别成功卡片（展示 4 秒后缩回顶栏胶囊）
+                            AnimatedVisibility(
+                                visible = showAcrResultCard && acrSuccessData != null,
+                                enter =
+                                    slideInVertically(
+                                        initialOffsetY = { -it },
+                                        animationSpec = tween(380, easing = FastOutSlowInEasing),
+                                    ) +
+                                        scaleIn(
+                                            initialScale = 0.88f,
+                                            transformOrigin = TransformOrigin(0.5f, 0f),
+                                            animationSpec = tween(380, easing = FastOutSlowInEasing),
+                                        ) + fadeIn(tween(280)),
+                                exit =
+                                    slideOutVertically(
+                                        targetOffsetY = { -it },
+                                        animationSpec = tween(380, easing = FastOutSlowInEasing),
+                                    ) +
+                                        scaleOut(
+                                            targetScale = 0.88f,
+                                            transformOrigin = TransformOrigin(0.5f, 0f),
+                                            animationSpec = tween(380, easing = FastOutSlowInEasing),
+                                        ) + fadeOut(tween(240)),
+                            ) {
+                                val song = acrSuccessData?.song
+                                if (song != null) {
+                                    val currentPlayingSong by PlaybackManager.currentSong.collectAsState()
+                                    val isPlaying by PlaybackManager.isPlaying.collectAsState()
+                                    val isThisSongPlaying = currentPlayingSong?.songMid == song.songMid && isPlaying
+
+                                    AcrResultCard(
+                                        song = song,
+                                        isPlaying = isThisSongPlaying,
+                                        onPlayClick = onPlayAcrCard,
+                                        onCollapse = onCollapseAcrCard,
+                                        onInteractionStateChange = onAcrCardInteractionChange,
+                                        onPrepareSong = {
+                                            val data = acrSuccessData
+                                            val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
+                                            val prepLatencyMs = 850L
+                                            val seekMs =
+                                                ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
+                                                    .coerceAtLeast(0L)
+                                            PlaybackManager.insertAndPlay(
+                                                song = data.song,
+                                                seekToMs = seekMs,
+                                            )
+                                        },
+                                        modifier = Modifier.padding(bottom = 6.dp),
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(chipScrollState)
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                HomeFilter.entries.forEachIndexed { index, filter ->
+                                    FilterChip(
+                                        selected = pagerState.currentPage == index,
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                pagerState.animateScrollToPage(index)
+                                            }
+                                        },
+                                        label = { Text(filter.title) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors =
+                                            FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            ),
+                                    )
+                                }
                             }
                         }
                     }
