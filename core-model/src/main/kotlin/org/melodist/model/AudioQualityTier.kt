@@ -135,3 +135,7 @@ enum class AudioQualityTier {
         }
     }
 }
+
+val AudioQualityTier.requiresSvip: Boolean
+    get() = this in setOf(AudioQualityTier.Master, AudioQualityTier.Atmos, AudioQualityTier.Dolby, AudioQualityTier.Premium)
+

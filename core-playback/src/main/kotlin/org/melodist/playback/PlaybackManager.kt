@@ -23,6 +23,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService
+import org.melodist.api.PlaybackCredentialsManager
+import org.melodist.api.PlaybackVipTier
 import org.melodist.api.QualityResult
 import org.melodist.api.RecentHistoryType
 import org.melodist.api.UserSession
@@ -34,6 +36,7 @@ import org.melodist.model.LyricLine
 import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.QualityOption
 import org.melodist.model.Song
+import org.melodist.model.requiresSvip
 
 enum class PlaybackLoopMode(
     val label: String,
@@ -355,6 +358,18 @@ object PlaybackManager {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    fun notifyUser(message: String) {
+        _errorMessage.value = message
+        appContext?.let { ctx ->
+            try {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     val playbackSnapshot: StateFlow<PlaybackSnapshot> =
         combine(
@@ -1020,6 +1035,15 @@ object PlaybackManager {
         forceTier: AudioQualityTier? = null,
         seekToMs: Long = 0L,
     ) {
+        val isLocalOrWebDav = song.isLocal || song.isWebDav || !song.localFilePath.isNullOrBlank()
+        if (!isLocalOrWebDav && song.isVip) {
+            val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
+            if (effectiveVipTier == PlaybackVipTier.NONE) {
+                notifyUser("此歌曲需要开通会员后才可以播放")
+                return
+            }
+        }
+
         stopSilentKeepAlive()
         exoPlayer?.repeatMode = Player.REPEAT_MODE_OFF
         lastCustomStreamArgs = null
@@ -1695,6 +1719,12 @@ object PlaybackManager {
      * @param tier 目标音质级别
      */
     fun switchTier(tier: AudioQualityTier) {
+        val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
+        if (effectiveVipTier == PlaybackVipTier.GREEN && tier.requiresSvip) {
+            notifyUser("此音质级别需超级会员")
+            return
+        }
+
         val current = _currentSong.value ?: return
         val effectiveTier = clampCellularTier(tier, current)
         if (effectiveTier != tier) {
