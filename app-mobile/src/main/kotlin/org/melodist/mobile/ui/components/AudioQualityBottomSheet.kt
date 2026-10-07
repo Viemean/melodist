@@ -40,12 +40,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.melodist.api.AudioHeaderSniffer
-import org.melodist.api.PlaybackCredentialsManager
-import org.melodist.api.PlaybackVipTier
 import org.melodist.data.AppSettingsManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.QualityOption
-import org.melodist.model.requiresSvip
 import org.melodist.playback.AudioTrackSpec
 import org.melodist.playback.PlaybackManager
 
@@ -180,11 +177,6 @@ fun AudioQualityBottomSheet(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .clickable {
-                                val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
-                                if (effectiveVipTier == PlaybackVipTier.GREEN && tier.requiresSvip) {
-                                    Toast.makeText(context, "此音质级别需超级会员", Toast.LENGTH_SHORT).show()
-                                    return@clickable
-                                }
                                 if (isRestricted) {
                                     Toast
                                         .makeText(

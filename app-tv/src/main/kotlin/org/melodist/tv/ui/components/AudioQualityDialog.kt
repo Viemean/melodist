@@ -21,10 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
-import org.melodist.api.PlaybackCredentialsManager
-import org.melodist.api.PlaybackVipTier
 import org.melodist.model.AudioQualityTier
-import org.melodist.model.requiresSvip
 import org.melodist.playback.DeviceAudioCapability
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
@@ -111,11 +108,6 @@ fun AudioQualityDialog(
                                 isStreamAvailable = isStreamAvail,
                                 unsupportedReason = reason,
                                 onSelect = {
-                                    val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
-                                    if (effectiveVipTier == PlaybackVipTier.GREEN && tier.requiresSvip) {
-                                        PlaybackManager.notifyUser("此音质级别需超级会员")
-                                        return@TierOptionItem
-                                    }
                                     onSelectTier(tier)
                                     onDismiss()
                                 },
@@ -151,11 +143,6 @@ fun AudioQualityDialog(
                                 isStreamAvailable = isStreamAvail,
                                 unsupportedReason = reason,
                                 onSelect = {
-                                    val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
-                                    if (effectiveVipTier == PlaybackVipTier.GREEN && tier.requiresSvip) {
-                                        PlaybackManager.notifyUser("此音质级别需超级会员")
-                                        return@TierOptionItem
-                                    }
                                     onSelectTier(tier)
                                     onDismiss()
                                 },

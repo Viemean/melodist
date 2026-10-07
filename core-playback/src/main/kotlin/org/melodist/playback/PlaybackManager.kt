@@ -36,7 +36,6 @@ import org.melodist.model.LyricLine
 import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.QualityOption
 import org.melodist.model.Song
-import org.melodist.model.requiresSvip
 
 enum class PlaybackLoopMode(
     val label: String,
@@ -1751,12 +1750,6 @@ object PlaybackManager {
      * @param tier 目标音质级别
      */
     fun switchTier(tier: AudioQualityTier) {
-        val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
-        if (effectiveVipTier == PlaybackVipTier.GREEN && tier.requiresSvip) {
-            notifyUser("此音质级别需超级会员")
-            return
-        }
-
         val current = _currentSong.value ?: return
         val effectiveTier = clampCellularTier(tier, current)
         if (effectiveTier != tier) {
