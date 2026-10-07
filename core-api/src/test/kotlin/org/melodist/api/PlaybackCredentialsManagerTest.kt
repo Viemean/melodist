@@ -103,4 +103,46 @@ class PlaybackCredentialsManagerTest {
         assertEquals("USER_SESSION_KEY", PlaybackCredentialsManager.getActiveAuthst())
         assertEquals("uin=55555", PlaybackCredentialsManager.getActiveCookieHeader())
     }
+
+    @Test
+    fun `test inspectToken gating handles expired, non-vip, and downgrade correctly`() {
+        // 1. 普通用户凭证 (Non-VIP)
+        val nonVipProfile = UserProfile(uin = "1001", nick = "普通账号", isVip = false, isHugeVip = false, isSvip = false)
+        val nonVipToken = PlaybackCredentialsManager.exportToken(nonVipProfile)
+        val nonVipResult = PlaybackCredentialsManager.inspectToken(nonVipToken)
+        assertTrue(nonVipResult is PlaybackCredentialsManager.ImportValidationResult.NonVip)
+
+        // 2. 过期凭证 (Expired)
+        val expiredProfile = UserProfile(
+            uin = "1002",
+            nick = "过期账号",
+            isVip = true,
+            isHugeVip = true,
+            vipExpireAt = "2020-01-01",
+        )
+        val expiredToken = PlaybackCredentialsManager.exportToken(expiredProfile)
+        val expiredResult = PlaybackCredentialsManager.inspectToken(expiredToken)
+        assertTrue(expiredResult is PlaybackCredentialsManager.ImportValidationResult.Expired)
+
+        // 3. 降级导入 (当前账号是 SVIP，导入的凭证是绿钻)
+        UserSession.profile = UserProfile(uin = "88888", isSvip = true, isVip = true)
+        val greenProfile = UserProfile(
+            uin = "1003",
+            nick = "绿钻账号",
+            isVip = true,
+            isHugeVip = true,
+            vipExpireAt = "2099-01-01",
+        )
+        val greenToken = PlaybackCredentialsManager.exportToken(greenProfile)
+        val downgradeResult = PlaybackCredentialsManager.inspectToken(greenToken)
+        assertTrue(downgradeResult is PlaybackCredentialsManager.ImportValidationResult.DowngradeWarning)
+        val warning = downgradeResult as PlaybackCredentialsManager.ImportValidationResult.DowngradeWarning
+        assertEquals(PlaybackVipTier.SVIP, warning.currentTier)
+        assertEquals(PlaybackVipTier.GREEN, warning.importedTier)
+
+        // 4. 正常升级或同级导入 (当前账号是普通用户，导入绿钻)
+        UserSession.profile = UserProfile(uin = "0", isVip = false)
+        val successResult = PlaybackCredentialsManager.inspectToken(greenToken)
+        assertTrue(successResult is PlaybackCredentialsManager.ImportValidationResult.Success)
+    }
 }

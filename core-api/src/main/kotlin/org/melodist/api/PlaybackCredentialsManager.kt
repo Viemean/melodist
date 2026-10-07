@@ -18,15 +18,39 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
+enum class PlaybackVipTier(val level: Int, val displayName: String) {
+    NONE(0, "普通用户"),
+    GREEN(1, "绿钻豪华版"),
+    SVIP(2, "超级会员"),
+}
+
 @Serializable
 data class PlaybackCredentials(
     val uin: String = "",
     val musicKey: String = "",
     val cookies: Map<String, String> = emptyMap(),
     val isVip: Boolean = false,
+    val isHugeVip: Boolean = false,
+    val isSvip: Boolean = false,
+    val vipExpireAt: String = "",
+    val expireTimestamp: Long = 0L,
     val nick: String = "",
     val updateTime: Long = System.currentTimeMillis(),
-)
+) {
+    val vipTier: PlaybackVipTier
+        get() = when {
+            isSvip -> PlaybackVipTier.SVIP
+            isHugeVip || isVip -> PlaybackVipTier.GREEN
+            else -> PlaybackVipTier.NONE
+        }
+}
+
+val UserProfile.vipTier: PlaybackVipTier
+    get() = when {
+        isSvip -> PlaybackVipTier.SVIP
+        isHugeVip || isVip -> PlaybackVipTier.GREEN
+        else -> PlaybackVipTier.NONE
+    }
 
 object PlaybackCredentialsManager {
     private val _credentialsFlow = MutableStateFlow<PlaybackCredentials?>(null)
@@ -80,6 +104,53 @@ object PlaybackCredentialsManager {
         }
     }
 
+    fun parseExpireTimestamp(dateStr: String): Long? {
+        if (dateStr.isBlank()) return null
+        dateStr.toLongOrNull()?.let {
+            return if (it < 10000000000L) it * 1000L else it
+        }
+        return try {
+            val trimmed = dateStr.trim()
+            if (trimmed.length == 10) {
+                java.time.LocalDate.parse(trimmed)
+                    .atTime(23, 59, 59)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            } else {
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                java.time.LocalDateTime.parse(trimmed, formatter)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun isCredentialExpired(creds: PlaybackCredentials): Boolean {
+        val now = System.currentTimeMillis()
+        if (creds.expireTimestamp > 0L) {
+            return creds.expireTimestamp < now
+        }
+        val parsed = parseExpireTimestamp(creds.vipExpireAt)
+        if (parsed != null) {
+            return parsed < now
+        }
+        return false
+    }
+
+    fun getEffectiveVipTier(): PlaybackVipTier {
+        val custom = currentCredentials
+        if (custom != null) {
+            if (!isCredentialExpired(custom)) {
+                return custom.vipTier
+            }
+        }
+        return UserSession.profile.vipTier
+    }
+
     @Serializable
     private data class CompactCredentialsPayload(
         val u: String = "",
@@ -88,6 +159,10 @@ object PlaybackCredentialsManager {
         val v: Boolean = false,
         val n: String = "",
         val t: Long = 0L,
+        val hv: Boolean = false,
+        val sv: Boolean = false,
+        val exp: String = "",
+        val et: Long = 0L,
     )
 
     private val jsonHelper =
@@ -131,6 +206,8 @@ object PlaybackCredentialsManager {
         password: String? = null,
     ): String {
         val cleanCookies = profile.cookies.filterKeys { it in ESSENTIAL_COOKIE_KEYS }
+        val expStr = profile.vipExpireAt.ifBlank { profile.svipExpireAt.ifBlank { profile.hugeVipExpireAt } }
+        val expTs = parseExpireTimestamp(expStr) ?: 0L
         val payload =
             CompactCredentialsPayload(
                 u = profile.uin,
@@ -139,6 +216,10 @@ object PlaybackCredentialsManager {
                 v = profile.isVip,
                 n = profile.nick,
                 t = System.currentTimeMillis(),
+                hv = profile.isHugeVip,
+                sv = profile.isSvip,
+                exp = expStr,
+                et = expTs,
             )
         val jsonStr = jsonHelper.encodeToString(payload)
         val rawBytes = jsonStr.toByteArray(Charsets.UTF_8)
@@ -185,10 +266,43 @@ object PlaybackCredentialsManager {
         return bytes[2] == FLAG_PASSWORD_PROTECTED
     }
 
+    sealed interface ImportValidationResult {
+        data class Success(val credentials: PlaybackCredentials) : ImportValidationResult
+        data class Expired(val credentials: PlaybackCredentials, val expireAt: String) : ImportValidationResult
+        data class NonVip(val credentials: PlaybackCredentials) : ImportValidationResult
+        data class DowngradeWarning(
+            val credentials: PlaybackCredentials,
+            val currentTier: PlaybackVipTier,
+            val importedTier: PlaybackVipTier,
+        ) : ImportValidationResult
+    }
+
     /**
-     * 导入并解析播放凭据
+     * 仅解析凭证并执行门禁校验，不直接写入生效
      */
-    fun importToken(
+    fun inspectToken(
+        tokenText: String,
+        password: String? = null,
+    ): ImportValidationResult {
+        val creds = parseTokenPayload(tokenText, password)
+        if (isCredentialExpired(creds)) {
+            return ImportValidationResult.Expired(creds, creds.vipExpireAt)
+        }
+        if (creds.vipTier == PlaybackVipTier.NONE) {
+            return ImportValidationResult.NonVip(creds)
+        }
+        val currentAccountTier = UserSession.profile.vipTier
+        if (creds.vipTier.level < currentAccountTier.level) {
+            return ImportValidationResult.DowngradeWarning(
+                credentials = creds,
+                currentTier = currentAccountTier,
+                importedTier = creds.vipTier,
+            )
+        }
+        return ImportValidationResult.Success(creds)
+    }
+
+    private fun parseTokenPayload(
         tokenText: String,
         password: String? = null,
     ): PlaybackCredentials {
@@ -233,15 +347,28 @@ object PlaybackCredentialsManager {
             throw IllegalArgumentException("凭据中未包含有效的账号信息")
         }
 
-        val creds =
-            PlaybackCredentials(
-                uin = compact.u,
-                musicKey = compact.k,
-                cookies = compact.c,
-                isVip = compact.v,
-                nick = compact.n,
-                updateTime = if (compact.t > 0L) compact.t else System.currentTimeMillis(),
-            )
+        return PlaybackCredentials(
+            uin = compact.u,
+            musicKey = compact.k,
+            cookies = compact.c,
+            isVip = compact.v,
+            isHugeVip = compact.hv,
+            isSvip = compact.sv,
+            vipExpireAt = compact.exp,
+            expireTimestamp = compact.et,
+            nick = compact.n,
+            updateTime = if (compact.t > 0L) compact.t else System.currentTimeMillis(),
+        )
+    }
+
+    /**
+     * 导入并解析播放凭据
+     */
+    fun importToken(
+        tokenText: String,
+        password: String? = null,
+    ): PlaybackCredentials {
+        val creds = parseTokenPayload(tokenText, password)
         setCredentials(creds)
         return creds
     }

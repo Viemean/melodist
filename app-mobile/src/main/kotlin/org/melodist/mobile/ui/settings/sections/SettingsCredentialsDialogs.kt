@@ -47,6 +47,9 @@ fun SettingsCredentialsDialogs(
     var importTokenText by remember { mutableStateOf("") }
     var importPassword by remember { mutableStateOf("") }
     var importErrorMessage by remember { mutableStateOf<String?>(null) }
+    var pendingDowngradeResult by remember {
+        mutableStateOf<PlaybackCredentialsManager.ImportValidationResult.DowngradeWarning?>(null)
+    }
 
     if (showPlaybackCredsDialog) {
         AlertDialog(
@@ -278,18 +281,32 @@ fun SettingsCredentialsDialogs(
                         return@TextButton
                     }
                     try {
-                        val imported =
-                            PlaybackCredentialsManager.importToken(
+                        val inspectResult =
+                            PlaybackCredentialsManager.inspectToken(
                                 tokenText = cleanText,
                                 password = importPassword.ifBlank { null },
                             )
-                        showImportDialog = false
-                        Toast
-                            .makeText(
-                                context,
-                                "导入成功！已启用账号: ${imported.nick.ifBlank { imported.uin }}",
-                                Toast.LENGTH_LONG,
-                            ).show()
+                        when (inspectResult) {
+                            is PlaybackCredentialsManager.ImportValidationResult.Expired -> {
+                                importErrorMessage = "该凭证对应会员已过期，无法导入"
+                            }
+                            is PlaybackCredentialsManager.ImportValidationResult.NonVip -> {
+                                importErrorMessage = "该凭证账号非有效会员账号，无法导入"
+                            }
+                            is PlaybackCredentialsManager.ImportValidationResult.DowngradeWarning -> {
+                                pendingDowngradeResult = inspectResult
+                            }
+                            is PlaybackCredentialsManager.ImportValidationResult.Success -> {
+                                PlaybackCredentialsManager.setCredentials(inspectResult.credentials)
+                                showImportDialog = false
+                                Toast
+                                    .makeText(
+                                        context,
+                                        "导入成功！已启用账号: ${inspectResult.credentials.nick.ifBlank { inspectResult.credentials.uin }}",
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                            }
+                        }
                     } catch (e: Exception) {
                         importErrorMessage = e.message ?: "导入失败，请检查凭证或密码"
                     }
@@ -299,6 +316,43 @@ fun SettingsCredentialsDialogs(
             },
             dismissButton = {
                 TextButton(onClick = { showImportDialog = false }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
+
+    // 会员级别降级二次确认弹窗
+    if (pendingDowngradeResult != null) {
+        val warning = pendingDowngradeResult!!
+        AlertDialog(
+            onDismissRequest = { pendingDowngradeResult = null },
+            title = { Text("会员级别降级提醒") },
+            text = {
+                Text(
+                    "当前登录账号为【${warning.currentTier.displayName}】，导入的凭证为【${warning.importedTier.displayName}】。\n" +
+                        "导入后播放权限将按较低凭证生效。是否确认导入？",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        PlaybackCredentialsManager.setCredentials(warning.credentials)
+                        pendingDowngradeResult = null
+                        showImportDialog = false
+                        Toast
+                            .makeText(
+                                context,
+                                "导入成功！已启用账号: ${warning.credentials.nick.ifBlank { warning.credentials.uin }}",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                    },
+                ) {
+                    Text("仍然导入")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDowngradeResult = null }) {
                     Text("取消")
                 }
             },
