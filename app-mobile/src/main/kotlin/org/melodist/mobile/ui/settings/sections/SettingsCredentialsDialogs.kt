@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import org.melodist.api.PlaybackCredentials
 import org.melodist.api.PlaybackCredentialsManager
 import org.melodist.api.UserProfile
@@ -54,6 +55,7 @@ fun SettingsCredentialsDialogs(
     if (showPlaybackCredsDialog) {
         AlertDialog(
             onDismissRequest = onDismissCredsDialog,
+            properties = DialogProperties(dismissOnClickOutside = false),
             title = { Text("播放凭证管理") },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -137,6 +139,7 @@ fun SettingsCredentialsDialogs(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
+            properties = DialogProperties(dismissOnClickOutside = false),
             title = { Text("导出播放凭证") },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -240,6 +243,7 @@ fun SettingsCredentialsDialogs(
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
+            properties = DialogProperties(dismissOnClickOutside = false),
             title = { Text("导入播放凭证") },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -339,6 +343,7 @@ fun SettingsCredentialsDialogs(
         val warning = pendingDowngradeResult!!
         AlertDialog(
             onDismissRequest = { pendingDowngradeResult = null },
+            properties = DialogProperties(dismissOnClickOutside = false),
             title = { Text("会员级别降级提醒") },
             text = {
                 Text(
