@@ -533,8 +533,11 @@ suspend fun MusicApiService.getRecommendFeed(
         }
     }
 
+private val similarSongsMemoryCache = java.util.concurrent.ConcurrentHashMap<Long, Pair<Long, List<Song>>>()
+private const val SIMILAR_SONGS_CACHE_TTL_MS = 3 * 60 * 1000L
+
 /**
- * 基于指定单曲获取相似歌曲推荐
+ * 基于指定单曲获取相似歌曲推荐（带 3 分钟内存缓存）。
  *
  * @param songId 歌曲数字 ID
  * @param songMid 歌曲 MID（可选，当 songId <= 0 时用于回退解析数字 ID）
@@ -571,6 +574,12 @@ suspend fun MusicApiService.getSimilarSongs(
 
         if (targetSongId <= 0L) return@withContext emptyList()
 
+        val cached = similarSongsMemoryCache[targetSongId]
+        val now = System.currentTimeMillis()
+        if (cached != null && (now - cached.first) < SIMILAR_SONGS_CACHE_TTL_MS && cached.second.isNotEmpty()) {
+            return@withContext cached.second
+        }
+
         if (UserSession.isLoggedIn) {
             ensureMusicKeySafe()
         }
@@ -600,9 +609,14 @@ suspend fun MusicApiService.getSimilarSongs(
                     ?: dataObj?.get("tracks")?.jsonArray
                     ?: return@withContext emptyList()
 
-            vecSongs.mapNotNull { item ->
-                MusicApiService.parseSongFromElement(item)
+            val parsedSongs =
+                vecSongs.mapNotNull { item ->
+                    MusicApiService.parseSongFromElement(item)
+                }
+            if (parsedSongs.isNotEmpty()) {
+                similarSongsMemoryCache[targetSongId] = Pair(System.currentTimeMillis(), parsedSongs)
             }
+            parsedSongs
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiRecommend", "getSimilarSongs failed: songId=$songId", e)
