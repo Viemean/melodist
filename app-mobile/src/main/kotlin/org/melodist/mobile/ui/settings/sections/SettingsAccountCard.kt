@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material3.AlertDialog
@@ -22,6 +23,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,6 +60,8 @@ fun SettingsAccountCard(
     val scope = rememberCoroutineScope()
     var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     var showVipDetailDialog by remember { mutableStateOf(false) }
+
+    val topVipBadge = remember(userProfile) { getTopVipBadgeText(userProfile) }
 
     SettingsGroupCard(modifier = modifier) {
         Row(
@@ -107,13 +111,34 @@ fun SettingsAccountCard(
                 Spacer(modifier = Modifier.width(14.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (isLoggedIn) userProfile.nick.ifBlank { "已登录用户" } else "未登录",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = if (isLoggedIn) userProfile.nick.ifBlank { "已登录用户" } else "未登录",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = if (isLoggedIn && topVipBadge != null) Modifier.weight(1f, fill = false) else Modifier,
+                        )
+                        if (isLoggedIn && topVipBadge != null) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ) {
+                                Text(
+                                    text = topVipBadge,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = if (isLoggedIn) "UIN: ${userProfile.uin}" else "登录以同步歌单、收藏与资产",
@@ -293,4 +318,18 @@ private fun VipDetailRow(
         )
     }
 }
+
+private fun getTopVipBadgeText(userProfile: UserProfile): String? {
+    val levelStr = if (userProfile.vipLevel > 0) "Lv${userProfile.vipLevel}" else ""
+    return when {
+        userProfile.isSvip -> "超级会员$levelStr"
+        userProfile.isHugeVip -> "豪华绿钻$levelStr"
+        userProfile.isVip && !userProfile.isCpLover && !userProfile.isGroupVip -> "绿钻$levelStr"
+        userProfile.isCpLover -> "情侣会员"
+        userProfile.isGroupVip -> "亲情会员"
+        userProfile.isVip -> "绿钻$levelStr"
+        else -> null
+    }
+}
+
 
