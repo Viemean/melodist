@@ -100,8 +100,9 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                     val isSvip = svipRoot > 0 || svipId > 0
                     val isHuge = hugeVip > 0
                     val isGreen = vip > 0
-                    val isYear = (identity["yearflag"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
-                        (identity["yearffb"]?.jsonPrimitive?.intOrNull ?: 0) > 0
+                    val isYear =
+                        (identity["yearflag"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
+                            (identity["yearffb"]?.jsonPrimitive?.intOrNull ?: 0) > 0
 
                     val level = identity["level"]?.jsonPrimitive?.intOrNull ?: 0
                     val nextLevel = identity["nextlevel"]?.jsonPrimitive?.intOrNull ?: if (level > 0) level + 1 else 0
@@ -113,17 +114,26 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                     val lmEnd = identity["LMEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
                     val eightEnd = identity["eightEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
 
-                    val svipEnd = if (isSvip) {
-                        hugeEnd.ifBlank { overdate }
-                    } else ""
+                    val svipEnd =
+                        if (isSvip) {
+                            hugeEnd.ifBlank { overdate }
+                        } else {
+                            ""
+                        }
 
-                    val hugeExpire = if (isHuge) {
-                        if (isSvip && overdate.isNotBlank()) overdate else hugeEnd.ifBlank { overdate }
-                    } else ""
+                    val hugeExpire =
+                        if (isHuge) {
+                            if (isSvip && overdate.isNotBlank()) overdate else hugeEnd.ifBlank { overdate }
+                        } else {
+                            ""
+                        }
 
-                    val greenEnd = if (isGreen && !isHuge && !isSvip) {
-                        if (lmEnd.isNotBlank()) lmEnd else overdate
-                    } else ""
+                    val greenEnd =
+                        if (isGreen && !isHuge && !isSvip) {
+                            if (lmEnd.isNotBlank()) lmEnd else overdate
+                        } else {
+                            ""
+                        }
 
                     val cpLoverFlag = identity["CPLoverFlag"]?.jsonPrimitive?.intOrNull ?: 0
                     val cpLoverEnd = identity["CPLoverEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()

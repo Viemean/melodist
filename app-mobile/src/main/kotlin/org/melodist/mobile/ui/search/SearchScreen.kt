@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -87,9 +86,15 @@ class SearchScreenState {
     var currentTab by mutableStateOf(SearchTab.Song)
     var historyKeywords by mutableStateOf(SearchKeywordHistoryManager.getKeywords())
 
-    val songListState = androidx.compose.foundation.lazy.LazyListState()
-    val playlistListState = androidx.compose.foundation.lazy.LazyListState()
-    val albumListState = androidx.compose.foundation.lazy.LazyListState()
+    val songListState =
+        androidx.compose.foundation.lazy
+            .LazyListState()
+    val playlistListState =
+        androidx.compose.foundation.lazy
+            .LazyListState()
+    val albumListState =
+        androidx.compose.foundation.lazy
+            .LazyListState()
 
     var songResults by mutableStateOf<List<Song>>(emptyList())
     var playlistResults by mutableStateOf<List<Playlist>>(emptyList())

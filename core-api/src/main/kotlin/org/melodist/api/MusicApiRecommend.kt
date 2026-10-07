@@ -564,7 +564,13 @@ suspend fun MusicApiService.getSimilarSongs(
                     """.trimIndent()
                 val detailResp = postGateway(detailPayload)
                 val detailRoot = Json.parseToJsonElement(detailResp).jsonObject
-                val trackObj = detailRoot["songinfo"]?.jsonObject?.get("data")?.jsonObject?.get("track_info")?.jsonObject
+                val trackObj =
+                    detailRoot["songinfo"]
+                        ?.jsonObject
+                        ?.get("data")
+                        ?.jsonObject
+                        ?.get("track_info")
+                        ?.jsonObject
                 targetSongId = trackObj?.get("id")?.jsonPrimitive?.longOrNull ?: 0L
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -623,4 +629,3 @@ suspend fun MusicApiService.getSimilarSongs(
             emptyList()
         }
     }
-

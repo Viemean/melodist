@@ -113,26 +113,28 @@ class PlaybackCredentialsManagerTest {
         assertTrue(nonVipResult is PlaybackCredentialsManager.ImportValidationResult.NonVip)
 
         // 2. 过期凭证 (Expired)
-        val expiredProfile = UserProfile(
-            uin = "1002",
-            nick = "过期账号",
-            isVip = true,
-            isHugeVip = true,
-            vipExpireAt = "2020-01-01",
-        )
+        val expiredProfile =
+            UserProfile(
+                uin = "1002",
+                nick = "过期账号",
+                isVip = true,
+                isHugeVip = true,
+                vipExpireAt = "2020-01-01",
+            )
         val expiredToken = PlaybackCredentialsManager.exportToken(expiredProfile)
         val expiredResult = PlaybackCredentialsManager.inspectToken(expiredToken)
         assertTrue(expiredResult is PlaybackCredentialsManager.ImportValidationResult.Expired)
 
         // 3. 降级导入 (当前账号是 SVIP，导入的凭证是绿钻)
         UserSession.profile = UserProfile(uin = "88888", isSvip = true, isVip = true)
-        val greenProfile = UserProfile(
-            uin = "1003",
-            nick = "绿钻账号",
-            isVip = true,
-            isHugeVip = true,
-            vipExpireAt = "2099-01-01",
-        )
+        val greenProfile =
+            UserProfile(
+                uin = "1003",
+                nick = "绿钻账号",
+                isVip = true,
+                isHugeVip = true,
+                vipExpireAt = "2099-01-01",
+            )
         val greenToken = PlaybackCredentialsManager.exportToken(greenProfile)
         val downgradeResult = PlaybackCredentialsManager.inspectToken(greenToken)
         assertTrue(downgradeResult is PlaybackCredentialsManager.ImportValidationResult.DowngradeWarning)
@@ -149,14 +151,15 @@ class PlaybackCredentialsManagerTest {
     @Test
     fun `test markCredentialsRevoked and effective tier fallback`() {
         UserSession.profile = UserProfile(uin = "0", isVip = false)
-        val validVipCreds = PlaybackCredentials(
-            uin = "2001",
-            nick = "有效VIP",
-            isVip = true,
-            isHugeVip = true,
-            vipExpireAt = "2099-01-01",
-            isRevoked = false,
-        )
+        val validVipCreds =
+            PlaybackCredentials(
+                uin = "2001",
+                nick = "有效VIP",
+                isVip = true,
+                isHugeVip = true,
+                vipExpireAt = "2099-01-01",
+                isRevoked = false,
+            )
         PlaybackCredentialsManager.setCredentials(validVipCreds)
         assertEquals(PlaybackVipTier.GREEN, PlaybackCredentialsManager.getEffectiveVipTier())
         assertFalse(PlaybackCredentialsManager.isCredentialInvalid(validVipCreds))

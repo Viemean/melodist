@@ -67,11 +67,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
-import org.melodist.api.getSimilarSongs
 import org.melodist.api.probeSongQualities
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.data.AppSettingsManager

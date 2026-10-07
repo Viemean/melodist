@@ -1,6 +1,7 @@
 package org.melodist.mobile.ui.player
 
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,10 +53,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import android.widget.Toast
 import kotlinx.coroutines.launch
-import org.melodist.api.MusicApiService
-import org.melodist.api.getSimilarSongs
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongActionSheet
 import org.melodist.mobile.ui.components.SongListDeleteType
@@ -295,7 +293,6 @@ fun PlayerQueueBottomSheet(
                     }
                 }
             }
-
 
             HorizontalDivider(
                 modifier =

@@ -206,9 +206,10 @@ class PlaybackQueueManager(
      */
     fun restorePlaylistFromSimilar(): Boolean {
         val backup = backupPlaylistBeforeSimilar ?: return false
-        val currentSongMid = _currentIndex.value.let { idx ->
-            if (idx in _playlist.value.indices) _playlist.value[idx].songMid else null
-        }
+        val currentSongMid =
+            _currentIndex.value.let { idx ->
+                if (idx in _playlist.value.indices) _playlist.value[idx].songMid else null
+            }
         val restoredIndex =
             if (currentSongMid != null) {
                 backup.indexOfFirst { it.songMid == currentSongMid }.takeIf { it >= 0 }

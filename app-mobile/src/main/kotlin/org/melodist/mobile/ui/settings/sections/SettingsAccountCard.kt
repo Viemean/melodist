@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -225,7 +224,10 @@ fun SettingsAccountCard(
                     }
 
                     if (userProfile.musicScore > 0) {
-                        val formattedScore = java.text.NumberFormat.getIntegerInstance().format(userProfile.musicScore)
+                        val formattedScore =
+                            java.text.NumberFormat
+                                .getIntegerInstance()
+                                .format(userProfile.musicScore)
                         VipDetailRow(label = "成长积分", value = "$formattedScore 分")
                     }
 
@@ -258,11 +260,12 @@ fun SettingsAccountCard(
                 TextButton(onClick = {
                     scope.launch {
                         val ok = MusicApiService().refreshCurrentUserProfile()
-                        Toast.makeText(
-                            context,
-                            if (ok) "已刷新账号会员信息" else "刷新失败，请稍后重试",
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                        Toast
+                            .makeText(
+                                context,
+                                if (ok) "已刷新账号会员信息" else "刷新失败，请稍后重试",
+                                Toast.LENGTH_SHORT,
+                            ).show()
                     }
                 }) {
                     Text("刷新")
@@ -331,5 +334,3 @@ private fun getTopVipBadgeText(userProfile: UserProfile): String? {
         else -> null
     }
 }
-
-

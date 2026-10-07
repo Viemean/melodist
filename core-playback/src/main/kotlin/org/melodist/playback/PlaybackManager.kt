@@ -363,7 +363,9 @@ object PlaybackManager {
         appContext?.let { ctx ->
             try {
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast
+                        .makeText(ctx, message, android.widget.Toast.LENGTH_SHORT)
+                        .show()
                 }
             } catch (_: Exception) {
             }

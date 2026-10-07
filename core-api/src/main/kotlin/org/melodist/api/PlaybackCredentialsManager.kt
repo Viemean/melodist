@@ -18,7 +18,10 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
-enum class PlaybackVipTier(val level: Int, val displayName: String) {
+enum class PlaybackVipTier(
+    val level: Int,
+    val displayName: String,
+) {
     NONE(0, "普通用户"),
     GREEN(1, "绿钻 / VIP"),
     SVIP(2, "超级会员"),
@@ -39,19 +42,21 @@ data class PlaybackCredentials(
     val isRevoked: Boolean = false,
 ) {
     val vipTier: PlaybackVipTier
-        get() = when {
+        get() =
+            when {
+                isSvip -> PlaybackVipTier.SVIP
+                isHugeVip || isVip -> PlaybackVipTier.GREEN
+                else -> PlaybackVipTier.NONE
+            }
+}
+
+val UserProfile.vipTier: PlaybackVipTier
+    get() =
+        when {
             isSvip -> PlaybackVipTier.SVIP
             isHugeVip || isVip -> PlaybackVipTier.GREEN
             else -> PlaybackVipTier.NONE
         }
-}
-
-val UserProfile.vipTier: PlaybackVipTier
-    get() = when {
-        isSvip -> PlaybackVipTier.SVIP
-        isHugeVip || isVip -> PlaybackVipTier.GREEN
-        else -> PlaybackVipTier.NONE
-    }
 
 object PlaybackCredentialsManager {
     private val _credentialsFlow = MutableStateFlow<PlaybackCredentials?>(null)
@@ -113,14 +118,18 @@ object PlaybackCredentialsManager {
         return try {
             val trimmed = dateStr.trim()
             if (trimmed.length == 10) {
-                java.time.LocalDate.parse(trimmed)
+                java.time.LocalDate
+                    .parse(trimmed)
                     .atTime(23, 59, 59)
                     .atZone(java.time.ZoneId.systemDefault())
                     .toInstant()
                     .toEpochMilli()
             } else {
-                val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                java.time.LocalDateTime.parse(trimmed, formatter)
+                val formatter =
+                    java.time.format.DateTimeFormatter
+                        .ofPattern("yyyy-MM-dd HH:mm:ss")
+                java.time.LocalDateTime
+                    .parse(trimmed, formatter)
                     .atZone(java.time.ZoneId.systemDefault())
                     .toInstant()
                     .toEpochMilli()
@@ -142,9 +151,7 @@ object PlaybackCredentialsManager {
         return false
     }
 
-    fun isCredentialRevoked(creds: PlaybackCredentials? = currentCredentials): Boolean {
-        return creds?.isRevoked == true
-    }
+    fun isCredentialRevoked(creds: PlaybackCredentials? = currentCredentials): Boolean = creds?.isRevoked == true
 
     fun isCredentialInvalid(creds: PlaybackCredentials? = currentCredentials): Boolean {
         if (creds == null) return false
@@ -284,9 +291,19 @@ object PlaybackCredentialsManager {
     }
 
     sealed interface ImportValidationResult {
-        data class Success(val credentials: PlaybackCredentials) : ImportValidationResult
-        data class Expired(val credentials: PlaybackCredentials, val expireAt: String) : ImportValidationResult
-        data class NonVip(val credentials: PlaybackCredentials) : ImportValidationResult
+        data class Success(
+            val credentials: PlaybackCredentials,
+        ) : ImportValidationResult
+
+        data class Expired(
+            val credentials: PlaybackCredentials,
+            val expireAt: String,
+        ) : ImportValidationResult
+
+        data class NonVip(
+            val credentials: PlaybackCredentials,
+        ) : ImportValidationResult
+
         data class DowngradeWarning(
             val credentials: PlaybackCredentials,
             val currentTier: PlaybackVipTier,

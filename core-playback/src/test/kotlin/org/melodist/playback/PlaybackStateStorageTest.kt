@@ -12,49 +12,107 @@ import java.io.File
 import java.nio.file.Files
 
 class PlaybackStateStorageTest {
+    private class MemoryEditor(
+        private val map: MutableMap<String, Any?>,
+    ) : SharedPreferences.Editor {
+        override fun putString(
+            key: String,
+            value: String?,
+        ): SharedPreferences.Editor {
+            map[key] = value
+            return this
+        }
 
-    private class MemoryEditor(private val map: MutableMap<String, Any?>) : SharedPreferences.Editor {
-        override fun putString(key: String, value: String?): SharedPreferences.Editor {
+        override fun putStringSet(
+            key: String,
+            values: Set<String>?,
+        ): SharedPreferences.Editor = this
+
+        override fun putInt(
+            key: String,
+            value: Int,
+        ): SharedPreferences.Editor {
             map[key] = value
             return this
         }
-        override fun putStringSet(key: String, values: Set<String>?): SharedPreferences.Editor = this
-        override fun putInt(key: String, value: Int): SharedPreferences.Editor {
+
+        override fun putLong(
+            key: String,
+            value: Long,
+        ): SharedPreferences.Editor {
             map[key] = value
             return this
         }
-        override fun putLong(key: String, value: Long): SharedPreferences.Editor {
+
+        override fun putFloat(
+            key: String,
+            value: Float,
+        ): SharedPreferences.Editor = this
+
+        override fun putBoolean(
+            key: String,
+            value: Boolean,
+        ): SharedPreferences.Editor {
             map[key] = value
             return this
         }
-        override fun putFloat(key: String, value: Float): SharedPreferences.Editor = this
-        override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
-            map[key] = value
-            return this
-        }
+
         override fun remove(key: String): SharedPreferences.Editor {
             map.remove(key)
             return this
         }
+
         override fun clear(): SharedPreferences.Editor {
             map.clear()
             return this
         }
+
         override fun commit(): Boolean = true
+
         override fun apply() {}
     }
 
-    private class MemorySharedPreferences(private val map: MutableMap<String, Any?>) : SharedPreferences {
+    private class MemorySharedPreferences(
+        private val map: MutableMap<String, Any?>,
+    ) : SharedPreferences {
         override fun getAll(): MutableMap<String, *> = map
-        override fun getString(key: String, defValue: String?): String? = (map[key] as? String) ?: defValue
-        override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? = defValues
-        override fun getInt(key: String, defValue: Int): Int = (map[key] as? Int) ?: defValue
-        override fun getLong(key: String, defValue: Long): Long = (map[key] as? Long) ?: defValue
-        override fun getFloat(key: String, defValue: Float): Float = defValue
-        override fun getBoolean(key: String, defValue: Boolean): Boolean = (map[key] as? Boolean) ?: defValue
+
+        override fun getString(
+            key: String,
+            defValue: String?,
+        ): String? = (map[key] as? String) ?: defValue
+
+        override fun getStringSet(
+            key: String,
+            defValues: Set<String>?,
+        ): Set<String>? = defValues
+
+        override fun getInt(
+            key: String,
+            defValue: Int,
+        ): Int = (map[key] as? Int) ?: defValue
+
+        override fun getLong(
+            key: String,
+            defValue: Long,
+        ): Long = (map[key] as? Long) ?: defValue
+
+        override fun getFloat(
+            key: String,
+            defValue: Float,
+        ): Float = defValue
+
+        override fun getBoolean(
+            key: String,
+            defValue: Boolean,
+        ): Boolean = (map[key] as? Boolean) ?: defValue
+
         override fun contains(key: String): Boolean = map.containsKey(key)
+
         override fun edit(): SharedPreferences.Editor = MemoryEditor(map)
+
         override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+
         override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
     }
 
@@ -63,7 +121,12 @@ class PlaybackStateStorageTest {
         private val prefs: SharedPreferences,
     ) : ContextWrapper(null) {
         override fun getFilesDir(): File = baseDir
-        override fun getSharedPreferences(name: String?, mode: Int): SharedPreferences = prefs
+
+        override fun getSharedPreferences(
+            name: String?,
+            mode: Int,
+        ): SharedPreferences = prefs
+
         override fun getApplicationContext(): Context = this
     }
 
@@ -73,15 +136,16 @@ class PlaybackStateStorageTest {
         val prefsMap = mutableMapOf<String, Any?>()
         val mockContext = FakeContext(tempDir, MemorySharedPreferences(prefsMap))
 
-        val largePlaylist = (1..325).map { i ->
-            Song(
-                songId = i.toLong(),
-                songMid = "mid_$i",
-                name = "Song $i",
-                singer = "Artist $i",
-                album = "Album $i",
-            )
-        }
+        val largePlaylist =
+            (1..325).map { i ->
+                Song(
+                    songId = i.toLong(),
+                    songMid = "mid_$i",
+                    name = "Song $i",
+                    singer = "Artist $i",
+                    album = "Album $i",
+                )
+            }
 
         PlaybackStateStorage.savePlaybackState(
             context = mockContext,
