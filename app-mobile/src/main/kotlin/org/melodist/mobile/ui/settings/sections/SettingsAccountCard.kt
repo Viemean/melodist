@@ -224,6 +224,11 @@ fun SettingsAccountCard(
                         VipDetailRow(label = "会员有效期", value = "无")
                     }
 
+                    if (userProfile.musicScore > 0) {
+                        val formattedScore = java.text.NumberFormat.getIntegerInstance().format(userProfile.musicScore)
+                        VipDetailRow(label = "成长积分", value = "$formattedScore 分")
+                    }
+
                     VipDetailRow(
                         label = "年费状态",
                         value = if (userProfile.isYearVip) "是" else "否",
@@ -233,11 +238,6 @@ fun SettingsAccountCard(
                         label = "乐力级别",
                         value = if (userProfile.musicLevel > 0) "Lv.${userProfile.musicLevel}" else "无",
                     )
-
-                    if (userProfile.musicScore > 0) {
-                        val formattedScore = java.text.NumberFormat.getIntegerInstance().format(userProfile.musicScore)
-                        VipDetailRow(label = "成长积分", value = "$formattedScore 分")
-                    }
 
                     if (userProfile.isVip && (userProfile.nextVipLevel > 0 || userProfile.vipUpgradePercent > 0f)) {
                         val pct = String.format(java.util.Locale.ROOT, "%.1f%%", userProfile.vipUpgradePercent * 100)
