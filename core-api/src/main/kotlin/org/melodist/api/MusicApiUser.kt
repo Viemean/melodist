@@ -155,6 +155,7 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                 val userInfo = vipData["userinfo"]?.jsonObject
                 if (userInfo != null) {
                     newProfile.musicLevel = userInfo["music_level"]?.jsonPrimitive?.intOrNull ?: 0
+                    newProfile.musicScore = userInfo["score"]?.jsonPrimitive?.intOrNull ?: 0
                     changed = true
                 }
             }

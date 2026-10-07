@@ -209,6 +209,11 @@ fun SettingsAccountCard(
                         value = if (userProfile.musicLevel > 0) "Lv.${userProfile.musicLevel}" else "无",
                     )
 
+                    if (userProfile.musicScore > 0) {
+                        val formattedScore = java.text.NumberFormat.getIntegerInstance().format(userProfile.musicScore)
+                        VipDetailRow(label = "成长积分", value = "$formattedScore 分")
+                    }
+
                     if (userProfile.isVip && (userProfile.nextVipLevel > 0 || userProfile.vipUpgradePercent > 0f)) {
                         val pct = String.format(java.util.Locale.ROOT, "%.1f%%", userProfile.vipUpgradePercent * 100)
                         val days = if (userProfile.vipUpgradeDays > 0) " 还需 ${userProfile.vipUpgradeDays} 天" else ""
@@ -288,3 +293,4 @@ private fun VipDetailRow(
         )
     }
 }
+

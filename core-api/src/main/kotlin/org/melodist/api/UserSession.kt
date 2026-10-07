@@ -29,6 +29,7 @@ data class UserProfile(
     var isGroupVip: Boolean = false,
     var groupVipExpireAt: String = "",
     var musicLevel: Int = 0,
+    var musicScore: Int = 0,
     var encryptedUin: String = "",
     var cookies: Map<String, String> = emptyMap(),
 ) {
