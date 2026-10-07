@@ -684,8 +684,9 @@ fun SearchScreen(
                                                         .padding(horizontal = 16.dp, vertical = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
+                                                val hintSuffix = if (hasMoreSongs) " · 下滑加载更多" else ""
                                                 Text(
-                                                    text = "共找到 ${songResults.size} 首歌曲",
+                                                    text = "共找到 ${songResults.size} 首歌曲$hintSuffix",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
@@ -741,6 +742,22 @@ fun SearchScreen(
                                             bottom = contentPadding.calculateBottomPadding() + 16.dp,
                                         ),
                                 ) {
+                                    item(key = "search_playlists_header") {
+                                        Row(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            val hintSuffix = if (hasMorePlaylists) " · 下滑加载更多" else ""
+                                            Text(
+                                                text = "共找到 ${playlistResults.size} 个歌单$hintSuffix",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
                                     itemsIndexed(playlistResults, key = { _, pl -> pl.dirId }) { _, playlist ->
                                         Row(
                                             modifier =
@@ -822,6 +839,22 @@ fun SearchScreen(
                                             bottom = contentPadding.calculateBottomPadding() + 16.dp,
                                         ),
                                 ) {
+                                    item(key = "search_albums_header") {
+                                        Row(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            val hintSuffix = if (hasMoreAlbums) " · 下滑加载更多" else ""
+                                            Text(
+                                                text = "共找到 ${albumResults.size} 张专辑$hintSuffix",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
                                     itemsIndexed(albumResults, key = { _, album -> album.mid.ifBlank { album.id.toString() } }) { _, album ->
                                         Row(
                                             modifier =
