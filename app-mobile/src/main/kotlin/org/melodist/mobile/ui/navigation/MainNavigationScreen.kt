@@ -107,6 +107,7 @@ import org.melodist.mobile.ui.navigation.AppNavigationController
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.mobile.ui.navigation.ScreenDestination
 import org.melodist.mobile.ui.player.PlayerContainer
+import org.melodist.mobile.ui.player.PlayerQueueBottomSheet
 import org.melodist.mobile.ui.playlist.PlaylistDetailScreen
 import org.melodist.mobile.ui.recent.RecentAlbumsScreen
 import org.melodist.mobile.ui.recent.RecentPlaybackScreen
@@ -635,6 +636,13 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                 org.melodist.mobile.ui.components.NewVersionDialog(
                     newVersion = newVersion,
                     onDismissRequest = { newVersionDialogResult = null },
+                )
+            }
+
+            val requestOpenQueue by PlaybackManager.showQueueSheetFlow.collectAsState()
+            if (requestOpenQueue && !isFullPlayerExpanded) {
+                PlayerQueueBottomSheet(
+                    onDismissRequest = { PlaybackManager.consumeOpenQueueSheet() },
                 )
             }
 

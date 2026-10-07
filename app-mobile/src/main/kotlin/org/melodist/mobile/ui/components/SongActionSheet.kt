@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.rounded.Comment
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -54,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,9 +67,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
+import org.melodist.api.getSimilarSongs
 import org.melodist.api.probeSongQualities
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.data.AppSettingsManager
@@ -97,6 +101,7 @@ fun SongActionSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val navController = LocalAppNavigation.current
     val favoriteMids by PlaybackManager.favoriteSongMids.collectAsState()
     val isFavorite = favoriteMids.contains(song.songMid)
@@ -108,6 +113,7 @@ fun SongActionSheet(
     var showSongInfoSheet by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var showCommentsSheet by remember { mutableStateOf(false) }
+    var showSimilarSongsSheet by remember { mutableStateOf(false) }
 
     val connectState by MobileConnectManager.connectionState.collectAsState()
     val isTvConnected = connectState is MobileConnectionState.Paired
@@ -463,6 +469,17 @@ fun SongActionSheet(
                 )
             }
 
+            if (!isFromPlayer && !song.isLocal && !song.isWebDav && (song.songId > 0L || song.songMid.isNotBlank())) {
+                ActionSheetItem(
+                    icon = Icons.Rounded.AutoAwesome,
+                    title = "相似推荐",
+                    subtitle = "查看类似风格歌曲",
+                    onClick = {
+                        showSimilarSongsSheet = true
+                    },
+                )
+            }
+
             if (!song.isLocal && !song.isWebDav) {
                 ActionSheetItem(
                     icon = Icons.AutoMirrored.Rounded.Comment,
@@ -562,6 +579,8 @@ fun SongActionSheet(
         onDismissCommentsSheet = { showCommentsSheet = false },
         showSongInfoSheet = showSongInfoSheet,
         onDismissSongInfoSheet = { showSongInfoSheet = false },
+        showSimilarSongsSheet = showSimilarSongsSheet,
+        onDismissSimilarSongsSheet = { showSimilarSongsSheet = false },
     )
 
     if (showDownloadQualityDialog) {

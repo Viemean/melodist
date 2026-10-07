@@ -251,6 +251,13 @@ fun FullPlayerSheet(
     val isProbingQuality by PlaybackManager.isProbingQuality.collectAsState()
     var showQualitySheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
+    val requestOpenQueue by PlaybackManager.showQueueSheetFlow.collectAsState()
+    LaunchedEffect(requestOpenQueue) {
+        if (requestOpenQueue) {
+            showQueueSheet = true
+            PlaybackManager.consumeOpenQueueSheet()
+        }
+    }
     var actionTargetSong by remember { mutableStateOf<Song?>(null) }
     var coverTargetSong by remember { mutableStateOf<Song?>(null) }
 
