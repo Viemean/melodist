@@ -21,18 +21,24 @@ data class UserProfile(
 ) {
     val effectiveAvatarUrl: String
         get() {
-            if (avatarUrl.isNotBlank()) return avatarUrl
+            if (avatarUrl.isNotBlank() && !avatarUrl.contains("t_user_default")) return avatarUrl
             val qq =
-                cookies["pt2gguin"]?.trimStart('o')
-                    ?: cookies["uin"]?.trimStart('o')
-                    ?: cookies["qqmusic_uin"]?.trimStart('o')
-                    ?: uin.takeIf { it.isNotBlank() && it.all { c -> c.isDigit() } }
-            return if (!qq.isNullOrBlank() && qq.all { it.isDigit() }) {
+                cookies["pt2gguin"].extractNumericQq()
+                    ?: cookies["uin"].extractNumericQq()
+                    ?: cookies["qqmusic_uin"].extractNumericQq()
+                    ?: uin.extractNumericQq()
+            return if (!qq.isNullOrBlank()) {
                 "https://q1.qlogo.cn/g?b=qq&nk=$qq&s=640"
             } else {
-                ""
+                avatarUrl
             }
         }
+}
+
+private fun String?.extractNumericQq(): String? {
+    if (this == null) return null
+    val trimmed = this.trim().trimStart('o')
+    return if (trimmed.isNotBlank() && trimmed.all { it.isDigit() }) trimmed else null
 }
 
 object UserSession {
@@ -82,11 +88,11 @@ object UserSession {
     ) {
         val resolvedUin =
             uin.ifBlank {
-                cookies["uin"]?.trimStart('o')
-                    ?: cookies["qqmusic_uin"]?.trimStart('o')
-                    ?: cookies["musicid"]
-                    ?: cookies["pt2gguin"]?.trimStart('o')
-                    ?: cookies["openid"]
+                cookies["uin"]?.trimStart('o')?.takeIf { it.isNotBlank() }
+                    ?: cookies["qqmusic_uin"]?.trimStart('o')?.takeIf { it.isNotBlank() }
+                    ?: cookies["musicid"]?.takeIf { it.isNotBlank() }
+                    ?: cookies["pt2gguin"]?.trimStart('o')?.takeIf { it.isNotBlank() }
+                    ?: cookies["openid"]?.takeIf { it.isNotBlank() }
                     ?: ""
             }
         val isWeChatAccount =
@@ -99,11 +105,11 @@ object UserSession {
                     ""
                 } else {
                     val qq =
-                        cookies["pt2gguin"]?.trimStart('o')
-                            ?: cookies["uin"]?.trimStart('o')
-                            ?: cookies["qqmusic_uin"]?.trimStart('o')
-                            ?: resolvedUin.takeIf { it.isNotBlank() && it.all { c -> c.isDigit() } && it.length <= 11 }
-                    if (!qq.isNullOrBlank() && qq.all { it.isDigit() } && qq.length in 5..11) {
+                        cookies["pt2gguin"].extractNumericQq()
+                            ?: cookies["uin"].extractNumericQq()
+                            ?: cookies["qqmusic_uin"].extractNumericQq()
+                            ?: resolvedUin.extractNumericQq()
+                    if (!qq.isNullOrBlank() && qq.length in 5..11) {
                         "https://q1.qlogo.cn/g?b=qq&nk=$qq&s=640"
                     } else {
                         ""

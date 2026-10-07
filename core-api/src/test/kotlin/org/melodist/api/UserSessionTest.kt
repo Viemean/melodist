@@ -55,4 +55,69 @@ class UserSessionTest {
         assertTrue(UserSession.isLoggedIn)
         assertEquals("88776655", UserSession.profile.uin)
     }
+
+    @Test
+    fun `effectiveAvatarUrl falls back to uin when cookies have blank values`() {
+        val testUin = System.getenv("TEST_UIN") ?: "1000000001"
+        val profile =
+            UserProfile(
+                uin = testUin,
+                cookies =
+                    mapOf(
+                        "pt2gguin" to "",
+                        "uin" to "o",
+                        "qqmusic_uin" to "   ",
+                    ),
+            )
+        assertEquals("https://q1.qlogo.cn/g?b=qq&nk=$testUin&s=640", profile.effectiveAvatarUrl)
+    }
+
+    @Test
+    fun `effectiveAvatarUrl resolves valid numeric qq from cookie with o prefix`() {
+        val testUin = System.getenv("TEST_UIN") ?: "1000000001"
+        val profile =
+            UserProfile(
+                uin = testUin,
+                cookies =
+                    mapOf(
+                        "pt2gguin" to "o$testUin",
+                    ),
+            )
+        assertEquals("https://q1.qlogo.cn/g?b=qq&nk=$testUin&s=640", profile.effectiveAvatarUrl)
+    }
+
+    @Test
+    fun `effectiveAvatarUrl prefers explicit avatarUrl when present`() {
+        val testUin = System.getenv("TEST_UIN") ?: "1000000001"
+        val profile =
+            UserProfile(
+                uin = testUin,
+                avatarUrl = "https://custom.avatar/pic.jpg",
+            )
+        assertEquals("https://custom.avatar/pic.jpg", profile.effectiveAvatarUrl)
+    }
+
+    @Test
+    fun `update does not synthesize qq avatar for wechat accounts`() {
+        val testMusicId = "88887777"
+        UserSession.update(
+            uin = testMusicId,
+            nick = "微信用户",
+            musicKey = "W_X_TEST_KEY",
+            cookies = mapOf("tmeLoginType" to "1"),
+            avatarUrl = "",
+        )
+        assertEquals("", UserSession.profile.avatarUrl)
+    }
+
+    @Test
+    fun `effectiveAvatarUrl ignores t_user_default placeholder and falls back to qq avatar`() {
+        val testUin = System.getenv("TEST_UIN") ?: "1000000001"
+        val profile =
+            UserProfile(
+                uin = testUin,
+                avatarUrl = "https://y.qq.com/music/common/upload/t_user_default/3284895.png",
+            )
+        assertEquals("https://q1.qlogo.cn/g?b=qq&nk=$testUin&s=640", profile.effectiveAvatarUrl)
+    }
 }
