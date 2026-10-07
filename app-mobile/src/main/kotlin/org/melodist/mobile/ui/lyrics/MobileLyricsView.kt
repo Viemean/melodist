@@ -150,7 +150,6 @@ fun MobileLyricsView(
             }
         }
 
-        // 播放或跳转时滚动使高亮行居中
         LaunchedEffect(activeIndex, isUserInteracting) {
             if (!isUserInteracting && activeIndex in lyrics.indices) {
                 val targetIndex = activeIndex + 1

@@ -84,7 +84,6 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
         }
     }
 
-    // 弹窗集合（扫码配对、手动 IP 输入、设备 PIN 认证与远端音质切换）
     RemoteConnectDialogs(
         showQrScanner = showQrScanner,
         onDismissQrScanner = { showQrScanner = false },

@@ -113,7 +113,6 @@ fun MiniPlayerBar(
         label = "MiniPlayPauseScale",
     )
 
-    // 播放曲目切换后归位
     LaunchedEffect(song?.songMid) {
         if (!isDraggingHorizontal) {
             dragOffsetX.snapTo(0f)
@@ -402,7 +401,6 @@ fun MiniPlayerBar(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
 
-                // 播放/暂停按钮
                 FilledIconButton(
                     onClick = onTogglePlayPause,
                     interactionSource = playPauseInteractionSource,
@@ -438,7 +436,6 @@ fun MiniPlayerBar(
                 }
             }
 
-            // 底部进度条
             val progressModifier =
                 Modifier
                     .fillMaxWidth()

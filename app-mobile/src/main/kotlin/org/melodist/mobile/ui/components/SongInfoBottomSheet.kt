@@ -137,7 +137,6 @@ fun SongInfoBottomSheet(
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
-            // 顶部标题与歌曲基础概要
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -272,7 +271,6 @@ fun SongInfoBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 底部一键复制全部参数按钮
             Button(
                 onClick = {
                     val fullInfo =

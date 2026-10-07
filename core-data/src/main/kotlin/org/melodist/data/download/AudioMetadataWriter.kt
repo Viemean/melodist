@@ -86,9 +86,7 @@ object AudioMetadataWriter {
             false
         }
 
-    // ==========================================
     // FLAC Vorbis Comment & Picture Block 写入
-    // ==========================================
 
     private fun writeFlacMetadata(
         file: File,
@@ -148,9 +146,7 @@ object AudioMetadataWriter {
                     return false
                 }
 
-                // 3. 构建新的 VORBIS_COMMENT block
                 val vorbisBlockData = buildFlacVorbisComment(payload)
-                // 4. 构建新的 PICTURE block (若有)
                 val pictureBlockData = payload.coverBytes?.let { buildFlacPictureBlock(it, payload.coverMime) }
 
                 // 组装所有元数据块
@@ -295,9 +291,7 @@ object AudioMetadataWriter {
         return baos.toByteArray()
     }
 
-    // ==========================================
     // MP3 ID3v2.3 规范写入 (兼容所有设备与播放器)
-    // ==========================================
 
     private fun writeMp3Metadata(
         file: File,

@@ -416,7 +416,6 @@ fun FullPlayerSheet(
                                         )
                                     }
 
-                                    // 收藏按钮
                                     if (isFavSupported) {
                                         FilledTonalIconButton(
                                             onClick = { PlaybackManager.toggleCurrentSongFavorite() },
@@ -561,7 +560,6 @@ fun FullPlayerSheet(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    // 播放队列
                     FilledTonalIconButton(
                         onClick = { showQueueSheet = true },
                         interactionSource = queueInteractionSource,
@@ -587,7 +585,6 @@ fun FullPlayerSheet(
                         )
                     }
 
-                    // 播放/暂停按键
                     val playPauseContentColor =
                         if (ColorUtils.calculateLuminance(animatedAccentColor.toArgb()) < 0.45) {
                             Color.White
@@ -700,7 +697,6 @@ fun FullPlayerSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Top,
             ) {
-                // 顶部指示条
                 Box(
                     modifier =
                         Modifier
@@ -903,7 +899,6 @@ fun FullPlayerSheet(
                     }
                 }
 
-                // 播放控制区域
                 Column(
                     modifier =
                         Modifier
@@ -1082,7 +1077,6 @@ fun FullPlayerSheet(
             )
         }
 
-        // 播放队列弹窗
         if (showQueueSheet) {
             PlayerQueueBottomSheet(
                 onDismissRequest = { showQueueSheet = false },

@@ -132,7 +132,6 @@ fun BottomPlayerBar(
         ) {
             val btnContainer = surfaceColor.toMonetContainer(0.08f)
 
-            // 左侧：收藏、循环模式
             Row(
                 modifier = Modifier.align(Alignment.CenterStart),
                 verticalAlignment = Alignment.CenterVertically,
@@ -223,7 +222,6 @@ fun BottomPlayerBar(
                 )
             }
 
-            // 右侧：全屏隐藏按钮、音质按钮、播放队列
             Row(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 verticalAlignment = Alignment.CenterVertically,

@@ -96,7 +96,6 @@ object AudioQualityAuditor {
                 return@withContext result
             }
 
-            // 2. 解析文件来源（优先本地/缓存，其次 WebDAV 或在线网络直链）
             val target = resolveAudioSource(context, song, explicitFilePath)
             if (target == null || target.pathOrUrl.isBlank()) {
                 return@withContext AudioAuditResult(
@@ -106,7 +105,6 @@ object AudioQualityAuditor {
                 )
             }
 
-            // 3. 执行解码与频谱分析（顶层 8s 协程超时兜底，防止极端畸形流底层挂起）
             val result =
                 withTimeoutOrNull(8000L) {
                     if (target.isLocal) {

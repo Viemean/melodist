@@ -83,7 +83,6 @@ fun HomeTvScreen(
             mid != null && favoriteSongMids.contains(mid)
         }
 
-    // 确定性 D-Pad 导航焦点网络
     val navTabRequesters = remember { List(7) { FocusRequester() } }
     val coreCardRequesters = remember { List(7) { FocusRequester() } }
     val feedCardRequesters = remember { List(6) { FocusRequester() } }
@@ -156,7 +155,6 @@ fun HomeTvScreen(
                     ),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            // 1. 顶部胶囊导航栏
             TopNavBar(
                 selectedIndex = selectedNavIndex,
                 downFocusRequester = heroCardRequester,

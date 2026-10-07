@@ -128,7 +128,6 @@ fun SongArtistAlbumDialog(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                // 卡片横向滚动流（歌手卡片组 + 专辑卡片）
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),

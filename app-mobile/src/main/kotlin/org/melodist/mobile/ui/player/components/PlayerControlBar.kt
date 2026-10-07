@@ -196,7 +196,6 @@ fun PlayerControlBar(
             }
         }
 
-        // 播放/暂停按键
         FilledIconButton(
             onClick = onTogglePlayPause,
             interactionSource = playPauseInteractionSource,
@@ -236,7 +235,6 @@ fun PlayerControlBar(
             }
         }
 
-        // 播放队列按键
         FilledTonalIconButton(
             onClick = onOpenQueue,
             enabled = true,

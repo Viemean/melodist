@@ -134,7 +134,6 @@ fun SettingsAboutSection(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
             )
 
-            // 2. 检查更新行
             Row(
                 modifier =
                     Modifier

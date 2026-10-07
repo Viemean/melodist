@@ -71,7 +71,6 @@ fun SongListFastScroller(
     var dragProgressFraction by remember { mutableFloatStateOf(0f) }
     var currentScrolledIndex by remember { mutableIntStateOf(0) }
 
-    // 列表滚动与拖拽监听
     val isActivityActive = listState.isScrollInProgress || isDragging
     LaunchedEffect(isActivityActive) {
         if (isActivityActive) {

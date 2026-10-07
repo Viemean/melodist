@@ -254,7 +254,6 @@ fun SettingSwitchCard(
             }
             Spacer(modifier = Modifier.width(20.dp))
 
-            // 状态胶囊标签：在获焦(白底)与未获焦(暗底)下均保持明确的对比度与开闭提示
             val pillBgColor =
                 when {
                     isFocused && checked -> Color(0xFF0D9488) // 获焦开启：翡翠青绿底

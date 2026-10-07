@@ -810,8 +810,6 @@ fun PlaylistTvScreen(
             }
         }
 
-    // 左侧封面联动逻辑：随列表光标上下移动动态展示当前获焦单曲封面；光标在控制区时展示歌单固定封面。
-    // 返回态首帧预置焦点目标曲目
     val effectiveFocusSongIndex =
         focusedSongIndex ?: if (isReturning && returnTargetIndex in playlistSongs.indices) {
             returnTargetIndex
@@ -877,7 +875,6 @@ fun PlaylistTvScreen(
             Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value)))
         }
 
-    // 播放态 10 秒无操作全屏隐藏
     LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
         if (screenMode == PlaylistScreenMode.Player && !isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
             kotlinx.coroutines.delay(10_000L)
@@ -885,7 +882,6 @@ fun PlaylistTvScreen(
         }
     }
 
-    // 播放态拦截返回键：收起歌词并返回歌单列表
     BackHandler(enabled = screenMode == PlaylistScreenMode.Player) {
         if (showArtistAlbumDialog) {
             showArtistAlbumDialog = false

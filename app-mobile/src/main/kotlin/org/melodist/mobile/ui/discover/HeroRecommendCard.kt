@@ -87,7 +87,6 @@ fun HeroRecommendCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 左侧封面
                 Box(
                     modifier =
                         Modifier
@@ -147,7 +146,6 @@ fun HeroRecommendCard(
 
                 Spacer(modifier = Modifier.width(14.dp))
 
-                // 中间信息
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center,
@@ -212,7 +210,6 @@ fun HeroRecommendCard(
                     }
                 }
 
-                // 右侧操作区：若提供播放回调则显示播放按钮，否则可点击卡片时显示轻量右箭头
                 if (onPlayClick != null) {
                     Spacer(modifier = Modifier.width(10.dp))
                     FilledTonalIconButton(

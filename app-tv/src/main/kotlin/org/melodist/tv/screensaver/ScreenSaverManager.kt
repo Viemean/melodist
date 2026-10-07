@@ -64,7 +64,6 @@ object ScreenSaverManager {
 
         val isPlaying = PlaybackManager.isPlaying.value
         if (!settings.enableScreenSaverDuringPlayback && isPlaying) {
-            // 播放期间持续重置空闲时间戳
             lastInteractionTimeMs = System.currentTimeMillis()
             return
         }

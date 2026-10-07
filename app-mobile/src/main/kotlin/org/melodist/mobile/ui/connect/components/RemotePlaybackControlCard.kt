@@ -91,7 +91,6 @@ fun RemotePlaybackControlCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // 1. 顶部状态栏：设备名称 / 状态 + AOD 按钮 + 断开/扫码按钮
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -306,7 +305,6 @@ fun RemotePlaybackControlCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    // 左侧辅助按键：TV 播放循环模式
                     val tvLoopMode = tvPlayerState.loopMode
                     val loopIcon =
                         when (tvLoopMode) {
@@ -351,7 +349,6 @@ fun RemotePlaybackControlCard(
                         )
                     }
 
-                    // 播放/暂停大按键 (M3 64dp 圆形立体按键)
                     FilledIconButton(
                         onClick = {
                             if (tvPlayerState.isPlaying) {
@@ -399,7 +396,6 @@ fun RemotePlaybackControlCard(
                         )
                     }
 
-                    // 右侧：音质切换按钮
                     val currentTvTier = curSong.currentTier
                     val isTvLocalOrWebDav = curSong.isLocal || curSong.isWebDav || !curSong.localFilePath.isNullOrBlank()
                     Surface(

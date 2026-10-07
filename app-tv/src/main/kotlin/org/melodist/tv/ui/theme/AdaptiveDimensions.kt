@@ -32,7 +32,6 @@ fun rememberTvWindowMetrics(): TvWindowMetrics {
     // 正在播放卡片高度
     val heroHeight = (height * 0.46f).coerceIn(220.dp, 360.dp)
 
-    // 播放页封面尺寸
     val coverSize = (height * 0.52f).coerceIn(220.dp, 440.dp)
 
     // 推荐轨道卡片宽度：占屏幕宽度约 26%

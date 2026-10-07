@@ -110,7 +110,6 @@ fun CommonSongList(
     var filterQuery by remember { mutableStateOf("") }
     val filterFocusRequester = remember { FocusRequester() }
 
-    // 多选状态
     var isMultiSelectMode by remember { mutableStateOf(false) }
     val selectedMids = remember { mutableStateMapOf<String, Song>() }
 

@@ -422,7 +422,6 @@ fun SearchScreen(
         modifier = modifier.fillMaxSize(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // 顶部 M3 胶囊搜索栏（与主界面胶囊形态严格对齐）
             Row(
                 modifier =
                     Modifier

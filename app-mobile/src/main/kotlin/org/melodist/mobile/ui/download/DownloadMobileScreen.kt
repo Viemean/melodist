@@ -84,7 +84,6 @@ fun DownloadMobileScreen(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // 顶部控制栏：分段药丸与下载目录快捷提示
         Row(
             modifier =
                 Modifier
@@ -146,7 +145,6 @@ fun DownloadMobileScreen(
             }
         }
 
-        // 主内容区域
         Box(
             modifier =
                 Modifier
@@ -378,7 +376,6 @@ private fun ActiveDownloadTaskCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 状态描述与下载速度
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

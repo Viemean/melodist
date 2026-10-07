@@ -77,7 +77,6 @@ fun SettingsTvScreen(
                 ),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // 顶部导航与层级标题
             Row(
                 modifier =
                     Modifier
@@ -100,7 +99,6 @@ fun SettingsTvScreen(
                 modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(32.dp),
             ) {
-                // 左侧设置分类列表
                 LazyColumn(
                     modifier =
                         Modifier
@@ -133,7 +131,6 @@ fun SettingsTvScreen(
                     }
                 }
 
-                // 右侧主面板 (显式支持按 ← 返回左侧当前分类)
                 Box(
                     modifier =
                         Modifier

@@ -228,7 +228,6 @@ object MobileConnectManager {
                                     PlaybackManager.pauseSilentKeepAlive()
                                 }
                             } else {
-                                // 关闭本地静音：手机端跟随 TV 发声
                                 PlaybackManager.stopSilentKeepAlive()
                                 PlaybackManager.setVolume(1f)
                                 if (tvSong != null) {
@@ -612,7 +611,6 @@ object MobileConnectManager {
                     isSyncingFromTv = false
                 }
             } else {
-                // 关闭静音：停止静音保活，若 TV 处于播放状态则驱动本地发声
                 PlaybackManager.stopSilentKeepAlive()
                 PlaybackManager.resetPlaybackSpeed()
                 val state = tvPlayerState.value

@@ -178,7 +178,6 @@ fun AcrTvScreen(
         }
     }
 
-    // 暂停当前播放并启动识别
     LaunchedEffect(Unit) {
         if (originalIsPlaying) {
             PlaybackManager.pause()
@@ -232,7 +231,6 @@ fun AcrTvScreen(
         checkAndStartRecognition()
     }
 
-    // 返回拦截
     BackHandler {
         if (showQualityDialog) {
             showQualityDialog = false
@@ -269,7 +267,6 @@ fun AcrTvScreen(
                 .fillMaxSize()
                 .background(surfaceColor),
     ) {
-        // 顶部导航栏：仅保留左上角返回按钮
         Row(
             modifier =
                 Modifier
@@ -304,7 +301,6 @@ fun AcrTvScreen(
                     ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 左侧：封面、曲目信息与控制动作组 (40%)
             Column(
                 modifier =
                     Modifier
@@ -564,7 +560,6 @@ fun AcrTvScreen(
 
             Spacer(modifier = Modifier.width(32.dp))
 
-            // 右侧：双语逐字卡拉OK歌词流 (60%)，高对比度白字清晰展现
             Box(
                 modifier =
                     Modifier
@@ -667,7 +662,6 @@ fun AcrTvScreen(
             )
         }
 
-        // 播放队列侧边栏
         PlayerQueueSidebar(
             playlist = playlist,
             currentSong = activeSong,

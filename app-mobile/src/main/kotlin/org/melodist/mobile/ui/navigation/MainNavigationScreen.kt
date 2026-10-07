@@ -283,7 +283,6 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
     var acrSuccessData by remember { mutableStateOf<MobileAcrSuccessData?>(null) }
     // 识别成功卡片展示状态
     var showAcrResultCard by remember { mutableStateOf(false) }
-    // 卡片交互状态
     var isAcrCardInteracting by remember { mutableStateOf(false) }
     // 是否正在挂载无 UI 识别控制器
     var isAcrControllerActive by remember { mutableStateOf(false) }
@@ -776,7 +775,6 @@ private fun RenderAppScreen(
                             ) + fadeOut(animationSpec = tween(150)),
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            // 顶部搜索与操作栏
                             Row(
                                 modifier =
                                     Modifier

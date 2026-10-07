@@ -170,7 +170,6 @@ fun MediaDetailTvScaffold(
         true
     }
 
-    // 播放态 10 秒无操作隐藏控制栏
     LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
         if (screenMode == MediaDetailScreenMode.Player && !isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
             kotlinx.coroutines.delay(10_000L)
@@ -178,7 +177,6 @@ fun MediaDetailTvScaffold(
         }
     }
 
-    // 播放态拦截返回键：优先收起弹窗/全屏，最终返回详情模式
     BackHandler(enabled = screenMode == MediaDetailScreenMode.Player) {
         if (showArtistAlbumDialog) {
             showArtistAlbumDialog = false
@@ -328,7 +326,6 @@ fun MediaDetailTvScaffold(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 标题、副信息与控制区 Crossfade 过渡
             Crossfade(
                 targetState = isPlayerMode,
                 animationSpec = tween(durationMillis = 250),
@@ -396,7 +393,6 @@ fun MediaDetailTvScaffold(
                             }
                         }
 
-                        // 播放全部按钮
                         Button(
                             onClick = {
                                 onPlayAll()
@@ -784,7 +780,6 @@ fun MediaDetailTvScaffold(
                 )
             }
 
-            // 播放队列侧边栏
             PlayerQueueSidebar(
                 playlist = playlist,
                 currentSong = currentPlayingSong,

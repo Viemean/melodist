@@ -324,7 +324,6 @@ object UserLibraryCacheManager {
                         saveFavSongsToDisk(updatedCache)
                         return@withContext localSongs
                     } else {
-                        // 中间或尾部有变动（例如在外部删除了中间的歌，导致位移）-> 触发异步全量拉取
                         return@withContext loadFavoriteSongs(apiService, forceRefresh = true)
                     }
                 }

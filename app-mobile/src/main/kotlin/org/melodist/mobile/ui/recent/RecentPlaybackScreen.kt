@@ -108,7 +108,6 @@ fun RecentPlaybackScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        // 卡片 1: 最近播放的专辑特色卡片（5 最新 + 25 随机，15 秒无序轮播）
                         item(key = "recent_hero_album_card") {
                             RecentAlbumsHeroCard(
                                 recentAlbums = recentAlbums,
@@ -117,7 +116,6 @@ fun RecentPlaybackScreen(
                             )
                         }
 
-                        // 卡片 2: 最近播放的歌单特色卡片（5 最新 + 25 随机，15 秒无序轮播，错峰 4 秒）
                         item(key = "recent_hero_playlist_card") {
                             RecentPlaylistsHeroCard(
                                 playlists = filteredPlaylists,
@@ -128,7 +126,6 @@ fun RecentPlaybackScreen(
                     }
                 }
 
-                // 标题与控制栏
                 item(key = "recent_section_header") {
                     Row(
                         modifier =

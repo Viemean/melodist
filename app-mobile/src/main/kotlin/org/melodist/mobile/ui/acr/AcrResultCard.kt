@@ -234,7 +234,6 @@ fun AcrResultCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 左侧封面
                 val coverUrl = song.thumbnailCoverUrl.ifBlank { song.coverUrl }
                 Box(
                     modifier =
@@ -266,7 +265,6 @@ fun AcrResultCard(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // 中间歌曲信息
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center,
@@ -324,7 +322,6 @@ fun AcrResultCard(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // 右侧播放按钮
                 FilledTonalIconButton(
                     onClick = onPlayClick,
                     modifier = Modifier.size(42.dp),

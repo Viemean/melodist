@@ -104,7 +104,6 @@ fun ArtistTvScreen(
         }
     }
 
-    // 切换到专辑模式时懒加载第一页专辑
     LaunchedEffect(subMode, artistMid) {
         if (subMode == ArtistSubMode.Albums && albums.isEmpty() && artistMid.isNotBlank()) {
             isLoadingAlbums = true
@@ -228,7 +227,6 @@ fun ArtistTvScreen(
                         .padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // 按钮 1：最新 / 热门 排序切换
                 Button(
                     onClick = {
                         if (subMode == ArtistSubMode.Albums) {
@@ -295,7 +293,6 @@ fun ArtistTvScreen(
                     }
                 }
 
-                // 按钮 2：关注 / 已关注 状态切换
                 val followBorderColor =
                     if (isFollowed) {
                         MelodistColors.AccentGreen.copy(alpha = 0.45f)
@@ -367,7 +364,6 @@ fun ArtistTvScreen(
                     }
                 }
 
-                // 按钮 3：专辑 / 单曲 视图切换
                 Button(
                     onClick = {
                         subMode = if (subMode == ArtistSubMode.Albums) ArtistSubMode.Songs else ArtistSubMode.Albums
@@ -441,7 +437,6 @@ fun ArtistTvScreen(
                             Modifier
                                 .fillMaxSize(),
                     ) {
-                        // 顶部副标题与状态栏
                         Row(
                             modifier =
                                 Modifier

@@ -595,7 +595,6 @@ object MelodistCacheManager : MediaCacheExporter {
     fun getBestFullyCachedTier(songMid: String): org.melodist.model.AudioQualityTier? {
         if (songMid.isBlank()) return null
 
-        // 1. 优先校验内存字典记录的音质，如果文件仍在且完整，直接返回
         val recordedTier = cachedSongTiers[songMid]
         if (recordedTier != null && isKeyFullyCached(getCacheKey(songMid, recordedTier))) {
             return recordedTier

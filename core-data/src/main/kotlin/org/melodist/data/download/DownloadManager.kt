@@ -272,7 +272,6 @@ object DownloadManager {
             return
         }
 
-        // 2. 检查当前是否已在活跃队列
         if (_activeTasks.value.any { it.id == taskId && (it.status == DownloadStatus.Downloading || it.status == DownloadStatus.Pending) }) {
             _toastEvent.tryEmit("已在下载队列中")
             return
@@ -326,7 +325,6 @@ object DownloadManager {
                 targetDir.mkdirs()
             }
 
-            // 1. 优先尝试直接从本地播放缓存中提取完整音频文件（免重复网络下载）
             val exporter = cacheExporter
             if (exporter != null && exporter.isTierFullyCached(song.songMid, preferredTier)) {
                 val baseName = getStandardBaseName(song, preferredTier)

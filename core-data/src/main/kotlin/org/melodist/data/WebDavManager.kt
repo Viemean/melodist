@@ -777,7 +777,6 @@ object WebDavManager {
                 }
             }
 
-            // 1. 检查是否有完整的本地已缓存音频文件
             val localFile = getLocalCacheFile(server.id, relativeHref)
             if (localFile.exists() && localFile.length() > 0L) {
                 val retriever = android.media.MediaMetadataRetriever()

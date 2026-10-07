@@ -66,7 +66,6 @@ fun TvSplitPlaybackScaffold(
                     ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 左侧面板 (0.40f)
             Column(
                 modifier =
                     Modifier
@@ -79,7 +78,6 @@ fun TvSplitPlaybackScaffold(
 
             Spacer(modifier = Modifier.width(32.dp))
 
-            // 右侧面板 (0.60f)
             Box(
                 modifier =
                     Modifier

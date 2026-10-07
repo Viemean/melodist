@@ -6,7 +6,6 @@ object MelodistColors {
     // 主基调与强调色：亮青绿
     val AccentGreen = Color(0xFF1EE191)
 
-    // 收藏高亮色：暖红
     val FavoriteRed = Color(0xFFFF6482)
 
     // 遥控器焦点高反差边框色：全局统一水鸭青
@@ -18,7 +17,6 @@ object MelodistColors {
     val ContainerDarkSecondary = Color(0xFF1E2A3B)
     val SurfaceDark = Color(0xFF121214)
 
-    // 文本颜色梯度
     val TextPrimary = Color(0xFFF5F5F5)
     val TextSecondary = Color(0xFFB0B0B0)
     val TextMuted = Color(0xFF6E6E6E)

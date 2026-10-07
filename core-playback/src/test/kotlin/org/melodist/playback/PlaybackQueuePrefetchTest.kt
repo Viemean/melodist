@@ -77,7 +77,6 @@ class PlaybackQueuePrefetchTest {
             // 索引为 0 时距离尾部较远，不触发 prefetch
             assertEquals(0, fakeSource.loadMoreCallCount)
 
-            // 切换至倒数第 3 首 (index = 2, size = 5, 2 >= 5 - 3)
             queueManager.setCurrentIndex(2)
 
             // 等待异步预拉取协程执行完成

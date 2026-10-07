@@ -92,7 +92,6 @@ object PlaybackMediaLoader {
         prefetchedUrlInfo: Pair<String, QualityResult>? = null,
     ): PlaybackTargetResult =
         withContext(Dispatchers.IO) {
-            // 1. 检查纯本地文件及下载管理器中已下载文件
             val isPureLocal = !song.localFilePath.isNullOrBlank() && !song.songMid.startsWith("webdav_")
             if (isPureLocal) {
                 val directFile = File(song.localFilePath!!)
@@ -118,7 +117,6 @@ object PlaybackMediaLoader {
                 )
             }
 
-            // 2. 检查本地音乐远程流式播放（局域网代理中转）
             val isLocalStream =
                 (song.isLocal || song.songMid.startsWith("local_") || song.songMid.startsWith("pc_local_") || song.mediaMid.contains("/stream/local")) &&
                     (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://"))

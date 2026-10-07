@@ -56,7 +56,6 @@ object LyricCacheManager {
             org.melodist.api.LyricParser
                 .isPlaceholderLyrics(current)
 
-        // 占位/纯音乐歌词绝不替换有效歌词
         if (candidateIsPlaceholder && !currentIsPlaceholder) return false
         // 有效歌词必定优于占位歌词
         if (!candidateIsPlaceholder && currentIsPlaceholder) return true

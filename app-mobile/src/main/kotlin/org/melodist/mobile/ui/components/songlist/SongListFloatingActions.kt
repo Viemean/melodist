@@ -65,7 +65,6 @@ fun SongListFloatingActions(
     onExpandFilter: () -> Unit,
     onCollapseFilter: () -> Unit,
     onClearFilter: () -> Unit,
-    // 多选参数
     isMultiSelectMode: Boolean,
     isAllSelected: Boolean,
     enableDownload: Boolean,
@@ -224,7 +223,6 @@ fun SongListFloatingActions(
                     )
                 }
 
-                // 下载按钮（在本地音乐、WebDAV、下载管理中隐藏）
                 if (enableDownload) {
                     SmallFloatingActionButton(
                         onClick = onBatchDownloadClick,
@@ -245,7 +243,6 @@ fun SongListFloatingActions(
                     }
                 }
 
-                // 删除按钮
                 if (deleteType != SongListDeleteType.None) {
                     SmallFloatingActionButton(
                         onClick = onBatchDeleteClick,

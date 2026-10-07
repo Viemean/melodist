@@ -462,7 +462,6 @@ fun AlbumDetailScreen(
                         .navigationBarsPadding()
                         .padding(horizontal = 20.dp, vertical = 8.dp),
             ) {
-                // 顶部标题与关闭按钮
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

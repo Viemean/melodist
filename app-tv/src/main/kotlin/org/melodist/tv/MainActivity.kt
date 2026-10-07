@@ -569,7 +569,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // 全局屏幕保护覆盖层：应用任何界面在无操作超时后自动触发
                         val isScreenSaverActive by ScreenSaverManager.isScreenSaverActive.collectAsState()
                         val appSettings by org.melodist.data.AppSettingsManager.settings
                             .collectAsState()

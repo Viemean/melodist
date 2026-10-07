@@ -182,7 +182,6 @@ fun WebDavTvScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 顶部导航与操作栏
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -192,7 +191,6 @@ fun WebDavTvScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    // 顶部的返回按钮直接退出到上层主界面
                     WebDavNavButton(
                         icon = Icons.AutoMirrored.Filled.ArrowBack,
                         text = "返回界面",
@@ -476,7 +474,6 @@ fun WebDavTvScreen(
             )
         }
 
-        // 切换服务器选择弹窗
         if (showServerSelectDialog) {
             WebDavServerSelectDialog(
                 servers = WebDavManager.getServers(),

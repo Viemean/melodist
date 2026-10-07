@@ -322,9 +322,7 @@ class AudioQualityAuditorTest {
         assertEquals(AudioQualityVerdict.INDETERMINATE, voted.verdict)
     }
 
-    // ==========================================
     // 黄金样本库（Golden Regression Test Suite）
-    // ==========================================
 
     @Test
     fun testGoldenAuthenticCdPopVocal() {

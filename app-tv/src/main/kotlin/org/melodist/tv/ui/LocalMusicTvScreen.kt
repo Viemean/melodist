@@ -145,7 +145,6 @@ fun LocalMusicTvScreen(
                 ),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // 1. 顶部控制栏与导航操作
             Row(
                 modifier =
                     Modifier
@@ -174,7 +173,6 @@ fun LocalMusicTvScreen(
                         },
                     )
 
-                    // 视图切换（独立按钮，不再共用背景）
                     LocalMusicNavButton(
                         icon = Icons.Filled.LibraryMusic,
                         text = "本地曲库 (${scannedSongs.size})",
@@ -206,7 +204,6 @@ fun LocalMusicTvScreen(
                     }
                 }
 
-                // 右侧当前路径精简提示（纯白文字）
                 if (viewMode == LocalMusicViewMode.Directory) {
                     Text(
                         text = currentPath,
@@ -251,7 +248,6 @@ fun LocalMusicTvScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. 主内容展示区：本地曲库 vs 文件目录
             if (viewMode == LocalMusicViewMode.Library) {
                 LocalMusicLibraryView(
                     songs = scannedSongs,
@@ -350,7 +346,6 @@ fun LocalMusicTvScreen(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        // 顶部第一项：返回上一级
                         if (safeParent != null && canGoUp) {
                             item(key = "go_up") {
                                 LocalMusicParentFolderRow(

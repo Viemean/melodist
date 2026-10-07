@@ -147,7 +147,6 @@ fun QrScannerDialog(
                 modifier = Modifier.fillMaxSize(),
             )
 
-            // 顶部关闭与操作按钮
             Row(
                 modifier =
                     Modifier
@@ -177,7 +176,6 @@ fun QrScannerDialog(
                 Spacer(modifier = Modifier.size(42.dp))
             }
 
-            // 底部提示与相册入口
             Column(
                 modifier =
                     Modifier
@@ -339,7 +337,6 @@ private fun ScannerOverlay(modifier: Modifier = Modifier) {
             size = size,
         )
 
-        // 中间透明镂空
         drawRoundRect(
             color = Color.Transparent,
             topLeft = Offset(left, top),

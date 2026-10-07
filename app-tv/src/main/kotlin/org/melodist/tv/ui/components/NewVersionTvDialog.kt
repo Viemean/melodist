@@ -120,7 +120,6 @@ fun NewVersionTvDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // 标题栏
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -165,7 +164,6 @@ fun NewVersionTvDialog(
                     )
                 }
 
-                // 下载状态与进度条
                 when (val state = downloadState) {
                     is UpdateDownloadState.Downloading -> {
                         Column(

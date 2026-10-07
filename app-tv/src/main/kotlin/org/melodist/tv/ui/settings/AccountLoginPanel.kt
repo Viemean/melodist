@@ -347,7 +347,6 @@ fun AccountLoginPanel(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // 顶部横向 3 个登录渠道切换按钮
         Row(
             modifier = Modifier.width(390.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -438,7 +437,6 @@ fun AccountLoginPanel(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 状态文字与倒计时
         Text(
             text = statusText,
             fontSize = 14.sp,
@@ -457,7 +455,6 @@ fun AccountLoginPanel(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 底部刷新按钮
         Button(
             onClick = { refreshQr() },
             modifier = Modifier.then(if (menuRequester != null) Modifier.focusProperties { left = menuRequester } else Modifier),

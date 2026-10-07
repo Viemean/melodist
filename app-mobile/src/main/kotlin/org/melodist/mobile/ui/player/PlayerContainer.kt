@@ -182,7 +182,6 @@ fun PlayerContainer(
                             if (pulledPx > expandThreshold || velocityY > 650f) {
                                 sheetOffsetY.animateTo(0f, tween(240, easing = FastOutSlowInEasing))
                                 setExpanded(true)
-                                // 展开状态
                                 activeDirection = SheetExpandDirection.BottomToTop
                             } else {
                                 sheetOffsetY.animateTo(-screenHeightPx, spring(dampingRatio = Spring.DampingRatioLowBouncy))
@@ -229,7 +228,6 @@ fun PlayerContainer(
                         val navBars = WindowInsets.navigationBars.asPaddingValues()
                         val layoutDir = LocalLayoutDirection.current
                         val navBottom = navBars.calculateBottomPadding()
-                        // 底部安全边距
                         val safeBottomPadding = maxOf(navBottom, 10.dp)
 
                         Box(

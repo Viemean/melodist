@@ -116,7 +116,6 @@ fun MediaCollectionTvScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            // 顶部导航与状态头
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = pageTitle,

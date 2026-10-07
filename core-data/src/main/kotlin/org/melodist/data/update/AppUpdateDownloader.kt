@@ -88,7 +88,6 @@ object AppUpdateDownloader {
                 return@flow
             }
 
-            // 下载前清理其他旧版本的残余安装包
             cleanOldApks(context, excludeFile = finalApk)
 
             val request =

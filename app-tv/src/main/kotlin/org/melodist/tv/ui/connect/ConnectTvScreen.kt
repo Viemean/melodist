@@ -57,7 +57,6 @@ fun ConnectTvScreen(onBack: () -> Unit = {}) {
         refreshButtonRequester.requestFocus()
     }
 
-    // 切换网卡 IP 弹窗
     if (showIpConfigDialog) {
         val availableIps = remember { TvConnectManager.getAvailableIps() }
         val isEmulator =
@@ -330,7 +329,6 @@ fun ConnectTvScreen(onBack: () -> Unit = {}) {
                 ),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        // 顶部标题栏
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

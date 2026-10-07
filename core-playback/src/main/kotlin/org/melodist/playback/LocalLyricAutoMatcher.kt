@@ -120,7 +120,6 @@ object LocalLyricAutoMatcher {
 
             val cacheKey = getCacheKey(song)
 
-            // 1. 优先从本地私有缓存读取
             val cached = readFromPrivateCache(cacheKey)
             if (cached != null && cached.isNotEmpty()) {
                 Log.i(TAG, "Loaded matched lyrics from private cache for: ${song.name}")
@@ -205,7 +204,6 @@ object LocalLyricAutoMatcher {
                             return@withContext null
                         }
 
-                        // 保存至应用私有缓存目录
                         saveToPrivateCache(cacheKey, matchedSongMid, matchedTitle, matchedArtist, officialLyrics)
                         return@withContext officialLyrics
                     }

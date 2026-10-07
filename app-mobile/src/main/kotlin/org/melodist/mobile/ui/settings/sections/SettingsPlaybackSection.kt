@@ -75,7 +75,6 @@ fun SettingsPlaybackSection(
         }
 
     Column(modifier = modifier) {
-        // 播放与音质分组
         SettingsGroupTitle(title = "播放与音质")
         SettingsGroupCard {
             SettingsClickableRow(

@@ -230,7 +230,6 @@ suspend fun MusicApiService.getPlaylistSongs(
                 emptyList()
             }
         } else {
-            // 收藏外部歌单 (uniform_get_Dissinfo)
             val dissId = if (tid > 0L) tid else dirId
             val payload =
                 """

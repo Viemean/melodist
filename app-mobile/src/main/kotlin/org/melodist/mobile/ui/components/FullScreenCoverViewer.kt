@@ -298,7 +298,6 @@ fun FullScreenImageViewer(
                 )
             }
 
-            // 顶部操作栏
             Box(
                 modifier =
                     Modifier
@@ -322,7 +321,6 @@ fun FullScreenImageViewer(
                 }
             }
 
-            // 底部规格信息与长按保存提示
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier =
@@ -361,7 +359,6 @@ fun FullScreenImageViewer(
                 )
             }
 
-            // 保存中指示器
             AnimatedVisibility(
                 visible = isSaving,
                 enter = fadeIn(),

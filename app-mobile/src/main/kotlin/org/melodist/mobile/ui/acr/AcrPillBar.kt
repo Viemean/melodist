@@ -261,8 +261,6 @@ private fun SuccessPillContent(
             }
         }
 
-        // 关闭按钮（单独可点击区域，由外层 pointerInput 检测 close 区域点击）
-        // 注意：close 按钮区域通过独立的 pointerInput 处理，不嵌套 clickable
         Box(
             modifier =
                 Modifier

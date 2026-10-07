@@ -219,7 +219,6 @@ fun SearchTvScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.spacedBy(32.dp),
         ) {
-            // 左侧分栏：导航头 + 搜索输入栏 + 虚拟键盘 (约 410dp 宽度)
             Column(
                 modifier =
                     Modifier
@@ -227,7 +226,6 @@ fun SearchTvScreen(
                         .fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // 顶部返回按钮与标题
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -242,7 +240,6 @@ fun SearchTvScreen(
                     )
                 }
 
-                // 输入框预览
                 Box(
                     modifier =
                         Modifier
@@ -346,7 +343,6 @@ fun SearchTvScreen(
                 )
             }
 
-            // 右侧分栏：搜索结果或搜索关键词记录
             Column(
                 modifier =
                     Modifier
@@ -396,7 +392,6 @@ fun SearchTvScreen(
                     }
                 }
 
-                // 右侧主体：关键词记录 / 搜索结果
                 Box(
                     modifier =
                         Modifier
@@ -551,7 +546,6 @@ fun SearchTvScreen(
                                 }
                             }
 
-                            // 底部加载状态
                             item {
                                 Box(
                                     modifier =

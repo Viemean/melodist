@@ -119,7 +119,6 @@ fun RotatingTrackCard(
         label = "RotatingAccentContainer",
     )
 
-    // 播放按钮深色前景图标色，保证高对比度
     val accentOnColor =
         remember(dynamicCoverColor) {
             val base = dynamicCoverColor ?: Color(0xFF0F172A)

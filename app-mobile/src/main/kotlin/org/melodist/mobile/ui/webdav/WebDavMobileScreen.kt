@@ -682,7 +682,6 @@ private fun WebDavTopHeader(
                 }
             }
 
-            // 视图模式切换：音乐库 vs 目录文件 + 右侧扫描按钮
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,

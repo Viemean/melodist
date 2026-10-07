@@ -100,7 +100,6 @@ fun PlayerSongInfoSection(
                 )
             }
 
-            // 收藏与音质标签
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,

@@ -71,7 +71,6 @@ object AudioHeaderSniffer {
                     val bytes = respBody.byteStream().use { it.readNBytes(2048) }
                     if (bytes.size < 16) return@withContext null
 
-                    // 2. 解析文件头元数据
                     val parsed = AudioMetadataParser.parse(bytes)
                     val sampleRate = parsed.sampleRate ?: 0
                     val bitDepth = parsed.bitsPerSample ?: 0

@@ -124,7 +124,6 @@ fun TvOnScreenKeyboard(
             }
         }
 
-        // 底部功能键排 (仅显示“搜索”)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),

@@ -212,7 +212,6 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                             )
                         }
                     }
-                    // 占位列，使第二行按钮与上方完全等宽对齐
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }

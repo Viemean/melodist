@@ -43,7 +43,6 @@ class MelodistCacheManagerTest {
         MelodistCacheManager.onNewSongStarted(songMid)
 
         // 初始状态：0次有效播放
-        // 收藏曲目需要 >= 1 次，普通曲目需要 >= 2 次
         assertFalse(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = false))
         assertFalse(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true))
 
@@ -110,13 +109,11 @@ class MelodistCacheManagerTest {
         MelodistCacheManager.recordPlayProgress(songMid, positionMs = 180_000L, durationMs = 200_000L)
         assertEquals(2, MelodistCacheManager.getPlayCount(songMid))
 
-        // 切换为 TV Profile（禁止 Master 落盘）
         MelodistCacheManager.currentProfile = PlaybackProfile.TV
         assertFalse(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true, tier = org.melodist.model.AudioQualityTier.Master))
         // 非 Master 音质在 TV 端准入成功
         assertTrue(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true, tier = org.melodist.model.AudioQualityTier.HiRes))
 
-        // 切换为 Mobile Profile（允许 Master 落盘）
         MelodistCacheManager.currentProfile = PlaybackProfile.Mobile
         assertTrue(MelodistCacheManager.shouldCacheSong(songMid, isFavorite = true, tier = org.melodist.model.AudioQualityTier.Master))
     }

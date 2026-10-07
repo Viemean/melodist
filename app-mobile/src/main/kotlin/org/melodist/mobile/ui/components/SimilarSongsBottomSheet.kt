@@ -108,7 +108,6 @@ fun SimilarSongsBottomSheet(
                     .heightIn(max = maxSheetHeight)
                     .navigationBarsPadding(),
         ) {
-            // 顶部标题栏与锚点歌曲信息
             Row(
                 modifier =
                     Modifier
@@ -180,7 +179,6 @@ fun SimilarSongsBottomSheet(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
             )
 
-            // 列表内容呈现
             when {
                 isLoading -> {
                     Box(

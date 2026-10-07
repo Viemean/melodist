@@ -57,7 +57,6 @@ fun PlayerTvScreen(
     var showQualityDialog by remember { mutableStateOf(false) }
     var lastInteractionTimeMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    // 播放界面 10 秒无操作自动进入全屏模式
     LaunchedEffect(isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
         if (!isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
             delay(10_000L)
@@ -288,7 +287,6 @@ fun PlayerTvScreen(
                 )
             }
 
-            // 播放队列侧边栏
             PlayerQueueSidebar(
                 playlist = playlist,
                 currentSong = activeSong,

@@ -156,7 +156,6 @@ fun NowPlayingHeroCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 左侧信息与主控按键区
             Column(
                 modifier =
                     Modifier
