@@ -361,7 +361,7 @@ class LoginApiService(
                         cookies["qm_keyst"] = musicKey
                         cookies["qqmusic_version"] = "17"
                         cookies["qqmusic_miniversion"] = "70"
-                        cookies["tmeLoginType"] = "1"
+                        cookies["tmeLoginType"] = "2"
                         if (openid.isNotEmpty()) cookies["psrf_qqopenid"] = openid
                         if (accessToken.isNotEmpty()) cookies["psrf_qqaccess_token"] = accessToken
                         if (unionid.isNotEmpty()) cookies["psrf_qqunionid"] = unionid
@@ -435,7 +435,7 @@ class LoginApiService(
                         cookies["qm_keyst"] = musicKey
                         cookies["qqmusic_version"] = "17"
                         cookies["qqmusic_miniversion"] = "70"
-                        cookies["tmeLoginType"] = "1"
+                        cookies["tmeLoginType"] = "2"
                         if (newOpenid.isNotEmpty()) cookies["psrf_qqopenid"] = newOpenid
                         if (newAccessToken.isNotEmpty()) cookies["psrf_qqaccess_token"] = newAccessToken
                         if (unionid.isNotEmpty()) cookies["psrf_qqunionid"] = unionid
@@ -772,17 +772,20 @@ class LoginApiService(
                     data["access_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["access_token"] = it }
                     data["encryptUin"]?.jsonPrimitive?.contentOrNull?.let { cookies["euin"] = it }
 
-                    UserSession.apply {
-                        cookies.clear()
-                        cookies.putAll(cookies)
-                        profile =
-                            UserProfile(
-                                uin = musicId,
-                                musicKey = musicKey,
-                                nick = nick,
-                                cookies = cookies.toMap(),
-                            )
-                    }
+                    val rawAvatar =
+                        data["headimgurl"]?.jsonPrimitive?.contentOrNull
+                            ?: data["avatar"]?.jsonPrimitive?.contentOrNull
+                            ?: data["pic"]?.jsonPrimitive?.contentOrNull
+                            ?: ""
+                    val avatar = if (rawAvatar.isNotBlank()) normalizeHighResAvatar(rawAvatar) else ""
+
+                    UserSession.update(
+                        uin = musicId,
+                        nick = nick,
+                        musicKey = musicKey,
+                        cookies = cookies.toMap(),
+                        avatarUrl = avatar,
+                    )
                     true
                 }
             } catch (e: Exception) {
