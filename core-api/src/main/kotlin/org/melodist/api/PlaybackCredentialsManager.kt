@@ -20,7 +20,7 @@ import javax.crypto.spec.SecretKeySpec
 
 enum class PlaybackVipTier(val level: Int, val displayName: String) {
     NONE(0, "普通用户"),
-    GREEN(1, "绿钻豪华版"),
+    GREEN(1, "绿钻 / VIP"),
     SVIP(2, "超级会员"),
 }
 
