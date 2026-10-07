@@ -16,7 +16,7 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
 
         val uin = UserSession.profile.uin
         val authst = UserSession.profile.musicKey
-        val loginType = if (authst.startsWith("W_X")) 1 else 2
+        val loginType = UserSession.loginType
 
         val payload =
             """
@@ -71,6 +71,7 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                     normalizeHighResAvatar(
                         avatarUrl = bigAvatar ?: rawAvatar.orEmpty(),
                         uin = uin,
+                        isQqAccount = loginType != 1,
                     )
 
                 if (!name.isNullOrBlank() && name != newProfile.nick) {
@@ -128,8 +129,12 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
 fun normalizeHighResAvatar(
     avatarUrl: String,
     uin: String = "",
+    isQqAccount: Boolean = true,
 ): String {
     var url = avatarUrl.trim().replace("http://", "https://")
+    if (url.contains("t_user_default")) {
+        url = ""
+    }
     if (url.contains("qlogo.cn")) {
         // QQ 头像规格提升到 640x640 高清
         url = url.replace(Regex("&s=\\d+"), "&s=640")
@@ -139,7 +144,7 @@ fun normalizeHighResAvatar(
         url = url.replace(Regex("/(132|96|64|46)$"), "/0")
     }
 
-    if (url.isBlank() && uin.isNotBlank() && uin.all { it.isDigit() } && uin.length in 5..11) {
+    if (isQqAccount && url.isBlank() && uin.isNotBlank() && uin.all { it.isDigit() } && uin.length in 5..11) {
         url = "https://q1.qlogo.cn/g?b=qq&nk=$uin&s=640"
     }
     return url
