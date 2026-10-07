@@ -532,3 +532,81 @@ suspend fun MusicApiService.getRecommendFeed(
             emptyList()
         }
     }
+
+/**
+ * 基于指定单曲获取相似歌曲推荐
+ *
+ * @param songId 歌曲数字 ID
+ * @param songMid 歌曲 MID（可选，当 songId <= 0 时用于回退解析数字 ID）
+ * @return 相似推荐歌曲列表
+ */
+suspend fun MusicApiService.getSimilarSongs(
+    songId: Long,
+    songMid: String = "",
+): List<Song> =
+    withContext(Dispatchers.IO) {
+        var targetSongId = songId
+        if (targetSongId <= 0L && songMid.isNotBlank()) {
+            try {
+                val detailPayload =
+                    """
+                    {
+                      "comm": { "format": "json", "ct": 20, "cv": 18030008 },
+                      "songinfo": {
+                        "module": "music.pf_song_detail_svr",
+                        "method": "get_song_detail_yqq",
+                        "param": { "song_mid": "$songMid" }
+                      }
+                    }
+                    """.trimIndent()
+                val detailResp = postGateway(detailPayload)
+                val detailRoot = Json.parseToJsonElement(detailResp).jsonObject
+                val trackObj = detailRoot["songinfo"]?.jsonObject?.get("data")?.jsonObject?.get("track_info")?.jsonObject
+                targetSongId = trackObj?.get("id")?.jsonPrimitive?.longOrNull ?: 0L
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("MusicApiRecommend", "resolve songId from songMid failed: $songMid", e)
+            }
+        }
+
+        if (targetSongId <= 0L) return@withContext emptyList()
+
+        if (UserSession.isLoggedIn) {
+            ensureMusicKeySafe()
+        }
+
+        val uin = UserSession.profile.uin.ifBlank { "0" }
+        val authst = UserSession.profile.musicKey
+
+        try {
+            val payload =
+                """
+                {
+                  "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 18030008, "authst": "$authst" },
+                  "similar": {
+                    "module": "music.recommend.TrackRelationServer",
+                    "method": "GetSimilarSongs",
+                    "param": { "songid": $targetSongId }
+                  }
+                }
+                """.trimIndent()
+
+            val respJson = postGateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val dataObj = root["similar"]?.jsonObject?.get("data")?.jsonObject
+            val vecSongs =
+                dataObj?.get("vecSong")?.jsonArray
+                    ?: dataObj?.get("vecSongList")?.jsonArray
+                    ?: dataObj?.get("tracks")?.jsonArray
+                    ?: return@withContext emptyList()
+
+            vecSongs.mapNotNull { item ->
+                MusicApiService.parseSongFromElement(item)
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiRecommend", "getSimilarSongs failed: songId=$songId", e)
+            emptyList()
+        }
+    }
+
