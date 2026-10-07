@@ -82,11 +82,71 @@ enum class SearchTab(
     Album("专辑"),
 }
 
+class SearchScreenState {
+    var query by mutableStateOf("")
+    var currentTab by mutableStateOf(SearchTab.Song)
+    var historyKeywords by mutableStateOf(SearchKeywordHistoryManager.getKeywords())
+
+    val songListState = androidx.compose.foundation.lazy.LazyListState()
+    val playlistListState = androidx.compose.foundation.lazy.LazyListState()
+    val albumListState = androidx.compose.foundation.lazy.LazyListState()
+
+    var songResults by mutableStateOf<List<Song>>(emptyList())
+    var playlistResults by mutableStateOf<List<Playlist>>(emptyList())
+    var albumResults by mutableStateOf<List<Album>>(emptyList())
+
+    var songPage by mutableIntStateOf(1)
+    var playlistPage by mutableIntStateOf(1)
+    var albumPage by mutableIntStateOf(1)
+
+    var hasMoreSongs by mutableStateOf(true)
+    var hasMorePlaylists by mutableStateOf(true)
+    var hasMoreAlbums by mutableStateOf(true)
+
+    var isLoadingMoreSongs by mutableStateOf(false)
+    var isLoadingMorePlaylists by mutableStateOf(false)
+    var isLoadingMoreAlbums by mutableStateOf(false)
+
+    var activeQuery by mutableStateOf("")
+    var loadedTabs by mutableStateOf<Set<SearchTab>>(emptySet())
+    var isLoading by mutableStateOf(false)
+    var hasSearched by mutableStateOf(false)
+
+    fun refreshHistoryKeywords() {
+        historyKeywords = SearchKeywordHistoryManager.getKeywords()
+    }
+
+    fun clearSearch() {
+        query = ""
+        hasSearched = false
+        activeQuery = ""
+        songResults = emptyList()
+        playlistResults = emptyList()
+        albumResults = emptyList()
+        loadedTabs = emptySet()
+        songPage = 1
+        playlistPage = 1
+        albumPage = 1
+        hasMoreSongs = true
+        hasMorePlaylists = true
+        hasMoreAlbums = true
+        isLoadingMoreSongs = false
+        isLoadingMorePlaylists = false
+        isLoadingMoreAlbums = false
+    }
+
+    fun reset() {
+        clearSearch()
+        currentTab = SearchTab.Song
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
     contentPadding: PaddingValues,
     onBack: (() -> Unit)? = null,
+    searchState: SearchScreenState = remember { SearchScreenState() },
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -96,43 +156,45 @@ fun SearchScreen(
     val navController = LocalAppNavigation.current
 
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(120)
-        try {
-            focusRequester.requestFocus()
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Log.w("SearchTab", "Operation failed", e)
+        if (!searchState.hasSearched && searchState.query.isBlank()) {
+            kotlinx.coroutines.delay(120)
+            try {
+                focusRequester.requestFocus()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("SearchTab", "Operation failed", e)
+            }
         }
     }
 
-    var query by remember { mutableStateOf("") }
-    var currentTab by remember { mutableStateOf(SearchTab.Song) }
-    var historyKeywords by remember { mutableStateOf(SearchKeywordHistoryManager.getKeywords()) }
+    var query by searchState::query
+    var currentTab by searchState::currentTab
+    var historyKeywords by searchState::historyKeywords
 
-    val songListState = rememberLazyListState()
-    val playlistListState = rememberLazyListState()
-    val albumListState = rememberLazyListState()
+    val songListState = searchState.songListState
+    val playlistListState = searchState.playlistListState
+    val albumListState = searchState.albumListState
 
-    var songResults by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var playlistResults by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-    var albumResults by remember { mutableStateOf<List<Album>>(emptyList()) }
+    var songResults by searchState::songResults
+    var playlistResults by searchState::playlistResults
+    var albumResults by searchState::albumResults
 
-    var songPage by remember { mutableIntStateOf(1) }
-    var playlistPage by remember { mutableIntStateOf(1) }
-    var albumPage by remember { mutableIntStateOf(1) }
+    var songPage by searchState::songPage
+    var playlistPage by searchState::playlistPage
+    var albumPage by searchState::albumPage
 
-    var hasMoreSongs by remember { mutableStateOf(true) }
-    var hasMorePlaylists by remember { mutableStateOf(true) }
-    var hasMoreAlbums by remember { mutableStateOf(true) }
+    var hasMoreSongs by searchState::hasMoreSongs
+    var hasMorePlaylists by searchState::hasMorePlaylists
+    var hasMoreAlbums by searchState::hasMoreAlbums
 
-    var isLoadingMoreSongs by remember { mutableStateOf(false) }
-    var isLoadingMorePlaylists by remember { mutableStateOf(false) }
-    var isLoadingMoreAlbums by remember { mutableStateOf(false) }
+    var isLoadingMoreSongs by searchState::isLoadingMoreSongs
+    var isLoadingMorePlaylists by searchState::isLoadingMorePlaylists
+    var isLoadingMoreAlbums by searchState::isLoadingMoreAlbums
 
-    var activeQuery by remember { mutableStateOf("") }
-    var loadedTabs by remember { mutableStateOf<Set<SearchTab>>(emptySet()) }
-    var isLoading by remember { mutableStateOf(false) }
-    var hasSearched by remember { mutableStateOf(false) }
+    var activeQuery by searchState::activeQuery
+    var loadedTabs by searchState::loadedTabs
+    var isLoading by searchState::isLoading
+    var hasSearched by searchState::hasSearched
 
     fun executeSearch(
         targetKeyword: String,

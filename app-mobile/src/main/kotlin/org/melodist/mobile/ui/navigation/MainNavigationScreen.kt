@@ -113,6 +113,7 @@ import org.melodist.mobile.ui.recent.RecentAlbumsScreen
 import org.melodist.mobile.ui.recent.RecentPlaybackScreen
 import org.melodist.mobile.ui.recent.RecentPlaylistsScreen
 import org.melodist.mobile.ui.search.SearchScreen
+import org.melodist.mobile.ui.search.SearchScreenState
 import org.melodist.mobile.ui.settings.MobileSettingsScreen
 import org.melodist.mobile.ui.webdav.WebDavMobileScreen
 import org.melodist.model.Playlist
@@ -276,6 +277,8 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
     // ACR 识曲 ViewModel
     val acrViewModel = remember { MobileAcrViewModel() }
     val acrUiState by acrViewModel.uiState.collectAsState()
+    // 搜索状态持有者（跨详情页导航保留搜索关键词与滚动位置）
+    val searchScreenState = remember { SearchScreenState() }
     // 识曲结果缓存
     var acrSuccessData by remember { mutableStateOf<MobileAcrSuccessData?>(null) }
     // 识别成功卡片展示状态
@@ -447,7 +450,11 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                                 innerPadding = innerPadding,
                                 navController = navController,
                                 onSearchClick = { isSearching = true },
-                                onBackFromSearch = { isSearching = false },
+                                onBackFromSearch = {
+                                    isSearching = false
+                                    searchScreenState.reset()
+                                },
+                                searchState = searchScreenState,
                                 onOpenSettings = { showSettingsScreen = true },
                                 onOpenLogin = { showLoginDialog = true },
                                 onOpenPlayer = { isFullPlayerExpanded = true },
@@ -564,7 +571,11 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                                 innerPadding = innerPadding,
                                 navController = navController,
                                 onSearchClick = { isSearching = true },
-                                onBackFromSearch = { isSearching = false },
+                                onBackFromSearch = {
+                                    isSearching = false
+                                    searchScreenState.reset()
+                                },
+                                searchState = searchScreenState,
                                 onOpenSettings = { showSettingsScreen = true },
                                 onOpenLogin = { showLoginDialog = true },
                                 onOpenPlayer = { isFullPlayerExpanded = true },
@@ -689,6 +700,7 @@ private fun RenderAppScreen(
     navController: AppNavigationController,
     onSearchClick: () -> Unit,
     onBackFromSearch: () -> Unit,
+    searchState: SearchScreenState,
     onOpenSettings: () -> Unit,
     onOpenLogin: () -> Unit,
     onOpenPlayer: () -> Unit,
@@ -1032,6 +1044,7 @@ private fun RenderAppScreen(
                 SearchScreen(
                     contentPadding = innerPadding,
                     onBack = onBackFromSearch,
+                    searchState = searchState,
                     modifier =
                         Modifier
                             .fillMaxSize()
