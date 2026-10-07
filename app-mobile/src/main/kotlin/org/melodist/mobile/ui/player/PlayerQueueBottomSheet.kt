@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -101,6 +102,8 @@ fun PlayerQueueBottomSheet(
         }
 
     val listState = rememberLazyListState()
+    var savedOriginalScrollIndex by remember { mutableIntStateOf(-1) }
+    var savedOriginalScrollOffset by remember { mutableIntStateOf(0) }
     var actionSongWithIndex by remember { mutableStateOf<Pair<Song, Int>?>(null) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
 
@@ -217,14 +220,22 @@ fun PlayerQueueBottomSheet(
                                     val restored = PlaybackManager.restorePlaylistFromSimilar()
                                     if (restored) {
                                         Toast.makeText(context, "已恢复原播放队列", Toast.LENGTH_SHORT).show()
+                                        if (savedOriginalScrollIndex >= 0) {
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(savedOriginalScrollIndex, savedOriginalScrollOffset)
+                                            }
+                                        }
                                     }
                                 } else {
+                                    savedOriginalScrollIndex = listState.firstVisibleItemIndex
+                                    savedOriginalScrollOffset = listState.firstVisibleItemScrollOffset
                                     isRecommendingSimilar = true
                                     coroutineScope.launch {
                                         try {
                                             val success = PlaybackManager.activateSimilarRecommend(targetSong, openQueue = false)
                                             if (success) {
                                                 Toast.makeText(context, "已切换为【${targetSong.name}】的相似推荐队列", Toast.LENGTH_SHORT).show()
+                                                listState.scrollToItem(0, 0)
                                             } else {
                                                 Toast.makeText(context, "暂无相似推荐歌曲", Toast.LENGTH_SHORT).show()
                                             }
