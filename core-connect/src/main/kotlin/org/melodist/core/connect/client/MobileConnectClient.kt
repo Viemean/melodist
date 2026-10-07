@@ -93,6 +93,7 @@ class MobileConnectClient(
     private var activeSocket: WebSocket? = null
     private var currentTarget: ConnectDevice? = null
     private var isManualDisconnect = false
+    private var wasPairedSuccessfully = false
     private var lastPinCode: String = ""
     private var reconnectAttempt = 0
     private val maxReconnectAttempts = 5
@@ -118,6 +119,7 @@ class MobileConnectClient(
         pinCode: String = "",
     ) {
         isManualDisconnect = false
+        wasPairedSuccessfully = false
         reconnectAttempt = 0
         reconnectJob?.cancel()
         reconnectJob = null
@@ -133,7 +135,7 @@ class MobileConnectClient(
         pinCode: String,
     ) {
         val url = "ws://${targetDevice.host}:${targetDevice.port}"
-        android.util.Log.i("MelodistConnectClient", "Connecting to $url (deviceName: ${targetDevice.name})")
+        android.util.Log.d("MelodistConnectClient", "Connecting to $url (deviceName: ${targetDevice.name})")
         val request = Request.Builder().url(url).build()
 
         activeSocket =
@@ -181,7 +183,16 @@ class MobileConnectClient(
                         t: Throwable,
                         response: Response?,
                     ) {
-                        android.util.Log.e("MelodistConnectClient", "WebSocket connect failed to $url: ${t.message}", t)
+                        val isUnreachable =
+                            t is java.net.ConnectException ||
+                                t is java.net.SocketTimeoutException ||
+                                t is java.net.NoRouteToHostException ||
+                                t is java.net.UnknownHostException
+                        if (isUnreachable) {
+                            android.util.Log.d("MelodistConnectClient", "WebSocket unreachable to $url: ${t.message ?: "timeout"}")
+                        } else {
+                            android.util.Log.w("MelodistConnectClient", "WebSocket connect failed to $url: ${t.message}")
+                        }
                         val friendlyMsg =
                             if (targetDevice.host.startsWith("10.0.2.")) {
                                 "目标 IP (${targetDevice.host}) 是模拟器私有地址，外部手机无法直连。请在 TV 端切换物理网卡 IP 或使用手动连接输入电脑 Wi-Fi IP"
@@ -200,13 +211,14 @@ class MobileConnectClient(
         errorMsg: String?,
     ) {
         if (isManualDisconnect) {
+            wasPairedSuccessfully = false
             _connectionState.value = MobileConnectionState.Disconnected
             _playerState.value = null
             return
         }
 
         val hasPairedBefore = storageManager.isDevicePaired(targetDevice.id)
-        if (reconnectAttempt < maxReconnectAttempts && hasPairedBefore) {
+        if (wasPairedSuccessfully && hasPairedBefore && reconnectAttempt < maxReconnectAttempts) {
             reconnectAttempt++
             val currentAttempt = reconnectAttempt
             _connectionState.value =
@@ -226,8 +238,11 @@ class MobileConnectClient(
                     }
                 }
         } else {
+            wasPairedSuccessfully = false
             reconnectAttempt = 0
-            if (isFailure && errorMsg != null) {
+            reconnectJob?.cancel()
+            reconnectJob = null
+            if (isFailure && errorMsg != null && !hasPairedBefore) {
                 _connectionState.value = MobileConnectionState.Error(errorMsg)
             } else {
                 _connectionState.value = MobileConnectionState.Disconnected
@@ -250,6 +265,7 @@ class MobileConnectClient(
 
     fun disconnect() {
         isManualDisconnect = true
+        wasPairedSuccessfully = false
         reconnectAttempt = 0
         reconnectJob?.cancel()
         reconnectJob = null
@@ -460,10 +476,12 @@ class MobileConnectClient(
                     val updated = target.copy(token = resp.device.token)
                     storageManager.savePairedDevice(updated)
                     storageManager.setLastConnectedDevice(updated)
+                    wasPairedSuccessfully = true
                     _connectionState.value = MobileConnectionState.Paired(updated)
                     requestPlayerState()
                     requestQueueState()
                 } else {
+                    wasPairedSuccessfully = false
                     _connectionState.value = MobileConnectionState.Error(resp.message.ifBlank { "Pairing rejected" })
                 }
             }
