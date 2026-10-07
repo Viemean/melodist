@@ -120,4 +120,38 @@ class SongParsingTest {
         assertEquals("000hg1311IryBB", song.visualMid)
         assertTrue(song.coverUrl.contains("T062R1200x1200M000000hg1311IryBB.jpg"))
     }
+
+    @Test
+    fun `parseSongFromElement correctly extracts isVip based on pay_play`() {
+        val vipJson =
+            """
+            {
+              "mid": "0039MnYb0qxYhV",
+              "title": "晴天",
+              "pay": {
+                "pay_play": 1,
+                "pay_month": 1
+              }
+            }
+            """.trimIndent()
+        val vipSong = MusicApiService.parseSongFromElement(Json.parseToJsonElement(vipJson))
+        assertNotNull(vipSong)
+        assertTrue(vipSong!!.isVip)
+
+        val freeJson =
+            """
+            {
+              "mid": "004CtaWc0bTE0o",
+              "title": "我曾经爱过你 I Loved You",
+              "pay": {
+                "pay_play": 0,
+                "pay_month": 1,
+                "time_free": 1
+              }
+            }
+            """.trimIndent()
+        val freeSong = MusicApiService.parseSongFromElement(Json.parseToJsonElement(freeJson))
+        assertNotNull(freeSong)
+        assertFalse(freeSong!!.isVip)
+    }
 }

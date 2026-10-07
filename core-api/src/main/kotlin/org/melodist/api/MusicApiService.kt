@@ -142,6 +142,15 @@ class MusicApiService(
                     ""
                 }
 
+            val payObj = track["pay"]?.jsonObject
+            val payPlay =
+                payObj?.get("pay_play")?.jsonPrimitive?.intOrNull
+                    ?: payObj?.get("payplay")?.jsonPrimitive?.intOrNull
+                    ?: track["pay_play"]?.jsonPrimitive?.intOrNull
+                    ?: track["payplay"]?.jsonPrimitive?.intOrNull
+                    ?: 0
+            val isVip = payPlay == 1
+
             return Song(
                 songId = songId,
                 songMid = songMid,
@@ -156,6 +165,7 @@ class MusicApiService(
                 mediaMid = mediaMid,
                 singerList = singerList,
                 visualMid = visualMid,
+                isVip = isVip,
             )
         }
 
