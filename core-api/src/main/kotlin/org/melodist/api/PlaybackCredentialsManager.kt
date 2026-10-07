@@ -36,6 +36,7 @@ data class PlaybackCredentials(
     val expireTimestamp: Long = 0L,
     val nick: String = "",
     val updateTime: Long = System.currentTimeMillis(),
+    val isRevoked: Boolean = false,
 ) {
     val vipTier: PlaybackVipTier
         get() = when {
@@ -141,10 +142,26 @@ object PlaybackCredentialsManager {
         return false
     }
 
+    fun isCredentialRevoked(creds: PlaybackCredentials? = currentCredentials): Boolean {
+        return creds?.isRevoked == true
+    }
+
+    fun isCredentialInvalid(creds: PlaybackCredentials? = currentCredentials): Boolean {
+        if (creds == null) return false
+        return creds.isRevoked || isCredentialExpired(creds)
+    }
+
+    fun markCredentialsRevoked() {
+        val current = _credentialsFlow.value ?: return
+        if (!current.isRevoked) {
+            setCredentials(current.copy(isRevoked = true))
+        }
+    }
+
     fun getEffectiveVipTier(): PlaybackVipTier {
         val custom = currentCredentials
         if (custom != null) {
-            if (!isCredentialExpired(custom)) {
+            if (!isCredentialExpired(custom) && !custom.isRevoked) {
                 return custom.vipTier
             }
         }

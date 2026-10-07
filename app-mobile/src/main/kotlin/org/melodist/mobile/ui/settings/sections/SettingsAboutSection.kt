@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.melodist.api.PlaybackCredentials
+import org.melodist.api.PlaybackCredentialsManager
 import org.melodist.data.update.UpdateChecker
 import org.melodist.data.update.UpdateResult
 import org.melodist.mobile.BuildConfig
@@ -113,10 +114,16 @@ fun SettingsAboutSection(
                     )
                     if (playbackCreds != null) {
                         Spacer(modifier = Modifier.height(4.dp))
+                        val isInvalid = PlaybackCredentialsManager.isCredentialInvalid(playbackCreds)
                         Text(
-                            text = "已启用独立播放凭证: ${playbackCreds.nick.ifBlank { playbackCreds.uin }}",
+                            text =
+                                if (isInvalid) {
+                                    "导入的凭证为已失效: ${playbackCreds.nick.ifBlank { playbackCreds.uin }}"
+                                } else {
+                                    "已启用独立播放凭证: ${playbackCreds.nick.ifBlank { playbackCreds.uin }}"
+                                },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = if (isInvalid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         )
                     }
                 }

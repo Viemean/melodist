@@ -145,4 +145,27 @@ class PlaybackCredentialsManagerTest {
         val successResult = PlaybackCredentialsManager.inspectToken(greenToken)
         assertTrue(successResult is PlaybackCredentialsManager.ImportValidationResult.Success)
     }
+
+    @Test
+    fun `test markCredentialsRevoked and effective tier fallback`() {
+        UserSession.profile = UserProfile(uin = "0", isVip = false)
+        val validVipCreds = PlaybackCredentials(
+            uin = "2001",
+            nick = "有效VIP",
+            isVip = true,
+            isHugeVip = true,
+            vipExpireAt = "2099-01-01",
+            isRevoked = false,
+        )
+        PlaybackCredentialsManager.setCredentials(validVipCreds)
+        assertEquals(PlaybackVipTier.GREEN, PlaybackCredentialsManager.getEffectiveVipTier())
+        assertFalse(PlaybackCredentialsManager.isCredentialInvalid(validVipCreds))
+
+        // 模拟被云端吊销
+        PlaybackCredentialsManager.markCredentialsRevoked()
+        assertTrue(PlaybackCredentialsManager.isCredentialRevoked())
+        assertTrue(PlaybackCredentialsManager.isCredentialInvalid())
+        // 失效后应回退到 UserSession.profile 的普通用户等级
+        assertEquals(PlaybackVipTier.NONE, PlaybackCredentialsManager.getEffectiveVipTier())
+    }
 }

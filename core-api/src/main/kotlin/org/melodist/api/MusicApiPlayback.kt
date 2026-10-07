@@ -240,9 +240,13 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                 )
             }
 
+            val hasVipSource = resultList.any { it.tier > AudioQualityTier.HQ && it.sizeBytes > 0 }
+            val hasVipUrl = resultList.any { it.tier > AudioQualityTier.HQ && it.isAvailable }
+            if (PlaybackCredentialsManager.hasCustomCredentials && hasVipSource && !hasVipUrl) {
+                ApiLogger.w("MusicApiPlayback", "probeSongQualities: Custom credentials failed to obtain VIP track URL, marking as revoked.")
+                PlaybackCredentialsManager.markCredentialsRevoked()
+            }
             if (canRetryWithRenew && UserSession.isLoggedIn && !PlaybackCredentialsManager.hasCustomCredentials) {
-                val hasVipSource = resultList.any { it.tier > AudioQualityTier.HQ && it.sizeBytes > 0 }
-                val hasVipUrl = resultList.any { it.tier > AudioQualityTier.HQ && it.isAvailable }
                 if (hasVipSource && !hasVipUrl) {
                     ApiLogger.i("MusicApiPlayback", "probeSongQualities: VIP track detected without valid URL, attempting token renewal...")
                     val renewed = LoginApiService().forceRefreshMusicKey()
@@ -395,6 +399,10 @@ private suspend fun MusicApiService.getPlayUrlInternal(
 
             val hasVipSource = sizeMap.any { it.key > AudioQualityTier.HQ && it.value > 0L }
             val hasVipUrl = availableMap.keys.any { it > AudioQualityTier.HQ }
+            if (PlaybackCredentialsManager.hasCustomCredentials && hasVipSource && !hasVipUrl) {
+                ApiLogger.w("MusicApiPlayback", "getPlayUrl: Custom credentials failed to obtain VIP track URL, marking as revoked.")
+                PlaybackCredentialsManager.markCredentialsRevoked()
+            }
             if (canRetryWithRenew && UserSession.isLoggedIn && !PlaybackCredentialsManager.hasCustomCredentials && hasVipSource && !hasVipUrl) {
                 ApiLogger.i("MusicApiPlayback", "getPlayUrl: VIP tracks available but no valid VIP URL obtained, attempting token renewal...")
                 val refreshed = LoginApiService().forceRefreshMusicKey()

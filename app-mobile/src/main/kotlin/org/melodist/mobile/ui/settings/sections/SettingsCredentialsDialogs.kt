@@ -57,17 +57,29 @@ fun SettingsCredentialsDialogs(
             title = { Text("播放凭证管理") },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    val isCredsInvalid = PlaybackCredentialsManager.isCredentialInvalid(playbackCreds)
                     Text(
                         text =
                             if (playbackCreds != null) {
-                                "当前状态: 已启用独立播放凭证\n账号: ${playbackCreds.nick.ifBlank {
-                                    playbackCreds.uin
-                                }} (UIN: ${playbackCreds.uin})\n播放与下载将使用该账号权限，歌单与推荐保持使用主账号。"
+                                if (isCredsInvalid) {
+                                    "当前状态: 导入的凭证为已失效\n账号: ${playbackCreds.nick.ifBlank {
+                                        playbackCreds.uin
+                                    }} (UIN: ${playbackCreds.uin})\n该凭证可能已被云端吊销或已过期，请重新导入有效凭证。"
+                                } else {
+                                    "当前状态: 已启用独立播放凭证\n账号: ${playbackCreds.nick.ifBlank {
+                                        playbackCreds.uin
+                                    }} (UIN: ${playbackCreds.uin})\n播放与下载将使用该账号权限，歌单与推荐保持使用主账号。"
+                                }
                             } else {
                                 "当前状态: 未绑定独立凭证\n播放与下载默认使用当前主登录账号。"
                             },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (playbackCreds != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color =
+                            if (playbackCreds != null) {
+                                if (isCredsInvalid) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
