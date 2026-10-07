@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.getGuessRecommendSongs
+import org.melodist.api.getSimilarSongs
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.Song
@@ -33,6 +34,14 @@ class PlaybackQueueManager(
 
     private val _isRadioMode = MutableStateFlow(false)
     val isRadioMode: StateFlow<Boolean> = _isRadioMode.asStateFlow()
+
+    private val _isSimilarRecommendActive = MutableStateFlow(false)
+    val isSimilarRecommendActive: StateFlow<Boolean> = _isSimilarRecommendActive.asStateFlow()
+
+    private var backupPlaylistBeforeSimilar: List<Song>? = null
+    private var backupIndexBeforeSimilar: Int = 0
+    private var backupSourceContext: PlaybackSourceContext? = null
+    private var backupPaginationSource: QueuePaginationSource? = null
 
     private val _paginationSource = MutableStateFlow<QueuePaginationSource?>(null)
     val paginationSource: StateFlow<QueuePaginationSource?> = _paginationSource.asStateFlow()
@@ -138,6 +147,10 @@ class PlaybackQueueManager(
         sourceContext: PlaybackSourceContext? = null,
     ) {
         _isRadioMode.value = isRadio
+        _isSimilarRecommendActive.value = false
+        backupPlaylistBeforeSimilar = null
+        backupSourceContext = null
+        backupPaginationSource = null
         _paginationSource.value = paginationSource
         _queueTag.value = queueTag
         _sourceContext.value = sourceContext
@@ -154,6 +167,68 @@ class PlaybackQueueManager(
         }
         checkPrefetchQueueNextPage()
         onStateChanged()
+    }
+
+    /**
+     * 激活基于指定曲目的相似推荐模式，替换当前队列为推荐列表并保留原队列快照。
+     *
+     * @param anchorSong 相似推荐锚点歌曲
+     * @return 激活成功后的相似推荐曲目列表，若获取失败返回空列表
+     */
+    suspend fun activateSimilarRecommend(anchorSong: Song): List<Song> {
+        if (!_isSimilarRecommendActive.value) {
+            backupPlaylistBeforeSimilar = _playlist.value
+            backupIndexBeforeSimilar = _currentIndex.value
+            backupSourceContext = _sourceContext.value
+            backupPaginationSource = _paginationSource.value
+        }
+        val similar = apiService.getSimilarSongs(anchorSong.songId, anchorSong.songMid)
+        if (similar.isEmpty()) return emptyList()
+
+        val filteredSimilar = similar.filter { it.songMid != anchorSong.songMid }
+        val newPlaylist = listOf(anchorSong) + filteredSimilar
+        _playlist.value = newPlaylist
+        _currentIndex.value = 0
+        _paginationSource.value = null
+        _sourceContext.value = null
+        _isSimilarRecommendActive.value = true
+        if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+            shuffleQueue.reset(newPlaylist.size, 0, newPlaylist)
+        }
+        onStateChanged()
+        return newPlaylist
+    }
+
+    /**
+     * 取消相似推荐模式并恢复之前的播放队列。
+     *
+     * @return 恢复成功返回 true，无备份返回 false
+     */
+    fun restorePlaylistFromSimilar(): Boolean {
+        val backup = backupPlaylistBeforeSimilar ?: return false
+        val currentSongMid = _currentIndex.value.let { idx ->
+            if (idx in _playlist.value.indices) _playlist.value[idx].songMid else null
+        }
+        val restoredIndex =
+            if (currentSongMid != null) {
+                backup.indexOfFirst { it.songMid == currentSongMid }.takeIf { it >= 0 }
+                    ?: backupIndexBeforeSimilar.coerceIn(backup.indices)
+            } else {
+                backupIndexBeforeSimilar.coerceIn(backup.indices)
+            }
+        _playlist.value = backup
+        _currentIndex.value = restoredIndex
+        _sourceContext.value = backupSourceContext
+        _paginationSource.value = backupPaginationSource
+        _isSimilarRecommendActive.value = false
+        backupPlaylistBeforeSimilar = null
+        backupSourceContext = null
+        backupPaginationSource = null
+        if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+            shuffleQueue.reset(backup.size, restoredIndex, backup)
+        }
+        onStateChanged()
+        return true
     }
 
     /**

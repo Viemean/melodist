@@ -72,7 +72,7 @@ interface PlaybackInterceptor {
 
 object PlaybackManager {
     var playbackInterceptor: PlaybackInterceptor? = null
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val apiService = MusicApiService()
     private var appContext: Context? = null
 
@@ -1017,6 +1017,38 @@ object PlaybackManager {
     fun removeFromPlaylist(index: Int) = queueManager.removeFromPlaylist(index)
 
     fun removeFromPlaylist(songs: List<Song>) = queueManager.removeFromPlaylist(songs, _currentSong.value?.songMid)
+
+    val isSimilarRecommendActive: StateFlow<Boolean> = queueManager.isSimilarRecommendActive
+    private val _showQueueSheetFlow = MutableStateFlow(false)
+    val showQueueSheetFlow: StateFlow<Boolean> = _showQueueSheetFlow.asStateFlow()
+
+    fun requestOpenQueueSheet() {
+        _showQueueSheetFlow.value = true
+    }
+
+    fun consumeOpenQueueSheet() {
+        _showQueueSheetFlow.value = false
+    }
+
+    suspend fun activateSimilarRecommend(
+        anchorSong: Song,
+        openQueue: Boolean = true,
+    ): Boolean {
+        val currentPlaying = _currentSong.value
+        val result = queueManager.activateSimilarRecommend(anchorSong)
+        if (result.isNotEmpty()) {
+            if (currentPlaying?.songMid != anchorSong.songMid) {
+                playSong(anchorSong)
+            }
+            if (openQueue) {
+                requestOpenQueueSheet()
+            }
+            return true
+        }
+        return false
+    }
+
+    fun restorePlaylistFromSimilar(): Boolean = queueManager.restorePlaylistFromSimilar()
 
     fun clearPlaylist() {
         hasReportedCurrentContext = false
