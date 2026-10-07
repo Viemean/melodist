@@ -26,6 +26,7 @@ data class RestoredPlaybackState(
 object PlaybackStateStorage {
     private const val TAG = "PlaybackStateStorage"
     private const val PREFS_NAME = "melodist_playback_prefs"
+    private const val QUEUE_FILE_NAME = "playback_queue_v2.json"
     private val jsonHelper =
         Json {
             ignoreUnknownKeys = true
@@ -46,6 +47,9 @@ object PlaybackStateStorage {
         return song
     }
 
+    private fun getQueueFile(context: Context): File = File(context.filesDir, QUEUE_FILE_NAME)
+
+    @Synchronized
     fun savePlaybackState(
         context: Context?,
         currentSong: Song?,
@@ -60,35 +64,29 @@ object PlaybackStateStorage {
         shuffledPointer: Int,
         isRadioMode: Boolean,
     ) {
+        if (context == null) return
         val prefs = getPrefs(context) ?: return
         try {
-            val safePlaylist =
-                if (playlist.size > 50 && currentIndex in playlist.indices) {
-                    val start = (currentIndex - 20).coerceAtLeast(0)
-                    val end = (currentIndex + 30).coerceAtMost(playlist.size)
-                    playlist.subList(start, end)
-                } else if (playlist.size > 50) {
-                    playlist.take(50)
-                } else {
-                    playlist
+            val queueFile = getQueueFile(context)
+            if (playlist.isNotEmpty()) {
+                val tempFile = File(context.filesDir, "$QUEUE_FILE_NAME.tmp")
+                tempFile.writeText(jsonHelper.encodeToString(playlist))
+                if (!tempFile.renameTo(queueFile)) {
+                    tempFile.copyTo(queueFile, overwrite = true)
+                    tempFile.delete()
                 }
-            val safeCurrentIndex =
-                if (playlist.size > 50 && currentIndex in playlist.indices) {
-                    currentIndex - (currentIndex - 20).coerceAtLeast(0)
-                } else {
-                    currentIndex
+            } else {
+                if (queueFile.exists()) {
+                    queueFile.delete()
                 }
+            }
 
             prefs.edit().apply {
                 if (currentSong != null) {
                     putString("current_song", jsonHelper.encodeToString(currentSong))
                 }
-                if (safePlaylist.isNotEmpty()) {
-                    putString("playback_queue", jsonHelper.encodeToString(safePlaylist))
-                } else {
-                    remove("playback_queue")
-                }
-                putInt("current_index", safeCurrentIndex)
+                remove("playback_queue")
+                putInt("current_index", currentIndex)
                 putLong("current_position_ms", currentPositionMs)
                 putLong("duration_ms", durationMs)
                 putString("preferred_tier", preferredTier.name)
@@ -116,7 +114,9 @@ object PlaybackStateStorage {
         }
     }
 
+    @Synchronized
     fun restorePlaybackState(context: Context?): RestoredPlaybackState {
+        if (context == null) return RestoredPlaybackState()
         val prefs = getPrefs(context) ?: return RestoredPlaybackState()
         try {
             val settingsTier = org.melodist.data.AppSettingsManager.settings.value.preferredQualityTier
@@ -144,12 +144,24 @@ object PlaybackStateStorage {
             }
 
             var queue = emptyList<Song>()
-            val queueJson = prefs.getString("playback_queue", null)
-            if (!queueJson.isNullOrBlank()) {
+            val queueFile = getQueueFile(context)
+            if (queueFile.exists() && queueFile.length() > 0L) {
                 try {
-                    queue = jsonHelper.decodeFromString<List<Song>>(queueJson).map { sanitizeSongCover(it) }
+                    val queueJson = queueFile.readText()
+                    if (queueJson.isNotBlank()) {
+                        queue = jsonHelper.decodeFromString<List<Song>>(queueJson).map { sanitizeSongCover(it) }
+                    }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to decode playback queue from prefs", e)
+                    Log.e(TAG, "Failed to decode playback queue from file", e)
+                }
+            } else {
+                val queueJson = prefs.getString("playback_queue", null)
+                if (!queueJson.isNullOrBlank()) {
+                    try {
+                        queue = jsonHelper.decodeFromString<List<Song>>(queueJson).map { sanitizeSongCover(it) }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to decode playback queue from prefs", e)
+                    }
                 }
             }
 
