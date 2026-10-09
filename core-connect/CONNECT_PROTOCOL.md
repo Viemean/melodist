@@ -1,6 +1,6 @@
 # Melodist Connect 开放远程控制与流媒体协议规范 (v1.2)
 
-Melodist Connect 采用标准 WebSocket 进行双向控制与状态同步，并结合轻量 HTTP Stream Proxy 实现局域网音频与媒体封面串流。支持 TV 端（大屏服务端）与手机端（遥控与串流端）深度互联，第三方应用（如 Home Assistant、自动化脚本、自定义遥控器）亦可通过局域网直接接入进行播控、状态监听与媒体接力。
+Melodist Connect 使用 WebSocket 进行控制指令与状态同步，通过 HTTP Stream Proxy 提供局域网音频与媒体封面串流服务。
 
 ---
 
@@ -8,16 +8,16 @@ Melodist Connect 采用标准 WebSocket 进行双向控制与状态同步，并�
 
 ### 1.1 mDNS / NSD 发现
 - **服务类型**：`_melodist-connect._tcp.`
-- **默认端口**：`8765`（支持 `8765 ~ 8775` 端口冲突自增）
+- **默认端口**：`8765`（端口冲突时在 `8765 ~ 8775` 范围递增）
 - **TXT Record 属性**：
-  - `id`: 设备唯一 UUID
-  - `name`: 设备展示名称（如 `Melodist TV`）
-  - `token`: 信任凭证
-  - `pin`: 当前 6 位数字配对验证码
-  - `host`: 物理 IPv4 地址
+  - `id`: 设备 UUID
+  - `name`: 设备名称
+  - `token`: 鉴权凭证
+  - `pin`: 6 位数字配对码
+  - `host`: IPv4 地址
 
 ### 1.2 二维码配对协议 (`QrPairData`)
-TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
+TV 端配对二维码数据结构：
 ```json
 {
   "version": 1,
@@ -31,13 +31,13 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 ```
 
 ### 1.3 WebSocket 端点
-- 协议端点：`ws://<ip>:<port>`
+- 访问地址：`ws://<ip>:<port>`
 
 ---
 
 ## 2. 消息基础模型
 
-所有 WebSocket 数据帧均遵循统一的 JSON 消息封套：
+WebSocket 数据帧 JSON 结构：
 ```json
 {
   "id": "<message_uuid>",
@@ -48,14 +48,14 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 }
 ```
 > [!NOTE]
-> `data` 承载原始 JSON 结构体；`payload` 字符串仅用于向后兼容。解析器优先读取 `data`，当 `data` 为 null 时回退解析 `payload`。
+> `data` 为 JSON 结构体；`payload` 为序列化字符串。优先解析 `data`，当 `data` 为 null 时解析 `payload`。
 
 ---
 
 ## 3. 认证、会话与保活
 
 ### 3.1 配对请求 (`pair_request`)
-客户端建立 WebSocket 连接后，发送的第一条握手指令：
+客户端建立 WebSocket 连接后的握手指令：
 ```json
 {
   "action": "pair_request",
@@ -74,7 +74,7 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 ```
 
 ### 3.2 配对响应 (`pair_response`)
-服务端验证 PIN 码或 Token 后返回：
+服务端验证响应：
 ```json
 {
   "action": "pair_response",
@@ -92,7 +92,7 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 ```
 
 ### 3.3 断开连接 (`disconnect`)
-客户端或服务端主动注销连接时下发：
+注销连接指令：
 ```json
 {
   "action": "disconnect",
@@ -101,15 +101,20 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 ```
 
 ### 3.4 心跳探活 (`ping` / `pong`)
-保持长连接活性及检测半开连接：
+心跳探活数据帧：
 - 发送方下发 `{"action": "ping"}`
 - 接收方回执 `{"action": "pong"}`
 
+### 3.5 断线重连与退避机制
+- **主动断开**：发送 `disconnect` 指令并置位 `isManualDisconnect`，重置计数并终止重试。
+- **重试限制**：非主动断开时最多重试 5 次，间隔在 2 秒至 10 秒递增。
+- **重试条件**：仅对已完成握手的设备执行重连；出现连接异常或目标不可达时终止重试。
+
 ---
 
-## 4. 主动状态查询 (RPC)
+## 4. 状态查询 (RPC)
 
-握手完成后，客户端可按需主动查询即时数据：
+客户端主动查询指令与对应响应事件：
 - **查询播放状态**：`{"action": "req_get_player_state"}` -> 服务端广播 `event_play_state`
 - **查询播放队列**：`{"action": "req_get_queue_state"}` -> 服务端广播 `event_queue_state`
 
@@ -123,19 +128,19 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 | `cmd_resume` | 无参数 | 继续播放 |
 | `cmd_next` | 无参数 | 切至下一曲 |
 | `cmd_prev` | 无参数 | 切至上一曲 |
-| `cmd_seek` | `{"positionMs": <position_ms>}` | 播放进度跳转 |
+| `cmd_seek` | `{"positionMs": <position_ms>}` | 跳转播放进度 |
 | `cmd_set_volume` | `{"volume": <float_volume>}` | 设置音量（0.0 ~ 1.0） |
 | `cmd_cycle_loop_mode` | 无参数 | 轮换循环模式（`ListRepeat` / `SingleRepeat` / `Shuffle`） |
-| `cmd_switch_tier` | `{"tier": "<tier_name>"}` | 切换音质档位（`Standard` / `HQ` / `SQ` / `HiRes` / `Master` 等） |
-| `cmd_trigger_aod` | 无参数 | 触发或退出 TV 息屏 AOD 时钟模式 |
-| `cmd_open_player` | 无参数 | 在 TV 端展开大屏全屏播放界面 |
+| `cmd_switch_tier` | `{"tier": "<tier_name>"}` | 切换音质档位（`Standard` / `HQ` / `SQ` / `HiRes` / `Master`） |
+| `cmd_trigger_aod` | 无参数 | 触发或退出息屏时钟模式 |
+| `cmd_open_player` | 无参数 | 展开全屏播放界面 |
 | `cmd_toggle_favorite` | `{"song": <optional_song_object>, "songMid": "<song_mid>", "isFavorite": <boolean>}` | 切换歌曲收藏状态 |
-| `cmd_enqueue_next` | `{"song": <song_object>, "audioSource": <optional_audio_source>}` | 将指定曲目插入下一首优先播放 |
-| `cmd_play_song` | 见下方详细模型 | 点播曲目、接力播放并重置/同步初始轻量队列 |
-| `cmd_sync_queue_chunk` | 见下方详细模型 | 大播放队列分批流式全量同步分片包（首播后后台异步追加） |
-| `cmd_gesture_swipe` | 见下方详细模型 | 接管模式下的实时跟手滑动卡片手势联动 |
-| `cmd_sync_lyrics_scroll` | `{"lineIndex": <line_index>, "isUserScrolling": <boolean>, "timestamp": <timestamp_ms>}` | 同步歌词手动滚动行偏移与跟手状态 |
-| `cmd_sync_lyrics` | 见下方详细模型 | 同步单曲歌词及声学校准偏移量至对端缓存池 |
+| `cmd_enqueue_next` | `{"song": <song_object>, "audioSource": <optional_audio_source>}` | 插入下一首播放 |
+| `cmd_play_song` | 见详细数据模型 | 点播曲目并设置当前队列 |
+| `cmd_sync_queue_chunk` | 见详细数据模型 | 队列分批同步数据分片 |
+| `cmd_gesture_swipe` | 见详细数据模型 | 接管模式滑动卡片手势同步 |
+| `cmd_sync_lyrics_scroll` | `{"lineIndex": <line_index>, "isUserScrolling": <boolean>, "timestamp": <timestamp_ms>}` | 同步歌词行偏移与滚动状态 |
+| `cmd_sync_lyrics` | 见详细数据模型 | 同步单曲歌词及校准偏移量 |
 
 ### 5.1 点播曲目指令详情 (`cmd_play_song`)
 ```json
@@ -165,11 +170,13 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
 }
 ```
 > [!NOTE]
-> `audioSource.sourceType` 支持以下类型：
-> - `DIRECT_API`: TV 本地网络直接请求流媒体 API；
-> - `STREAM_PROXY`: TV 从手机端局域网 HTTP 代理拉取音频流（适用于本地音乐、WebDAV 代理或离线中转）；
-### 5.2 大歌单分批流式全量同步 (`cmd_sync_queue_chunk`)
-当歌单总长度超过首批同步窗口（如 > 100 首）时，手机端在 `cmd_play_song` 起播后，通过后台异步分批向 TV 传输完整列表分片：
+> `audioSource.sourceType` 取值定义：
+> - `DIRECT_API`: 直接请求流媒体 API；
+> - `STREAM_PROXY`: 从控制端 HTTP 代理拉取音频流；
+> - `DIRECT_WEBDAV`: 直接向 WebDAV 服务器拉取音频流。
+
+### 5.2 队列分片同步 (`cmd_sync_queue_chunk`)
+队列长度超过 100 首时，按批次同步队列数据：
 ```json
 {
   "action": "cmd_sync_queue_chunk",
@@ -177,15 +184,15 @@ TV 端大屏展示的配对二维码内容为标准 JSON 字符串：
     "syncId": "<uuid>",
     "chunkIndex": 0,
     "totalChunks": 5,
-    "songs": [ /* 分片包含的 Song 对象列表，默认每批 150 首 */ ],
+    "songs": [ /* 分片 Song 列表，单批 150 首 */ ],
     "targetMid": "<current_playing_song_mid>"
   }
 }
 ```
-TV 端接收全部分片并组装完整后，一次性调用 `syncRemoteQueue` 更新大屏全量播放列表并广播一次 `event_queue_state`，消除单包过大导致的 TV 主线程反序列化卡顿。
+服务端接收完全部分片后更新播放队列，并广播 `event_queue_state`。
 
-### 5.3 实时跟手手势指令 (`cmd_gesture_swipe`)
-接管模式（TAKEOVER）下，手机端手势滑动联动 TV 大屏走马灯动效：
+### 5.3 卡片手势指令 (`cmd_gesture_swipe`)
+接管模式下卡片滑动手势数据帧：
 ```json
 {
   "action": "cmd_gesture_swipe",
@@ -199,9 +206,9 @@ TV 端接收全部分片并组装完整后，一次性调用 `syncRemoteQueue` �
 }
 ```
 - `state`:
-  - `DRAGGING`: 手指拖拽中，`fraction` 在 `-1.0`（推向下一首）与 `1.0`（推向上首）之间实时变动；
-  - `SETTLING`: 释放手势，执行吸附结算动画；
-  - `CANCEL`: 取消手势，平滑复位归零；
+  - `DRAGGING`: 拖拽状态，`fraction` 取值范围 `[-1.0, 1.0]`；
+  - `SETTLING`: 释放手势，进入吸附状态；
+  - `CANCEL`: 取消手势，复位归零；
   - `IDLE`: 空闲状态。
 
 ---
@@ -283,54 +290,52 @@ TV 端接收全部分片并组装完整后，一次性调用 `syncRemoteQueue` �
 
 ## 7. 局域网流媒体代理协议 (HTTP Stream Server)
 
-当在移动端接管 TV 播放手机本地音频、本地 WebDAV 或在离线代理模式下工作时，手机端启动内嵌 HTTP Server（默认端口 `8766`），向 TV 提供音频和图片串流。
+控制端 HTTP Server 默认端口 `8766`，提供音频与图片代理服务。
 
 ### 7.1 服务路由端点
 
-| 端点路径 | 请求方法 | 典型参数 | 功能描述 |
+| 端点路径 | 请求方法 | 参数 | 功能说明 |
 | :--- | :--- | :--- | :--- |
-| `/stream/local` | `GET`, `HEAD` | `path=<url_encoded_file_path>` | 本地音频流式输出（支持 HTTP Range 断点续传与毫秒级 Seek） |
-| `/cover/local` | `GET`, `HEAD` | `path=<url_encoded_cover_path>` | 本地绝对路径文件封面图片代理输出 |
-| `/cover` | `GET`, `HEAD` | `name=<cached_cover_filename>` | 服务端/WebDAV 缓存封面代理输出（支持长效缓存与跨域） |
-| `/stream/webdav` | `GET`, `HEAD` | `server=<server_id>&href=<url_encoded_href>` | 手机代为拉取 WebDAV 音频分片并转发至 TV |
-| `/stream/proxy` | `GET`, `HEAD` | `url=<url_encoded_target_url>` | TV 离线模式下，由手机代理请求公网 CDN 音频流 |
+| `/stream/local` | `GET`, `HEAD` | `path=<url_encoded_file_path>` | 本地音频流式输出，支持 Range 请求 |
+| `/cover/local` | `GET`, `HEAD` | `path=<url_encoded_cover_path>` | 本地封面图片输出 |
+| `/cover` | `GET`, `HEAD` | `name=<cached_cover_filename>` | 缓存封面图片输出 |
+| `/stream/webdav` | `GET`, `HEAD` | `server=<server_id>&href=<url_encoded_href>` | WebDAV 音频分片转发输出 |
+| `/stream/proxy` | `GET`, `HEAD` | `url=<url_encoded_target_url>` | 公网音频流代理转发输出 |
 
 ### 7.2 特性支持
-- **HTTP Range 规范**：全量实现 `Range: bytes=start-end`、`Range: bytes=start-` 及 `Range: bytes=-suffix`（尾部切片）请求响应（HTTP 206 Partial Content），支持任意格式音频元数据探测与精确 Seek。
-- **HEAD 预检支持**：原生支持 `HEAD` 请求返回头信息（`Content-Length`、`Accept-Ranges`、`Content-Type` 等），加速播放器媒体类型预检。
-- **MIME Type 映射**：依据文件扩展名自动输出标准 `Content-Type`（如 `audio/flac`、`audio/mpeg`、`audio/wav`、`audio/ogg`、`audio/mp4`、`image/webp`、`image/jpeg` 等）。
+- **HTTP Range**：支持 `Range: bytes=start-end`、`Range: bytes=start-` 及 `Range: bytes=-suffix` 请求，返回 HTTP 206 Partial Content。
+- **HEAD 预检**：支持 HEAD 方法，返回 `Content-Length`、`Accept-Ranges`、`Content-Type` 响应头。
+- **MIME Type**：根据文件扩展名映射 `Content-Type`（`audio/flac`、`audio/mpeg`、`audio/wav`、`audio/ogg`、`audio/mp4`、`image/webp`、`image/jpeg` 等）。
 
-### 7.3 跨端本地媒体托管与流直通规范
-- **`mediaMid` 网络流直通规范**：
-  当歌曲对象的 `mediaMid` 已是以 `http://` 或 `https://` 开头的流直链（由远端服务端提供，例如服务端的 `/stream/local` 路由）时，客户端在处理 `cmd_play_song` / `cmd_enqueue_next` 时应遵循**直接透传复用原则**：
-  1. 将其直接指定为目标 `AudioSourceDescriptor(sourceType = STREAM_PROXY, streamUrl = song.mediaMid)`；
-  2. 禁止将此类曲目误判为客户端自身的私有本地存储文件，避免触发客户端本地扫描库检索与重复创建代理流。
-- **本地命名空间前缀转换规范 (`pc_local_` / `local_`)**：
-  1. 当服务端（如 PC 端）将本地物理音频文件通过 Connect 广播给移动端时，为防止移动端误识别为移动端自身的私有文件系统，服务端将广播数据中的 `songMid` 添加 `pc_local_` 命名空间前缀，并将 `isLocal` 设置为 `false`；
-  2. 客户端向服务端回传点播与入队指令（`cmd_play_song` / `cmd_enqueue_next`）时，服务端在接收层自动将 `pc_local_` 还原为内部的 `local_` 标识，确保服务端本地播放列表精确命中与起播。
+### 7.3 媒体托管与流直通规范
+- **`mediaMid` 网络流直通**：
+  当 `song.mediaMid` 为 `http://` 或 `https://` 协议 URL 时：
+  1. 设置 `AudioSourceDescriptor(sourceType = STREAM_PROXY, streamUrl = song.mediaMid)`；
+  2. 不执行本地扫描库检索与代理流创建。
+- **命名空间前缀转换 (`pc_local_` / `local_`)**：
+  1. 服务端广播音频数据时，本地文件 `songMid` 添加 `pc_local_` 前缀，`isLocal` 标记为 `false`；
+  2. 接收端下发 `cmd_play_song` 或 `cmd_enqueue_next` 时，服务端将 `pc_local_` 还原为 `local_` 标识。
 
 ---
 
-## 8. 远控工作模式与双向对称性
+## 8. 远控工作模式与双向通信
 
 ### 8.1 远控模式 (`RemoteControlMode`)
-- **`TAKEOVER`（全面接管模式）**：
-  - 手机播放器内核与 TV 深度绑定；
-  - 手机端进行的点播、切歌、音量调节、播放列表变动及卡片拖拽手势均直接作用于 TV；
-  - 手机默认开启本地静音，仅同步 UI 渲染与系统媒体通知；TV 播放状态毫秒级回传手机。
+- **`TAKEOVER`（接管模式）**：
+  - 控制端接管目标设备播控与状态；
+  - 控制端本地静音，同步 UI 渲染与媒体通知；
+  - 受控端回传播放状态。
 - **`BROWSE`（独立浏览模式）**：
-  - 手机端保持本地独立发声与播放，大屏作为独立设备运行；
-  - 仅在用户主动点击“在 TV 上播放”或投播菜单时才向 TV 发送指令。
+  - 控制端与目标设备独立运行；
+  - 仅在显式操作时向目标设备发送指令。
 
-### 8.2 双向对称控制 (Bidirectional Commands)
-Connect 协议具备对等双向性：
-- 常规场景：手机作为控制端向 TV 下发 `cmd_*` 指令；
-- 反向接力场景：当 TV 界面通过遥控器触发了一首仅存在于手机本地文件系统的曲目时，TV 端通过 [TvConnectServer.kt](src/main/kotlin/org/melodist/core/connect/server/TvConnectServer.kt) 反向向手机广播 `cmd_play_song` / `cmd_next` / `cmd_prev`，手机捕获后自动建立 HTTP Stream Server 代理并把流回传给 TV 播放。
+### 8.2 双向控制 (Bidirectional Commands)
+协议支持双向控制：
+- 控制端向服务端下发 `cmd_*` 指令；
+- 服务端向控制端反向发送 `cmd_play_song` / `cmd_next` / `cmd_prev` 指令，控制端启动 HTTP Stream Server 并返回流地址。
 
-### 8.3 从属端播放状态与切歌权门禁 (Subordinate Authority Gate)
-在 `TAKEOVER` 接管模式下，远端设备（TV / PC）作为主发声器与主状态源：
-- **切歌权独占与主动操作分流**：
-  1. 移动端作为控制器时，仅响应**用户主动操作**（应用内控制按钮、锁屏/系统媒体通知、耳机线控等）转发切歌指令；
-  2. 严禁移动端本地播放器内核的**被动事件**（包括但不限于流加载失败重试、网络超时、本地 ExoPlayer 播放到达末尾 `STATE_ENDED` 等）向远端触发 `cmd_next` / `cmd_prev`；
-  3. 远端宿主设备的自然播放结束由宿主自身推进下一曲并通过 `sync_state` 事件向从属端广播状态，防止因从属端网络波动或缓冲耗尽而反向截断主设备的正常播放。
-
+### 8.3 切歌控制权规则 (Subordinate Authority Gate)
+在 `TAKEOVER` 模式下：
+1. 控制端仅在用户主动操作时转发切歌指令；
+2. 控制端本地播放内核事件（加载重试、超时、`STATE_ENDED` 等）不触发 `cmd_next` / `cmd_prev`；
+3. 播放推进由宿主端执行，并通过 `event_play_state` 广播状态。
