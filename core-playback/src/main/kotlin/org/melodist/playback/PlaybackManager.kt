@@ -181,6 +181,7 @@ object PlaybackManager {
         )
     }
 
+
     val availableTiers: StateFlow<Set<AudioQualityTier>> get() = qualityCoordinator.availableTiers
     val probedQualityOptions: StateFlow<List<QualityOption>> get() = qualityCoordinator.probedQualityOptions
     val isProbingQuality: StateFlow<Boolean> get() = qualityCoordinator.isProbingQuality
@@ -446,6 +447,27 @@ object PlaybackManager {
                     audioTrackRetryCount = 0
                 } else {
                     savePlaybackProgress(exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L)
+                }
+            }
+
+            override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
+                try {
+                    val current = _currentSong.value ?: return
+                    val enriched = PlaybackMetadataCoordinator.enrichFromExoMetadata(current, mediaMetadata) ?: return
+
+                    Log.i("MelodistPlayback", "Enriched metadata from ExoPlayer: ${enriched.name} - ${enriched.singer} (${enriched.album})")
+                    _currentSong.value = enriched
+                    queueManager.updateSongInPlaylist(enriched)
+                    updateCurrentMediaMetadata(enriched)
+                    org.melodist.data.RecentPlaybackManager.recordSong(enriched)
+                    savePlaybackState()
+
+                    if (enriched.name != current.name || enriched.singer != current.singer) {
+                        lyricsCoordinator.loadLyricsForSong(enriched)
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("MelodistPlayback", "Failed to apply enriched metadata from ExoPlayer", e)
                 }
             }
 
@@ -1341,7 +1363,8 @@ object PlaybackManager {
                     org.melodist.data.WebDavManager
                         .extractPlaybackMetadata(server, song)
                 if (_currentSong.value?.songMid == song.songMid) {
-                    val currentCover = _currentSong.value?.coverUrl.orEmpty()
+                    val currentPlaying = _currentSong.value ?: return@launch
+                    val currentCover = currentPlaying.coverUrl.orEmpty()
                     val currentCoverFile =
                         if (currentCover.startsWith("file://")) {
                             java.io.File(currentCover.removePrefix("file://").substringBefore('?'))
@@ -1359,30 +1382,53 @@ object PlaybackManager {
                             null
                         }
                     val newTier = meta.inferredTier
-                    if (!effectiveNewCover.isNullOrBlank() || newTier != null) {
+
+                    val rawNewTitle = meta.title?.trim()?.ifBlank { null }
+                    val rawNewArtist = meta.artist?.trim()?.ifBlank { null }
+                    val rawNewAlbum = meta.album?.trim()?.ifBlank { null }
+
+                    val hasMetadataUpdate = rawNewTitle != null || rawNewArtist != null || rawNewAlbum != null
+                    val hasCoverOrTierUpdate = !effectiveNewCover.isNullOrBlank() || newTier != null
+
+                    if (hasMetadataUpdate || hasCoverOrTierUpdate) {
                         val versionedCover =
                             if (!effectiveNewCover.isNullOrBlank()) {
                                 val clean = effectiveNewCover.substringBefore('?')
                                 "$clean?t=${System.currentTimeMillis()}"
                             } else {
-                                _currentSong.value?.coverUrl.orEmpty()
+                                currentPlaying.coverUrl.orEmpty()
                             }
                         withContext(Dispatchers.Main) {
                             if (_currentSong.value?.songMid == song.songMid) {
-                                val updated =
-                                    _currentSong.value?.copy(
+                                val baseSong = _currentSong.value ?: return@withContext
+                                var updated =
+                                    baseSong.copy(
                                         coverUrl = versionedCover,
-                                        rawCoverUrl = meta.rawCoverUrl ?: _currentSong.value?.rawCoverUrl.orEmpty(),
-                                        currentTier = newTier ?: _currentSong.value?.currentTier ?: AudioQualityTier.SQ,
+                                        rawCoverUrl = meta.rawCoverUrl ?: baseSong.rawCoverUrl.orEmpty(),
+                                        currentTier = newTier ?: baseSong.currentTier,
                                     )
+                                var metadataActuallyChanged = false
+                                if (hasMetadataUpdate) {
+                                    val enriched = PlaybackMetadataCoordinator.enrichSongMetadata(
+                                        currentSong = updated,
+                                        title = rawNewTitle,
+                                        artist = rawNewArtist,
+                                        album = rawNewAlbum,
+                                    )
+                                    if (enriched != null) {
+                                        updated = enriched
+                                        metadataActuallyChanged = true
+                                    }
+                                }
                                 _currentSong.value = updated
                                 if (newTier != null) {
                                     _currentTier.value = newTier
                                     qualityCoordinator.updateAvailableTiers(setOf(newTier))
                                 }
-                                if (updated != null) {
-                                    queueManager.updateSongInPlaylist(updated)
-                                    updateCurrentMediaMetadata(updated)
+                                queueManager.updateSongInPlaylist(updated)
+                                updateCurrentMediaMetadata(updated)
+                                if (metadataActuallyChanged) {
+                                    lyricsCoordinator.loadLyricsForSong(updated)
                                 }
                             }
                         }

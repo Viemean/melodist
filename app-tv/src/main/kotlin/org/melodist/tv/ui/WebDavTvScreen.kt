@@ -260,12 +260,14 @@ fun WebDavTvScreen(
                                     val cachedMap = currentServer?.cachedSongs?.associateBy { it.href }
                                     val songList =
                                         audioItems.map { item ->
-                                            val (title, artist) = WebDavService.inferTitleArtist(item.name)
                                             val cached = cachedMap?.get(item.href)
-                                            val coverUrl =
-                                                cached?.coverPath?.let { if (it.startsWith("/")) "file://$it" else it }
-                                                    ?: WebDavManager.getSongCoverPath(server.id, item.href)
-                                            item.toSong(server.id, title, artist, coverUrl = coverUrl)
+                                            if (cached != null) {
+                                                cached.toSong()
+                                            } else {
+                                                val (title, artist) = WebDavService.inferTitleArtist(item.name)
+                                                val coverUrl = WebDavManager.getSongCoverPath(server.id, item.href)
+                                                item.toSong(server.id, title, artist, coverUrl = coverUrl)
+                                            }
                                         }
                                     PlaybackManager.setPlaylist(songList, startIndex = 0)
                                     onNavigateToPlayer()
@@ -430,12 +432,14 @@ fun WebDavTvScreen(
                                             val cachedMap = currentServer?.cachedSongs?.associateBy { it.href }
                                             val songList =
                                                 audioItems.map { itm ->
-                                                    val (t, a) = WebDavService.inferTitleArtist(itm.name)
                                                     val cached = cachedMap?.get(itm.href)
-                                                    val coverUrl =
-                                                        cached?.coverPath?.let { if (it.startsWith("/")) "file://$it" else it }
-                                                            ?: WebDavManager.getSongCoverPath(server.id, itm.href)
-                                                    itm.toSong(server.id, t, a, coverUrl = coverUrl)
+                                                    if (cached != null) {
+                                                        cached.toSong()
+                                                    } else {
+                                                        val (t, a) = WebDavService.inferTitleArtist(itm.name)
+                                                        val coverUrl = WebDavManager.getSongCoverPath(server.id, itm.href)
+                                                        itm.toSong(server.id, t, a, coverUrl = coverUrl)
+                                                    }
                                                 }
                                             val targetIdx = audioItems.indexOf(item).coerceAtLeast(0)
                                             PlaybackManager.setPlaylist(songList, startIndex = targetIdx)

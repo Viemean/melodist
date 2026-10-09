@@ -387,17 +387,8 @@ fun LocalMusicTvScreen(
                                         currentPath = item.path
                                         loadDirectory(item.path)
                                     } else if (item.isAudio) {
-                                        val (title, artist) = LocalMusicManager.inferTitleArtist(item.name)
-                                        val song =
-                                            Song(
-                                                songId = item.path.hashCode().toLong(),
-                                                songMid = "local_${item.path.hashCode()}",
-                                                name = title,
-                                                singer = artist,
-                                                album = currentFile.name,
-                                                currentTier = AudioQualityTier.SQ,
-                                                localFilePath = item.path,
-                                            )
+                                        val cachedSong = LocalMusicManager.findSongByPath(item.path)
+                                        val song = cachedSong ?: LocalMusicManager.buildTempSong(item.path, item.name)
                                         PlaybackManager.setPlaylist(listOf(song), 0)
                                         onNavigateToPlayer()
                                     }

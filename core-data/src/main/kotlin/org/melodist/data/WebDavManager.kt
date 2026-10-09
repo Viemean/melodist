@@ -408,6 +408,16 @@ object WebDavManager {
         }
 
     /**
+     * 根据服务器 ID 与 href 查询已缓存的 WebDAV 歌曲对象
+     */
+    fun findCachedSong(serverId: String, href: String): Song? {
+        val server = inMemoryConfig.servers.find { it.id == serverId } ?: getActiveServer() ?: return null
+        val cache = server.cachedSongs.find { it.href == href } ?: return null
+        return cache.toSong()
+    }
+
+
+    /**
      * 获取 WebDAV 歌曲歌词内容（本地缓存 -> 内嵌歌词 -> 远程拉取）
      */
     suspend fun getSongLyrics(song: Song): String? =
@@ -731,6 +741,9 @@ object WebDavManager {
         val coverUrl: String? = null,
         val rawCoverUrl: String? = null,
         val inferredTier: org.melodist.model.AudioQualityTier? = null,
+        val title: String? = null,
+        val artist: String? = null,
+        val album: String? = null,
     )
 
     /**
@@ -752,6 +765,9 @@ object WebDavManager {
             var finalCoverUrl = existingCover
             var finalRawCoverUrl = existingRaw
             var finalTier: org.melodist.model.AudioQualityTier? = null
+            var finalTitle: String? = null
+            var finalArtist: String? = null
+            var finalAlbum: String? = null
 
             fun saveCoverPair(bytes: ByteArray) {
                 if (bytes.size < 512) return
@@ -796,6 +812,9 @@ object WebDavManager {
                             org.melodist.model.AudioQualityTier
                                 .inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
                     }
+                    finalTitle = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim()?.ifBlank { null }
+                    finalArtist = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim()?.ifBlank { null }
+                    finalAlbum = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim()?.ifBlank { null }
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     Log.w("WebDavManager", "Operation failed", e)
@@ -809,8 +828,9 @@ object WebDavManager {
                 }
             }
 
-            // 2. 线上流式播放场景：若缺少封面或音质，拉取头部 512KB
-            if (finalCoverUrl.isNullOrBlank() || finalRawCoverUrl.isNullOrBlank() || finalTier == null) {
+            // 2. 线上流式播放场景：若缺少封面、音质，或歌手/专辑为占位信息，拉取头部 512KB
+            val isMetadataMissing = finalArtist.isNullOrBlank() && (song.singer.isBlank() || song.singer == "WebDAV 音频" || song.singer == "未知歌手")
+            if (finalCoverUrl.isNullOrBlank() || finalRawCoverUrl.isNullOrBlank() || finalTier == null || isMetadataMissing) {
                 val ext = relativeHref.substringAfterLast('.', "flac")
                 val tmpHdrFile = File(getSafeCacheDir(), "hdr_play_$hash.$ext")
                 try {
@@ -818,6 +838,9 @@ object WebDavManager {
                     if (headerBytes != null && headerBytes.isNotEmpty()) {
                         val parsed = AudioMetadataParser.parse(headerBytes)
                         finalTier = parsed.inferTier("audio/$ext")
+                        if (finalTitle.isNullOrBlank()) finalTitle = parsed.title?.trim()?.ifBlank { null }
+                        if (finalArtist.isNullOrBlank()) finalArtist = parsed.artist?.trim()?.ifBlank { null }
+                        if (finalAlbum.isNullOrBlank()) finalAlbum = parsed.album?.trim()?.ifBlank { null }
 
                         if (finalCoverUrl.isNullOrBlank() || finalRawCoverUrl.isNullOrBlank()) {
                             val parsedPicBytes = parsed.pictureBytes
@@ -839,7 +862,7 @@ object WebDavManager {
                         }
 
                         // 兜底使用 MediaMetadataRetriever
-                        if (finalCoverUrl.isNullOrBlank() || finalRawCoverUrl.isNullOrBlank() || finalTier == null) {
+                        if (finalCoverUrl.isNullOrBlank() || finalRawCoverUrl.isNullOrBlank() || finalTier == null || finalArtist.isNullOrBlank()) {
                             safeWriteBytes(tmpHdrFile, headerBytes)
                             val retriever = android.media.MediaMetadataRetriever()
                             try {
@@ -858,6 +881,15 @@ object WebDavManager {
                                             org.melodist.model.AudioQualityTier
                                                 .inferFromAudioFormat(sRate, mimeType = "audio/$ext", bitrate = bRate ?: 0)
                                     }
+                                }
+                                if (finalTitle.isNullOrBlank()) {
+                                    finalTitle = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim()?.ifBlank { null }
+                                }
+                                if (finalArtist.isNullOrBlank()) {
+                                    finalArtist = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim()?.ifBlank { null }
+                                }
+                                if (finalAlbum.isNullOrBlank()) {
+                                    finalAlbum = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim()?.ifBlank { null }
                                 }
                             } catch (e: Exception) {
                                 if (e is CancellationException) throw e
@@ -896,6 +928,9 @@ object WebDavManager {
                 coverUrl = finalCoverUrl,
                 rawCoverUrl = finalRawCoverUrl,
                 inferredTier = finalTier,
+                title = finalTitle,
+                artist = finalArtist,
+                album = finalAlbum,
             )
         }
 

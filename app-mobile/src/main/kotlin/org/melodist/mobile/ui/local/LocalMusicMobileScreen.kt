@@ -441,15 +441,8 @@ fun LocalMusicMobileScreen(
                                 pathHistory = pathHistory + item.path
                                 loadDirectory(item.path)
                             } else {
-                                val (inferredTitle, inferredArtist) = LocalMusicManager.inferTitleArtist(item.name)
-                                val song =
-                                    Song(
-                                        songMid = "local_${item.path.hashCode()}",
-                                        name = inferredTitle,
-                                        singer = inferredArtist,
-                                        album = "本地音频",
-                                        localFilePath = item.path,
-                                    )
+                                val cachedSong = LocalMusicManager.findSongByPath(item.path)
+                                val song = cachedSong ?: LocalMusicManager.buildTempSong(item.path, item.name)
                                 PlaybackManager.playSong(song)
                             }
                         },

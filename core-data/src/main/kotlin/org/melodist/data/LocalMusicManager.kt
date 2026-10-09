@@ -689,6 +689,40 @@ object LocalMusicManager {
     }
 
     /**
+     * 根据本地文件路径查询已扫描曲库中的歌曲对象
+     */
+    fun findSongByPath(path: String): Song? {
+        val cache = inMemoryConfig.scannedSongs.firstOrNull { it.path == path } ?: return null
+        return cache.toSong()
+    }
+
+
+    /**
+     * 构造临时本地歌曲对象，保证 songMid 与曲库 ID 哈希一致
+     */
+    fun buildTempSong(path: String, fileName: String): Song {
+        val (inferredTitle, inferredArtist) = inferTitleArtist(fileName)
+        return buildTempSong(path, inferredTitle, inferredArtist)
+    }
+
+    fun buildTempSong(path: String, inferredTitle: String, inferredArtist: String): Song {
+        val hash = md5(path)
+        val defaultAlbum = File(path).parentFile?.name ?: "本地音频"
+        val tier = AudioFileFilter.inferQualityTierByExtension(path)
+        val coverUrl = resolveCoverUrl(path, "")
+        return Song(
+            songId = hash.hashCode().toLong(),
+            songMid = "local_$hash",
+            name = inferredTitle,
+            singer = inferredArtist,
+            album = defaultAlbum,
+            currentTier = tier,
+            coverUrl = coverUrl,
+            localFilePath = path,
+        )
+    }
+
+    /**
      * 读取歌曲歌词：优先读取同名 .lrc，次选内嵌歌词
      */
     suspend fun getSongLyrics(song: Song): String? =

@@ -441,9 +441,16 @@ fun WebDavMobileScreen(
                                 pathHistory = pathHistory + item.href
                                 loadPath(item.href)
                             } else {
-                                val (title, artist) = WebDavService.inferTitleArtist(item.name)
-                                val coverUrl = WebDavManager.getSongCoverPath(currentServer!!.id, item.href)
-                                val song = item.toSong(currentServer!!.id, title, artist, localPath = coverUrl)
+                                val server = currentServer ?: return@StorageDirectoryListView
+                                val cached = WebDavManager.findCachedSong(server.id, item.href)
+                                val song =
+                                    if (cached != null) {
+                                        cached
+                                    } else {
+                                        val (title, artist) = WebDavService.inferTitleArtist(item.name)
+                                        val coverUrl = WebDavManager.getSongCoverPath(server.id, item.href)
+                                        item.toSong(server.id, title, artist, coverUrl = coverUrl)
+                                    }
                                 PlaybackManager.playSong(song)
                             }
                         },
