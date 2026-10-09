@@ -9,6 +9,28 @@ object LyricParser {
     private val TIMESTAMP_REGEX = Regex("""\[(\d{1,2}):(\d{1,2})(?:[\.:](\d{1,3}))?\]""")
     private val QRC_WORD_REGEX = Regex("""\((\d+),(\d+)\)([^(]*)""")
 
+    // 标准 LRC ID 标签正则 (如 ti:, ar:, al:, by:, offset:)
+    private val LRC_TAG_REGEX = Regex("""^(?:ti|ar|al|by|offset)\s*[:：]""", RegexOption.IGNORE_CASE)
+
+    // 结构化制作信息行正则 (中/日/韩/英 制作角色 + 任意冒号/空格/by 连接)
+    private val META_ROLE_REGEX =
+        Regex(
+            """^(?:(?:作?[词詞]|作?[曲]|编[曲]|編[曲]|演?唱|原唱|制作|製作|监制|監制|混音|录音|錄音|母带|母帶|出品|企划|企劃|歌手|专辑|專輯|歌名|歌曲|和声|和聲|吉他|贝斯|貝斯|鼓手|弦乐|弦樂|OP|SP|작사|작곡|편곡)\s*人?\s*[:：]|(?:lyrics?|composed?|arranged?|music|produced?|producer|mixed?|mastered?|vocals?|strings?|guitars?|bass|drums?|production|(?:mixing|mastering|recording|audio|sound)\s+engineers?|music\s+(?:supervisor|producer)s?|voicing\s+arrangements?)\s*(?:by|[:：]))""",
+            RegexOption.IGNORE_CASE,
+        )
+
+    private val META_STATEMENT_KEYWORDS =
+        listOf(
+            "享有本翻译",
+            "翻译贡献",
+            "大模型",
+            "未经著作权人",
+            "未经许可",
+        )
+
+    private val TITLE_SEPARATORS =
+        listOf(" - ", " － ", " — ", " – ", " / ")
+
     /**
      * 将 Base64 编码的歌词原始字符串解码为 UTF-8 明文文本。
      *
@@ -82,7 +104,7 @@ object LyricParser {
 
         if (origItems.isEmpty()) return emptyList()
         if (transItems.isEmpty()) {
-            return origItems.map { LyricLine(timestampMs = it.first, text = it.second) }
+            return mergeSingleLrcBilingual(origItems)
         }
 
         val cleanTrans =
@@ -193,66 +215,84 @@ object LyricParser {
     ): Boolean {
         if (text.isBlank()) return true
         val t = text.trim()
+        if (t == "//") return true
 
-        val metaPrefixes =
-            listOf(
-                "词：",
-                "词:",
-                "作词：",
-                "作词:",
-                "曲：",
-                "曲:",
-                "作曲：",
-                "作曲:",
-                "编曲：",
-                "编曲:",
-                "制作：",
-                "制作:",
-                "制作人：",
-                "制作人:",
-                "监制：",
-                "监制:",
-                "混音：",
-                "混音:",
-                "录音：",
-                "录音:",
-                "母带：",
-                "母带:",
-                "出品：",
-                "出品:",
-                "企划：",
-                "企划:",
-                "歌手：",
-                "歌手:",
-                "演唱：",
-                "演唱:",
-                "原唱：",
-                "原唱:",
-                "专辑：",
-                "专辑:",
-                "歌名：",
-                "歌名:",
-                "歌曲：",
-                "歌曲:",
-                "OP：",
-                "OP:",
-                "SP：",
-                "SP:",
-                "ti:",
-                "ar:",
-                "al:",
-                "by:",
-                "offset:",
-            )
-        if (metaPrefixes.any { t.startsWith(it, ignoreCase = true) }) return true
+        // 1. 结构化 Key-Value 制作属性匹配 (中/日/韩/英) 及 LRC 标签
+        if (META_ROLE_REGEX.containsMatchIn(t) || LRC_TAG_REGEX.containsMatchIn(t)) {
+            return true
+        }
 
-        // 前奏前 6 秒内的曲目-歌手标题行识别 (支持半角 -, 全角 －, 破折号 —, –, /)
+        // 2. 版权与声明关键词过滤
+        if (META_STATEMENT_KEYWORDS.any { t.contains(it, ignoreCase = true) }) {
+            return true
+        }
+
+        // 3. 前奏前 6 秒内的歌曲-歌手标题行 (要求两边带空格，且排除句首破折号)
         if (timestampMs <= 6000) {
-            val titleSeparators = listOf(" - ", " － ", " — ", " – ", " / ")
-            if (titleSeparators.any { t.contains(it) }) return true
+            if (TITLE_SEPARATORS.any { t.contains(it) } && !t.startsWith("-") && !t.startsWith("—")) {
+                return true
+            }
         }
 
         return false
+    }
+
+    /**
+     * 单文本双语歌词检测与合并。
+     * 支持交错式双语歌词（相邻原文行与译文行时间戳相同或在 250ms 容差内）。
+     */
+    fun mergeSingleLrcBilingual(origItems: List<Pair<Long, String>>): List<LyricLine> {
+        if (origItems.isEmpty()) return emptyList()
+
+        val n = origItems.size
+        var pairs = 0
+        var nonMetaCount = 0
+        var i = 0
+        while (i < n) {
+            val (ts, text) = origItems[i]
+            if (!isMetaInfoLine(ts, text)) {
+                nonMetaCount++
+                if (i + 1 < n) {
+                    val (nextTs, nextText) = origItems[i + 1]
+                    if (!isMetaInfoLine(nextTs, nextText) && abs(nextTs - ts) <= 250) {
+                        pairs++
+                        i += 2
+                        continue
+                    }
+                }
+            }
+            i++
+        }
+
+        val isBilingual = pairs >= 3 || (nonMetaCount in 1..6 && pairs * 2 >= nonMetaCount)
+        if (!isBilingual) {
+            return origItems.map { LyricLine(timestampMs = it.first, text = it.second) }
+        }
+
+        val result = mutableListOf<LyricLine>()
+        i = 0
+        while (i < n) {
+            val (ts, text) = origItems[i]
+            if (isMetaInfoLine(ts, text)) {
+                result.add(LyricLine(timestampMs = ts, text = text))
+                i++
+                continue
+            }
+
+            if (i + 1 < n) {
+                val (nextTs, nextText) = origItems[i + 1]
+                if (!isMetaInfoLine(nextTs, nextText) && abs(nextTs - ts) <= 250) {
+                    result.add(LyricLine(timestampMs = ts, text = text, transText = nextText))
+                    i += 2
+                    continue
+                }
+            }
+
+            result.add(LyricLine(timestampMs = ts, text = text))
+            i++
+        }
+
+        return result
     }
 
     /**
