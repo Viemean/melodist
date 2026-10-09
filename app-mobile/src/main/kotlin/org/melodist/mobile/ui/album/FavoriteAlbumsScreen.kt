@@ -64,6 +64,7 @@ import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
+import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.model.Album
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -109,31 +110,37 @@ fun FavoriteAlbumsScreen(
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 200
         }
     }
+    val topBarState = org.melodist.mobile.ui.components.rememberLandscapeCollapsibleTopBarState()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    AnimatedVisibility(
-                        visible = showTopBarTitle,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                    ) {
-                        Text("收藏的专辑", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
-                        )
-                    }
-                },
-            )
+            org.melodist.mobile.ui.components.LandscapeCollapsibleTopBar(visible = topBarState.isVisible) {
+                TopAppBar(
+                    title = {
+                        AnimatedVisibility(
+                            visible = showTopBarTitle,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                        ) {
+                            Text("收藏的专辑", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "返回",
+                            )
+                        }
+                    },
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = modifier.fillMaxSize(),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .landscapeNestedScroll(topBarState),
     ) { scaffoldPadding ->
         Box(
             modifier =

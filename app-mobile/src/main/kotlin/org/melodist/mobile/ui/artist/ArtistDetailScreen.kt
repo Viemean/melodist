@@ -61,6 +61,7 @@ import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.data.FavoriteArtistsManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
 import org.melodist.model.ArtistDetail
@@ -300,22 +301,29 @@ fun ArtistDetailScreen(
         }
     }
 
+    val topBarState = org.melodist.mobile.ui.components.rememberLandscapeCollapsibleTopBarState()
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("歌手页面", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
-                        )
-                    }
-                },
-            )
+            org.melodist.mobile.ui.components.LandscapeCollapsibleTopBar(visible = topBarState.isVisible) {
+                TopAppBar(
+                    title = { Text("歌手页面", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "返回",
+                            )
+                        }
+                    },
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = modifier.fillMaxSize(),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .landscapeNestedScroll(topBarState),
     ) { scaffoldPadding ->
         Box(
             modifier =

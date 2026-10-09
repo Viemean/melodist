@@ -67,6 +67,7 @@ import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.ArtistSelectDialog
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
 import org.melodist.model.AlbumDetail
@@ -178,46 +179,53 @@ fun AlbumDetailScreen(
             )
         }
 
+    val topBarState = org.melodist.mobile.ui.components.rememberLandscapeCollapsibleTopBarState()
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(displayName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (!UserSession.isLoggedIn) {
-                                Toast.makeText(context, "请先登录", Toast.LENGTH_SHORT).show()
-                                return@IconButton
-                            }
-                            val newFav = !isFavorite
-                            UserLibraryCacheManager.onAlbumFavoriteToggled(currentAlbum, newFav)
-                            Toast
-                                .makeText(
-                                    context,
-                                    if (newFav) "已收藏专辑" else "已取消收藏专辑",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                        },
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = if (isFavorite) "取消收藏" else "收藏专辑",
-                            tint = if (isFavorite) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                },
-            )
+            org.melodist.mobile.ui.components.LandscapeCollapsibleTopBar(visible = topBarState.isVisible) {
+                TopAppBar(
+                    title = { Text(displayName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "返回",
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                if (!UserSession.isLoggedIn) {
+                                    Toast.makeText(context, "请先登录", Toast.LENGTH_SHORT).show()
+                                    return@IconButton
+                                }
+                                val newFav = !isFavorite
+                                UserLibraryCacheManager.onAlbumFavoriteToggled(currentAlbum, newFav)
+                                Toast
+                                    .makeText(
+                                        context,
+                                        if (newFav) "已收藏专辑" else "已取消收藏专辑",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = if (isFavorite) "取消收藏" else "收藏专辑",
+                                tint = if (isFavorite) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    },
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = modifier.fillMaxSize(),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .landscapeNestedScroll(topBarState),
     ) { scaffoldPadding ->
         Box(
             modifier =

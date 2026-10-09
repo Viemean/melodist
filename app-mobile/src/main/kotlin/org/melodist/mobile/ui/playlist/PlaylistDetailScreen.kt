@@ -73,6 +73,7 @@ import org.melodist.data.MillionRecommendManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.model.CoverScenario
 import org.melodist.model.CoverUrlResolver
@@ -384,30 +385,37 @@ fun PlaylistDetailScreen(
             }
     }
 
+    val topBarState = org.melodist.mobile.ui.components.rememberLandscapeCollapsibleTopBarState()
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    AnimatedVisibility(
-                        visible = showTopBarTitle,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                    ) {
-                        Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
-                        )
-                    }
-                },
-            )
+            org.melodist.mobile.ui.components.LandscapeCollapsibleTopBar(visible = topBarState.isVisible) {
+                TopAppBar(
+                    title = {
+                        AnimatedVisibility(
+                            visible = showTopBarTitle,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                        ) {
+                            Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "返回",
+                            )
+                        }
+                    },
+                )
+            }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = modifier.fillMaxSize(),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .landscapeNestedScroll(topBarState),
     ) { scaffoldPadding ->
         val pullRefreshState = rememberPullToRefreshState()
         PullToRefreshBox(
