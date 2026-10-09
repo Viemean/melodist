@@ -191,7 +191,7 @@ object MobileConnectManager {
                                 if (tvSong?.songMid == pendingTrackTargetMid) {
                                     pendingTrackTargetMid = null
                                 } else {
-                                    // TV 处于换轨过渡期仍回报旧曲目时跳过同步，避免旧曲目状态回写
+                                    // 换轨过渡期跳过旧曲目状态同步
                                     return@collect
                                 }
                             } else if (pendingTrackTargetMid != null) {
@@ -503,7 +503,7 @@ object MobileConnectManager {
                         continue
                     }
 
-                    // 达到最大失败次数后停止无休止探测，避免能耗与网络开销
+                    // 达到最大失败次数后终止探测
                     if (autoConnectFailureCount >= MAX_AUTO_CONNECT_FAILURES) {
                         android.util.Log.i("MobileConnectManager", "Auto-connect stopped after reaching maximum failure attempts ($autoConnectFailureCount).")
                         break

@@ -84,7 +84,7 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val lightBgColorInt = ColorUtils.HSLToColor(lightBgHsl)
 
-    // 2. 深色背景色：沉稳纯净的黑曜石深灰色（明度 0.075f，饱和度极弱 0.04f..0.08f），避免红棕或暗彩色造成视觉疲劳
+    // 2. 深色背景色：黑曜石深灰色（明度 0.075f，饱和度 0.04f..0.08f）
     val darkBgHsl =
         floatArrayOf(
             hue,

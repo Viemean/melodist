@@ -57,7 +57,7 @@ fun MillionRecommendCard(
         }
     }
 
-    // 15 秒无序轮播，带有 4 秒初始错峰相位，避免与同屏的猜你喜欢同时跳变
+    // 15 秒无序轮播，配置 4 秒初始错峰相位
     LaunchedEffect(shuffledList, isForeground) {
         if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
         delay(PHASE_OFFSET_MS)

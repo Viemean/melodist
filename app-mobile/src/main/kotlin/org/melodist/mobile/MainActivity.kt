@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
                                 ImageRequest
                                     .Builder(appContext)
                                     .data(url)
-                                    .memoryCachePolicy(CachePolicy.DISABLED) // 不占用堆内存，避免触发频繁 GC 暂停
+                                    .memoryCachePolicy(CachePolicy.DISABLED)
                                     .diskCachePolicy(CachePolicy.ENABLED)
                                     .build()
                             imageLoader.execute(request)
@@ -159,7 +159,7 @@ class MainActivity : ComponentActivity() {
                     val targetWidth = defaultMode.physicalWidth
                     val targetHeight = defaultMode.physicalHeight
                     val modes = disp.supportedModes
-                    // 在匹配当前屏幕物理分辨率的模式中选最高刷新率，避免触发跨分辨率硬件缩放
+                    // 选取当前屏幕物理分辨率下的最高刷新率模式
                     val maxRefreshMode =
                         modes
                             .filter { it.physicalWidth == targetWidth && it.physicalHeight == targetHeight }

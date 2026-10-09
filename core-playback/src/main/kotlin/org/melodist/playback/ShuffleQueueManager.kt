@@ -67,7 +67,7 @@ class ShuffleQueueManager(
             val totalCount = _shuffledIndices.size
             reset(totalCount, lastPlayed, songs)
 
-            // 重新洗牌后，首项是刚刚听完的最后一首，顺延至下一首避免连播
+            // 顺延相同首项曲目
             _pointer = 1
         }
         return _shuffledIndices[_pointer]

@@ -142,7 +142,7 @@ private fun LyricLineItem(
     // 渲染逐字或整行
     val currentLineElapsedMs = if (isCurrent) (currentPositionMs - line.timestampMs).coerceAtLeast(0) else 0L
 
-    // 歌词行切换动画 (保持在 graphicsLayer 块内读取避免 Composable 重组)
+    // 歌词行切换动画 (graphicsLayer 内读取状态)
     val animatedScale =
         animateFloatAsState(
             targetValue = if (isCurrent) 1.08f else 1.0f,

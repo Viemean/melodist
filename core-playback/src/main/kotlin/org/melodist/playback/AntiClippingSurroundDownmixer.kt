@@ -67,7 +67,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val sumL = (fl + centerGain * c + surroundGain * (sl + bl)) * invScale
             val sumR = (fr + centerGain * c + surroundGain * (sr + br)) * invScale
 
-            // 软限幅防止溢出
+            // 峰值软限幅处理
             outputBuffer.putShort(softClipToShort(sumL))
             outputBuffer.putShort(softClipToShort(sumR))
         }

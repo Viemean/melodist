@@ -387,9 +387,9 @@ object PlaybackCredentialsManager {
         }
         val isProtected = bytes[2] == FLAG_PASSWORD_PROTECTED
         val bb = ByteBuffer.wrap(bytes)
-        bb.get() // magic
-        bb.get() // version
-        bb.get() // flag
+        bb.get()
+        bb.get()
+        bb.get()
 
         val salt =
             if (isProtected) {

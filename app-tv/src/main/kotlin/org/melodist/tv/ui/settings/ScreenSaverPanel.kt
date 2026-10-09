@@ -404,7 +404,7 @@ fun ScreenSaverOverlay(
 
     var canDismiss by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(600L) // 延迟避免确认键连击触发退出
+        delay(600L) // 按键防抖延迟
         canDismiss = true
     }
 

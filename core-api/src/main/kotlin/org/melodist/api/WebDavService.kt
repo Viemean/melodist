@@ -84,7 +84,7 @@ class WebDavService {
                 if (server.username.isNotBlank() || server.password.isNotBlank()) {
                     builder.authenticator { _, response ->
                         if (response.request.header("Authorization") != null) {
-                            return@authenticator null // 已经尝试认证失败，避免死循环
+                            return@authenticator null // 拦截重复认证尝试
                         }
                         val credential = Credentials.basic(server.username, server.password)
                         response.request

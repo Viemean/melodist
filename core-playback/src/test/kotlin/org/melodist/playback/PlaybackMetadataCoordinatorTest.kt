@@ -18,7 +18,7 @@ class PlaybackMetadataCoordinatorTest {
         assertEquals("Song Title", PlaybackMetadataCoordinator.cleanTrackNumber("01 Song Title"))
         assertEquals("Track One", PlaybackMetadataCoordinator.cleanTrackNumber("Track 01 - Track One"))
         assertEquals("Simple Song", PlaybackMetadataCoordinator.cleanTrackNumber("Simple Song"))
-        // 关键边界：防止误伤正常带数字歌名
+        // 边界校验：保留合法带数字歌名
         assertEquals("21 Guns", PlaybackMetadataCoordinator.cleanTrackNumber("21 Guns"))
         assertEquals("7 Rings", PlaybackMetadataCoordinator.cleanTrackNumber("7 Rings"))
         assertEquals("1989", PlaybackMetadataCoordinator.cleanTrackNumber("1989"))

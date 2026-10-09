@@ -31,7 +31,7 @@ object RotatingCandidatePool {
     ): List<T> {
         if (pool.size <= 1) return pool
         val shuffled = pool.shuffled().toMutableList()
-        // 避免新一轮的首个元素与上一轮的最后一个元素相同
+        // 首尾去重换位
         if (lastItem != null && shuffled.firstOrNull() == lastItem && shuffled.size > 1) {
             val first = shuffled.removeAt(0)
             shuffled.add(first)

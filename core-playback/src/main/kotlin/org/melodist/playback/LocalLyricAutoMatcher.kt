@@ -189,7 +189,7 @@ object LocalLyricAutoMatcher {
                 try {
                     val officialLyrics = apiService.getLyrics(matchedSongMid)
                     if (officialLyrics.isNotEmpty()) {
-                        // 过滤纯音乐、暂无歌词等占位内容，避免覆盖本地有效歌词或误将本地歌曲置为纯音乐
+                        // 过滤纯音乐与占位歌词内容
                         if (org.melodist.api.LyricParser
                                 .isPlaceholderLyrics(officialLyrics)
                         ) {
@@ -197,7 +197,7 @@ object LocalLyricAutoMatcher {
                             return@withContext null
                         }
 
-                        // 若原歌词已有有效非占位内容，且匹配到的新歌词没有提供翻译，则保留原歌词避免负优化
+                        // 缺失翻译时保留原歌词内容
                         val currentIsPlaceholder =
                             org.melodist.api.LyricParser
                                 .isPlaceholderLyrics(currentLyrics)

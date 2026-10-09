@@ -384,7 +384,7 @@ fun AcrTvScreen(
                                     },
                                 )
 
-                                // 3. 重新识别按钮（防止换行，单行紧凑排布）
+                                // 3. 重新识别按钮
                                 AcrTvButton(
                                     text = "重新识别",
                                     icon = Icons.Default.Refresh,

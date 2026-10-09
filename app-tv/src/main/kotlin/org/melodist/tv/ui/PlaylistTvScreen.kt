@@ -777,7 +777,7 @@ fun PlaylistTvScreen(
             if (!isReturning || playlistSongs.isEmpty()) {
                 -1
             } else {
-                // 1. 如果有由于长按进入歌手/专辑而记录的目标歌曲，优先恢复到该歌曲位置
+                // 1. 恢复记录的目标歌曲滚动锚点
                 val actionSongIndex =
                     if (!PlaylistScreenCache.targetReturnSongMid.isNullOrBlank() || (PlaylistScreenCache.targetReturnSongId ?: 0L) != 0L) {
                         playlistSongs.indexOfFirst { song ->

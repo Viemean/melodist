@@ -152,7 +152,7 @@ object MonetColorExtractor {
         avgHue: Float,
         rawSat: Float,
     ): Color {
-        // 饱和度收敛在 0.30f..0.46f，避免强烈色彩刺眼
+        // 饱和度区间约束 0.30f..0.46f
         val targetSat = (rawSat * 0.95f).coerceIn(0.30f, 0.46f)
         // 限制明度为 0.25f，平衡深色氛围与色彩辨识度
         val targetVal = 0.25f
