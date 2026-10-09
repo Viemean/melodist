@@ -154,4 +154,33 @@ class SongParsingTest {
         assertNotNull(freeSong)
         assertFalse(freeSong!!.isVip)
     }
+
+    @Test
+    fun `parseSongFromElement with empty album mid retains empty album attributes`() {
+        val json =
+            """
+            {
+              "id": 582346274,
+              "mid": "002jChwo3BCtBh",
+              "name": "バカみたいに",
+              "singer": [
+                { "name": "柿崎ユウタ" },
+                { "name": "初音未来" }
+              ],
+              "album": {
+                "id": 0,
+                "mid": "",
+                "name": "",
+                "pmid": "0030lak94GN5Ad_0"
+              }
+            }
+            """.trimIndent()
+
+        val song = MusicApiService.parseSongFromElement(Json.parseToJsonElement(json))
+        assertNotNull(song)
+        assertEquals("002jChwo3BCtBh", song!!.songMid)
+        assertEquals("", song.albumMid)
+        assertEquals("", song.album)
+        assertEquals("", song.coverUrl)
+    }
 }

@@ -243,6 +243,8 @@ fun SongActionSheet(
             ) {
                 AlbumArtImage(
                     coverUrl = song.thumbnailCoverUrl,
+                    candidates = song.thumbnailCandidates,
+                    songMid = song.songMid,
                     contentDescription = song.name,
                     shape = RoundedCornerShape(10.dp),
                     elevation = 4.dp,
@@ -262,8 +264,14 @@ fun SongActionSheet(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(3.dp))
+                    val subtitleText =
+                        if (song.album.isNotBlank()) {
+                            "${song.singer.ifBlank { "未知歌手" }} · ${song.album}"
+                        } else {
+                            song.singer.ifBlank { "未知歌手" }
+                        }
                     Text(
-                        text = "${song.singer.ifBlank { "未知歌手" }} · ${song.album.ifBlank { "未知专辑" }}",
+                        text = subtitleText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

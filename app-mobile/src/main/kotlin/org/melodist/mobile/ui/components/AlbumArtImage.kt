@@ -11,8 +11,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -28,11 +30,15 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import org.melodist.api.MusicApiService
+import org.melodist.api.MusicApiVisual
+import org.melodist.api.getSongVisualMid
 
 /**
  * 统一风格的专辑封面展示组件。
  * 具备精致圆角、微光立体描边与柔和落地阴影；
  * 支持多清晰度候选列表 (candidates) 与自动降级重试；
+ * 支持针对无专辑封面单曲自动异步解析视觉 MID (Visual MID)；
  * 配置 FilterQuality.Medium 抗锯齿滤波；
  * 默认关闭 crossfade 避免列表滑动时并发动画引起 Choreographer 丢帧，仅当 elevation > 0 时添加动态阴影。
  */
@@ -42,6 +48,7 @@ fun AlbumArtImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     candidates: List<String>? = null,
+    songMid: String? = null,
     shape: Shape = RoundedCornerShape(10.dp),
     elevation: Dp = 8.dp,
     border: BorderStroke? = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
@@ -53,8 +60,33 @@ fun AlbumArtImage(
 ) {
     val context = LocalContext.current
 
+    var dynamicVisualMid by remember(songMid) {
+        mutableStateOf(
+            if (!songMid.isNullOrBlank()) {
+                MusicApiVisual.getCachedVisualMid(songMid).orEmpty()
+            } else {
+                ""
+            }
+        )
+    }
+
+    LaunchedEffect(songMid, coverUrl, candidates) {
+        if (coverUrl.isNullOrBlank() &&
+            candidates.isNullOrEmpty() &&
+            dynamicVisualMid.isBlank() &&
+            !songMid.isNullOrBlank() &&
+            !songMid.startsWith("webdav_") &&
+            !songMid.startsWith("local_")
+        ) {
+            val vsMid = MusicApiService().getSongVisualMid(songMid)
+            if (!vsMid.isNullOrBlank()) {
+                dynamicVisualMid = vsMid
+            }
+        }
+    }
+
     val candidateList =
-        remember(coverUrl, candidates) {
+        remember(coverUrl, candidates, dynamicVisualMid) {
             val list = mutableListOf<String>()
             if (!candidates.isNullOrEmpty()) {
                 candidates.forEach { c ->
@@ -62,6 +94,8 @@ fun AlbumArtImage(
                 }
             } else if (!coverUrl.isNullOrBlank()) {
                 list.add(coverUrl)
+            } else if (dynamicVisualMid.isNotBlank()) {
+                list.addAll(MusicApiVisual.getSingleCoverCandidates(dynamicVisualMid))
             }
             list
         }

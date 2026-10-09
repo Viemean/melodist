@@ -96,6 +96,7 @@ fun SongItemRow(
             AlbumArtImage(
                 coverUrl = song.thumbnailCoverUrl,
                 candidates = song.thumbnailCandidates,
+                songMid = song.songMid,
                 contentDescription = song.name,
                 shape = CoverShape,
                 elevation = 0.dp,
