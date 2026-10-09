@@ -573,10 +573,11 @@ object PlaybackManager {
 
                 if (current != null && fallback != null && !isLocalOrWebDavSong(current)) {
                     Log.w("MelodistPlayback", "Playback failed at tier $curTier, falling back to $fallback")
+                    qualityCoordinator.recordTierFailureForSong(current.songMid, curTier)
                     _errorMessage.value = "当前音质播放失败，已自动降级为 ${AudioQualityTier.getBadge(fallback)}"
                     scope.launch {
                         delay(500L)
-                        switchTier(fallback)
+                        switchTier(fallback, isAutoFallback = true)
                     }
                 } else {
                     handlePlaybackFailure("播放失败: ${error.errorCodeName}")
@@ -1814,18 +1815,24 @@ object PlaybackManager {
      * 切换当前播放歌曲的音质级别并平滑续播。
      *
      * @param tier 目标音质级别
+     * @param isAutoFallback 是否因播放故障引发的自动降级（为 true 时不覆盖用户全局首选音质偏好）
      */
-    fun switchTier(tier: AudioQualityTier) {
+    fun switchTier(
+        tier: AudioQualityTier,
+        isAutoFallback: Boolean = false,
+    ) {
         val current = _currentSong.value ?: return
         val effectiveTier = clampCellularTier(tier, current)
         if (effectiveTier != tier) {
             _errorMessage.value = "当前为移动网络，已限制为上限音质：${AudioQualityTier.getBadge(effectiveTier)}"
         }
         val previousTier = _currentTier.value
-        _preferredTier.value = effectiveTier
-        org.melodist.data.AppSettingsManager
-            .updatePreferredQualityTier(effectiveTier)
-        savePlaybackState()
+        if (!isAutoFallback) {
+            _preferredTier.value = effectiveTier
+            org.melodist.data.AppSettingsManager
+                .updatePreferredQualityTier(effectiveTier)
+            savePlaybackState()
+        }
 
         if (playbackInterceptor?.onInterceptSwitchTier(effectiveTier) == true) {
             _currentTier.value = effectiveTier
@@ -1910,12 +1917,12 @@ object PlaybackManager {
                         val fallback = getFallbackTier(effectiveTier)
                         if (fallback != null && fallback != previousTier) {
                             _errorMessage.value = "该音质不可用，已自动降级为 ${AudioQualityTier.getBadge(fallback)}"
-                            switchTier(fallback)
+                            switchTier(fallback, isAutoFallback = true)
                         } else {
                             _errorMessage.value = "该音质不可用，已恢复为 ${AudioQualityTier.getBadge(previousTier)}"
                             _preferredTier.value = previousTier
                             if (_currentTier.value != previousTier && !isPlayerValid) {
-                                switchTier(previousTier)
+                                switchTier(previousTier, isAutoFallback = true)
                             }
                         }
                     }

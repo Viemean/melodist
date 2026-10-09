@@ -34,9 +34,30 @@ class AudioQualityCoordinator(
         private set
 
     private var probeJob: Job? = null
+    private val blacklistedTiers = java.util.concurrent.ConcurrentHashMap.newKeySet<AudioQualityTier>()
+    private var blacklistedSongMid: String? = null
+
+    fun recordTierFailureForSong(songMid: String, tier: AudioQualityTier) {
+        if (blacklistedSongMid != songMid) {
+            blacklistedSongMid = songMid
+            blacklistedTiers.clear()
+        }
+        blacklistedTiers.add(tier)
+        Log.w(
+            "AudioQualityCoordinator",
+            "Blacklisted tier ${tier.name} for song $songMid due to playback/decoding failure",
+        )
+    }
+
+    fun isTierBlacklisted(songMid: String, tier: AudioQualityTier): Boolean =
+        blacklistedSongMid == songMid && blacklistedTiers.contains(tier)
 
     fun resetForSong(song: Song) {
         probeJob?.cancel()
+        if (blacklistedSongMid != song.songMid) {
+            blacklistedSongMid = song.songMid
+            blacklistedTiers.clear()
+        }
         val isLocalOrWebDav = PlaybackSourceResolver.isLocalOrWebDavSong(song)
         if (isLocalOrWebDav) {
             val actualTier = song.currentTier
@@ -107,12 +128,20 @@ class AudioQualityCoordinator(
 
                         val preferred = preferredTierProvider()
                         val effective = clampCellularTier(preferred, song, context)
-                        if (currentTierProvider() != effective && available.contains(effective) && currentSongMidProvider() == song.songMid) {
+                        val isBlacklisted = isTierBlacklisted(song.songMid, effective)
+                        if (currentTierProvider() != effective && available.contains(effective) && !isBlacklisted && currentSongMidProvider() == song.songMid) {
                             Log.i(
                                 "AudioQualityCoordinator",
                                 "Auto-upgrading to preferred tier ${AudioQualityTier.getBadge(effective)} after probe for ${song.name}",
                             )
-                            onAutoUpgrade?.invoke(effective)
+                            kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                onAutoUpgrade?.invoke(effective)
+                            }
+                        } else if (isBlacklisted) {
+                            Log.i(
+                                "AudioQualityCoordinator",
+                                "Skipping auto-upgrade to ${AudioQualityTier.getBadge(effective)} for ${song.name} (tier is blacklisted for this session)",
+                            )
                         }
                     }
                 } catch (e: Exception) {
