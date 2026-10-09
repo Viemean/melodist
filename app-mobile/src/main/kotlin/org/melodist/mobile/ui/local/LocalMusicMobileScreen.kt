@@ -441,9 +441,16 @@ fun LocalMusicMobileScreen(
                                 pathHistory = pathHistory + item.path
                                 loadDirectory(item.path)
                             } else {
-                                val cachedSong = LocalMusicManager.findSongByPath(item.path)
-                                val song = cachedSong ?: LocalMusicManager.buildTempSong(item.path, item.name)
-                                PlaybackManager.playSong(song)
+                                val audioItems = directoryItems.filter { !it.isDirectory && it.isAudio }
+                                val folderSongs =
+                                    audioItems.map { audioItem ->
+                                        LocalMusicManager.findSongByPath(audioItem.path)
+                                            ?: LocalMusicManager.buildTempSong(audioItem.path, audioItem.name)
+                                    }
+                                val targetIndex = audioItems.indexOfFirst { it.path == item.path }.coerceAtLeast(0)
+                                if (folderSongs.isNotEmpty()) {
+                                    PlaybackManager.setPlaylist(folderSongs, startIndex = targetIndex)
+                                }
                             }
                         },
                         contentPadding =

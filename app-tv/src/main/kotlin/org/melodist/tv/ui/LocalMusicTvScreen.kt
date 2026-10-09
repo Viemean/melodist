@@ -387,10 +387,17 @@ fun LocalMusicTvScreen(
                                         currentPath = item.path
                                         loadDirectory(item.path)
                                     } else if (item.isAudio) {
-                                        val cachedSong = LocalMusicManager.findSongByPath(item.path)
-                                        val song = cachedSong ?: LocalMusicManager.buildTempSong(item.path, item.name)
-                                        PlaybackManager.setPlaylist(listOf(song), 0)
-                                        onNavigateToPlayer()
+                                        val audioItems = items.filter { !it.isDirectory && it.isAudio }
+                                        val songList =
+                                            audioItems.map { itm ->
+                                                LocalMusicManager.findSongByPath(itm.path)
+                                                    ?: LocalMusicManager.buildTempSong(itm.path, itm.name)
+                                            }
+                                        val targetIdx = audioItems.indexOfFirst { it.path == item.path }.coerceAtLeast(0)
+                                        if (songList.isNotEmpty()) {
+                                            PlaybackManager.setPlaylist(songList, startIndex = targetIdx)
+                                            onNavigateToPlayer()
+                                        }
                                     }
                                 },
                             )

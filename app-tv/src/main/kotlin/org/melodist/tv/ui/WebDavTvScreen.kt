@@ -22,6 +22,7 @@ import androidx.tv.material3.*
 import kotlinx.coroutines.launch
 import org.melodist.api.WebDavService
 import org.melodist.data.WebDavManager
+import org.melodist.model.AudioFileFilter
 import org.melodist.model.WebDavItem
 import org.melodist.model.WebDavServer
 import org.melodist.playback.PlaybackManager
@@ -428,7 +429,7 @@ fun WebDavTvScreen(
                                             loadPath(item.href)
                                         } else {
                                             val server = currentServer ?: return@WebDavItemRow
-                                            val audioItems = items.filter { !it.isDirectory }
+                                            val audioItems = items.filter { !it.isDirectory && AudioFileFilter.isAudioFile(it.name) }
                                             val cachedMap = currentServer?.cachedSongs?.associateBy { it.href }
                                             val songList =
                                                 audioItems.map { itm ->
@@ -441,9 +442,11 @@ fun WebDavTvScreen(
                                                         itm.toSong(server.id, t, a, coverUrl = coverUrl)
                                                     }
                                                 }
-                                            val targetIdx = audioItems.indexOf(item).coerceAtLeast(0)
-                                            PlaybackManager.setPlaylist(songList, startIndex = targetIdx)
-                                            onNavigateToPlayer()
+                                            val targetIdx = audioItems.indexOfFirst { it.href == item.href }.coerceAtLeast(0)
+                                            if (songList.isNotEmpty()) {
+                                                PlaybackManager.setPlaylist(songList, startIndex = targetIdx)
+                                                onNavigateToPlayer()
+                                            }
                                         }
                                     },
                                     onLongClick =

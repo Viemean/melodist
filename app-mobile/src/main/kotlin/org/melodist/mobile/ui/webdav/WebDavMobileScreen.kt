@@ -58,6 +58,7 @@ import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.storage.StorageDirectoryListView
 import org.melodist.mobile.ui.storage.StorageItemModel
+import org.melodist.model.AudioFileFilter
 import org.melodist.mobile.ui.storage.StoragePathBreadcrumbs
 import org.melodist.mobile.ui.storage.StorageScanProgressCard
 import org.melodist.model.SongSortOrder
@@ -442,16 +443,22 @@ fun WebDavMobileScreen(
                                 loadPath(item.href)
                             } else {
                                 val server = currentServer ?: return@StorageDirectoryListView
-                                val cached = WebDavManager.findCachedSong(server.id, item.href)
-                                val song =
-                                    if (cached != null) {
-                                        cached
-                                    } else {
-                                        val (title, artist) = WebDavService.inferTitleArtist(item.name)
-                                        val coverUrl = WebDavManager.getSongCoverPath(server.id, item.href)
-                                        item.toSong(server.id, title, artist, coverUrl = coverUrl)
+                                val audioItems = directoryItems.filter { !it.isDirectory && AudioFileFilter.isAudioFile(it.name) }
+                                val folderSongs =
+                                    audioItems.map { audioItem ->
+                                        val cached = WebDavManager.findCachedSong(server.id, audioItem.href)
+                                        if (cached != null) {
+                                            cached
+                                        } else {
+                                            val (title, artist) = WebDavService.inferTitleArtist(audioItem.name)
+                                            val coverUrl = WebDavManager.getSongCoverPath(server.id, audioItem.href)
+                                            audioItem.toSong(server.id, title, artist, coverUrl = coverUrl)
+                                        }
                                     }
-                                PlaybackManager.playSong(song)
+                                val targetIndex = audioItems.indexOfFirst { it.href == item.href }.coerceAtLeast(0)
+                                if (folderSongs.isNotEmpty()) {
+                                    PlaybackManager.setPlaylist(folderSongs, startIndex = targetIndex)
+                                }
                             }
                         },
                         contentPadding =
