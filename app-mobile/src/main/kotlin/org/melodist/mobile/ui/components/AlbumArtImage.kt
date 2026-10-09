@@ -66,7 +66,7 @@ fun AlbumArtImage(
                 MusicApiVisual.getCachedVisualMid(songMid).orEmpty()
             } else {
                 ""
-            }
+            },
         )
     }
 

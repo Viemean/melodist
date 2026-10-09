@@ -179,7 +179,9 @@ fun AlbumDetailScreen(
             )
         }
 
-    val topBarState = org.melodist.mobile.ui.components.rememberLandscapeCollapsibleTopBarState()
+    val topBarState =
+        org.melodist.mobile.ui.components
+            .rememberLandscapeCollapsibleTopBarState()
 
     Scaffold(
         topBar = {

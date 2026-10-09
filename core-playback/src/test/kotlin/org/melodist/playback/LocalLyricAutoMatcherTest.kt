@@ -3,7 +3,6 @@ package org.melodist.playback
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.melodist.data.AppSettings
 import org.melodist.data.AppSettingsManager
 import org.melodist.model.LyricLine
 import org.melodist.model.Song

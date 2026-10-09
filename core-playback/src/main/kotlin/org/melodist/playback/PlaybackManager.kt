@@ -181,7 +181,6 @@ object PlaybackManager {
         )
     }
 
-
     val availableTiers: StateFlow<Set<AudioQualityTier>> get() = qualityCoordinator.availableTiers
     val probedQualityOptions: StateFlow<List<QualityOption>> get() = qualityCoordinator.probedQualityOptions
     val isProbingQuality: StateFlow<Boolean> get() = qualityCoordinator.isProbingQuality
@@ -459,7 +458,8 @@ object PlaybackManager {
                     _currentSong.value = enriched
                     queueManager.updateSongInPlaylist(enriched)
                     updateCurrentMediaMetadata(enriched)
-                    org.melodist.data.RecentPlaybackManager.recordSong(enriched)
+                    org.melodist.data.RecentPlaybackManager
+                        .recordSong(enriched)
                     savePlaybackState()
 
                     if (enriched.name != current.name || enriched.singer != current.singer) {
@@ -1428,12 +1428,13 @@ object PlaybackManager {
                                     )
                                 var metadataActuallyChanged = false
                                 if (hasMetadataUpdate) {
-                                    val enriched = PlaybackMetadataCoordinator.enrichSongMetadata(
-                                        currentSong = updated,
-                                        title = rawNewTitle,
-                                        artist = rawNewArtist,
-                                        album = rawNewAlbum,
-                                    )
+                                    val enriched =
+                                        PlaybackMetadataCoordinator.enrichSongMetadata(
+                                            currentSong = updated,
+                                            title = rawNewTitle,
+                                            artist = rawNewArtist,
+                                            album = rawNewAlbum,
+                                        )
                                     if (enriched != null) {
                                         updated = enriched
                                         metadataActuallyChanged = true

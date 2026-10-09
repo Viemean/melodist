@@ -12,17 +12,19 @@ object FlacTailSanitizer {
     private const val MAX_SCAN_TAIL_BYTES = 65536
     private const val MIN_FLAC_FILE_SIZE = 4096L
 
-    private val CRC16_TABLE = IntArray(256) { i ->
-        var crc = i shl 8
-        repeat(8) {
-            crc = if ((crc and 0x8000) != 0) {
-                ((crc shl 1) xor 0x8005) and 0xFFFF
-            } else {
-                (crc shl 1) and 0xFFFF
+    private val CRC16_TABLE =
+        IntArray(256) { i ->
+            var crc = i shl 8
+            repeat(8) {
+                crc =
+                    if ((crc and 0x8000) != 0) {
+                        ((crc shl 1) xor 0x8005) and 0xFFFF
+                    } else {
+                        (crc shl 1) and 0xFFFF
+                    }
             }
+            crc
         }
-        crc
-    }
 
     /**
      * 校验并净化 FLAC 文件尾部多余的失步字节。

@@ -17,7 +17,6 @@ import java.io.IOException
 class ResilientFlacExtractor(
     private val delegate: Extractor = FlacExtractor(),
 ) : Extractor {
-
     private var pendingSeekResync = false
 
     override fun sniff(input: ExtractorInput): Boolean = delegate.sniff(input)
@@ -125,4 +124,3 @@ class ResilientFlacExtractor(
         private const val TAG = "ResilientFlacExtractor"
     }
 }
-

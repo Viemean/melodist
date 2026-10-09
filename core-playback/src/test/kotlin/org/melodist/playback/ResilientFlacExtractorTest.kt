@@ -5,14 +5,12 @@ import androidx.media3.extractor.Extractor
 import androidx.media3.extractor.ExtractorInput
 import androidx.media3.extractor.ExtractorOutput
 import androidx.media3.extractor.PositionHolder
-import androidx.media3.extractor.flac.FlacExtractor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.EOFException
 
 class ResilientFlacExtractorTest {
-
     @Test
     fun `aligns to next sync code after seek`() {
         // 前 4 字节为随机垃圾数据，第 4、5 字节为 FLAC 同步字 0xFF, 0xF8
@@ -20,17 +18,28 @@ class ResilientFlacExtractorTest {
         val fakeInput = TestExtractorInput(data)
 
         var delegateReadCalled = false
-        val fakeDelegate = object : Extractor {
-            override fun sniff(input: ExtractorInput): Boolean = true
-            override fun init(output: ExtractorOutput) {}
-            override fun seek(position: Long, timeUs: Long) {}
-            override fun release() {}
-            override fun read(input: ExtractorInput, seekPosition: PositionHolder): Int {
-                delegateReadCalled = true
-                assertEquals(4L, input.position)
-                return Extractor.RESULT_CONTINUE
+        val fakeDelegate =
+            object : Extractor {
+                override fun sniff(input: ExtractorInput): Boolean = true
+
+                override fun init(output: ExtractorOutput) {}
+
+                override fun seek(
+                    position: Long,
+                    timeUs: Long,
+                ) {}
+
+                override fun release() {}
+
+                override fun read(
+                    input: ExtractorInput,
+                    seekPosition: PositionHolder,
+                ): Int {
+                    delegateReadCalled = true
+                    assertEquals(4L, input.position)
+                    return Extractor.RESULT_CONTINUE
+                }
             }
-        }
 
         val extractor = ResilientFlacExtractor(fakeDelegate)
         extractor.seek(100L, 1000_000L) // 触发 pendingSeekResync
@@ -48,15 +57,24 @@ class ResilientFlacExtractorTest {
         // 模拟已读取到流尾部（距离末尾不到 64KB）
         fakeInput.skipFully(totalLength - 100)
 
-        val fakeDelegate = object : Extractor {
-            override fun sniff(input: ExtractorInput): Boolean = true
-            override fun init(output: ExtractorOutput) {}
-            override fun seek(position: Long, timeUs: Long) {}
-            override fun release() {}
-            override fun read(input: ExtractorInput, seekPosition: PositionHolder): Int {
-                throw ParserException.createForMalformedContainer("Trailing garbage frame", null)
+        val fakeDelegate =
+            object : Extractor {
+                override fun sniff(input: ExtractorInput): Boolean = true
+
+                override fun init(output: ExtractorOutput) {}
+
+                override fun seek(
+                    position: Long,
+                    timeUs: Long,
+                ) {}
+
+                override fun release() {}
+
+                override fun read(
+                    input: ExtractorInput,
+                    seekPosition: PositionHolder,
+                ): Int = throw ParserException.createForMalformedContainer("Trailing garbage frame", null)
             }
-        }
 
         val extractor = ResilientFlacExtractor(fakeDelegate)
         val result = extractor.read(fakeInput, PositionHolder())
@@ -75,20 +93,31 @@ class ResilientFlacExtractorTest {
         fakeInput.skipFully(10000)
 
         var callCount = 0
-        val fakeDelegate = object : Extractor {
-            override fun sniff(input: ExtractorInput): Boolean = true
-            override fun init(output: ExtractorOutput) {}
-            override fun seek(position: Long, timeUs: Long) {}
-            override fun release() {}
-            override fun read(input: ExtractorInput, seekPosition: PositionHolder): Int {
-                callCount++
-                if (callCount == 1) {
-                    throw ParserException.createForMalformedContainer("Corrupted middle frame", null)
+        val fakeDelegate =
+            object : Extractor {
+                override fun sniff(input: ExtractorInput): Boolean = true
+
+                override fun init(output: ExtractorOutput) {}
+
+                override fun seek(
+                    position: Long,
+                    timeUs: Long,
+                ) {}
+
+                override fun release() {}
+
+                override fun read(
+                    input: ExtractorInput,
+                    seekPosition: PositionHolder,
+                ): Int {
+                    callCount++
+                    if (callCount == 1) {
+                        throw ParserException.createForMalformedContainer("Corrupted middle frame", null)
+                    }
+                    assertEquals(10010L, input.position)
+                    return Extractor.RESULT_CONTINUE
                 }
-                assertEquals(10010L, input.position)
-                return Extractor.RESULT_CONTINUE
             }
-        }
 
         val extractor = ResilientFlacExtractor(fakeDelegate)
         val result1 = extractor.read(fakeInput, PositionHolder())
@@ -107,14 +136,20 @@ class ResilientFlacExtractorTest {
         private var peekPosition = 0
 
         override fun getPosition(): Long = position.toLong()
+
         override fun getLength(): Long = data.size.toLong()
+
         override fun getPeekPosition(): Long = peekPosition.toLong()
 
         override fun resetPeekPosition() {
             peekPosition = position
         }
 
-        override fun read(target: ByteArray, offset: Int, length: Int): Int {
+        override fun read(
+            target: ByteArray,
+            offset: Int,
+            length: Int,
+        ): Int {
             if (position >= data.size) return -1
             val bytesToRead = minOf(length, data.size - position)
             System.arraycopy(data, position, target, offset, bytesToRead)
@@ -123,7 +158,12 @@ class ResilientFlacExtractorTest {
             return bytesToRead
         }
 
-        override fun readFully(target: ByteArray, offset: Int, length: Int, allowEndOfInput: Boolean): Boolean {
+        override fun readFully(
+            target: ByteArray,
+            offset: Int,
+            length: Int,
+            allowEndOfInput: Boolean,
+        ): Boolean {
             if (position + length > data.size) {
                 if (allowEndOfInput) return false
                 throw EOFException()
@@ -134,7 +174,11 @@ class ResilientFlacExtractorTest {
             return true
         }
 
-        override fun readFully(target: ByteArray, offset: Int, length: Int) {
+        override fun readFully(
+            target: ByteArray,
+            offset: Int,
+            length: Int,
+        ) {
             readFully(target, offset, length, false)
         }
 
@@ -145,7 +189,10 @@ class ResilientFlacExtractorTest {
             return bytesToSkip
         }
 
-        override fun skipFully(length: Int, allowEndOfInput: Boolean): Boolean {
+        override fun skipFully(
+            length: Int,
+            allowEndOfInput: Boolean,
+        ): Boolean {
             if (position + length > data.size) {
                 if (allowEndOfInput) return false
                 throw EOFException()
@@ -159,7 +206,11 @@ class ResilientFlacExtractorTest {
             skipFully(length, false)
         }
 
-        override fun peek(target: ByteArray, offset: Int, length: Int): Int {
+        override fun peek(
+            target: ByteArray,
+            offset: Int,
+            length: Int,
+        ): Int {
             if (peekPosition >= data.size) return -1
             val bytesToRead = minOf(length, data.size - peekPosition)
             System.arraycopy(data, peekPosition, target, offset, bytesToRead)
@@ -167,7 +218,12 @@ class ResilientFlacExtractorTest {
             return bytesToRead
         }
 
-        override fun peekFully(target: ByteArray, offset: Int, length: Int, allowEndOfInput: Boolean): Boolean {
+        override fun peekFully(
+            target: ByteArray,
+            offset: Int,
+            length: Int,
+            allowEndOfInput: Boolean,
+        ): Boolean {
             if (peekPosition + length > data.size) {
                 if (allowEndOfInput) return false
                 throw EOFException()
@@ -177,11 +233,18 @@ class ResilientFlacExtractorTest {
             return true
         }
 
-        override fun peekFully(target: ByteArray, offset: Int, length: Int) {
+        override fun peekFully(
+            target: ByteArray,
+            offset: Int,
+            length: Int,
+        ) {
             peekFully(target, offset, length, false)
         }
 
-        override fun advancePeekPosition(length: Int, allowEndOfInput: Boolean): Boolean {
+        override fun advancePeekPosition(
+            length: Int,
+            allowEndOfInput: Boolean,
+        ): Boolean {
             if (peekPosition + length > data.size) {
                 if (allowEndOfInput) return false
                 throw EOFException()
@@ -194,7 +257,10 @@ class ResilientFlacExtractorTest {
             advancePeekPosition(length, false)
         }
 
-        override fun <E : Throwable?> setRetryPosition(position: Long, e: E) {
+        override fun <E : Throwable?> setRetryPosition(
+            position: Long,
+            e: E,
+        ) {
             this.position = position.toInt()
             this.peekPosition = this.position
         }

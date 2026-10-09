@@ -74,14 +74,26 @@ class MusicApiService(
 
             val albumObj = track["album"]?.let { if (it is JsonObject) it else null }
             val albumName =
-                albumObj?.get("name")?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-                    ?: albumObj?.get("title")?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+                albumObj
+                    ?.get("name")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?.ifBlank { null }
+                    ?: albumObj
+                        ?.get("title")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        ?.ifBlank { null }
                     ?: track["albumname"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     ?: track["album_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     ?: (track["album"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null }
                     ?: ""
             val albumMid =
-                albumObj?.get("mid")?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+                albumObj
+                    ?.get("mid")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    ?.ifBlank { null }
                     ?: track["albummid"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     ?: track["album_mid"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     ?: ""

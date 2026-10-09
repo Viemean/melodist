@@ -59,13 +59,16 @@ object PlaybackEngineFactory {
      */
     fun createExtractorsFactory(): androidx.media3.extractor.ExtractorsFactory =
         androidx.media3.extractor.ExtractorsFactory {
-            androidx.media3.extractor.DefaultExtractorsFactory().createExtractors().map { extractor ->
-                if (extractor is androidx.media3.extractor.flac.FlacExtractor) {
-                    ResilientFlacExtractor(extractor)
-                } else {
-                    extractor
-                }
-            }.toTypedArray()
+            androidx.media3.extractor
+                .DefaultExtractorsFactory()
+                .createExtractors()
+                .map { extractor ->
+                    if (extractor is androidx.media3.extractor.flac.FlacExtractor) {
+                        ResilientFlacExtractor(extractor)
+                    } else {
+                        extractor
+                    }
+                }.toTypedArray()
         }
 
     fun buildExoPlayer(

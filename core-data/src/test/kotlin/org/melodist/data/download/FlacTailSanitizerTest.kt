@@ -7,17 +7,21 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 class FlacTailSanitizerTest {
-
-    private fun computeFlacCrc16(data: ByteArray, start: Int, len: Int): Int {
+    private fun computeFlacCrc16(
+        data: ByteArray,
+        start: Int,
+        len: Int,
+    ): Int {
         var crc = 0
         for (i in start until start + len) {
             crc = crc xor ((data[i].toInt() and 0xFF) shl 8)
             repeat(8) {
-                crc = if ((crc and 0x8000) != 0) {
-                    ((crc shl 1) xor 0x8005) and 0xFFFF
-                } else {
-                    (crc shl 1) and 0xFFFF
-                }
+                crc =
+                    if ((crc and 0x8000) != 0) {
+                        ((crc shl 1) xor 0x8005) and 0xFFFF
+                    } else {
+                        (crc shl 1) and 0xFFFF
+                    }
             }
         }
         return crc
@@ -52,10 +56,24 @@ class FlacTailSanitizerTest {
         val expectedValidLength = frameStart + frameDataLen + 2
 
         // 3. 追加 15 字节非音频垃圾填充数据
-        val trailingGarbage = byteArrayOf(
-            0xF0.toByte(), 0x00, 0xFF.toByte(), 0x0F,
-            0x44, 0x44, 0x40, 0x48, 0x46, 0x3C, 0x36, 0x0E, 0x55, 0xFF.toByte(), 0xF0.toByte()
-        )
+        val trailingGarbage =
+            byteArrayOf(
+                0xF0.toByte(),
+                0x00,
+                0xFF.toByte(),
+                0x0F,
+                0x44,
+                0x44,
+                0x40,
+                0x48,
+                0x46,
+                0x3C,
+                0x36,
+                0x0E,
+                0x55,
+                0xFF.toByte(),
+                0xF0.toByte(),
+            )
         val fullData = data.copyOf(expectedValidLength) + trailingGarbage
         tempFile.writeBytes(fullData)
 

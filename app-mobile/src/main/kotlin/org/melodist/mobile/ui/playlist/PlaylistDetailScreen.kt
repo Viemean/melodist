@@ -73,8 +73,8 @@ import org.melodist.data.MillionRecommendManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
-import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.mobile.ui.components.SongListDeleteType
+import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.model.CoverScenario
 import org.melodist.model.CoverUrlResolver
 import org.melodist.model.PlaybackSourceContext
@@ -385,7 +385,9 @@ fun PlaylistDetailScreen(
             }
     }
 
-    val topBarState = org.melodist.mobile.ui.components.rememberLandscapeCollapsibleTopBarState()
+    val topBarState =
+        org.melodist.mobile.ui.components
+            .rememberLandscapeCollapsibleTopBarState()
 
     Scaffold(
         topBar = {

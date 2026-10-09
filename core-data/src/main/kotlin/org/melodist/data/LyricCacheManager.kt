@@ -204,7 +204,6 @@ object LyricCacheManager {
         }
     }
 
-
     private fun loadOffsetMap(cacheDir: File) {
         try {
             val file = File(cacheDir, OFFSET_FILE_NAME)

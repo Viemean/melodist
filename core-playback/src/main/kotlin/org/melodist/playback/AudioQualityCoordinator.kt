@@ -34,10 +34,15 @@ class AudioQualityCoordinator(
         private set
 
     private var probeJob: Job? = null
-    private val blacklistedTiers = java.util.concurrent.ConcurrentHashMap.newKeySet<AudioQualityTier>()
+    private val blacklistedTiers =
+        java.util.concurrent.ConcurrentHashMap
+            .newKeySet<AudioQualityTier>()
     private var blacklistedSongMid: String? = null
 
-    fun recordTierFailureForSong(songMid: String, tier: AudioQualityTier) {
+    fun recordTierFailureForSong(
+        songMid: String,
+        tier: AudioQualityTier,
+    ) {
         if (blacklistedSongMid != songMid) {
             blacklistedSongMid = songMid
             blacklistedTiers.clear()
@@ -49,8 +54,10 @@ class AudioQualityCoordinator(
         )
     }
 
-    fun isTierBlacklisted(songMid: String, tier: AudioQualityTier): Boolean =
-        blacklistedSongMid == songMid && blacklistedTiers.contains(tier)
+    fun isTierBlacklisted(
+        songMid: String,
+        tier: AudioQualityTier,
+    ): Boolean = blacklistedSongMid == songMid && blacklistedTiers.contains(tier)
 
     fun resetForSong(song: Song) {
         probeJob?.cancel()

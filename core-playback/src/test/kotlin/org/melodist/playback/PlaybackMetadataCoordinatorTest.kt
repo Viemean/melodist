@@ -76,7 +76,8 @@ class PlaybackMetadataCoordinatorTest {
             )
 
         val exoMetadata =
-            MediaMetadata.Builder()
+            MediaMetadata
+                .Builder()
                 .setTitle("BLUE (蓝色)")
                 .setArtist("BIGBANG")
                 .setAlbumTitle("ALIVE")

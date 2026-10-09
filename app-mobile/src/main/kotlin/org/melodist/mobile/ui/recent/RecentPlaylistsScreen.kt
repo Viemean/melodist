@@ -88,7 +88,9 @@ fun RecentPlaylistsScreen(
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 200
         }
     }
-    val topBarState = org.melodist.mobile.ui.components.rememberLandscapeCollapsibleTopBarState()
+    val topBarState =
+        org.melodist.mobile.ui.components
+            .rememberLandscapeCollapsibleTopBarState()
 
     Scaffold(
         topBar = {

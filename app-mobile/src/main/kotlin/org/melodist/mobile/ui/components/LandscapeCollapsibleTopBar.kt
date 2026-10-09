@@ -121,5 +121,4 @@ fun LandscapeCollapsibleTopBar(
  * @param state 横屏折叠状态
  * @return 附带嵌套滚动拦截能力的 Modifier
  */
-fun Modifier.landscapeNestedScroll(state: LandscapeCollapsibleTopBarState): Modifier =
-    this.nestedScroll(state.nestedScrollConnection)
+fun Modifier.landscapeNestedScroll(state: LandscapeCollapsibleTopBarState): Modifier = this.nestedScroll(state.nestedScrollConnection)

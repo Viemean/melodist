@@ -448,12 +448,14 @@ object WebDavManager {
     /**
      * 根据服务器 ID 与 href 查询已缓存的 WebDAV 歌曲对象
      */
-    fun findCachedSong(serverId: String, href: String): Song? {
+    fun findCachedSong(
+        serverId: String,
+        href: String,
+    ): Song? {
         val server = inMemoryConfig.servers.find { it.id == serverId } ?: getActiveServer() ?: return null
         val cache = server.cachedSongs.find { it.href == href } ?: return null
         return cache.toSong()
     }
-
 
     /**
      * 获取 WebDAV 歌曲歌词内容（本地缓存 -> 内嵌歌词 -> 远程拉取）

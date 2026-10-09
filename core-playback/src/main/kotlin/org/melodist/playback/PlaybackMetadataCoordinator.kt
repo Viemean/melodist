@@ -10,8 +10,10 @@ import org.melodist.model.Song
 object PlaybackMetadataCoordinator {
     // 1. 带明确标点（. - _）的音轨编号，如 "01. ", "02 - ", "12 - ", "12_", "1. "
     private val TRACK_DELIMITER_REGEX = Regex("""^\d{1,3}[ \t]*[\.\-_]+[ \t]*""")
+
     // 2. 以 0 开头的二或三位序号加空格，如 "01 ", "002 "
     private val TRACK_ZERO_PADDED_REGEX = Regex("""^0\d{1,2}[ \t]+""")
+
     // 3. Track 关键字前缀，如 "Track 01 - ", "track1 "
     private val TRACK_WORD_REGEX = Regex("""^[Tt]rack\s*\d{1,3}[\.\s\-_]*[ \t]*""")
 
@@ -61,11 +63,22 @@ object PlaybackMetadataCoordinator {
         val rawArtist = artist?.trim()
         val rawAlbum = album?.trim()
 
-        val isUnknownArtist = currentSong.singer.isBlank() || currentSong.singer == "未知歌手" || currentSong.singer == "WebDAV 音频" || currentSong.singer.equals("Unknown", ignoreCase = true)
+        val isUnknownArtist =
+            currentSong.singer.isBlank() ||
+                currentSong.singer == "未知歌手" ||
+                currentSong.singer == "WebDAV 音频" ||
+                currentSong.singer.equals("Unknown", ignoreCase = true)
         val hasTrackNumber = isTrackNumberPrefixed(currentSong.name)
 
         val candidateArtist = if (!rawArtist.isNullOrBlank() && rawArtist != "未知歌手" && rawArtist != "WebDAV 音频") rawArtist else null
-        val candidateTitle = if (!rawTitle.isNullOrBlank()) cleanTrackNumber(rawTitle) else if (hasTrackNumber) cleanTrackNumber(currentSong.name) else null
+        val candidateTitle =
+            if (!rawTitle.isNullOrBlank()) {
+                cleanTrackNumber(rawTitle)
+            } else if (hasTrackNumber) {
+                cleanTrackNumber(currentSong.name)
+            } else {
+                null
+            }
         val candidateAlbum = if (!rawAlbum.isNullOrBlank()) rawAlbum else null
 
         val newArtist = candidateArtist ?: (if (isUnknownArtist) null else currentSong.singer)

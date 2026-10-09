@@ -752,7 +752,10 @@ object LocalMusicManager {
      * @param fileName 音频文件名
      * @return 包含推断元数据与一致性 hash MID 的临时歌曲实体
      */
-    fun buildTempSong(path: String, fileName: String): Song {
+    fun buildTempSong(
+        path: String,
+        fileName: String,
+    ): Song {
         val (inferredTitle, inferredArtist) = inferTitleArtist(fileName)
         return buildTempSong(path, inferredTitle, inferredArtist)
     }
@@ -765,7 +768,11 @@ object LocalMusicManager {
      * @param inferredArtist 推断或指定的歌手名称
      * @return 构造完成的歌曲实体
      */
-    fun buildTempSong(path: String, inferredTitle: String, inferredArtist: String): Song {
+    fun buildTempSong(
+        path: String,
+        inferredTitle: String,
+        inferredArtist: String,
+    ): Song {
         val hash = md5(path)
         val defaultAlbum = File(path).parentFile?.name ?: "本地音频"
         val tier = AudioFileFilter.inferQualityTierByExtension(path)
