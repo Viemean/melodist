@@ -23,7 +23,7 @@ class AudioQualityCoordinatorTest {
                 songMid = "local_1",
                 name = "Local Track",
                 singer = "Local Artist",
-                localFilePath = "/tmp/fake.flac",
+                localFilePath = "local/fake.flac",
                 currentTier = AudioQualityTier.HiRes,
             )
 

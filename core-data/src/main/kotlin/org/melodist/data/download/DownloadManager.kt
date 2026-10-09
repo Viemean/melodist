@@ -510,6 +510,10 @@ object DownloadManager {
         // 将元数据（歌曲名、歌手名、专辑名、最高清原图、双语歌词）直接内嵌写入音频文件
         embedMetadata(song, tier, file, apiService)
 
+        if (file.extension.equals("flac", ignoreCase = true)) {
+            FlacTailSanitizer.sanitize(file)
+        }
+
         // 通知系统 MediaStore 刷新
         appContext?.let { ctx ->
             MediaScannerConnection.scanFile(ctx, arrayOf(file.absolutePath), null, null)

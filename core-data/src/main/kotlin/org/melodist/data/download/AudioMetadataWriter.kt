@@ -187,6 +187,7 @@ object AudioMetadataWriter {
             }
 
             if (tempFile.exists() && tempFile.length() > 0L) {
+                FlacTailSanitizer.sanitize(tempFile)
                 if (file.delete()) {
                     return tempFile.renameTo(file)
                 }
