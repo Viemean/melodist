@@ -132,7 +132,7 @@ object PlaybackMediaLoader {
                     val dataSourceFactory = DefaultDataSource.Factory(context, baseHttpFactory)
                     val mediaSource =
                         ProgressiveMediaSource
-                            .Factory(dataSourceFactory)
+                            .Factory(dataSourceFactory, PlaybackEngineFactory.createExtractorsFactory())
                             .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
                             .createMediaSource(buildMediaItem(Uri.parse(song.mediaMid), song, song.currentTier, metadataBuilder))
                     return@withContext PlaybackTargetResult.LocalStream(
@@ -184,7 +184,7 @@ object PlaybackMediaLoader {
                     val cachedDataSourceFactory = MelodistCacheManager.buildCacheDataSourceFactory(ctx, dataSourceFactory)
                     val mediaSource =
                         ProgressiveMediaSource
-                            .Factory(cachedDataSourceFactory)
+                            .Factory(cachedDataSourceFactory, PlaybackEngineFactory.createExtractorsFactory())
                             .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
                             .createMediaSource(buildMediaItem(Uri.parse(streamUrl), song, AudioQualityTier.SQ, metadataBuilder))
                     return@withContext PlaybackTargetResult.WebDavStream(
@@ -253,7 +253,7 @@ object PlaybackMediaLoader {
 
                 val mediaSource =
                     ProgressiveMediaSource
-                        .Factory(dsFactory)
+                        .Factory(dsFactory, PlaybackEngineFactory.createExtractorsFactory())
                         .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
                         .createMediaSource(buildMediaItem(Uri.parse(playUrlInfo.url), song, playUrlInfo.tier, metadataBuilder))
 

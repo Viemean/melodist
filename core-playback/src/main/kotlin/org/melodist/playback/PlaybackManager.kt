@@ -1594,7 +1594,7 @@ object PlaybackManager {
         val dataSourceFactory = DefaultDataSource.Factory(ctx, baseHttpFactory)
         val mediaSource =
             ProgressiveMediaSource
-                .Factory(dataSourceFactory)
+                .Factory(dataSourceFactory, PlaybackEngineFactory.createExtractorsFactory())
                 .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
                 .createMediaSource(buildMediaItem(android.net.Uri.parse(streamUrl), song))
 

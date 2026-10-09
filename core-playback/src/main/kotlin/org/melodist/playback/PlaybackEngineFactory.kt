@@ -54,6 +54,20 @@ object PlaybackEngineFactory {
         }
     }
 
+    /**
+     * 构造装配了容错同步与帧对齐能力的全局 ExtractorsFactory。
+     */
+    fun createExtractorsFactory(): androidx.media3.extractor.ExtractorsFactory =
+        androidx.media3.extractor.ExtractorsFactory {
+            androidx.media3.extractor.DefaultExtractorsFactory().createExtractors().map { extractor ->
+                if (extractor is androidx.media3.extractor.flac.FlacExtractor) {
+                    ResilientFlacExtractor(extractor)
+                } else {
+                    extractor
+                }
+            }.toTypedArray()
+        }
+
     fun buildExoPlayer(
         context: Context,
         listener: Player.Listener,
@@ -80,7 +94,7 @@ object PlaybackEngineFactory {
             MelodistCacheManager.buildCacheDataSourceFactory(context.applicationContext, defaultDataSourceFactory)
 
         val mediaSourceFactory =
-            DefaultMediaSourceFactory(context.applicationContext)
+            DefaultMediaSourceFactory(context.applicationContext, createExtractorsFactory())
                 .setDataSourceFactory(cachedDataSourceFactory)
                 .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
 
