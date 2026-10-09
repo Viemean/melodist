@@ -77,8 +77,9 @@ fun AudioQualityBottomSheet(
             isSniffing = true
             try {
                 enrichedOptions = AudioHeaderSniffer.enrichQualityOptions(probedQualityOptions, songDurationSec)
-            } catch (e: Exception) {
-                Log.w("AudioQualityBottomSheet", "Operation failed", e)
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                Log.w("AudioQualityBottomSheet", "Enrich quality options failed", t)
             } finally {
                 isSniffing = false
             }
@@ -115,6 +116,19 @@ fun AudioQualityBottomSheet(
                         AudioQualityTier.Standard -> 30
                     }
                 combined.sortedByDescending { getWeight(it) }
+            }
+        }
+
+    val displayTiers =
+        remember(supportedTiers, enrichedOptions, currentTier) {
+            supportedTiers.filter { tier ->
+                val isSelected = tier == currentTier
+                if (enrichedOptions.isNotEmpty() && !isSelected) {
+                    val probed = enrichedOptions.find { it.tier == tier }
+                    probed != null && probed.isAvailable
+                } else {
+                    true
+                }
             }
         }
 
@@ -156,15 +170,9 @@ fun AudioQualityBottomSheet(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            supportedTiers.forEach { tier ->
+            displayTiers.forEach { tier ->
                 val isSelected = tier == currentTier
-                val probedOption =
-                    remember(tier, enrichedOptions) {
-                        enrichedOptions.find { it.tier == tier }
-                    }
-                if (enrichedOptions.isNotEmpty() && !isSelected && (probedOption == null || !probedOption.isAvailable)) {
-                    return@forEach
-                }
+                val probedOption = enrichedOptions.find { it.tier == tier }
                 val isRestricted =
                     enforceCellularRestriction &&
                         isCellular &&

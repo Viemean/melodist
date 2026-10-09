@@ -68,7 +68,17 @@ object AudioHeaderSniffer {
                             ?: response.body.contentLength()
 
                     val respBody = response.body
-                    val bytes = respBody.byteStream().use { it.readNBytes(2048) }
+                    val bytes =
+                        respBody.byteStream().use { input ->
+                            val buffer = ByteArray(2048)
+                            var totalRead = 0
+                            while (totalRead < buffer.size) {
+                                val read = input.read(buffer, totalRead, buffer.size - totalRead)
+                                if (read <= 0) break
+                                totalRead += read
+                            }
+                            if (totalRead == buffer.size) buffer else buffer.copyOf(totalRead)
+                        }
                     if (bytes.size < 16) return@withContext null
 
                     val parsed = AudioMetadataParser.parse(bytes)
@@ -109,7 +119,9 @@ object AudioHeaderSniffer {
                     }
                     result
                 }
-            } catch (_: Exception) {
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                ApiLogger.w("AudioHeaderSniffer", "Sniff audio header failed", t)
                 null
             }
         }
