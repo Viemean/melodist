@@ -10,6 +10,12 @@ import android.util.Base64
 import java.io.File
 import java.io.FileNotFoundException
 
+/**
+ * 面向系统控制中心与 OriginOS 原子组件的只读封面图片 ContentProvider。
+ *
+ * 通过安全 Base64 编码路径在进程间传递应用内部或外部存储中的封面文件，
+ * 并对访问路径执行沙箱与存储根目录白名单校验。
+ */
 class OriginCoverProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
@@ -72,6 +78,13 @@ class OriginCoverProvider : ContentProvider() {
         private const val SCHEME = "content"
         private const val PATH_PREFIX = "cover"
 
+        /**
+         * 将本地封面文件路径编码并构造为外部可访问的 content:// URI。
+         *
+         * @param packageName 宿主应用包名（用于构造 authority）
+         * @param file 目标封面本地文件实体
+         * @return 编码后的封面资源 Content URI
+         */
         fun buildContentUri(
             packageName: String,
             file: File,

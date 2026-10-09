@@ -107,6 +107,14 @@ class VivoMusicMixSupportService : MediaBrowserServiceCompat() {
         cachedCoverBitmap = null
     }
 
+    /**
+     * 处理系统客户端的媒体浏览器根节点连接握手。
+     *
+     * @param clientPackageName 发起连接的客户端包名
+     * @param clientUid 发起连接的客户端 UID
+     * @param rootHints 连接时附带的系统参数
+     * @return 根节点标识 BrowserRoot
+     */
     override fun onGetRoot(
         clientPackageName: String,
         clientUid: Int,
@@ -123,6 +131,13 @@ class VivoMusicMixSupportService : MediaBrowserServiceCompat() {
         onLoadChildrenInternal(parentId, result, 0)
     }
 
+    /**
+     * 处理媒体树指定父节点的数据加载与分页请求。
+     *
+     * @param parentId 父节点标识
+     * @param result 异步返回的媒体项列表句柄
+     * @param options 包含请求页码等系统参数的 Bundle
+     */
     override fun onLoadChildren(
         parentId: String,
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
@@ -171,6 +186,15 @@ class VivoMusicMixSupportService : MediaBrowserServiceCompat() {
         result.sendResult(mediaItems)
     }
 
+    /**
+     * 将歌曲模型转换为带有 vivo 分页 Extras 信息的 MediaBrowserCompat.MediaItem 实例。
+     *
+     * @param song 目标歌曲实体
+     * @param isLast 是否为当页末尾项
+     * @param hasMore 是否仍有后续分页数据
+     * @param nextPage 下一页页码
+     * @return 构造完成的可播放媒体项
+     */
     private fun toMediaItem(
         song: Song,
         isLast: Boolean,
@@ -295,6 +319,9 @@ class VivoMusicMixSupportService : MediaBrowserServiceCompat() {
         }
     }
 
+    /**
+     * 将当前播放状态、时间戳进度与系统播控行为位掩码同步至 MediaSessionCompat。
+     */
     private fun syncPlaybackState() {
         val session = mediaSessionCompat ?: return
         val isPlaying = PlaybackManager.isPlaying.value
@@ -412,6 +439,12 @@ class VivoMusicMixSupportService : MediaBrowserServiceCompat() {
         session.setMetadata(metadataBuilder.build())
     }
 
+    /**
+     * 将当前曲目的格式化双语歌词广播至 MediaSessionExtras。
+     *
+     * @param song 当前播放歌曲实体
+     * @param lyrics 待同步的歌词行列表
+     */
     private fun syncLyrics(
         song: Song?,
         lyrics: List<LyricLine>,

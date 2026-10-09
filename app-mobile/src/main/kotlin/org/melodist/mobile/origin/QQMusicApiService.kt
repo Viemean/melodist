@@ -21,6 +21,12 @@ import org.json.JSONObject
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
+/**
+ * 适配 OriginOS 原子随身听与系统控制中心 AIDL 协议的播放接口服务。
+ *
+ * 通过对齐 QQ 音乐开放 API 契约（com.tencent.qqmusic.third.api.contract.IQQMusicApi），
+ * 向系统端提供播控执行、状态查询、双语逐行歌词、红心收藏与跨进程事件监听广播。
+ */
 open class QQMusicApiService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val callbackList = RemoteCallbackList<IQQMusicApiEventListener>()
