@@ -91,16 +91,31 @@ object PlaybackCredentialsManager {
             "pt2gguin",
         )
 
+    /**
+     * 获取当前生效的播放鉴权 UIN 标识。
+     *
+     * @return 优先返回自定义凭证中的 UIN；不存在时返回用户登录会话 UIN，未登录返回 `"0"`
+     */
     fun getActiveUin(): String {
         val customUin = _credentialsFlow.value?.uin
         return if (!customUin.isNullOrBlank()) customUin else UserSession.profile.uin.ifBlank { "0" }
     }
 
+    /**
+     * 获取当前生效的播放鉴权密钥 (musicKey)。
+     *
+     * @return 优先返回自定义凭证中的 musicKey；不存在时回退使用用户当前会话密钥
+     */
     fun getActiveAuthst(): String {
         val customKey = _credentialsFlow.value?.musicKey
         return if (!customKey.isNullOrBlank()) customKey else UserSession.profile.musicKey
     }
 
+    /**
+     * 获取当前生效的用于播放请求的 HTTP Cookie 头格式字符串。
+     *
+     * @return 优先组装自定义凭证 Cookie；不存在时回退使用当前登录会话 Cookie 头
+     */
     fun getActiveCookieHeader(): String {
         val custom = _credentialsFlow.value
         return if (custom != null && custom.cookies.isNotEmpty()) {
@@ -110,6 +125,12 @@ object PlaybackCredentialsManager {
         }
     }
 
+    /**
+     * 将秒级时间戳、毫秒级时间戳或日期字符串格式解析为毫秒级 Unix 时间戳。
+     *
+     * @param dateStr 时间字符串（如 `"1712345678"`, `"2026-10-09"`, `"2026-10-09 23:59:59"`）
+     * @return 毫秒级时间戳；解析失败或为空时返回 `null`
+     */
     fun parseExpireTimestamp(dateStr: String): Long? {
         if (dateStr.isBlank()) return null
         dateStr.toLongOrNull()?.let {
@@ -139,6 +160,12 @@ object PlaybackCredentialsManager {
         }
     }
 
+    /**
+     * 判断指定播放凭据是否已过有效期限。
+     *
+     * @param creds 待校验的播放凭据
+     * @return 已过期返回 `true`，否则返回 `false`
+     */
     fun isCredentialExpired(creds: PlaybackCredentials): Boolean {
         val now = System.currentTimeMillis()
         if (creds.expireTimestamp > 0L) {
@@ -153,11 +180,20 @@ object PlaybackCredentialsManager {
 
     fun isCredentialRevoked(creds: PlaybackCredentials? = currentCredentials): Boolean = creds?.isRevoked == true
 
+    /**
+     * 校验指定凭据是否已失效（已撤销或已过期）。
+     *
+     * @param creds 待校验凭据，缺省时校验当前激活凭据
+     * @return 凭据失效返回 `true`；凭据为空或有效返回 `false`
+     */
     fun isCredentialInvalid(creds: PlaybackCredentials? = currentCredentials): Boolean {
         if (creds == null) return false
         return creds.isRevoked || isCredentialExpired(creds)
     }
 
+    /**
+     * 将当前激活的播放凭据标记为已被服务端吊销/撤回。
+     */
     fun markCredentialsRevoked() {
         val current = _credentialsFlow.value ?: return
         if (!current.isRevoked) {
@@ -165,6 +201,11 @@ object PlaybackCredentialsManager {
         }
     }
 
+    /**
+     * 获取当前实际生效的 VIP 等级权限。
+     *
+     * @return 优先返回有效自定义凭证的 VIP 等级；无自定义凭据或已失效时回退到用户自身 VIP 等级
+     */
     fun getEffectiveVipTier(): PlaybackVipTier {
         val custom = currentCredentials
         if (custom != null) {

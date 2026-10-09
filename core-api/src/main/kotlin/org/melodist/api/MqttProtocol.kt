@@ -16,6 +16,15 @@ internal object MqttProtocol {
     private const val SERVER_REFERENCE: Byte = 0x1C
     private const val REASON_STRING: Byte = 0x1F
 
+    /**
+     * 构建 MQTT 5.0 CONNECT 控制报文。
+     *
+     * @param clientId 客户端唯一标识符
+     * @param authMethod 扩展认证方法名称，未启用增强认证时传 `null`
+     * @param userProperties 用户自定义属性键值对列表
+     * @param keepAlive 保活心跳周期（秒），默认 45 秒
+     * @return 编码后的完整二进制报文字节数组
+     */
     fun buildConnectPacket(
         clientId: String,
         authMethod: String? = null,
@@ -46,6 +55,14 @@ internal object MqttProtocol {
         return packet.toByteArray()
     }
 
+    /**
+     * 构建 MQTT 5.0 SUBSCRIBE 订阅报文。
+     *
+     * @param packetId 报文标识符
+     * @param topic 待订阅的主题过滤器字符串
+     * @param userProperties 用户自定义属性键值对列表
+     * @return 编码后的完整二进制订阅报文字节数组
+     */
     fun buildSubscribePacket(
         packetId: Int,
         topic: String,
@@ -79,6 +96,12 @@ internal object MqttProtocol {
         val payload: ByteArray? = null,
     )
 
+    /**
+     * 解析接收到的 MQTT 协议二进制报文并提取消息结构。
+     *
+     * @param data 原始字节数组
+     * @return 解码后的 [MqttMessage] 实例；当输入为空或解析遇到未识别报文时返回对应的基本消息或 `null`
+     */
     fun parsePacket(data: ByteArray): MqttMessage? {
         if (data.isEmpty()) return null
         val buf = ByteBuffer.wrap(data)

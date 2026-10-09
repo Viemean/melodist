@@ -183,6 +183,13 @@ private suspend fun MusicApiService.fetchLegacyComments(
     }
 }
 
+/**
+ * 解析现代版评论 JSON 节点并转换为 [SongComment] 模型。
+ *
+ * @param element 评论 JSON 节点
+ * @param isHot 是否标记为热评
+ * @return 构造成功的 [SongComment] 实例；当节点格式非法或正文为空时返回 `null`
+ */
 internal fun parseModernCommentElement(
     element: JsonElement,
     isHot: Boolean,
@@ -228,6 +235,12 @@ internal fun parseModernCommentElement(
     )
 }
 
+/**
+ * 将评论文本中的常用 HTML 转义字符解码为纯文本字符。
+ *
+ * @param text 包含 HTML 实体的原始字符串
+ * @return 解码并去除两端首尾空白后的文本字符串
+ */
 internal fun decodeHtmlEntities(text: String): String {
     if (text.isBlank()) return ""
     return text
@@ -242,6 +255,13 @@ internal fun decodeHtmlEntities(text: String): String {
         .trim()
 }
 
+/**
+ * 解析传统版评论 JSON 节点并转换为 [SongComment] 模型。
+ *
+ * @param element 评论 JSON 节点
+ * @param isHot 是否标记为热评
+ * @return 构造成功的 [SongComment] 实例；当节点格式非法或正文为空时返回 `null`
+ */
 internal fun parseCommentElement(
     element: JsonElement,
     isHot: Boolean,

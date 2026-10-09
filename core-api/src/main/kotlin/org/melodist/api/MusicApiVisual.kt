@@ -14,6 +14,12 @@ object MusicApiVisual {
 
     fun getSingerAvatarUrl(singerMid: String): String = getSingerAvatarCandidates(singerMid).firstOrNull().orEmpty()
 
+    /**
+     * 获取歌手头像的多清晰度与多 CDN 降级候选 URL 列表。
+     *
+     * @param singerMid 歌手 MID 字符串
+     * @return 按清晰度与源站降序排列的候选图片 URL 列表；参数为空时返回空列表
+     */
     fun getSingerAvatarCandidates(singerMid: String): List<String> {
         if (singerMid.isBlank()) return emptyList()
         return listOf(
@@ -61,6 +67,12 @@ object MusicApiVisual {
 
     fun getSingleCoverUrl(visualMid: String): String = getSingleCoverCandidates(visualMid).firstOrNull().orEmpty()
 
+    /**
+     * 将歌曲 MID 与其对应的视觉素材 MID 存入内存缓存。
+     *
+     * @param songMid 歌曲 MID 字符串
+     * @param visualMid 视觉素材 MID 字符串
+     */
     fun cacheVisualMid(
         songMid: String,
         visualMid: String,
@@ -68,6 +80,12 @@ object MusicApiVisual {
         visualMidCache[songMid] = visualMid
     }
 
+    /**
+     * 从内存缓存中获取指定歌曲的视觉素材 MID。
+     *
+     * @param songMid 歌曲 MID 字符串
+     * @return 缓存中对应的视觉素材 MID；未缓存时返回 `null`
+     */
     fun getCachedVisualMid(songMid: String): String? = visualMidCache[songMid]
 }
 

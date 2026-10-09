@@ -71,6 +71,12 @@ suspend fun MusicApiService.getFavoriteAlbums(): List<Album> =
         }
     }
 
+/**
+ * 获取指定专辑包含的全部歌曲列表。
+ *
+ * @param albumMid 专辑 MID 字符串
+ * @return 专辑内歌曲列表；当参数为空或网关请求失败时返回空列表
+ */
 suspend fun MusicApiService.getAlbumSongs(albumMid: String): List<Song> =
     withContext(Dispatchers.IO) {
         if (albumMid.isBlank()) return@withContext emptyList()
@@ -109,6 +115,12 @@ suspend fun MusicApiService.getAlbumSongs(albumMid: String): List<Song> =
         }
     }
 
+/**
+ * 获取指定专辑的元数据详情及歌曲清单。
+ *
+ * @param albumMid 专辑 MID 字符串
+ * @return 专辑详情对象 [AlbumDetail]；当参数为空或接口响应异常时返回 `null`
+ */
 suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model.AlbumDetail? =
     withContext(Dispatchers.IO) {
         if (albumMid.isBlank()) return@withContext null
@@ -253,6 +265,12 @@ suspend fun MusicApiService.getAlbumDetail(albumMid: String): org.melodist.model
         }
     }
 
+/**
+ * 获取指定歌手的档案简介、基础信息及精选单曲。
+ *
+ * @param singerMid 歌手 MID 字符串
+ * @return 歌手详情模型 [ArtistDetail]；当参数为空或接口请求失败时返回 `null`
+ */
 suspend fun MusicApiService.getArtistDetail(singerMid: String): ArtistDetail? =
     withContext(Dispatchers.IO) {
         if (singerMid.isBlank()) return@withContext null
@@ -294,6 +312,15 @@ suspend fun MusicApiService.getArtistDetail(singerMid: String): ArtistDetail? =
         }
     }
 
+/**
+ * 分页获取指定歌手的发布歌曲列表。
+ *
+ * @param singerMid 歌手 MID 字符串
+ * @param page 分页页码，从 1 起始
+ * @param pageSize 每页抓取歌曲数，默认 30
+ * @param isHotOrder 是否按热度降序排序，传 `false` 表示按发布时间降序
+ * @return 包含当前页歌曲列表与歌手歌曲总数的 [Pair]；请求失败返回空列表与总数 0
+ */
 suspend fun MusicApiService.getSingerSongList(
     singerMid: String,
     page: Int = 1,
@@ -335,6 +362,12 @@ suspend fun MusicApiService.getSingerSongList(
         }
     }
 
+/**
+ * 将指定专辑添加至当前登录用户的收藏夹。
+ *
+ * @param albumMid 专辑 MID 字符串
+ * @return 操作成功返回 `true`；未登录、参数为空或网关调用失败返回 `false`
+ */
 suspend fun MusicApiService.addAlbumToFavorite(albumMid: String): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || albumMid.isBlank()) return@withContext false
@@ -366,6 +399,12 @@ suspend fun MusicApiService.addAlbumToFavorite(albumMid: String): Boolean =
         }
     }
 
+/**
+ * 将指定专辑从当前登录用户的收藏夹中取消收藏。
+ *
+ * @param albumMid 专辑 MID 字符串
+ * @return 操作成功返回 `true`；未登录、参数为空或网关调用失败返回 `false`
+ */
 suspend fun MusicApiService.removeAlbumFromFavorite(albumMid: String): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || albumMid.isBlank()) return@withContext false
@@ -397,6 +436,14 @@ suspend fun MusicApiService.removeAlbumFromFavorite(albumMid: String): Boolean =
         }
     }
 
+/**
+ * 分页获取指定歌手的发布专辑列表。
+ *
+ * @param singerMid 歌手 MID 字符串
+ * @param page 分页页码，从 1 起始
+ * @param pageSize 每页专辑条数，默认 30
+ * @return 包含当前页专辑列表与总专辑数的 [Pair]；请求失败或参数为空返回空列表与总数 0
+ */
 suspend fun MusicApiService.getSingerAlbumList(
     singerMid: String,
     page: Int = 1,
@@ -448,6 +495,13 @@ suspend fun MusicApiService.getSingerAlbumList(
         }
     }
 
+/**
+ * 关注或取消关注指定歌手。
+ *
+ * @param singerMid 歌手 MID 字符串
+ * @param isFollow 为 `true` 表示关注，`false` 表示取消关注
+ * @return 操作成功返回 `true`；未登录、参数为空或网关调用失败返回 `false`
+ */
 suspend fun MusicApiService.toggleSingerFollow(
     singerMid: String,
     isFollow: Boolean,
@@ -495,6 +549,12 @@ suspend fun MusicApiService.toggleSingerFollow(
         }
     }
 
+/**
+ * 查询当前登录用户对指定歌手的关注状态。
+ *
+ * @param singerMid 歌手 MID 字符串
+ * @return 已关注返回 `true`；未关注、未登录或查询失败返回 `false`
+ */
 suspend fun MusicApiService.checkSingerFollowStatus(singerMid: String): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || singerMid.isBlank()) return@withContext false
@@ -530,6 +590,13 @@ suspend fun MusicApiService.checkSingerFollowStatus(singerMid: String): Boolean 
         }
     }
 
+/**
+ * 分页获取当前登录用户已关注的歌手列表。
+ *
+ * @param from 起始偏移量，从 0 开始
+ * @param size 单次拉取数量，默认 30
+ * @return 包含歌手列表及是否还有更多数据的 [Pair]；未登录或请求失败返回空列表与 `false`
+ */
 suspend fun MusicApiService.getFollowedSingerList(
     from: Int = 0,
     size: Int = 30,

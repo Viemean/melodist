@@ -62,6 +62,11 @@ object UserSession {
     private val _favoriteSongCount = MutableStateFlow<Int?>(null)
     val favoriteSongCount: StateFlow<Int?> = _favoriteSongCount.asStateFlow()
 
+    /**
+     * 更新当前用户收藏歌曲的总数缓存。
+     *
+     * @param count 收藏歌曲总数
+     */
     fun updateFavoriteSongCount(count: Int) {
         _favoriteSongCount.value = count
     }
@@ -92,6 +97,16 @@ object UserSession {
             return hasValidId && hasValidKey
         }
 
+    /**
+     * 更新当前登录用户的账号身份信息、凭证与 Cookie 集合。
+     *
+     * @param uin 用户身份标识 UIN 字符串，为空时将尝试从 Cookie 键中解析
+     * @param nick 用户昵称
+     * @param musicKey 核心鉴权密钥
+     * @param cookies 会话关联的 Cookie 键值字典
+     * @param avatarUrl 头像 URL 地址，为空时将根据 QQ 账号自动推导默认地址
+     * @param isVip 是否具备有效 VIP 会员资格
+     */
     fun update(
         uin: String,
         nick: String,
@@ -141,11 +156,19 @@ object UserSession {
             )
     }
 
+    /**
+     * 重置并清空当前登录会话数据与收藏数量缓存。
+     */
     fun clear() {
         profile = UserProfile()
         _favoriteSongCount.value = null
     }
 
+    /**
+     * 将当前会话中的 Cookie 键值对组装为标准 HTTP `Cookie` 请求头字符串。
+     *
+     * @return 格式化后的 Cookie 请求头字符串；无任何凭据时返回空字符串
+     */
     fun getCookieHeader(): String {
         if (profile.cookies.isEmpty()) {
             val u = profile.uin
@@ -167,8 +190,18 @@ object UserSession {
             encodeDefaults = true
         }
 
+    /**
+     * 将当前用户会话配置导出为 JSON 字符串。
+     *
+     * @return 序列化后的 JSON 字符串
+     */
     fun toJson(): String = jsonHelper.encodeToString(profile)
 
+    /**
+     * 从 JSON 字符串解析并还原用户会话状态。
+     *
+     * @param jsonStr 序列化的用户会话 JSON 文本
+     */
     fun fromJson(jsonStr: String) {
         try {
             val loaded = jsonHelper.decodeFromString<UserProfile>(jsonStr)

@@ -67,6 +67,12 @@ class LoginApiService(
 
     // ================== QQ 扫码登录 ==================
 
+    /**
+     * 获取 QQ 互联扫码登录二维码图片及关联标识。
+     *
+     * @return 包含二维码二进制数据及 qrsig 签名校验凭证的 [QrCodeInfo]
+     * @throws IOException 当网络请求失败或响应未包含有效 qrsig 时抛出
+     */
     suspend fun fetchQqQrCode(): QrCodeInfo =
         withContext(Dispatchers.IO) {
             val url = "https://ssl.ptlogin2.qq.com/ptqrshow?appid=716027609&e=2&l=M&s=8&d=72&v=4&t=${Math.random()}&daid=383&pt_3rd_aid=100497308"
@@ -88,6 +94,12 @@ class LoginApiService(
             }
         }
 
+    /**
+     * 轮询检查 QQ 扫码登录状态并在扫码成功后自动换取登录态。
+     *
+     * @param qrsig 二维码关联的签名凭证字符串
+     * @return 包含二维码当前状态（等待扫码、已扫码、已失效、登录成功等）的 [PollResult]
+     */
     suspend fun pollQqQrStatus(qrsig: String): PollResult =
         withContext(Dispatchers.IO) {
             val ptqrToken = hashPtqrToken(qrsig)
@@ -267,6 +279,12 @@ class LoginApiService(
         return hash and 0x7fffffff
     }
 
+    /**
+     * 利用 QQ 网页登录生成的 `p_skey`/`skey` 凭证换取 QQ 音乐官方 `qm_keyst` / `musickey`。
+     *
+     * @param cookies 会话 Cookie 字典，换取成功后将直接在其中更新注入新的登录凭证
+     * @return 换取成功返回 `true`；缺少关键凭据或网络异常返回 `false`
+     */
     suspend fun exchangeOAuthForMusicKey(cookies: MutableMap<String, String>): Boolean =
         withContext(Dispatchers.IO) {
             val pSkey = cookies["p_skey"] ?: cookies["skey"] ?: return@withContext false
@@ -382,6 +400,13 @@ class LoginApiService(
             }
         }
 
+    /**
+     * 通过 QQ 互联 openid 与 accessToken 刷新登录态并更新 `musickey`。
+     *
+     * @param openid QQ 互联唯一用户标识
+     * @param accessToken QQ 互联访问令牌
+     * @return 刷新并更新成功返回 `true`；网络失败或凭证无效返回 `false`
+     */
     suspend fun refreshQQLoginToken(
         openid: String,
         accessToken: String,
@@ -459,6 +484,12 @@ class LoginApiService(
             }
         }
 
+    /**
+     * 校验当前会话中的 `qm_keyst` 凭据有效性；已失效或指定强制刷新时，加锁并发安全地执行登录凭据续签。
+     *
+     * @param forceRefresh 是否强制忽略现有凭证进行续签刷新
+     * @return 刷新成功或现有凭据有效返回 `true`；刷新失败返回 `false`
+     */
     suspend fun ensureMusicKey(forceRefresh: Boolean = false): Boolean =
         withContext(Dispatchers.IO) {
             val qmKey = UserSession.profile.cookies["qm_keyst"]
@@ -488,10 +519,21 @@ class LoginApiService(
             }
         }
 
+    /**
+     * 强制执行一次音乐鉴权凭证 `qm_keyst` 的续期与刷新。
+     *
+     * @return 刷新成功返回 `true`，失败返回 `false`
+     */
     suspend fun forceRefreshMusicKey(): Boolean = ensureMusicKey(forceRefresh = true)
 
     // ================== 微信扫码登录 ==================
 
+    /**
+     * 获取微信开放平台网页扫码登录二维码及关联的 uuid。
+     *
+     * @return 包含二维码图片数据与 uuid 的 [QrCodeInfo]
+     * @throws IOException 当获取授权页面或拉取二维码图像失败时抛出
+     */
     suspend fun fetchWeChatQrCode(): QrCodeInfo =
         withContext(Dispatchers.IO) {
             val redirectUri = "https%3A%2F%2Fy.qq.com%2Fportal%2Fwx_redirect.html%3Flogin_type%3D2%26surl%3Dhttps%3A%2F%2Fy.qq.com%2F"
@@ -528,6 +570,12 @@ class LoginApiService(
             }
         }
 
+    /**
+     * 长轮询检测微信二维码扫描与授权状态，成功时自动执行授权换票与登录更新。
+     *
+     * @param uuid 微信授权唯一会话标识
+     * @return 轮询结果状态 [PollResult]
+     */
     suspend fun pollWeChatQrStatus(uuid: String): PollResult =
         withContext(Dispatchers.IO) {
             val ts = System.currentTimeMillis()
@@ -651,6 +699,12 @@ class LoginApiService(
 
     private val officialAppSessions = ConcurrentHashMap<String, OfficialAppLoginSession>()
 
+    /**
+     * 向 QQ 音乐网关请求官方 App 扫码登录二维码及唯一会话 ID。
+     *
+     * @return 包含二维码二进制数据及 qrcodeID 的 [QrCodeInfo]
+     * @throws IOException 当网关响应异常或未能解析二维码图像 Base64 时抛出
+     */
     suspend fun fetchOfficialAppQrCode(): QrCodeInfo =
         withContext(Dispatchers.IO) {
             val payload =
@@ -700,6 +754,12 @@ class LoginApiService(
             }
         }
 
+    /**
+     * 轮询获取官方 App 扫码后台会话当前的登录授权状态。
+     *
+     * @param identifier 官方扫码会话 qrcodeID
+     * @return 包含扫码授权状态的 [PollResult]；会话已失效时返回错误状态
+     */
     fun pollOfficialAppQrStatus(identifier: String): PollResult {
         val session = officialAppSessions[identifier] ?: return PollResult(QrStatus.Error, "会话已失效")
         val current = session.resultRef.get()
@@ -713,6 +773,11 @@ class LoginApiService(
         return current
     }
 
+    /**
+     * 取消并主动释放指定的官方 App 扫码长轮询后台会话。
+     *
+     * @param identifier 目标会话 qrcodeID
+     */
     fun cancelOfficialAppSession(identifier: String) {
         officialAppSessions.remove(identifier)?.close()
     }

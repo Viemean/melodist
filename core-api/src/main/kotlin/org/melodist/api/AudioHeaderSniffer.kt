@@ -36,6 +36,13 @@ object AudioHeaderSniffer {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SniffedAudioSpec>?): Boolean = size > 200
         }
 
+    /**
+     * 请求音频流头部数据并解析封装格式与规格。
+     *
+     * @param url 待嗅探的音频流网络地址
+     * @param fallbackDurationSec 回退估算时长（秒），用于在头部未包含完整元数据时辅助计算码率
+     * @return 识别出的音频规格信息；网络请求失败、响应不合法或格式不支持时返回 `null`
+     */
     suspend fun sniff(
         url: String,
         fallbackDurationSec: Int = 0,

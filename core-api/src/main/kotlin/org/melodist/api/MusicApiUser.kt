@@ -181,6 +181,14 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
         }
     }
 
+/**
+ * 将 QQ 或微信头像 URL 转换为对应平台的高清规格尺寸。
+ *
+ * @param avatarUrl 原始头像 URL 地址
+ * @param uin 账号 UIN 字符串，在头像为空时用于构造默认高清头像地址
+ * @param isQqAccount 是否为 QQ 账号体系
+ * @return 归一化后的高清头像 URL；无法解析且无有效 UIN 时返回空字符串
+ */
 fun normalizeHighResAvatar(
     avatarUrl: String,
     uin: String = "",

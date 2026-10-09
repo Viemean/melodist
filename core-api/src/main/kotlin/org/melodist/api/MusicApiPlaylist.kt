@@ -66,6 +66,12 @@ suspend fun MusicApiService.getFavoriteSongs(
     pageSize: Int = 50,
 ): List<Song> = getFavoriteSongsDetail(page, pageSize).songs
 
+/**
+ * 获取当前登录用户的自建歌单与收藏歌单列表。
+ *
+ * @param excludeMyFavorite 是否在自建歌单中过滤系统默认的“我喜欢”歌单（dirId 为 201）
+ * @return 用户歌单列表；未登录或请求失败时返回空列表
+ */
 suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): List<Playlist> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext emptyList()
@@ -180,12 +186,30 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
         }
     }
 
+/**
+ * 分页获取指定歌单内的歌曲列表。
+ *
+ * @param playlist 目标歌单模型
+ * @param page 分页页码，从 1 起始
+ * @param pageSize 每页拉取歌曲数量，默认 50
+ * @return 歌单内的歌曲列表；请求失败或越界时返回空列表
+ */
 suspend fun MusicApiService.getPlaylistSongs(
     playlist: Playlist,
     page: Int = 1,
     pageSize: Int = 50,
 ): List<Song> = getPlaylistSongs(playlist.dirId, playlist.tid, playlist.isFav, page, pageSize)
 
+/**
+ * 分页获取指定目录或外部歌单 ID 下的歌曲列表。
+ *
+ * @param dirId 歌单本地/自建目录 ID
+ * @param tid 收藏歌单的外部 DissId，为 0 时回退使用 `dirId`
+ * @param isFav 是否为第三方收藏歌单
+ * @param page 分页页码，从 1 起始
+ * @param pageSize 每页拉取歌曲数量，默认 50
+ * @return 歌单内的歌曲列表；请求失败时返回空列表
+ */
 suspend fun MusicApiService.getPlaylistSongs(
     dirId: Long,
     tid: Long = 0L,
@@ -262,6 +286,12 @@ suspend fun MusicApiService.getPlaylistSongs(
         }
     }
 
+/**
+ * 创建新的自建歌单。
+ *
+ * @param name 歌单标题名称
+ * @return 包含操作结果、新建歌单 dirId 及提示信息的 [Triple]；未登录或创建失败时返回对应的错误原因
+ */
 suspend fun MusicApiService.createPlaylist(name: String): Triple<Boolean, Long, String> = createPlaylistInternal(name, canRetryWithRenew = true)
 
 private suspend fun MusicApiService.createPlaylistInternal(
@@ -327,6 +357,12 @@ private suspend fun MusicApiService.createPlaylistInternal(
         }
     }
 
+/**
+ * 删除指定的自建歌单或取消收藏第三方歌单。
+ *
+ * @param playlist 待删除/取消收藏的歌单模型
+ * @return 操作成功返回 `true`；未登录、属于“我喜欢”默认歌单或调用失败返回 `false`
+ */
 suspend fun MusicApiService.deletePlaylist(playlist: Playlist): Boolean = deletePlaylistInternal(playlist, canRetryWithRenew = true)
 
 private suspend fun MusicApiService.deletePlaylistInternal(
@@ -386,8 +422,20 @@ private suspend fun MusicApiService.deletePlaylistInternal(
         }
     }
 
+/**
+ * 收藏指定的第三方公开歌单。
+ *
+ * @param playlist 待收藏的歌单模型
+ * @return 收藏成功返回 `true`；未登录或操作失败返回 `false`
+ */
 suspend fun MusicApiService.collectPlaylist(playlist: Playlist): Boolean = collectPlaylist(dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId)
 
+/**
+ * 收藏指定 DissId 的第三方公开歌单。
+ *
+ * @param dissId 目标歌单 DissId
+ * @return 收藏成功返回 `true`；未登录或操作失败返回 `false`
+ */
 suspend fun MusicApiService.collectPlaylist(dissId: Long): Boolean = collectPlaylistInternal(dissId, canRetryWithRenew = true)
 
 private suspend fun MusicApiService.collectPlaylistInternal(
@@ -432,6 +480,12 @@ private suspend fun MusicApiService.collectPlaylistInternal(
         }
     }
 
+/**
+ * 根据歌曲 MID 解析对应的数字标识 ID。
+ *
+ * @param songMid 歌曲 MID 字符串
+ * @return 对应的歌曲数字 ID；解析失败或参数为空返回 `0L`
+ */
 suspend fun MusicApiService.resolveSongId(songMid: String): Long =
     withContext(Dispatchers.IO) {
         if (songMid.isBlank()) return@withContext 0L
@@ -474,6 +528,14 @@ enum class AddSongResult {
     Failed,
 }
 
+/**
+ * 向指定自建歌单添加单首歌曲。
+ *
+ * @param dirId 目标歌单目录 ID
+ * @param songId 歌曲数字 ID，若为 0 将根据 `songMid` 自动解析
+ * @param songMid 歌曲 MID 字符串
+ * @return 结果枚举 [AddSongResult]（成功、已存在或失败）
+ */
 suspend fun MusicApiService.addSongToPlaylist(
     dirId: Long,
     songId: Long,
@@ -538,6 +600,13 @@ private suspend fun MusicApiService.addSongToPlaylistInternal(
         }
     }
 
+/**
+ * 向指定自建歌单批量添加多首歌曲。
+ *
+ * @param dirId 目标歌单目录 ID
+ * @param songs 待添加的歌曲列表
+ * @return 结果枚举 [AddSongResult]（成功、已存在或失败）
+ */
 suspend fun MusicApiService.addSongsToPlaylist(
     dirId: Long,
     songs: List<Song>,
@@ -612,6 +681,13 @@ private suspend fun MusicApiService.addSongsToPlaylistInternal(
         }
     }
 
+/**
+ * 从指定自建歌单中批量删除歌曲。
+ *
+ * @param dirId 目标歌单目录 ID
+ * @param songs 待删除的歌曲列表
+ * @return 操作成功返回 `true`；未登录或操作失败返回 `false`
+ */
 suspend fun MusicApiService.deleteSongsFromPlaylist(
     dirId: Long,
     songs: List<Song>,
@@ -679,6 +755,14 @@ private suspend fun MusicApiService.deleteSongsFromPlaylistInternal(
         }
     }
 
+/**
+ * 从指定自建歌单中删除单首歌曲。
+ *
+ * @param dirId 目标歌单目录 ID
+ * @param songId 歌曲数字 ID，若为 0 将根据 `songMid` 自动解析
+ * @param songMid 歌曲 MID 字符串
+ * @return 操作成功返回 `true`；未登录或操作失败返回 `false`
+ */
 suspend fun MusicApiService.deleteSongFromPlaylist(
     dirId: Long,
     songId: Long,
@@ -736,11 +820,25 @@ private suspend fun MusicApiService.deleteSongFromPlaylistInternal(
         }
     }
 
+/**
+ * 将指定歌曲添加至当前用户的“我喜欢”默认歌单。
+ *
+ * @param songId 歌曲数字 ID
+ * @param songMid 歌曲 MID 字符串
+ * @return 收藏成功返回 `true`；失败或未登录返回 `false`
+ */
 suspend fun MusicApiService.addSongToFavorite(
     songId: Long,
     songMid: String,
 ): Boolean = addSongToPlaylist(dirId = 201L, songId = songId, songMid = songMid) == AddSongResult.Success
 
+/**
+ * 将指定歌曲从当前用户的“我喜欢”默认歌单中取消收藏。
+ *
+ * @param songId 歌曲数字 ID
+ * @param songMid 歌曲 MID 字符串
+ * @return 取消成功返回 `true`；失败或未登录返回 `false`
+ */
 suspend fun MusicApiService.deleteSongFromFavorite(
     songId: Long,
     songMid: String,

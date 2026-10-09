@@ -18,6 +18,11 @@ data class DailyRecommendResult(
     val songs: List<Song> = emptyList(),
 )
 
+/**
+ * 获取当前登录用户的个性化“每日推荐”详情（包含推荐描述文案与 30 首推荐歌曲）。
+ *
+ * @return 每日推荐详情模型 [DailyRecommendResult]；未登录或请求失败时返回空结果
+ */
 suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext DailyRecommendResult()
@@ -116,6 +121,11 @@ suspend fun MusicApiService.getDailyRecommendDetail(): DailyRecommendResult =
         }
     }
 
+/**
+ * 获取当前登录用户的个性化“每日推荐”歌曲列表。
+ *
+ * @return 30 首推荐歌曲列表；未登录或失败返回空列表
+ */
 suspend fun MusicApiService.getDailyRecommendSongs(): List<Song> = getDailyRecommendDetail().songs
 
 @Serializable
@@ -128,6 +138,11 @@ data class MillionRecommendResult(
     val songs: List<Song> = emptyList(),
 )
 
+/**
+ * 获取“百万收藏”推荐歌单详情（含封面、标题、描述与歌曲列表）。
+ *
+ * @return 百万收藏歌单详情模型 [MillionRecommendResult]；未登录或请求失败时返回空结果
+ */
 suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext MillionRecommendResult()
@@ -248,8 +263,19 @@ suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult 
         }
     }
 
+/**
+ * 获取“百万收藏”推荐歌单的歌曲列表。
+ *
+ * @return 推荐歌曲列表；未登录或失败返回空列表
+ */
 suspend fun MusicApiService.getMillionRecommendSongs(): List<Song> = getMillionRecommendDetail().songs
 
+/**
+ * 获取基于用户画像与收听偏好的“猜你喜欢”个性化推荐歌曲。
+ *
+ * @param count 期望拉取的歌曲数量，默认 25 首
+ * @return 推荐歌曲列表；请求失败时返回已成功收集的部分结果或空列表
+ */
 suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> =
     withContext(Dispatchers.IO) {
         if (UserSession.isLoggedIn) {
@@ -303,6 +329,14 @@ suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> 
         }
     }
 
+/**
+ * 分页获取指定排行榜（如飙升榜、热歌榜、新歌榜）的歌曲列表。
+ *
+ * @param topId 榜单 ID（62: 飙升榜, 26: 热歌榜, 27: 新歌榜）
+ * @param page 分页页码，从 1 起始
+ * @param pageSize 每页拉取歌曲数量，默认 50
+ * @return 榜单歌曲列表；请求失败或解析异常时返回空列表
+ */
 suspend fun MusicApiService.getTopList(
     topId: Int = 62, // 62: 飙升榜, 26: 热歌榜, 27: 新歌榜
     page: Int = 1,
@@ -340,6 +374,12 @@ suspend fun MusicApiService.getTopList(
         }
     }
 
+/**
+ * 根据歌曲数字 ID 列表批量拉取结构化的 [Song] 元数据。
+ *
+ * @param songIds 歌曲数字 ID 集合列表
+ * @return 解析成功的歌曲对象列表；列表为空或接口异常时返回空列表
+ */
 suspend fun MusicApiService.getTrackInfoBatch(songIds: List<Long>): List<Song> =
     withContext(Dispatchers.IO) {
         if (songIds.isEmpty()) return@withContext emptyList()
@@ -382,6 +422,14 @@ suspend fun MusicApiService.getTrackInfoBatch(songIds: List<Long>): List<Song> =
         }
     }
 
+/**
+ * 分页拉取推荐信息流货架列表（包含歌单推荐、个性化分类与场景化卡片）。
+ *
+ * @param direction 刷新滑动方向（0: 初始/下拉刷新, 1: 向上加载更多）
+ * @param page 分页页码，从 1 起始
+ * @param sNum 期望拉取的货架条目数量，默认 6
+ * @return 推荐流货架模型 [RecommendShelf] 列表；未登录或请求失败返回空列表
+ */
 suspend fun MusicApiService.getRecommendFeed(
     direction: Int = 0,
     page: Int = 1,
