@@ -95,8 +95,10 @@ class UsbAudioRouter(
      *
      * @param audioManager 系统音频管理器
      * @param usbDevice 目标 USB 输出设备
-     * @param targetSampleRate 目标采样率（Hz）
-     * @param bitDepth 目标位深（bit）
+     * @param targetRate 目标采样率（Hz）
+     * @param channelCount 声道数
+     * @param pcmEncoding PCM 编码格式（如 C.ENCODING_PCM_24BIT, C.ENCODING_PCM_FLOAT 等）
+     * @return 混音器采样率是否发生变更
      */
     fun configureBitPerfectMixer(
         audioManager: AudioManager,
@@ -189,13 +191,14 @@ class UsbAudioRouter(
     }
 
     /**
-     * 更新 AudioTrack 的 USB 独占路由与混音器模式。
+     * 更新播放器的 USB 独占输出路由与硬件混音器模式。
      *
-     * @param audioTrack 活跃的底层音频输出轨道
-     * @param audioManager 系统音频管理器
-     * @param usbExclusiveEnabled 是否启用 USB 独占输出
-     * @param targetSampleRate 音频采样率
-     * @param bitDepth 音频位深
+     * @param context 应用程序上下文
+     * @param player ExoPlayer 播放器实例
+     * @param isUsbExclusive 是否启用 USB 独占输出
+     * @param targetRate 音频目标采样率（Hz），默认 0
+     * @param channelCount 音频声道数，默认 0
+     * @param pcmEncoding PCM 编码格式，默认 0
      */
     fun updateUsbExclusiveRouting(
         context: Context?,

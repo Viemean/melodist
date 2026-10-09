@@ -67,9 +67,11 @@ class PlaybackQueueManager(
      * 从持久化存储恢复播放队列与回放状态。
      *
      * @param playlist 待恢复的播放列表
-     * @param index 恢复的当前索引
+     * @param currentIndex 恢复的当前索引
      * @param loopMode 循环模式
-     * @param isRadio 是否处于电台模式
+     * @param isRadioMode 是否处于电台模式
+     * @param shuffledIndices 随机洗牌索引序列持久化字符串
+     * @param shuffledPointer 随机洗牌指针位置
      */
     fun restoreState(
         playlist: List<Song>,
@@ -132,9 +134,14 @@ class PlaybackQueueManager(
     /**
      * 全量重置并配置播放列表。
      *
-     * @param playlist 目标歌曲列表
-     * @param initialIndex 初始起播索引
+     * @param songs 目标歌曲列表
+     * @param startIndex 初始起播索引
      * @param isRadio 是否为电台模式
+     * @param initialSeekToMs 初始跳转进度毫秒数
+     * @param forceTier 强制指定播放音质档位
+     * @param paginationSource 关联的分页加载源
+     * @param queueTag 队列所属标识标签
+     * @param sourceContext 播放源上下文元数据
      */
     fun setPlaylist(
         songs: List<Song>,
@@ -280,10 +287,10 @@ class PlaybackQueueManager(
     }
 
     /**
-     * 向当前播放队列末尾追加歌曲。
+     * 向当前播放队列末尾追加去重后的新歌曲。
      *
-     * @param songs 待追加的歌曲列表
-     * @param paginationSource 关联的分页加载源
+     * @param newSongs 待追加的新歌曲列表
+     * @param targetTag 目标队列标签校验（与当前队列标签不匹配时忽略追加）
      */
     fun appendPlaylist(
         newSongs: List<Song>,
@@ -351,7 +358,7 @@ class PlaybackQueueManager(
      * 将指定歌曲插入当前位置并立即切换播放。
      *
      * @param song 目标曲目
-     * @param isRadio 是否重置为电台模式
+     * @param seekToMs 初始起播进度毫秒数，默认 0L
      */
     fun insertAndPlay(
         song: Song,
@@ -507,8 +514,8 @@ class PlaybackQueueManager(
     /**
      * 计算并返回上一首曲目。
      *
-     * @param historyPopThresholdMs 历史记录出栈时间阈值（毫秒）
-     * @param currentPosMs 当前播放进度（毫秒）
+     * @param isRemoteActive 是否处于跨端远端投送活动状态
+     * @param remotePrevSong 远端设备指定的上一首曲目实体
      * @return 计算得到的上一首曲目，无可用曲目返回 null
      */
     fun getPreviousSong(
@@ -538,7 +545,8 @@ class PlaybackQueueManager(
     /**
      * 计算并返回下一首曲目。
      *
-     * @param autoPlay 是否为曲目播放结束后的自动顺延
+     * @param isRemoteActive 是否处于跨端远端投送活动状态
+     * @param remoteNextSong 远端设备指定的下一首曲目实体
      * @return 计算得到的下一首曲目，队列穷尽返回 null
      */
     fun getNextSong(
@@ -696,9 +704,8 @@ class PlaybackQueueManager(
     /**
      * 全量同步对端传入的远程播放队列与状态。
      *
-     * @param songs 远端歌曲列表
-     * @param currentMid 远端当前播放曲目 MID
-     * @param loopMode 远端循环模式
+     * @param queue 远端传入的完整歌曲列表
+     * @param currentIndex 远端当前的曲目索引
      */
     fun syncRemoteQueue(
         queue: List<Song>,

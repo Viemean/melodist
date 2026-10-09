@@ -138,12 +138,11 @@ class PlaybackFavoriteController(
     }
 
     /**
-     * 设置指定歌曲的收藏状态并向云端同步。
+     * 设置指定歌曲的收藏状态并向内存状态集及订阅流同步。
      *
-     * @param song 目标曲目
-     * @param targetState 目标收藏状态
-     * @param context 上下文对象
-     * @param onSyncLibrary 状态变更后的库同步回调
+     * @param songMid 歌曲唯一标识符
+     * @param isFav 目标收藏状态（true 为已收藏，false 为未收藏）
+     * @param currentSong 当前活跃播放的歌曲实体（若与 songMid 匹配则发送切换事件通知）
      */
     fun setSongFavoriteState(
         songMid: String,
@@ -163,11 +162,10 @@ class PlaybackFavoriteController(
     }
 
     /**
-     * 反转指定歌曲的当前收藏状态。
+     * 反转指定歌曲的当前收藏状态（自动拦截不支持收藏的本地与 WebDAV 曲目并提示用户）。
      *
-     * @param song 目标曲目
-     * @param context 上下文对象
-     * @param onSyncLibrary 状态变更后的库同步回调
+     * @param song 目标歌曲实体
+     * @param appContext 应用程序上下文，用于主线程弹出提示
      */
     fun toggleSongFavorite(
         song: Song,

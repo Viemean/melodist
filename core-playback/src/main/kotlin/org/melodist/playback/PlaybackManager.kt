@@ -810,6 +810,12 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 启动后台播放服务。
+     *
+     * @param context 上下文对象
+     * @param foreground 是否以显式前台服务形式启动
+     */
     fun startPlaybackService(
         context: Context,
         foreground: Boolean = false,
@@ -827,6 +833,11 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 初始化播放管理器单例运行环境，绑定缓存配额提供者并恢复历史持久化状态。
+     *
+     * @param context 应用程序上下文
+     */
     fun init(context: Context) {
         if (appContext == null) {
             appContext = context.applicationContext
@@ -1053,6 +1064,13 @@ object PlaybackManager {
         _showQueueSheetFlow.value = false
     }
 
+    /**
+     * 以指定歌曲为种子激活相似歌曲推荐队列并开始播放。
+     *
+     * @param anchorSong 作为相似推荐基准的种子歌曲实体
+     * @param openQueue 激活后是否触发打开播放队列抽屉面板
+     * @return 推荐列表拉取成功并完成激活返回 true，推荐结果为空返回 false
+     */
     suspend fun activateSimilarRecommend(
         anchorSong: Song,
         openQueue: Boolean = true,
@@ -1079,11 +1097,11 @@ object PlaybackManager {
     }
 
     /**
-     * 起播指定歌曲，支持从指定断点续播与音质级联降级。
+     * 起播指定歌曲，支持从指定断点续播、本地/WebDAV/在线多源加载以及音质级联降级。
      *
-     * @param song 目标曲目
-     * @param forceTier 强制指定的音质级别，为 null 时采用用户偏好级别
-     * @param seekToMs 起播位置（毫秒），默认 0L
+     * @param song 目标曲目实体
+     * @param forceTier 强制指定的音质级别；为 null 时采用用户全局首选音质偏好
+     * @param seekToMs 起播起始跳转时间戳（毫秒），默认 0L
      */
     fun playSong(
         song: Song,
@@ -2109,6 +2127,9 @@ object PlaybackManager {
         }
     }
 
+    /**
+     * 释放底层 ExoPlayer 播放器管线、注销硬件音频监听并取消活跃协程任务。
+     */
     fun release() {
         appContext?.let { usbRouter.unregister(it) }
         savePlaybackState()
