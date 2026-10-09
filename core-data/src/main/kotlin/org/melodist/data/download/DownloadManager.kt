@@ -107,6 +107,12 @@ object DownloadManager {
     private val _toastEvent = MutableSharedFlow<String>(extraBufferCapacity = 5)
     val toastEvent: SharedFlow<String> = _toastEvent.asSharedFlow()
 
+    /**
+     * 根据歌曲唯一标识查询本地已完成的有效下载音频文件与对应音质。
+     *
+     * @param songMid 歌曲唯一标识符
+     * @return 包含本地目标 File 与音质档位的二元组；未下载或文件被移除时返回 null
+     */
     fun getCompletedDownload(songMid: String): Pair<java.io.File, AudioQualityTier>? {
         if (songMid.isBlank()) return null
         val task = _completedTasks.value.find { it.song.songMid == songMid } ?: return null
@@ -120,6 +126,11 @@ object DownloadManager {
         return null
     }
 
+    /**
+     * 初始化离线下载管理器，加载持久化已完成任务记录。
+     *
+     * @param context 应用程序上下文
+     */
     fun init(context: Context) {
         val app = context.applicationContext
         appContext = app
@@ -129,6 +140,12 @@ object DownloadManager {
         }
     }
 
+    /**
+     * 检查当前应用是否具备写入外部公共存储目录的系统权限。
+     *
+     * @param context 应用程序上下文
+     * @return 具备权限返回 true，否则返回 false
+     */
     fun hasStoragePermission(context: Context): Boolean =
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             android.os.Environment.isExternalStorageManager()
@@ -188,7 +205,10 @@ object DownloadManager {
     }
 
     /**
-     * 规范命名规则：仅纯英文/标准音质级别缩写，不加“无损/高品质”汉字前缀
+     * 获取音质档位的英文标准化标签（如 Hi-Res, Master, SQ）。
+     *
+     * @param tier 音质档位枚举
+     * @return 英文标准缩写名称
      */
     fun getCleanTierLabel(tier: AudioQualityTier): String =
         when (tier) {
@@ -203,7 +223,11 @@ object DownloadManager {
         }
 
     /**
-     * 根据歌曲与音质生成标准基础文件名（不含扩展名）
+     * 根据歌曲元数据与音质档位生成下载文件的标准基础文件名（格式为 `歌手 - 歌名 - 音质`，不含扩展名）。
+     *
+     * @param song 歌曲实体
+     * @param tier 音质档位枚举
+     * @return 过滤非法字符后的安全文件名基础字符串
      */
     fun getStandardBaseName(
         song: Song,
@@ -216,7 +240,11 @@ object DownloadManager {
     }
 
     /**
-     * 检查目标下载目录中是否已存在该歌曲的完整文件
+     * 检查目标下载目录中是否已存在该歌曲指定音质的完整物理音频文件。
+     *
+     * @param song 歌曲实体
+     * @param tier 音质档位枚举
+     * @return 已存在的完整音频 File 对象；不存在返回 null
      */
     fun findExistingFile(
         song: Song,
@@ -235,7 +263,10 @@ object DownloadManager {
     }
 
     /**
-     * 提交下载请求
+     * 提交歌曲离线下载请求，加入等待队列并自动触发并发调度。
+     *
+     * @param song 目标下载歌曲实体
+     * @param preferredTier 指定期望下载音质；若为 null 则采用全局首选音质配置
      */
     fun downloadSong(
         song: Song,
@@ -635,6 +666,11 @@ object DownloadManager {
             }
     }
 
+    /**
+     * 暂停正在执行或排队中的下载任务。
+     *
+     * @param taskId 下载任务唯一 ID
+     */
     fun pauseDownload(taskId: String) {
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
@@ -644,6 +680,11 @@ object DownloadManager {
         scheduleNextDownloads()
     }
 
+    /**
+     * 恢复暂停或失败的下载任务，重置错误状态并重新排队。
+     *
+     * @param taskId 下载任务唯一 ID
+     */
     fun resumeDownload(taskId: String) {
         val task = _activeTasks.value.find { it.id == taskId } ?: return
         updateActiveTask(taskId) {
@@ -652,6 +693,11 @@ object DownloadManager {
         scheduleNextDownloads()
     }
 
+    /**
+     * 取消下载任务并从活跃任务列表中移除。
+     *
+     * @param taskId 下载任务唯一 ID
+     */
     fun cancelDownload(taskId: String) {
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
@@ -659,6 +705,12 @@ object DownloadManager {
         scheduleNextDownloads()
     }
 
+    /**
+     * 删除已完成的下载历史记录，可选择是否物理删除磁盘文件。
+     *
+     * @param taskId 下载任务唯一 ID
+     * @param deleteFile 是否同步物理删除目标音频文件，默认 true
+     */
     fun deleteDownloaded(
         taskId: String,
         deleteFile: Boolean = true,
@@ -672,6 +724,12 @@ object DownloadManager {
         saveCompletedTasks()
     }
 
+    /**
+     * 根据音频文件路径清理已完成下载记录。
+     *
+     * @param filePath 音频文件绝对路径
+     * @param deleteFile 是否同步物理删除目标音频文件，默认 true
+     */
     fun deleteDownloadedByPath(
         filePath: String,
         deleteFile: Boolean = true,
@@ -687,6 +745,12 @@ object DownloadManager {
         }
     }
 
+    /**
+     * 根据歌曲唯一标识清理已完成下载记录。
+     *
+     * @param songMid 歌曲唯一标识符
+     * @param deleteFile 是否同步物理删除目标音频文件，默认 true
+     */
     fun deleteDownloadedBySongMid(
         songMid: String,
         deleteFile: Boolean = true,

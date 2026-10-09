@@ -107,6 +107,11 @@ object LocalMusicManager {
 
     private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
 
+    /**
+     * 初始化本地音乐管理器，装配全局上下文并加载持久化配置。
+     *
+     * @param context 应用程序上下文
+     */
     fun init(context: Context) {
         val appCtx = context.applicationContext
         appContext = appCtx
@@ -118,12 +123,24 @@ object LocalMusicManager {
         }
     }
 
+    /**
+     * 获取安全的本地封面缓存目录。
+     *
+     * @return 封面缓存目录 File 对象，若不存在则已自动创建
+     */
     fun getSafeCoversDir(): File {
         val folder = coversDir ?: File(appContext?.cacheDir ?: File("/tmp"), "local_covers")
         if (!folder.exists()) folder.mkdirs()
         return folder
     }
 
+    /**
+     * 解析本地歌曲封面的有效 URI 路径。
+     *
+     * @param path 本地音频文件完整绝对路径
+     * @param coverPath 已缓存的封面图片路径
+     * @return 以 `file://` 起始的封面协议链接，无封面时返回空字符串
+     */
     fun resolveCoverUrl(
         path: String,
         coverPath: String,
@@ -141,6 +158,13 @@ object LocalMusicManager {
         return ""
     }
 
+    /**
+     * 解析本地歌曲原画高分辨率封面的有效 URI 路径。
+     *
+     * @param path 本地音频文件完整绝对路径
+     * @param rawCoverPath 已缓存的原画封面图片路径
+     * @return 以 `file://` 起始的原画封面协议链接，无原画时返回空字符串
+     */
     fun resolveRawCoverUrl(
         path: String,
         rawCoverPath: String,
@@ -160,7 +184,10 @@ object LocalMusicManager {
     }
 
     /**
-     * 实时按需确保本地歌曲具有原画大图（本地存在直接返回，缺失则实时从音频文件内嵌提取）
+     * 实时按需确保本地歌曲具备原画高分辨率封面。
+     *
+     * @param song 目标歌曲实体
+     * @return 原画封面的 `file://` URI 字符串；提取失败或文件不存在返回 null
      */
     suspend fun ensureRawCover(song: Song): String? =
         withContext(Dispatchers.IO) {
@@ -295,6 +322,12 @@ object LocalMusicManager {
         return removed
     }
 
+    /**
+     * 从本地文件系统与扫描曲库中物理删除指定的一组歌曲，同时联动清理关联歌词与下载记录。
+     *
+     * @param songs 待删除的歌曲实体列表
+     * @param context 应用程序上下文，用于触发 MediaScannerConnection 通知系统媒体库同步
+     */
     fun deleteSongs(
         songs: List<Song>,
         context: Context,
@@ -385,7 +418,10 @@ object LocalMusicManager {
     }
 
     /**
-     * 检测所有可用存储源：内部存储、标准音乐/下载目录、外置 U 盘/移动硬盘挂载点
+     * 检测设备上所有可用的存储卷驱动器（包括内部主存储、系统音乐/下载目录、外置 U 盘与 OTG 挂载点）。
+     *
+     * @param context 应用程序上下文
+     * @return 识别到的存储设备驱动器列表
      */
     fun detectStorageDrives(context: Context): List<StorageDrive> {
         val drives = mutableListOf<StorageDrive>()
@@ -513,7 +549,10 @@ object LocalMusicManager {
     }
 
     /**
-     * 浏览指定目录下的文件夹与音频文件
+     * 浏览指定目录下的子文件夹与支持格式的音频文件，结果排序为文件夹置顶、文件名升序。
+     *
+     * @param dirPath 待浏览的本地目录绝对路径
+     * @return 过滤与排序后的文件与子目录列表；路径无效或不可读时返回空列表
      */
     fun listDirectory(dirPath: String): List<LocalFileItem> {
         val dir = File(dirPath)
@@ -558,14 +597,21 @@ object LocalMusicManager {
     }
 
     /**
-     * 从文件名推断 (歌曲名, 歌手名)
+     * 从音频文件名推断歌曲名称与歌手名称。
+     *
+     * @param fileName 原始音频文件名
+     * @return 包含 (歌曲名, 歌手名) 的二元组
      */
     fun inferTitleArtist(fileName: String): Pair<String, String> =
         org.melodist.data.pipeline.AudioMetadataPipeline
             .inferTitleArtist(fileName)
 
     /**
-     * 递归扫描指定目录，解析 ID3 元数据并持久化
+     * 递归扫描指定目录下的所有音频文件，解析元数据、提取封面并持久化落库。
+     *
+     * @param targetDir 扫描目标根目录路径
+     * @param onProgress 进度回调函数，入参分别为（当前处理曲目标题，已处理数，总文件数）
+     * @return 扫描入库的所有歌曲实体列表；目录不存在时返回空列表
      */
     suspend fun scanDirectory(
         targetDir: String,
@@ -689,22 +735,36 @@ object LocalMusicManager {
     }
 
     /**
-     * 根据本地文件路径查询已扫描曲库中的歌曲对象
+     * 根据本地文件绝对路径查询已扫描曲库中的歌曲对象。
+     *
+     * @param path 音频文件绝对路径
+     * @return 匹配的歌曲实体；若路径尚未扫描入库则返回 null
      */
     fun findSongByPath(path: String): Song? {
         val cache = inMemoryConfig.scannedSongs.firstOrNull { it.path == path } ?: return null
         return cache.toSong()
     }
 
-
     /**
-     * 构造临时本地歌曲对象，保证 songMid 与曲库 ID 哈希一致
+     * 根据路径与文件名快速构造未入库的临时歌曲对象（用于文件夹浏览即点即播）。
+     *
+     * @param path 本地音频文件绝对路径
+     * @param fileName 音频文件名
+     * @return 包含推断元数据与一致性 hash MID 的临时歌曲实体
      */
     fun buildTempSong(path: String, fileName: String): Song {
         val (inferredTitle, inferredArtist) = inferTitleArtist(fileName)
         return buildTempSong(path, inferredTitle, inferredArtist)
     }
 
+    /**
+     * 根据路径与显式标题歌手构造临时歌曲对象。
+     *
+     * @param path 本地音频文件绝对路径
+     * @param inferredTitle 推断或指定的歌曲标题
+     * @param inferredArtist 推断或指定的歌手名称
+     * @return 构造完成的歌曲实体
+     */
     fun buildTempSong(path: String, inferredTitle: String, inferredArtist: String): Song {
         val hash = md5(path)
         val defaultAlbum = File(path).parentFile?.name ?: "本地音频"
@@ -723,7 +783,10 @@ object LocalMusicManager {
     }
 
     /**
-     * 读取歌曲歌词：优先读取同名 .lrc，次选内嵌歌词
+     * 读取指定本地歌曲的歌词文本（优先尝试同名外挂 .lrc，不存在时读取文件头解析内嵌歌词）。
+     *
+     * @param song 目标歌曲实体
+     * @return 提取并解码的歌词文本字符串；无外挂且无内嵌歌词时返回 null
      */
     suspend fun getSongLyrics(song: Song): String? =
         withContext(Dispatchers.IO) {
@@ -778,7 +841,11 @@ object LocalMusicManager {
         }
 
     /**
-     * 从系统媒体库 (MediaStore) 扫描导入歌曲列表
+     * 从系统媒体库 (MediaStore) 检索并导入时长大于 30 秒的本地音频文件，与当前曲库合并持久化。
+     *
+     * @param context 应用程序上下文
+     * @param onProgress 可选的进度回调函数（当前曲目标题，已处理数，总数）
+     * @return 合并去重后的完整本地歌曲列表
      */
     suspend fun scanSystemMediaStore(
         context: Context,

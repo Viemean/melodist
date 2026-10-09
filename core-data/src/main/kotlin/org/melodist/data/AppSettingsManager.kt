@@ -509,7 +509,9 @@ object AppSettingsManager {
     }
 
     /**
-     * 异步统计应用缓存体积
+     * 异步扫描并统计应用各级缓存目录的磁盘占用（包括图片、流媒体切片、歌词与其他文件）。
+     *
+     * @param context 可选上下文对象，用于未初始化时触发绑定
      */
     fun refreshCacheUsage(context: Context? = null) {
         if (context != null && appContext == null) {
@@ -574,7 +576,9 @@ object AppSettingsManager {
     }
 
     /**
-     * 清理图片与媒体缓存（保留 WebDAV/本地专辑封面、匹配歌词和登录状态）
+     * 清理媒体音频切片与非必要图片缓存（保留本地/WebDAV 歌曲封面、匹配歌词和登录持久化数据）。
+     *
+     * @return 清理完成返回 true，发生异常或未初始化返回 false
      */
     suspend fun clearMediaAndImageCache(): Boolean =
         withContext(Dispatchers.IO) {
@@ -607,7 +611,9 @@ object AppSettingsManager {
         }
 
     /**
-     * 一键清空临时媒体与易失网络缓存（保留轻量 WebP 专辑封面与匹配歌词）
+     * 一键清空全量临时媒体与易失网络缓存（保留轻量 WebP 专辑封面与匹配歌词）。
+     *
+     * @return 清理完成返回 true，发生异常或未初始化返回 false
      */
     suspend fun clearAllCacheData(): Boolean =
         withContext(Dispatchers.IO) {
@@ -643,7 +649,9 @@ object AppSettingsManager {
         }
 
     /**
-     * 清空匹配歌词缓存
+     * 清空全部已匹配的离线歌词缓存目录并重建空目录。
+     *
+     * @return 清理完成返回 true，发生异常或未初始化返回 false
      */
     suspend fun clearMatchedLyricsCache(): Boolean =
         withContext(Dispatchers.IO) {
@@ -680,7 +688,7 @@ object AppSettingsManager {
     }
 
     /**
-     * 清理应用私有目录中的历史 APK 安装包
+     * 清理应用私有目录中的历史临时 APK 安装包（包括 .apk, .apk.tmp, .apk.download）。
      */
     fun cleanStaleInstallers() {
         val ctx = appContext ?: return

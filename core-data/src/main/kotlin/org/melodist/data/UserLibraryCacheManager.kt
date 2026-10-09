@@ -218,10 +218,9 @@ object UserLibraryCacheManager {
     /**
      * 加载用户收藏歌曲列表，支持本地缓存优先或从网络同步。
      *
-     * @param forceRefresh 是否忽略缓存强制刷新
-     * @param page 分页页码
-     * @param pageSize 单页记录上限
-     * @return 收藏歌曲列表
+     * @param apiService 音乐 API 客户端服务实例
+     * @param forceRefresh 是否忽略本地有效缓存强制执行全量网络同步
+     * @return 收藏歌曲列表；未登录时返回空列表
      */
     suspend fun loadFavoriteSongs(
         apiService: MusicApiService,
@@ -366,8 +365,8 @@ object UserLibraryCacheManager {
     /**
      * 响应歌曲收藏状态反转事件，同步更新内存缓存。
      *
-     * @param song 发生变更的歌曲
-     * @param isFavorite 变更后的收藏状态
+     * @param song 发生变更的歌曲实体
+     * @param isFavorited 变更后的收藏状态（true 为已收藏，false 为已取消收藏）
      */
     fun onFavoriteToggled(
         song: Song,
@@ -492,8 +491,8 @@ object UserLibraryCacheManager {
     /**
      * 响应歌单批量移除歌曲事件，同步更新本地缓存与歌曲总数。
      *
-     * @param dissId 歌单唯一 ID
-     * @param songMids 待移除曲目的 MID 集合
+     * @param dirId 歌单本地目录标识 ID
+     * @param songs 被移除的歌曲实体列表
      */
     fun onSongsRemovedFromPlaylist(
         dirId: Long,
@@ -752,9 +751,10 @@ object UserLibraryCacheManager {
     /**
      * 持久化保存指定歌单的完整曲目缓存。
      *
-     * @param dissId 歌单唯一 ID
+     * @param dirId 歌单本地目录标识 ID
+     * @param tid 歌单全局唯一 TID
      * @param songs 待缓存的歌曲列表
-     * @param songNum 歌单官方歌曲总数
+     * @param totalCount 歌单歌曲总数
      */
     fun savePlaylistSongsCache(
         dirId: Long,
@@ -785,8 +785,12 @@ object UserLibraryCacheManager {
     /**
      * 加载指定歌单的完整歌曲列表（自动处理网络拉取与磁盘写入）。
      *
-     * @param dissId 歌单唯一 ID
+     * @param apiService 音乐 API 客户端服务实例
+     * @param dirId 歌单本地目录标识 ID
+     * @param tid 歌单全局唯一 TID
+     * @param isFav 是否为“我喜欢”特定歌单
      * @param forceRefresh 是否忽略缓存强制全量拉取
+     * @param targetTotalCount 预期目标歌曲总数（若大于 0 则在差量拉取时核对基线）
      * @return 歌单内全部歌曲列表
      */
     suspend fun loadPlaylistSongs(
@@ -829,9 +833,11 @@ object UserLibraryCacheManager {
     /**
      * 探测歌单首屏差量并与本地缓存合并对齐。
      *
-     * @param dissId 歌单唯一 ID
-     * @param cachedSongs 当前持有的本地缓存列表
-     * @param officialSongNum 官方最新歌曲总数
+     * @param apiService 音乐 API 客户端服务实例
+     * @param dirId 歌单本地目录标识 ID
+     * @param tid 歌单全局唯一 TID
+     * @param isFav 是否为“我喜欢”特定歌单
+     * @param targetTotalCount 目标歌曲总数
      * @return 对齐合并后的最新歌曲列表
      */
     suspend fun probeAndSyncPlaylistFirstPage(

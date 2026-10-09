@@ -113,6 +113,11 @@ object WebDavManager {
         saveConfig()
     }
 
+    /**
+     * 保存或更新 WebDAV 服务器配置，并自动刷新客户端连接池缓存。
+     *
+     * @param server 待保存的服务器配置实体（若 ID 为空则自动生成唯一标识）
+     */
     fun saveServer(server: WebDavServer) {
         val updatedServer =
             if (server.id.isBlank()) {
@@ -147,6 +152,11 @@ object WebDavManager {
         saveConfig()
     }
 
+    /**
+     * 删除指定的 WebDAV 服务器配置，并在活动服务器被删时重置活动指针。
+     *
+     * @param serverId 待移除的服务器唯一 ID
+     */
     fun removeServer(serverId: String) {
         val currentServers = inMemoryConfig.servers.filterNot { it.id == serverId }
         val newActiveId =
@@ -160,6 +170,12 @@ object WebDavManager {
         saveConfig()
     }
 
+    /**
+     * 获取 WebDAV Basic 认证请求头值。
+     *
+     * @param server 服务器配置实体
+     * @return 格式为 `Basic <base64>` 的请求头凭据；无凭据时返回 null
+     */
     fun getAuthorizationHeader(server: WebDavServer): String? =
         if (server.username.isNotBlank() || server.password.isNotBlank()) {
             okhttp3.Credentials.basic(server.username, server.password)
@@ -167,6 +183,13 @@ object WebDavManager {
             null
         }
 
+    /**
+     * 构建 WebDAV 音频资源的完整绝对流式链接。
+     *
+     * @param server 服务器配置实体
+     * @param relativeHref 资源相对路径或 href
+     * @return 完整 HTTP/HTTPS URI 字符串
+     */
     fun getStreamUri(
         server: WebDavServer,
         relativeHref: String,
@@ -178,7 +201,11 @@ object WebDavManager {
     ): Pair<String, String?> = webDavService.resolvePlaybackUrl(server, relativeHref)
 
     /**
-     * 获取指定 WebDAV 歌曲的本地缓存文件对象
+     * 获取指定 WebDAV 远端音频在本地的专属缓存文件对象。
+     *
+     * @param serverId 服务器唯一 ID
+     * @param relativeHref 资源相对路径
+     * @return 确定性的本地缓存 File 实例
      */
     fun getLocalCacheFile(
         serverId: String,
@@ -191,7 +218,11 @@ object WebDavManager {
     }
 
     /**
-     * 获取 WebDAV 音频文件的局部切片样本（优先使用完整本地缓存，缺失时通过 HTTP Range 拉取前 1.5MB 样本文件）
+     * 获取 WebDAV 音频文件的头部切片样本（本地存在完整缓存直接复用，缺失时通过 HTTP Range 拉取前 1.5MB 样本）。
+     *
+     * @param server 服务器配置实体
+     * @param relativeHref 资源相对路径
+     * @return 切片样本 File 对象；网络失败或文件过小时返回 null
      */
     suspend fun fetchAudioSliceSample(
         server: WebDavServer,
@@ -221,7 +252,10 @@ object WebDavManager {
         }
 
     /**
-     * 获取 WebDAV 音频可供播放的 Uri（若有完整缓存返回本地文件，否则返回流式秒播 URI）
+     * 解析 WebDAV 歌曲可直接供播放器播放的媒体 Uri（若有完整离线缓存返回 `file://`，否则返回远端流式直链）。
+     *
+     * @param song 目标歌曲实体
+     * @return 可播 Uri；未配置服务器或路径缺失时返回 null
      */
     suspend fun resolvePlayableUri(song: Song): Uri? =
         withContext(Dispatchers.IO) {
@@ -240,7 +274,11 @@ object WebDavManager {
         }
 
     /**
-     * 读取文件头并抽取歌曲内嵌元数据、内嵌封面与歌词
+     * 读取音频切片头部字节流，解析并补充歌曲的内嵌 ID3/Vorbis 元数据、封面缩略图与歌词。
+     *
+     * @param server 服务器配置实体
+     * @param rawCache 原始抓取的基础信息缓存
+     * @return 富化元数据后的新歌曲缓存实体
      */
     suspend fun enrichSongMetadata(
         server: WebDavServer,
@@ -701,7 +739,11 @@ object WebDavManager {
     }
 
     /**
-     * 获取指定歌曲的本地封面文件路径（若存在则返回 file:// 协议 URI，否则返回 null）
+     * 获取指定 WebDAV 歌曲在本地的压缩缩略图封面协议路径。
+     *
+     * @param serverId 服务器唯一 ID
+     * @param href 音频资源相对路径
+     * @return 以 `file://` 起始的本地图片路径；无缓存图片时返回 null
      */
     fun getSongCoverPath(
         serverId: String,
@@ -719,7 +761,11 @@ object WebDavManager {
     }
 
     /**
-     * 获取指定歌曲的本地原始高清封面路径（若存在则返回 file:// 协议 URI，否则返回 null）
+     * 获取指定 WebDAV 歌曲在本地的原画高清封面协议路径。
+     *
+     * @param serverId 服务器唯一 ID
+     * @param href 音频资源相对路径
+     * @return 以 `file://` 起始的原画图片路径；无缓存原画时返回 null
      */
     fun getSongRawCoverPath(
         serverId: String,
@@ -747,7 +793,11 @@ object WebDavManager {
     )
 
     /**
-     * 为当前正在播放的 WebDAV 歌曲提取内嵌专辑封面（原画与缩略图双轨）与音质参数
+     * 在播放时为指定的 WebDAV 歌曲提取内嵌专辑封面（原画与缩略图双轨落盘）、音质档位及补充元数据。
+     *
+     * @param server 服务器配置实体
+     * @param song 待提取的歌曲实体
+     * @return 包含解析出的封面链接、音质档位与音频标签的元数据对象
      */
     suspend fun extractPlaybackMetadata(
         server: WebDavServer,
@@ -935,7 +985,10 @@ object WebDavManager {
         }
 
     /**
-     * 实时按需确保 WebDAV 歌曲具有原画大图（本地存在直接返回，缺失则实时从缓存或远端按需提取）
+     * 实时按需确保 WebDAV 歌曲具备原画高分辨率封面（本地已缓存直接返回，缺失时提取落盘）。
+     *
+     * @param song 目标歌曲实体
+     * @return 原画封面的 `file://` URI 链接；提取失败或服务未连接返回 null
      */
     suspend fun ensureRawCover(song: Song): String? =
         withContext(Dispatchers.IO) {
@@ -951,7 +1004,11 @@ object WebDavManager {
         }
 
     /**
-     * 兼容接口：提取内嵌封面
+     * 提取并缓存歌曲内嵌封面（兼容旧版调用接口）。
+     *
+     * @param server 服务器配置实体
+     * @param song 目标歌曲实体
+     * @return 封面本地协议链接；提取失败返回 null
      */
     suspend fun extractAndCacheSongCover(
         server: WebDavServer,
