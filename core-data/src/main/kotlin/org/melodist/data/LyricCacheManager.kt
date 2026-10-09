@@ -158,7 +158,7 @@ object LyricCacheManager {
     }
 
     /**
-     * 检查是否存在针对指定曲目的人工微调时间轴偏移记录。
+     * 检查是否存在针对指定曲目的歌词时间轴校准偏移记录。
      *
      * @param songKey 歌曲唯一定位 Key
      * @return 存在偏移记录返回 true，否则返回 false
@@ -169,7 +169,7 @@ object LyricCacheManager {
     }
 
     /**
-     * 读取指定曲目的人工微调时间轴偏移量。
+     * 读取指定曲目的歌词时间轴校准偏移量。
      *
      * @param songKey 歌曲唯一定位 Key
      * @return 时间轴偏移毫秒数（正数为延后，负数为提前），未设置时返回 0L
@@ -180,7 +180,7 @@ object LyricCacheManager {
     }
 
     /**
-     * 持久化保存曲目的人工微调时间轴偏移量。
+     * 持久化保存曲目的歌词时间轴校准偏移量。
      *
      * @param songKey 歌曲唯一定位 Key
      * @param offsetMs 偏移毫秒数
@@ -204,26 +204,6 @@ object LyricCacheManager {
         }
     }
 
-    /**
-     * 清除指定曲目的人工微调时间轴偏移记录并持久化。
-     *
-     * @param songKey 歌曲唯一定位 Key
-     */
-    fun clearLyricOffset(songKey: String) {
-        if (songKey.isBlank()) return
-        offsetMap.remove(songKey)
-        scope.launch {
-            val cacheDir = baseCacheDir ?: return@launch
-            try {
-                val file = File(cacheDir, OFFSET_FILE_NAME)
-                val snapshot = HashMap(offsetMap)
-                val text = json.encodeToString(snapshot)
-                file.writeText(text)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to persist lyric offset removal for $songKey", e)
-            }
-        }
-    }
 
     private fun loadOffsetMap(cacheDir: File) {
         try {
