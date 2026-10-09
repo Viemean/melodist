@@ -47,6 +47,9 @@ data class ArtistDetail(
     val name: String,
     val brief: String,
     val songs: List<Song>,
+    val totalSongs: Int = 0,
+    val totalAlbums: Int = 0,
+    val totalMvs: Int = 0,
 )
 
 @Serializable

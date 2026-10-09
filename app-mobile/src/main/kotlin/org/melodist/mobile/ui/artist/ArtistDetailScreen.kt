@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,8 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -125,6 +129,8 @@ fun ArtistDetailScreen(
         val detail = ArtistAlbumCacheManager.getArtistDetail(artistMid, forceRefresh = true)
         if (detail != null) {
             artistDetail = detail
+            if (detail.totalSongs > 0) totalSongs = maxOf(totalSongs, detail.totalSongs)
+            if (detail.totalAlbums > 0) totalAlbums = maxOf(totalAlbums, detail.totalAlbums)
         }
         if (contentTab == ArtistContentTab.Songs) {
             val (firstPageSongs, total) =
@@ -136,8 +142,9 @@ fun ArtistDetailScreen(
                     forceRefresh = true,
                 )
             songs = firstPageSongs
-            totalSongs = total
-            hasMoreSongs = firstPageSongs.isNotEmpty() && firstPageSongs.size < total
+            val effectiveSongTotal = maxOf(total, artistDetail?.totalSongs ?: 0, totalSongs)
+            totalSongs = effectiveSongTotal
+            hasMoreSongs = firstPageSongs.isNotEmpty() && firstPageSongs.size < effectiveSongTotal
             currentSongPage = 1
         } else {
             val (firstPageAlbums, total) =
@@ -148,8 +155,9 @@ fun ArtistDetailScreen(
                     forceRefresh = true,
                 )
             albums = firstPageAlbums
-            totalAlbums = total
-            hasMoreAlbums = firstPageAlbums.isNotEmpty() && firstPageAlbums.size < total
+            val effectiveAlbumTotal = maxOf(total, artistDetail?.totalAlbums ?: 0, totalAlbums)
+            totalAlbums = effectiveAlbumTotal
+            hasMoreAlbums = firstPageAlbums.isNotEmpty() && firstPageAlbums.size < effectiveAlbumTotal
             currentAlbumPage = 1
         }
         isRefreshing = false
@@ -161,6 +169,8 @@ fun ArtistDetailScreen(
             val detail = ArtistAlbumCacheManager.getArtistDetail(artistMid)
             if (detail != null) {
                 artistDetail = detail
+                if (detail.totalSongs > 0) totalSongs = maxOf(totalSongs, detail.totalSongs)
+                if (detail.totalAlbums > 0) totalAlbums = maxOf(totalAlbums, detail.totalAlbums)
             }
         }
     }
@@ -177,8 +187,9 @@ fun ArtistDetailScreen(
                     isHotOrder = isHotOrder,
                 )
             songs = firstPageSongs
-            totalSongs = total
-            hasMoreSongs = firstPageSongs.isNotEmpty() && firstPageSongs.size < total
+            val effectiveSongTotal = maxOf(total, artistDetail?.totalSongs ?: 0, totalSongs)
+            totalSongs = effectiveSongTotal
+            hasMoreSongs = firstPageSongs.isNotEmpty() && firstPageSongs.size < effectiveSongTotal
             isLoadingSongs = false
         }
     }
@@ -195,8 +206,9 @@ fun ArtistDetailScreen(
                     pageSize = 30,
                 )
             albums = firstPageAlbums
-            totalAlbums = total
-            hasMoreAlbums = firstPageAlbums.isNotEmpty() && firstPageAlbums.size < total
+            val effectiveAlbumTotal = maxOf(total, artistDetail?.totalAlbums ?: 0, totalAlbums)
+            totalAlbums = effectiveAlbumTotal
+            hasMoreAlbums = firstPageAlbums.isNotEmpty() && firstPageAlbums.size < effectiveAlbumTotal
             currentAlbumPage = 1
             isLoadingAlbums = false
         }
@@ -231,18 +243,19 @@ fun ArtistDetailScreen(
                                 pageSize = 30,
                                 isHotOrder = isHotOrder,
                             )
+                        val effectiveSongTotal = maxOf(total, artistDetail?.totalSongs ?: 0, totalSongs)
                         val newUnique =
                             if (nextPageSongs.isNotEmpty()) {
                                 val existingMids = songs.map { it.songMid }.toSet()
                                 val filtered = nextPageSongs.filter { it.songMid !in existingMids }
                                 songs = songs + filtered
                                 currentSongPage = nextPage
-                                totalSongs = total
+                                totalSongs = effectiveSongTotal
                                 filtered
                             } else {
                                 emptyList()
                             }
-                        hasMoreSongs = nextPageSongs.isNotEmpty() && songs.size < total
+                        hasMoreSongs = nextPageSongs.isNotEmpty() && songs.size < effectiveSongTotal
                         isLoadingMoreSongs = false
                         return newUnique
                     }
@@ -288,14 +301,15 @@ fun ArtistDetailScreen(
                         page = nextPage,
                         pageSize = 30,
                     )
+                val effectiveAlbumTotal = maxOf(total, artistDetail?.totalAlbums ?: 0, totalAlbums)
                 if (nextPageAlbums.isNotEmpty()) {
                     val existingMids = albums.map { it.mid }.toSet()
                     val filtered = nextPageAlbums.filter { it.mid !in existingMids }
                     albums = albums + filtered
                     currentAlbumPage = nextPage
-                    totalAlbums = total
+                    totalAlbums = effectiveAlbumTotal
                 }
-                hasMoreAlbums = nextPageAlbums.isNotEmpty() && albums.size < total
+                hasMoreAlbums = nextPageAlbums.isNotEmpty() && albums.size < effectiveAlbumTotal
                 isLoadingMoreAlbums = false
             }
         }
@@ -340,6 +354,9 @@ fun ArtistDetailScreen(
                 },
                 modifier = Modifier.fillMaxSize(),
             ) {
+                val effectiveDisplaySongs = if (totalSongs > 0) totalSongs else (artistDetail?.totalSongs ?: 0)
+                val effectiveDisplayAlbums = if (totalAlbums > 0) totalAlbums else (artistDetail?.totalAlbums ?: 0)
+
                 when (contentTab) {
                     ArtistContentTab.Songs -> {
                         if (isLoadingSongs && songs.isEmpty()) {
@@ -347,7 +364,7 @@ fun ArtistDetailScreen(
                                 ArtistHeader(
                                     avatarUrl = avatarUrl,
                                     displayName = displayName,
-                                    totalSongs = totalSongs,
+                                    totalSongs = effectiveDisplaySongs,
                                     songCount = songs.size,
                                     brief = artistDetail?.brief.orEmpty(),
                                     isBriefExpanded = isBriefExpanded,
@@ -356,7 +373,7 @@ fun ArtistDetailScreen(
                                     onTabChange = { contentTab = it },
                                     isHotOrder = isHotOrder,
                                     onOrderChange = { isHotOrder = it },
-                                    totalAlbums = totalAlbums,
+                                    totalAlbums = effectiveDisplayAlbums,
                                     isFollowed = isFollowed,
                                     onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
                                 )
@@ -391,7 +408,7 @@ fun ArtistDetailScreen(
                                         ArtistHeader(
                                             avatarUrl = avatarUrl,
                                             displayName = displayName,
-                                            totalSongs = totalSongs,
+                                            totalSongs = effectiveDisplaySongs,
                                             songCount = songs.size,
                                             brief = artistDetail?.brief.orEmpty(),
                                             isBriefExpanded = isBriefExpanded,
@@ -400,7 +417,7 @@ fun ArtistDetailScreen(
                                             onTabChange = { contentTab = it },
                                             isHotOrder = isHotOrder,
                                             onOrderChange = { isHotOrder = it },
-                                            totalAlbums = totalAlbums,
+                                            totalAlbums = effectiveDisplayAlbums,
                                             isFollowed = isFollowed,
                                             onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
                                         )
@@ -433,7 +450,7 @@ fun ArtistDetailScreen(
                                 ArtistHeader(
                                     avatarUrl = avatarUrl,
                                     displayName = displayName,
-                                    totalSongs = totalSongs,
+                                    totalSongs = effectiveDisplaySongs,
                                     songCount = songs.size,
                                     brief = artistDetail?.brief.orEmpty(),
                                     isBriefExpanded = isBriefExpanded,
@@ -442,7 +459,7 @@ fun ArtistDetailScreen(
                                     onTabChange = { contentTab = it },
                                     isHotOrder = isHotOrder,
                                     onOrderChange = { isHotOrder = it },
-                                    totalAlbums = totalAlbums,
+                                    totalAlbums = effectiveDisplayAlbums,
                                     isFollowed = isFollowed,
                                     onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
                                 )
@@ -469,7 +486,7 @@ fun ArtistDetailScreen(
                                     ArtistHeader(
                                         avatarUrl = avatarUrl,
                                         displayName = displayName,
-                                        totalSongs = totalSongs,
+                                        totalSongs = effectiveDisplaySongs,
                                         songCount = songs.size,
                                         brief = artistDetail?.brief.orEmpty(),
                                         isBriefExpanded = isBriefExpanded,
@@ -478,7 +495,7 @@ fun ArtistDetailScreen(
                                         onTabChange = { contentTab = it },
                                         isHotOrder = isHotOrder,
                                         onOrderChange = { isHotOrder = it },
-                                        totalAlbums = totalAlbums,
+                                        totalAlbums = effectiveDisplayAlbums,
                                         isFollowed = isFollowed,
                                         onToggleFollow = { FavoriteArtistsManager.toggleFollow(artistMid) },
                                     )
@@ -604,21 +621,65 @@ private fun ArtistHeader(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 2.dp),
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                val countText =
-                    buildString {
-                        val count = if (totalSongs > 0) totalSongs else songCount
-                        append("共收录 $count 首单曲")
+                val songCountDisplay = if (totalSongs > 0) totalSongs else songCount
+                if (songCountDisplay > 0 || totalAlbums > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (songCountDisplay > 0) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.MusicNote,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(13.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = "${songCountDisplay}首单曲",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
                         if (totalAlbums > 0) {
-                            append(" · $totalAlbums 张专辑")
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Album,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(13.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = "${totalAlbums}张专辑",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
                     }
-                Text(
-                    text = countText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                }
             }
         }
 

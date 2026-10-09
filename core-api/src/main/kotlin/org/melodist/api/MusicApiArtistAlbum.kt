@@ -303,8 +303,20 @@ suspend fun MusicApiService.getArtistDetail(singerMid: String): ArtistDetail? =
 
             val slArray = dataObj["songlist"]?.jsonArray
             val songs = slArray?.mapNotNull { MusicApiService.parseSongFromElement(it) } ?: emptyList()
+            val totalSongs = dataObj["total_song"]?.jsonPrimitive?.intOrNull ?: 0
+            val totalAlbums = dataObj["total_album"]?.jsonPrimitive?.intOrNull ?: 0
+            val totalMvs = dataObj["total_mv"]?.jsonPrimitive?.intOrNull ?: 0
 
-            ArtistDetail(singerMid, sId, sName, brief, songs)
+            ArtistDetail(
+                mid = singerMid,
+                id = sId,
+                name = sName,
+                brief = brief,
+                songs = songs,
+                totalSongs = totalSongs,
+                totalAlbums = totalAlbums,
+                totalMvs = totalMvs,
+            )
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiArtistAlbum", "getArtistDetail failed: singerMid=$singerMid", e)
