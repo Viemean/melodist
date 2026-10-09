@@ -15,9 +15,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.HighQuality
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.SignalCellularAlt
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.AlertDialog
@@ -157,6 +159,28 @@ fun SettingsPlaybackSection(
                 checked = settings.showBilingualLyrics,
                 onCheckedChange = { AppSettingsManager.setShowBilingualTranslation(it) },
             )
+
+            SettingsDivider()
+
+            SettingsSwitchRow(
+                icon = Icons.Rounded.Sync,
+                title = "自动匹配云端歌词",
+                subtitle = "为本地与 WebDAV 音乐自动匹配云端官方歌词",
+                checked = settings.enableAutoMatchLyrics,
+                onCheckedChange = { AppSettingsManager.updateAutoMatchLyrics(it) },
+            )
+
+            if (settings.enableAutoMatchLyrics) {
+                SettingsDivider()
+
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.MusicNote,
+                    title = "忽略音频内嵌歌词",
+                    subtitle = "本地与 WebDAV 音乐优先通过云端检索与音频识别匹配动态歌词",
+                    checked = settings.ignoreEmbeddedLyrics,
+                    onCheckedChange = { AppSettingsManager.updateIgnoreEmbeddedLyrics(it) },
+                )
+            }
 
             SettingsDivider()
 

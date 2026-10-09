@@ -236,5 +236,17 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                 AppSettingsManager.updateAutoMatchLyrics(!settings.enableAutoMatchLyrics)
             },
         )
+
+        // 4. 忽略音频内嵌歌词
+        if (settings.enableAutoMatchLyrics) {
+            SettingSwitchCard(
+                title = "忽略音频内嵌歌词",
+                checked = settings.ignoreEmbeddedLyrics,
+                menuRequester = menuRequester,
+                onToggle = {
+                    AppSettingsManager.updateIgnoreEmbeddedLyrics(!settings.ignoreEmbeddedLyrics)
+                },
+            )
+        }
     }
 }

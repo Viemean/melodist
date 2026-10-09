@@ -84,7 +84,10 @@ object LocalLyricAutoMatcher {
         song: Song,
         currentLyrics: List<LyricLine>,
     ): Boolean {
-        if (!org.melodist.data.AppSettingsManager.settings.value.enableAutoMatchLyrics) return false
+        val settings = org.melodist.data.AppSettingsManager.settings.value
+        if (!settings.enableAutoMatchLyrics) return false
+        if (settings.ignoreEmbeddedLyrics) return true
+
         val isPlaceholder =
             currentLyrics.isEmpty() ||
                 (currentLyrics.size == 1 && (currentLyrics[0].text.contains("暂无歌词") || currentLyrics[0].text.isBlank())) ||
@@ -199,7 +202,8 @@ object LocalLyricAutoMatcher {
                             org.melodist.api.LyricParser
                                 .isPlaceholderLyrics(currentLyrics)
                         val newHasTrans = officialLyrics.any { it.transText.isNotBlank() }
-                        if (currentLyrics.isNotEmpty() && !currentIsPlaceholder && !newHasTrans) {
+                        val ignoreEmbedded = org.melodist.data.AppSettingsManager.settings.value.ignoreEmbeddedLyrics
+                        if (!ignoreEmbedded && currentLyrics.isNotEmpty() && !currentIsPlaceholder && !newHasTrans) {
                             Log.i(TAG, "Official lyrics has no translation, keeping original")
                             return@withContext null
                         }

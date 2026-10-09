@@ -133,6 +133,7 @@ data class AppSettings(
     val enableAudioPassthrough: Boolean = false,
     val enableUsbExclusive: Boolean = true,
     val enableAutoMatchLyrics: Boolean = true,
+    val ignoreEmbeddedLyrics: Boolean = false,
     // 2. 播放与歌词
     val showBilingualLyrics: Boolean = true,
     val enableWordByWordAnim: Boolean = true,
@@ -182,6 +183,7 @@ object AppSettingsManager {
     private const val KEY_USB_EXCLUSIVE = "usb_exclusive"
     private const val KEY_ATMOS_PASSTHROUGH = "atmos_passthrough"
     private const val KEY_AUTO_MATCH_LYRICS = "auto_match_lyrics"
+    private const val KEY_IGNORE_EMBEDDED_LYRICS = "ignore_embedded_lyrics"
     private const val KEY_BILINGUAL_TRANS = "bilingual_translation"
     private const val KEY_WORD_ANIM = "word_animation"
     private const val KEY_LYRIC_FONT_SIZE = "lyric_font_size"
@@ -242,6 +244,7 @@ object AppSettingsManager {
                 true
             }
         val autoLyrics = p.getBoolean(KEY_AUTO_MATCH_LYRICS, true)
+        val ignoreEmbedded = p.getBoolean(KEY_IGNORE_EMBEDDED_LYRICS, false)
         val bilingual = p.getBoolean(KEY_BILINGUAL_TRANS, true)
         val wordAnim = p.getBoolean(KEY_WORD_ANIM, true)
         val fontName = p.getString(KEY_LYRIC_FONT_SIZE, LyricFontSize.Normal.name) ?: LyricFontSize.Normal.name
@@ -291,6 +294,7 @@ object AppSettingsManager {
                 enableAudioPassthrough = passthrough,
                 enableUsbExclusive = usbExclusive,
                 enableAutoMatchLyrics = autoLyrics,
+                ignoreEmbeddedLyrics = ignoreEmbedded,
                 showBilingualLyrics = bilingual,
                 enableWordByWordAnim = wordAnim,
                 lyricFontSize = font,
@@ -376,6 +380,13 @@ object AppSettingsManager {
     }
 
     fun updateAutoMatchLyrics(enable: Boolean) = setEnableAutoMatchLyrics(enable)
+
+    fun setIgnoreEmbeddedLyrics(enable: Boolean) {
+        _settings.value = _settings.value.copy(ignoreEmbeddedLyrics = enable)
+        prefs?.edit()?.putBoolean(KEY_IGNORE_EMBEDDED_LYRICS, enable)?.apply()
+    }
+
+    fun updateIgnoreEmbeddedLyrics(enable: Boolean) = setIgnoreEmbeddedLyrics(enable)
 
     fun setShowBilingualTranslation(enable: Boolean) {
         _settings.value = _settings.value.copy(showBilingualLyrics = enable)
