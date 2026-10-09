@@ -127,13 +127,17 @@ class WebDavService {
             }
 
             // 完整 URL 直接使用
-            try {
-                val abs = URI(relativeHref)
-                if (abs.scheme.equals("http", ignoreCase = true) || abs.scheme.equals("https", ignoreCase = true)) {
-                    return abs
+            if (relativeHref.startsWith("http://", ignoreCase = true) ||
+                relativeHref.startsWith("https://", ignoreCase = true)
+            ) {
+                try {
+                    val abs = URI(relativeHref)
+                    if (abs.scheme.equals("http", ignoreCase = true) || abs.scheme.equals("https", ignoreCase = true)) {
+                        return abs
+                    }
+                } catch (e: Exception) {
+                    ApiLogger.w("WebDavService", "Failed to parse relativeHref as absolute URI: $relativeHref", e)
                 }
-            } catch (e: Exception) {
-                ApiLogger.w("WebDavService", "Failed to parse relativeHref as absolute URI: $relativeHref", e)
             }
 
             // 路径拼接
