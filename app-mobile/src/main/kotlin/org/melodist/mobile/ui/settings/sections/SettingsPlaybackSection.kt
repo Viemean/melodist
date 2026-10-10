@@ -66,14 +66,10 @@ fun SettingsPlaybackSection(
 
     val activeUsbDevice by PlaybackManager.activeUsbDeviceName.collectAsState()
     val usbSubtitle =
-        if (settings.enableUsbExclusive) {
-            if (!activeUsbDevice.isNullOrBlank()) {
-                "已连接: $activeUsbDevice"
-            } else {
-                "已开启 32-bit 浮点通道，连接 USB DAC 时优先硬件输出"
-            }
+        if (settings.enableUsbExclusive && !activeUsbDevice.isNullOrBlank()) {
+            "已连接: $activeUsbDevice"
         } else {
-            "使用 32-bit 浮点通道输出，避免 16-bit 整数截断失真"
+            "以 32-bit 浮点处理输出，实际听感可能不会提升"
         }
 
     Column(modifier = modifier) {
@@ -99,7 +95,7 @@ fun SettingsPlaybackSection(
 
             SettingsSwitchRow(
                 icon = Icons.Rounded.Usb,
-                title = "高解析度音频输出",
+                title = "32Bit浮点通道输出",
                 subtitle = usbSubtitle,
                 checked = settings.enableUsbExclusive,
                 onCheckedChange = { AppSettingsManager.setEnableUsbExclusive(it) },
@@ -149,13 +145,13 @@ fun SettingsPlaybackSection(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 歌词与显示分组
-        SettingsGroupTitle(title = "歌词与显示")
+        // 歌词分组
+        SettingsGroupTitle(title = "歌词")
         SettingsGroupCard {
             SettingsSwitchRow(
                 icon = Icons.Rounded.Translate,
-                title = "双语歌词翻译",
-                subtitle = "在外文歌曲播放界面显示中文对照翻译",
+                title = "歌词翻译",
+                subtitle = "显示中文翻译",
                 checked = settings.showBilingualLyrics,
                 onCheckedChange = { AppSettingsManager.setShowBilingualTranslation(it) },
             )
@@ -164,8 +160,8 @@ fun SettingsPlaybackSection(
 
             SettingsSwitchRow(
                 icon = Icons.Rounded.Sync,
-                title = "自动匹配云端歌词",
-                subtitle = "为本地与 WebDAV 音乐自动匹配云端官方歌词",
+                title = "自动匹配歌词",
+                subtitle = "为不完整歌词的本地和 WebDAV 音乐匹配歌词",
                 checked = settings.enableAutoMatchLyrics,
                 onCheckedChange = { AppSettingsManager.updateAutoMatchLyrics(it) },
             )
@@ -175,8 +171,8 @@ fun SettingsPlaybackSection(
 
                 SettingsSwitchRow(
                     icon = Icons.Rounded.MusicNote,
-                    title = "忽略音频内嵌歌词",
-                    subtitle = "本地与 WebDAV 音乐优先通过云端检索与音频识别匹配动态歌词",
+                    title = "忽略内嵌歌词",
+                    subtitle = "优先使用匹配的歌词而不是内嵌歌词",
                     checked = settings.ignoreEmbeddedLyrics,
                     onCheckedChange = { AppSettingsManager.updateIgnoreEmbeddedLyrics(it) },
                 )
@@ -186,7 +182,7 @@ fun SettingsPlaybackSection(
 
             SettingsClickableRow(
                 icon = Icons.Rounded.Palette,
-                title = "播放器歌词字号",
+                title = "歌词字号",
                 subtitle =
                     if (settings.lyricFontSize == LyricFontSize.Custom) {
                         "自定义 (${settings.customLyricFontSizeSp}sp)"
@@ -202,7 +198,7 @@ fun SettingsPlaybackSection(
         AudioQualityBottomSheet(
             currentTier = settings.preferredQualityTier,
             availableTiers = AudioQualityTier.entries.toSet(),
-            title = "默认优先音质",
+            title = "默认选择音质",
             enforceCellularRestriction = false,
             showSubtitle = false,
             onSelectTier = { tier ->
