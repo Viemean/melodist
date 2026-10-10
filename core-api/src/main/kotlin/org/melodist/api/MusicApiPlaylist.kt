@@ -22,8 +22,10 @@ suspend fun MusicApiService.getFavoriteSongsDetail(
         var uin = UserSession.profile.uin.ifBlank { "0" }
         var authst = UserSession.profile.musicKey
 
-        fun buildFavPayload(u: String, a: String) =
-            """
+        fun buildFavPayload(
+            u: String,
+            a: String,
+        ) = """
             {
               "comm": { "uin": "$u", "format": "json", "ct": 19, "cv": 1, "authst": "$a" },
               "req_fav": {
@@ -39,7 +41,12 @@ suspend fun MusicApiService.getFavoriteSongsDetail(
             var root = Json.parseToJsonElement(respJson).jsonObject
 
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
-            val favCode = root["req_fav"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+            val favCode =
+                root["req_fav"]
+                    ?.jsonObject
+                    ?.get("code")
+                    ?.jsonPrimitive
+                    ?.intOrNull ?: 0
 
             if (rootCode == 2000 || favCode == 2000) {
                 ApiLogger.i("MusicApiPlaylist", "getFavoriteSongsDetail: token expired (code 2000), refreshing...")
@@ -93,6 +100,7 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
         ensureMusicKeySafe()
 
         var uin = UserSession.profile.uin.ifBlank { "0" }
+
         fun buildPlaylistsPayload(u: String) =
             """
             {
@@ -107,8 +115,18 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
             var root = Json.parseToJsonElement(respJson).jsonObject
 
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
-            val selfCode = root["self_playlists"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
-            val favCode = root["fav_playlists"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+            val selfCode =
+                root["self_playlists"]
+                    ?.jsonObject
+                    ?.get("code")
+                    ?.jsonPrimitive
+                    ?.intOrNull ?: 0
+            val favCode =
+                root["fav_playlists"]
+                    ?.jsonObject
+                    ?.get("code")
+                    ?.jsonPrimitive
+                    ?.intOrNull ?: 0
 
             if (rootCode == 2000 || selfCode == 2000 || favCode == 2000) {
                 ApiLogger.i("MusicApiPlaylist", "getPlaylists: token expired (code 2000), refreshing...")

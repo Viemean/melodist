@@ -18,7 +18,11 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
         var authst = UserSession.profile.musicKey
         var loginType = UserSession.loginType
 
-        fun buildProfilePayload(u: String, a: String, lt: Int): String =
+        fun buildProfilePayload(
+            u: String,
+            a: String,
+            lt: Int,
+        ): String =
             """
             {
               "comm": {
@@ -49,8 +53,18 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             var root = Json.parseToJsonElement(respJson).jsonObject
 
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
-            val profileCode = root["profile"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
-            val vipCode = root["vip"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+            val profileCode =
+                root["profile"]
+                    ?.jsonObject
+                    ?.get("code")
+                    ?.jsonPrimitive
+                    ?.intOrNull ?: 0
+            val vipCode =
+                root["vip"]
+                    ?.jsonObject
+                    ?.get("code")
+                    ?.jsonPrimitive
+                    ?.intOrNull ?: 0
 
             if (rootCode == 2000 || profileCode == 2000 || vipCode == 2000) {
                 ApiLogger.i("MusicApiUser", "Detected expired credentials (code 2000), attempting auto refresh...")
