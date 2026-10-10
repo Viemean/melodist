@@ -97,9 +97,9 @@ fun AudioQualityBottomSheet(
                 val probedAvailable = enrichedOptions.filter { it.isAvailable }.map { it.tier }.toSet()
                 val combined =
                     if (probedAvailable.isNotEmpty()) {
-                        probedAvailable + currentTier
+                        probedAvailable
                     } else if (availableTiers.isNotEmpty()) {
-                        availableTiers + currentTier
+                        availableTiers
                     } else {
                         setOf(currentTier, AudioQualityTier.SQ, AudioQualityTier.HQ, AudioQualityTier.Standard)
                     }
@@ -119,16 +119,34 @@ fun AudioQualityBottomSheet(
             }
         }
 
+    val effectiveSelectedTier =
+        remember(currentTier, supportedTiers) {
+            if (supportedTiers.contains(currentTier)) {
+                currentTier
+            } else {
+                var candidate: AudioQualityTier? = currentTier
+                var fallback: AudioQualityTier? = null
+                while (candidate != null) {
+                    val next = PlaybackManager.getFallbackTier(candidate)
+                    if (next != null && supportedTiers.contains(next)) {
+                        fallback = next
+                        break
+                    }
+                    candidate = next
+                }
+                fallback ?: supportedTiers.firstOrNull() ?: currentTier
+            }
+        }
+
     val displayTiers =
-        remember(supportedTiers, enrichedOptions, currentTier) {
-            supportedTiers.filter { tier ->
-                val isSelected = tier == currentTier
-                if (enrichedOptions.isNotEmpty() && !isSelected) {
+        remember(supportedTiers, enrichedOptions) {
+            if (enrichedOptions.isNotEmpty()) {
+                supportedTiers.filter { tier ->
                     val probed = enrichedOptions.find { it.tier == tier }
                     probed != null && probed.isAvailable
-                } else {
-                    true
                 }
+            } else {
+                supportedTiers
             }
         }
 
@@ -171,7 +189,7 @@ fun AudioQualityBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             displayTiers.forEach { tier ->
-                val isSelected = tier == currentTier
+                val isSelected = tier == effectiveSelectedTier
                 val probedOption = enrichedOptions.find { it.tier == tier }
                 val isRestricted =
                     enforceCellularRestriction &&

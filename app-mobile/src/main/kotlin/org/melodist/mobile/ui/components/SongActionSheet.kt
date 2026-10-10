@@ -594,9 +594,19 @@ fun SongActionSheet(
             AppSettingsManager.settings
                 .collectAsState()
                 .value.preferredQualityTier
+        val currentPlayingSong by PlaybackManager.currentSong.collectAsState()
+        val currentPlayingTier by PlaybackManager.currentTier.collectAsState()
+
+        val initialTier =
+            if (!currentPlayingSong?.songMid.isNullOrBlank() && currentPlayingSong?.songMid == song.songMid) {
+                currentPlayingTier
+            } else {
+                currentPreferredTier
+            }
+
         AudioQualityBottomSheet(
             title = "选择下载音质",
-            currentTier = currentPreferredTier,
+            currentTier = initialTier,
             availableTiers = song.availableTiers.toSet(),
             probedQualityOptions = probedQualityOptions,
             songDurationSec = song.durationSeconds,
