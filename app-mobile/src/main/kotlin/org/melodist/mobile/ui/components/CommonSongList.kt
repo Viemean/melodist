@@ -149,16 +149,31 @@ fun CommonSongList(
         }
     }
 
+    val getSongItemKey: (Song) -> String = { song ->
+        song.localFilePath?.takeIf { it.isNotBlank() } ?: song.songMid.ifBlank { song.songId.toString() }
+    }
+
+    val songItemKeys =
+        remember(displaySongs) {
+            val occurrences = mutableMapOf<String, Int>()
+            displaySongs.map { song ->
+                val baseKey = getSongItemKey(song).ifBlank { "song_${System.identityHashCode(song)}" }
+                val count = occurrences.getOrDefault(baseKey, 0)
+                occurrences[baseKey] = count + 1
+                if (count == 0) baseKey else "${baseKey}_#$count"
+            }
+        }
+
     val isAllSelected =
         remember(displaySongs, selectedMids.size) {
             displaySongs.isNotEmpty() &&
                 displaySongs.all {
-                    selectedMids.containsKey(it.songMid.ifBlank { it.songId.toString() })
+                    selectedMids.containsKey(getSongItemKey(it))
                 }
         }
 
     fun toggleSongSelection(song: Song) {
-        val key = song.songMid.ifBlank { song.songId.toString() }
+        val key = getSongItemKey(song)
         if (selectedMids.containsKey(key)) {
             selectedMids.remove(key)
         } else {
@@ -168,7 +183,7 @@ fun CommonSongList(
 
     fun selectAll() {
         displaySongs.forEach { song ->
-            val key = song.songMid.ifBlank { song.songId.toString() }
+            val key = getSongItemKey(song)
             selectedMids[key] = song
         }
     }
@@ -202,16 +217,8 @@ fun CommonSongList(
                     if (filterQuery.isBlank()) {
                         displayIndex
                     } else {
-                        val idx =
-                            songs.indexOfFirst { target ->
-                                if (song.songMid.isNotBlank() && target.songMid.isNotBlank()) {
-                                    song.songMid == target.songMid
-                                } else if (song.songId != 0L && target.songId != 0L) {
-                                    song.songId == target.songId
-                                } else {
-                                    target == song
-                                }
-                            }
+                        val songKey = getSongItemKey(song)
+                        val idx = songs.indexOfFirst { target -> getSongItemKey(target) == songKey }
                         if (idx >= 0) idx else displayIndex
                     }
 
@@ -269,10 +276,10 @@ fun CommonSongList(
 
                 itemsIndexed(
                     items = displaySongs,
-                    key = { _, song -> song.songMid.ifBlank { song.songId.toString() } },
+                    key = { index, _ -> songItemKeys.getOrElse(index) { "item_$index" } },
                     contentType = { _, _ -> "song_row" },
                 ) { index, song ->
-                    val songKey = song.songMid.ifBlank { song.songId.toString() }
+                    val songKey = getSongItemKey(song)
                     val isSelected = selectedMids.containsKey(songKey)
                     SongItemRow(
                         song = song,
