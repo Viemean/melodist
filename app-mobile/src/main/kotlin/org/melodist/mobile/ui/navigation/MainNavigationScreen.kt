@@ -73,11 +73,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -254,6 +256,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
     var newVersionDialogResult by remember { mutableStateOf<UpdateResult.NewVersion?>(null) }
 
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     LaunchedEffect(Unit) {
         // 延迟执行初始化任务
         delay(2500)
@@ -308,6 +311,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
         val state = acrUiState
         when (state) {
             is MobileAcrUiState.Success -> {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 isAcrControllerActive = false
                 val durationSec = state.matchDurationSeconds
                 val durationText =
