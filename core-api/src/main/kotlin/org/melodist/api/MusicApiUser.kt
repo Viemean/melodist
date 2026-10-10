@@ -14,11 +14,11 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
         if (!UserSession.isLoggedIn) return@withContext false
         ensureMusicKeySafe()
 
-        val uin = UserSession.profile.uin
-        val authst = UserSession.profile.musicKey
-        val loginType = UserSession.loginType
+        var uin = UserSession.profile.uin
+        var authst = UserSession.profile.musicKey
+        var loginType = UserSession.loginType
 
-        val payload =
+        fun buildProfilePayload(u: String, a: String, lt: Int): String =
             """
             {
               "comm": {
@@ -27,14 +27,14 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                 "v": 14090008,
                 "chid": "10003505",
                 "tmeAppID": "qqmusic",
-                "tmeLoginType": $loginType,
-                "qq": "$uin",
-                "authst": "$authst"
+                "tmeLoginType": $lt,
+                "qq": "$u",
+                "authst": "$a"
               },
               "profile": {
                 "module": "music.UnifiedHomepage.UnifiedHomepageSrv",
                 "method": "GetHomepageHeader",
-                "param": { "uin": "$uin", "IsQueryTabDetail": 1 }
+                "param": { "uin": "$u", "IsQueryTabDetail": 1 }
               },
               "vip": {
                 "module": "VipLogin.VipLoginInter",
@@ -45,8 +45,23 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             """.trimIndent()
 
         try {
-            val respJson = postGateway(payload)
-            val root = Json.parseToJsonElement(respJson).jsonObject
+            var respJson = postGateway(buildProfilePayload(uin, authst, loginType))
+            var root = Json.parseToJsonElement(respJson).jsonObject
+
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val profileCode = root["profile"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+            val vipCode = root["vip"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+
+            if (rootCode == 2000 || profileCode == 2000 || vipCode == 2000) {
+                ApiLogger.i("MusicApiUser", "Detected expired credentials (code 2000), attempting auto refresh...")
+                if (LoginApiService().forceRefreshMusicKey()) {
+                    uin = UserSession.profile.uin
+                    authst = UserSession.profile.musicKey
+                    loginType = UserSession.loginType
+                    respJson = postGateway(buildProfilePayload(uin, authst, loginType))
+                    root = Json.parseToJsonElement(respJson).jsonObject
+                }
+            }
 
             var changed = false
             val newProfile = UserSession.profile.copy()

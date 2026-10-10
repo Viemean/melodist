@@ -19,23 +19,38 @@ suspend fun MusicApiService.getFavoriteSongsDetail(
     withContext(Dispatchers.IO) {
         ensureMusicKeySafe()
 
-        val uin = UserSession.profile.uin.ifBlank { "0" }
-        val authst = UserSession.profile.musicKey
-        val payload =
+        var uin = UserSession.profile.uin.ifBlank { "0" }
+        var authst = UserSession.profile.musicKey
+
+        fun buildFavPayload(u: String, a: String) =
             """
             {
-              "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "$authst" },
+              "comm": { "uin": "$u", "format": "json", "ct": 19, "cv": 1, "authst": "$a" },
               "req_fav": {
                 "module": "music.musicasset.PlaylistDetailRead",
                 "method": "GetUniformSongDetailInfo",
-                "param": { "uin": "$uin", "dirid": 201, "bPaged": true, "offset": ${(page - 1) * pageSize}, "size": $pageSize }
+                "param": { "uin": "$u", "dirid": 201, "bPaged": true, "offset": ${(page - 1) * pageSize}, "size": $pageSize }
               }
             }
             """.trimIndent()
 
         try {
-            val respJson = postGateway(payload)
-            val root = Json.parseToJsonElement(respJson).jsonObject
+            var respJson = postGateway(buildFavPayload(uin, authst))
+            var root = Json.parseToJsonElement(respJson).jsonObject
+
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val favCode = root["req_fav"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+
+            if (rootCode == 2000 || favCode == 2000) {
+                ApiLogger.i("MusicApiPlaylist", "getFavoriteSongsDetail: token expired (code 2000), refreshing...")
+                if (LoginApiService().forceRefreshMusicKey()) {
+                    uin = UserSession.profile.uin.ifBlank { "0" }
+                    authst = UserSession.profile.musicKey
+                    respJson = postGateway(buildFavPayload(uin, authst))
+                    root = Json.parseToJsonElement(respJson).jsonObject
+                }
+            }
+
             val dataObj =
                 root["req_fav"]?.jsonObject?.get("data")?.jsonObject ?: return@withContext FavoriteSongsResult(emptyList(), 0, false)
 
@@ -77,19 +92,33 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
         if (!UserSession.isLoggedIn) return@withContext emptyList()
         ensureMusicKeySafe()
 
-        val uin = UserSession.profile.uin.ifBlank { "0" }
-        val payload =
+        var uin = UserSession.profile.uin.ifBlank { "0" }
+        fun buildPlaylistsPayload(u: String) =
             """
             {
-              "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "" },
-              "self_playlists": { "module": "music.musicasset.PlaylistBaseRead", "method": "GetPlaylistByUin", "param": { "uin": "$uin" } },
-              "fav_playlists": { "module": "music.musicasset.PlaylistFavRead", "method": "GetPlaylistFavInfo", "param": { "uin": "$uin" } }
+              "comm": { "uin": "$u", "format": "json", "ct": 19, "cv": 1, "authst": "" },
+              "self_playlists": { "module": "music.musicasset.PlaylistBaseRead", "method": "GetPlaylistByUin", "param": { "uin": "$u" } },
+              "fav_playlists": { "module": "music.musicasset.PlaylistFavRead", "method": "GetPlaylistFavInfo", "param": { "uin": "$u" } }
             }
             """.trimIndent()
 
         try {
-            val respJson = postGateway(payload)
-            val root = Json.parseToJsonElement(respJson).jsonObject
+            var respJson = postGateway(buildPlaylistsPayload(uin))
+            var root = Json.parseToJsonElement(respJson).jsonObject
+
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val selfCode = root["self_playlists"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+            val favCode = root["fav_playlists"]?.jsonObject?.get("code")?.jsonPrimitive?.intOrNull ?: 0
+
+            if (rootCode == 2000 || selfCode == 2000 || favCode == 2000) {
+                ApiLogger.i("MusicApiPlaylist", "getPlaylists: token expired (code 2000), refreshing...")
+                if (LoginApiService().forceRefreshMusicKey()) {
+                    uin = UserSession.profile.uin.ifBlank { "0" }
+                    respJson = postGateway(buildPlaylistsPayload(uin))
+                    root = Json.parseToJsonElement(respJson).jsonObject
+                }
+            }
+
             val result = mutableListOf<Playlist>()
 
             // 1. 自建歌单

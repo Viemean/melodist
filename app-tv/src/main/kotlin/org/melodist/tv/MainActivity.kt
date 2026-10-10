@@ -171,7 +171,12 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             if (UserSession.isLoggedIn) {
                 try {
-                    MusicApiService().refreshCurrentUserProfile()
+                    val ok = MusicApiService().refreshCurrentUserProfile()
+                    if (!ok) {
+                        if (MusicApiService().forceRefreshMusicKeySafe()) {
+                            MusicApiService().refreshCurrentUserProfile()
+                        }
+                    }
                 } catch (e: Exception) {
                     android.util.Log.w("MelodistTV", "Failed to refresh user profile on startup", e)
                 }

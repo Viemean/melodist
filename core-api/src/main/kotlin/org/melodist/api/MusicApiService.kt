@@ -334,4 +334,9 @@ class MusicApiService(
             ApiLogger.w("MusicApiService", "Failed to ensure music key", e)
             false
         }
+
+    /**
+     * 强制刷新 MusicKey 鉴权凭证
+     */
+    suspend fun forceRefreshMusicKeySafe(): Boolean = ensureMusicKeySafe(forceRefresh = true)
 }

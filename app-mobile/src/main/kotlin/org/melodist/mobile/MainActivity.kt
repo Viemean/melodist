@@ -111,7 +111,12 @@ class MainActivity : ComponentActivity() {
         if (UserSession.isLoggedIn) {
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    MusicApiService().refreshCurrentUserProfile()
+                    val ok = MusicApiService().refreshCurrentUserProfile()
+                    if (!ok) {
+                        if (MusicApiService().forceRefreshMusicKeySafe()) {
+                            MusicApiService().refreshCurrentUserProfile()
+                        }
+                    }
                 } catch (e: Exception) {
                     ApiLogger.w("MainActivity", "Failed to refresh user profile on app start", e)
                 }
