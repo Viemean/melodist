@@ -695,24 +695,32 @@ object MobileConnectManager {
         song: Song,
         startPositionMs: Long = 0L,
         forceTier: AudioQualityTier? = null,
+        queue: List<Song>? = null,
     ) {
         scope.launch(Dispatchers.Main) {
             val currentPlaylist = PlaybackManager.playlist.value
-            val rawIdx = currentPlaylist.indexOfFirst { it.songMid == song.songMid }.coerceAtLeast(0)
+            val targetPlaylist =
+                if (!queue.isNullOrEmpty()) {
+                    if (queue.any { it.songMid == song.songMid }) queue else listOf(song) + queue
+                } else {
+                    val containsSong = currentPlaylist.any { it.songMid == song.songMid }
+                    if (containsSong) currentPlaylist else listOf(song)
+                }
+            val rawIdx = targetPlaylist.indexOfFirst { it.songMid == song.songMid }.coerceAtLeast(0)
             val effectiveTier = forceTier ?: PlaybackManager.preferredTier.value
 
-            val needsChunkedSync = currentPlaylist.size > QUEUE_INITIAL_WINDOW_SIZE
+            val needsChunkedSync = targetPlaylist.size > QUEUE_INITIAL_WINDOW_SIZE
             val (initialQueue, initialIdx) =
                 if (needsChunkedSync) {
                     val halfWindow = QUEUE_INITIAL_WINDOW_SIZE / 2
                     val start = (rawIdx - halfWindow).coerceAtLeast(0)
-                    val end = (start + QUEUE_INITIAL_WINDOW_SIZE).coerceAtMost(currentPlaylist.size)
+                    val end = (start + QUEUE_INITIAL_WINDOW_SIZE).coerceAtMost(targetPlaylist.size)
                     val actualStart = (end - QUEUE_INITIAL_WINDOW_SIZE).coerceAtLeast(0)
-                    val windowed = currentPlaylist.subList(actualStart, end)
+                    val windowed = targetPlaylist.subList(actualStart, end)
                     val newIdx = (rawIdx - actualStart).coerceIn(0, (windowed.size - 1).coerceAtLeast(0))
                     Pair(windowed, newIdx)
                 } else {
-                    Pair(currentPlaylist, rawIdx)
+                    Pair(targetPlaylist, rawIdx)
                 }
 
             val (audioSource, effectiveSong, preparedInitialQueue) =
@@ -740,10 +748,10 @@ object MobileConnectManager {
                 qualityTier = effectiveTier,
             )
 
-            if (isRadio && currentPlaylist.size <= 10) {
+            if (isRadio && targetPlaylist.size <= 10) {
                 checkAndExpandRadioQueue(initialIdx, force = true)
             } else if (needsChunkedSync) {
-                syncFullQueueToRemote(song, delayMs = 350L)
+                syncFullQueueToRemote(song, delayMs = 350L, fullQueue = targetPlaylist)
             }
             if (remoteControlMode.value == RemoteControlMode.TAKEOVER) {
                 pendingTrackTargetMid = song.songMid
@@ -767,6 +775,7 @@ object MobileConnectManager {
     fun syncFullQueueToRemote(
         targetSong: Song? = null,
         delayMs: Long = 0L,
+        fullQueue: List<Song>? = null,
     ) {
         queueBatchSyncJob?.cancel()
         queueBatchSyncJob =
@@ -774,7 +783,7 @@ object MobileConnectManager {
                 if (delayMs > 0L) {
                     delay(delayMs)
                 }
-                val currentPlaylist = PlaybackManager.playlist.value
+                val currentPlaylist = fullQueue ?: PlaybackManager.playlist.value
                 if (currentPlaylist.isEmpty() || !isTvOnline) return@launch
                 val curSong = targetSong ?: PlaybackManager.currentSong.value ?: currentPlaylist.firstOrNull() ?: return@launch
                 val syncId =

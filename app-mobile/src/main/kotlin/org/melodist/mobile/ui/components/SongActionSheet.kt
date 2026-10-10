@@ -96,6 +96,7 @@ fun SongActionSheet(
     onRemoveFromQueue: (() -> Unit)? = null,
     onDeleteLocalFile: ((Song) -> Unit)? = null,
     onNavigate: (() -> Unit)? = null,
+    playlistContext: List<Song>? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
@@ -347,7 +348,7 @@ fun SongActionSheet(
                                     leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
                                     onClick = {
                                         showTvMenu = false
-                                        MobileConnectManager.playOnTv(song)
+                                        MobileConnectManager.playOnTv(song, queue = playlistContext)
                                         Toast.makeText(context, "已发送至 TV 播放", Toast.LENGTH_SHORT).show()
                                         onDismissRequest()
                                     },

@@ -420,6 +420,7 @@ fun CommonSongList(
         internalActionSong?.let { song ->
             SongActionSheet(
                 song = song,
+                playlistContext = displaySongs,
                 onDismissRequest = { internalActionSong = null },
                 onDeleteLocalFile = onDeleteLocalFile,
             )
