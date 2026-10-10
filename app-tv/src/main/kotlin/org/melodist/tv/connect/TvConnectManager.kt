@@ -318,13 +318,24 @@ object TvConnectManager {
                     } else {
                         val isRadio = audioSource?.headers?.get("x-playback-radio") == "true"
                         if (cmd.queue.isNotEmpty()) {
-                            PlaybackManager.setPlaylist(
-                                songs = cmd.queue,
-                                startIndex = cmd.index,
-                                isRadio = isRadio,
-                                forceTier = cmd.qualityTier,
-                                initialSeekToMs = cmd.startPositionMs,
-                            )
+                            val songInQueueIdx = cmd.queue.indexOfFirst { it.songMid == cmd.song.songMid }
+                            if (songInQueueIdx >= 0) {
+                                PlaybackManager.setPlaylist(
+                                    songs = cmd.queue,
+                                    startIndex = songInQueueIdx,
+                                    isRadio = isRadio,
+                                    forceTier = cmd.qualityTier,
+                                    initialSeekToMs = cmd.startPositionMs,
+                                )
+                            } else {
+                                PlaybackManager.setPlaylist(
+                                    songs = listOf(cmd.song) + cmd.queue,
+                                    startIndex = 0,
+                                    isRadio = isRadio,
+                                    forceTier = cmd.qualityTier,
+                                    initialSeekToMs = cmd.startPositionMs,
+                                )
+                            }
                         } else {
                             PlaybackManager.playSong(cmd.song, forceTier = cmd.qualityTier, seekToMs = cmd.startPositionMs)
                         }
