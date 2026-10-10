@@ -188,11 +188,93 @@ object DownloadManager {
         if (!raw.isNullOrBlank()) {
             try {
                 val list = json.decodeFromString<List<DownloadTask>>(raw)
-                _completedTasks.value = list.filter { File(it.filePath).exists() }
+                val validList = list.filter { File(it.filePath).exists() }
+                _completedTasks.value = deduplicateCompletedTasks(validList)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to load completed downloads", e)
             }
         }
+    }
+
+    /**
+     * 对历史下载记录进行单版本去重，保留最新副本并清理冗余物理文件。
+     *
+     * @param tasks 当前有效物理文件任务列表
+     * @return 每首歌曲仅保留一份最新副本的任务列表
+     */
+    private fun deduplicateCompletedTasks(tasks: List<DownloadTask>): List<DownloadTask> {
+        val seenMids = mutableSetOf<String>()
+        val kept = mutableListOf<DownloadTask>()
+        val obsoletePaths = mutableListOf<String>()
+
+        for (task in tasks) {
+            val mid = task.song.songMid
+            if (mid.isNotBlank() && seenMids.add(mid)) {
+                kept.add(task)
+            } else {
+                if (task.filePath.isNotBlank()) {
+                    val f = File(task.filePath)
+                    if (f.exists()) {
+                        f.delete()
+                        val lrc = File(task.filePath.substringBeforeLast(".") + ".lrc")
+                        if (lrc.exists()) lrc.delete()
+                        obsoletePaths.add(task.filePath)
+                    }
+                }
+            }
+        }
+
+        if (obsoletePaths.isNotEmpty()) {
+            appContext?.let { ctx ->
+                MediaScannerConnection.scanFile(ctx, obsoletePaths.toTypedArray(), null, null)
+            }
+        }
+
+        if (kept.size != tasks.size) {
+            try {
+                val raw = json.encodeToString(kept)
+                prefs?.edit()?.putString(KEY_COMPLETED, raw)?.apply()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist deduplicated downloads", e)
+            }
+        }
+        return kept
+    }
+
+    /**
+     * 清理指定歌曲除当前新副本之外的历史旧版本下载文件与记录。
+     *
+     * @param songMid 歌曲唯一标识符
+     * @param currentFilePath 当前新副本物理文件路径
+     * @return 剔除该歌曲旧记录后的已完成任务列表
+     */
+    private fun prunePreviousCopies(
+        songMid: String,
+        currentFilePath: String,
+    ): List<DownloadTask> {
+        val obsoleteTasks = _completedTasks.value.filter { it.song.songMid == songMid }
+        if (obsoleteTasks.isEmpty()) return _completedTasks.value
+
+        val obsoletePaths = mutableListOf<String>()
+        for (task in obsoleteTasks) {
+            if (task.filePath.isNotBlank() && task.filePath != currentFilePath) {
+                val file = File(task.filePath)
+                if (file.exists()) {
+                    file.delete()
+                    val lrc = File(task.filePath.substringBeforeLast(".") + ".lrc")
+                    if (lrc.exists()) lrc.delete()
+                    obsoletePaths.add(task.filePath)
+                }
+            }
+        }
+
+        if (obsoletePaths.isNotEmpty()) {
+            appContext?.let { ctx ->
+                MediaScannerConnection.scanFile(ctx, obsoletePaths.toTypedArray(), null, null)
+            }
+        }
+
+        return _completedTasks.value.filter { it.song.songMid != songMid }
     }
 
     private fun saveCompletedTasks() {
@@ -284,7 +366,7 @@ object DownloadManager {
         val existing = findExistingFile(song, targetTier)
         if (existing != null) {
             _toastEvent.tryEmit("文件已存在：${existing.name}")
-            // 若历史列表中没有，自动补全到已完成列表
+            // 若历史列表中没有，自动补全到已完成列表并清理旧副本
             if (_completedTasks.value.none { it.id == taskId }) {
                 val completedTask =
                     DownloadTask(
@@ -297,7 +379,8 @@ object DownloadManager {
                         totalBytes = existing.length(),
                         filePath = existing.absolutePath,
                     )
-                _completedTasks.value = listOf(completedTask) + _completedTasks.value
+                val remaining = prunePreviousCopies(song.songMid, existing.absolutePath)
+                _completedTasks.value = listOf(completedTask) + remaining
                 saveCompletedTasks()
             }
             return
@@ -654,7 +737,8 @@ object DownloadManager {
             )
 
         _activeTasks.value = _activeTasks.value.filter { it.id != taskId }
-        _completedTasks.value = listOf(completedTask) + _completedTasks.value.filter { it.id != taskId }
+        val remaining = prunePreviousCopies(song.songMid, file.absolutePath)
+        _completedTasks.value = listOf(completedTask) + remaining
         saveCompletedTasks()
 
         _toastEvent.tryEmit("下载完成: ${file.name}")
