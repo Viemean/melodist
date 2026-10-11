@@ -9,6 +9,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
@@ -221,6 +222,7 @@ object PlaybackMediaLoader {
                         try {
                             apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier)
                         } catch (e: Exception) {
+                            if (e is CancellationException) throw e
                             Log.w(TAG, "Failed to fetch play URL for ${song.name}", e)
                             null
                         }

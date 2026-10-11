@@ -803,12 +803,14 @@ object MelodistCacheManager : MediaCacheExporter {
                     try {
                         cache.removeResource(key)
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         Log.w(TAG, "Failed to remove cache resource for key: $key", e)
                     }
                 }
                 Log.i(TAG, "Cleared media cache, remaining space: ${formatBytes(cache.cacheSpace)}")
                 true
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to clear all media cache", e)
                 false
             }

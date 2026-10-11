@@ -194,6 +194,7 @@ object AudioSliceExtractor {
                     null
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to decode and extract slice feature for ${audioFile.name}", e)
                 null
             } finally {

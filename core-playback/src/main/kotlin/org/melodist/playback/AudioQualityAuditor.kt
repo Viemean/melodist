@@ -209,6 +209,7 @@ object AudioQualityAuditor {
                 return AudioSourceTarget(playUrl, isLocal = false)
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.w(TAG, "Failed to probe quality URL for audit: ${e.message}")
         }
         return null

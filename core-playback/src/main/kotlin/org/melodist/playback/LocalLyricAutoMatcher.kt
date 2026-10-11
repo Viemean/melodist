@@ -2,6 +2,7 @@ package org.melodist.playback
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -152,6 +153,7 @@ object LocalLyricAutoMatcher {
                         Log.i(TAG, "Text search matched: ${best.name} - ${best.singer} (mid=${best.songMid})")
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     Log.w(TAG, "Text search probe failed for: ${song.name}", e)
                 }
             }
@@ -180,6 +182,7 @@ object LocalLyricAutoMatcher {
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     Log.w(TAG, "Error performing ACR on ${audioFile.name}", e)
                 }
             }
@@ -212,6 +215,7 @@ object LocalLyricAutoMatcher {
                         return@withContext officialLyrics
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     Log.w(TAG, "Failed to fetch official lyrics for mid=$matchedSongMid", e)
                 }
             }
@@ -275,6 +279,7 @@ object LocalLyricAutoMatcher {
                     return@withContext 0L
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to calibrate lyric offset for ${song.name}", e)
                 org.melodist.data.LyricCacheManager
                     .saveLyricOffsetMs(song.songMid, 0L)
