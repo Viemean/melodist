@@ -367,7 +367,8 @@ object PlaybackManager {
                         .makeText(ctx, message, android.widget.Toast.LENGTH_SHORT)
                         .show()
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("MelodistPlayback", "Failed to dispatch user toast notification", e)
             }
         }
     }
