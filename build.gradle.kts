@@ -29,6 +29,7 @@ subprojects {
         buildUponDefaultConfig = true
         allRules = false
         ignoreFailures = true
+        parallel = true
         config.setFrom(files("${rootProject.projectDir}/config/detekt/detekt.yml"))
     }
 
@@ -40,4 +41,11 @@ subprojects {
     dependencies {
         add("detektPlugins", rootProject.libs.detekt.rules.compose)
     }
+}
+
+tasks.register("codeQualityCheck") {
+    group = "verification"
+    description = "Runs ktlint and detekt across all subprojects"
+    dependsOn(subprojects.map { "${it.path}:ktlintCheck" })
+    dependsOn(subprojects.map { "${it.path}:detekt" })
 }
