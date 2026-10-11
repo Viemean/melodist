@@ -245,30 +245,32 @@ object LocalMusicManager {
             val folder = getSafeCoversDir()
             val healedMap = mutableMapOf<String, String>()
 
-            for (s in songsToHeal) {
-                try {
-                    retriever.setDataSource(s.path)
-                    val picBytes = retriever.embeddedPicture
-                    if (picBytes != null && picBytes.isNotEmpty()) {
-                        val hash = md5(s.path)
-                        val webpPath =
-                            org.melodist.data.pipeline.AudioMetadataPipeline
-                                .saveThumbnailWebp(picBytes, folder, hash)
-                        if (webpPath != null) {
-                            healedMap[s.path] = webpPath
+            try {
+                for (s in songsToHeal) {
+                    try {
+                        retriever.setDataSource(s.path)
+                        val picBytes = retriever.embeddedPicture
+                        if (picBytes != null && picBytes.isNotEmpty()) {
+                            val hash = md5(s.path)
+                            val webpPath =
+                                org.melodist.data.pipeline.AudioMetadataPipeline
+                                    .saveThumbnailWebp(picBytes, folder, hash)
+                            if (webpPath != null) {
+                                healedMap[s.path] = webpPath
+                            }
                         }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("LocalSongCache", "Operation failed", e)
                     }
+                }
+            } finally {
+                try {
+                    retriever.release()
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    Log.w("LocalSongCache", "Operation failed", e)
+                    Log.w("LocalSongCache", "Failed to release MediaMetadataRetriever", e)
                 }
-            }
-
-            try {
-                retriever.release()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.w("LocalSongCache", "Operation failed", e)
             }
 
             if (healedMap.isNotEmpty()) {
@@ -642,32 +644,33 @@ object LocalMusicManager {
             val newCaches = mutableListOf<LocalSongCache>()
 
             val retriever = MediaMetadataRetriever()
-
-            audioFiles.forEachIndexed { index, file ->
-                val path = file.absolutePath
-                val mod = file.lastModified()
-                val existing = existingMap[path]
-                val isCoverValid =
-                    existing?.coverPath?.let { cp ->
-                        val f = File(cp)
-                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
-                    } ?: false
-
-                if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
-                    newCaches.add(existing)
-                    onProgress(existing.title, index + 1, total)
-                } else {
-                    val cache = parseAudioFile(retriever, file)
-                    newCaches.add(cache)
-                    onProgress(cache.title, index + 1, total)
-                }
-            }
-
             try {
-                retriever.release()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.w("LocalSongCache", "Operation failed", e)
+                audioFiles.forEachIndexed { index, file ->
+                    val path = file.absolutePath
+                    val mod = file.lastModified()
+                    val existing = existingMap[path]
+                    val isCoverValid =
+                        existing?.coverPath?.let { cp ->
+                            val f = File(cp)
+                            cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
+                        } ?: false
+
+                    if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
+                        newCaches.add(existing)
+                        onProgress(existing.title, index + 1, total)
+                    } else {
+                        val cache = parseAudioFile(retriever, file)
+                        newCaches.add(cache)
+                        onProgress(cache.title, index + 1, total)
+                    }
+                }
+            } finally {
+                try {
+                    retriever.release()
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("LocalSongCache", "Failed to release MediaMetadataRetriever", e)
+                }
             }
 
             inMemoryConfig =
@@ -896,6 +899,7 @@ object LocalMusicManager {
                     }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Error querying system MediaStore", e)
             }
 
@@ -903,32 +907,33 @@ object LocalMusicManager {
             val existingMap = inMemoryConfig.scannedSongs.associateBy { it.path }
             val newCaches = mutableListOf<LocalSongCache>()
             val retriever = MediaMetadataRetriever()
-
-            audioFiles.forEachIndexed { index, file ->
-                val path = file.absolutePath
-                val mod = file.lastModified()
-                val existing = existingMap[path]
-                val isCoverValid =
-                    existing?.coverPath?.let { cp ->
-                        val f = File(cp)
-                        cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
-                    } ?: false
-
-                if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
-                    newCaches.add(existing)
-                    onProgress?.invoke(existing.title, index + 1, total)
-                } else {
-                    val cache = parseAudioFile(retriever, file)
-                    newCaches.add(cache)
-                    onProgress?.invoke(cache.title, index + 1, total)
-                }
-            }
-
             try {
-                retriever.release()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.w("LocalSongCache", "Operation failed", e)
+                audioFiles.forEachIndexed { index, file ->
+                    val path = file.absolutePath
+                    val mod = file.lastModified()
+                    val existing = existingMap[path]
+                    val isCoverValid =
+                        existing?.coverPath?.let { cp ->
+                            val f = File(cp)
+                            cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
+                        } ?: false
+
+                    if (existing != null && existing.lastModified == mod && (existing.coverPath.isBlank() || isCoverValid)) {
+                        newCaches.add(existing)
+                        onProgress?.invoke(existing.title, index + 1, total)
+                    } else {
+                        val cache = parseAudioFile(retriever, file)
+                        newCaches.add(cache)
+                        onProgress?.invoke(cache.title, index + 1, total)
+                    }
+                }
+            } finally {
+                try {
+                    retriever.release()
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("LocalSongCache", "Failed to release MediaMetadataRetriever", e)
+                }
             }
 
             // 与现有库合并去重
