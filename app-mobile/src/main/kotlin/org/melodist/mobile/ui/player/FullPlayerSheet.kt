@@ -25,6 +25,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -687,349 +688,360 @@ fun FullPlayerSheet(
             }
         } else {
             // 竖屏布局
-            Column(
+            BoxWithConstraints(
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .displayCutoutPadding()
-                        .systemBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top,
+                        .systemBarsPadding(),
             ) {
-                Box(
+                val isCompact = maxHeight < 580.dp
+                Column(
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .height(32.dp),
-                    contentAlignment = Alignment.Center,
+                            .fillMaxSize()
+                            .padding(
+                                horizontal = 16.dp,
+                                vertical = if (isCompact) 2.dp else 4.dp,
+                            ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Top,
                 ) {
                     Box(
                         modifier =
                             Modifier
-                                .size(width = 38.dp, height = 4.5.dp)
-                                .background(contentTertiary.copy(alpha = 0.35f), CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onCollapse,
-                                ),
-                    )
-
-                    val curConnectState = connectState
-                    if (curConnectState is MobileConnectionState.Paired) {
-                        val pairedDevice = curConnectState.targetDevice
-                        Box(modifier = Modifier.align(Alignment.CenterEnd)) {
-                            IconButton(
-                                onClick = { showTvMenu = true },
-                                modifier = Modifier.size(32.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Computer,
-                                    contentDescription = "已连接 ${pairedDevice.name}",
-                                    tint = animatedAccentColor,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-
-                            DropdownMenu(
-                                expanded = showTvMenu,
-                                onDismissRequest = { showTvMenu = false },
-                            ) {
-                                Text(
-                                    text = pairedDevice.name,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                )
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                                DropdownMenuItem(
-                                    text = { Text("立即播放") },
-                                    leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
-                                    enabled = song != null,
-                                    onClick = {
-                                        showTvMenu = false
-                                        if (song != null) {
-                                            MobileConnectManager.playOnTv(song)
-                                            android.widget.Toast
-                                                .makeText(context, "已发送至 TV 播放", android.widget.Toast.LENGTH_SHORT)
-                                                .show()
-                                        }
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("稍后播放") },
-                                    leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
-                                    enabled = song != null,
-                                    onClick = {
-                                        showTvMenu = false
-                                        if (song != null) {
-                                            MobileConnectManager.enqueueNextOnTv(song)
-                                            android.widget.Toast
-                                                .makeText(context, "已插播至 TV 队列", android.widget.Toast.LENGTH_SHORT)
-                                                .show()
-                                        }
-                                    },
-                                )
-                                val isTakeoverPortrait =
-                                    MobileConnectManager.remoteControlMode.collectAsState().value == org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
-                                DropdownMenuItem(
-                                    text = { Text(if (isTakeoverPortrait) "接管模式" else "进度接力") },
-                                    leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
-                                    onClick = {
-                                        showTvMenu = false
-                                        if (isTakeoverPortrait) {
-                                            android.widget.Toast
-                                                .makeText(
-                                                    context,
-                                                    "当前处于全面接管模式，播放直通 TV",
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                        } else {
-                                            MobileConnectManager.relayCurrentPlaybackToTv()
-                                            android.widget.Toast
-                                                .makeText(
-                                                    context,
-                                                    "已接力至 TV 播放",
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                        }
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("断开连接", color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Rounded.LinkOff,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    onClick = {
-                                        showTvMenu = false
-                                        MobileConnectManager.disconnect()
-                                        android.widget.Toast
-                                            .makeText(context, "已断开与 TV 的连接", android.widget.Toast.LENGTH_SHORT)
-                                            .show()
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 封面与歌词区域
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    AnimatedContent(
-                        targetState = displayMode,
-                        transitionSpec = {
-                            if (targetState == PlayerDisplayMode.Lyrics) {
-                                (
-                                    fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
-                                        scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing))
-                                ).togetherWith(
-                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                                        scaleOut(targetScale = 1.04f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
-                                )
-                            } else {
-                                (
-                                    fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
-                                        scaleIn(initialScale = 1.04f, animationSpec = tween(280, easing = FastOutSlowInEasing))
-                                ).togetherWith(
-                                    fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                                        scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
-                                )
-                            }
-                        },
-                        label = "PlayerCoverLyricsTransition",
-                        modifier = Modifier.fillMaxSize(),
+                                .fillMaxWidth()
+                                .height(if (isCompact) 24.dp else 32.dp),
                         contentAlignment = Alignment.Center,
-                    ) { currentMode ->
-                        if (currentMode == PlayerDisplayMode.Cover) {
-                            PlayerCoverCarousel(
-                                currentSong = song,
-                                prevSong = prevSong,
-                                nextSong = nextSong,
-                                onPlayNext = onPlayNext,
-                                onPlayPrevious = onPlayPrevious,
-                                onClick = { displayMode = PlayerDisplayMode.Lyrics },
-                                onLongClick = { actionTargetSong = song },
-                                shadowTint = monetColors.shadowTint,
-                                isDark = isDark,
-                            )
-                        } else {
-                            var lyricDragX by remember { mutableFloatStateOf(0f) }
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .pointerInput(Unit) {
-                                            detectHorizontalDragGestures(
-                                                onDragStart = { lyricDragX = 0f },
-                                                onHorizontalDrag = { _, dragAmount -> lyricDragX += dragAmount },
-                                                onDragEnd = {
-                                                    if (abs(lyricDragX) > 70f) {
-                                                        displayMode = PlayerDisplayMode.Cover
-                                                    }
-                                                    lyricDragX = 0f
-                                                },
-                                                onDragCancel = { lyricDragX = 0f },
-                                            )
-                                        },
-                            ) {
-                                val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
-                                MobileLyricsView(
-                                    lyrics = lyrics,
-                                    currentPositionMs = lyricPositionMs,
-                                    onSeekTo = onSeekTo,
-                                    highlightColor = animatedAccentColor,
-                                    textColor = contentPrimary.copy(alpha = 0.72f),
-                                    transColor = contentPrimary.copy(alpha = 0.55f),
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                        }
-                    }
-                }
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(width = 38.dp, height = 4.5.dp)
+                                    .background(contentTertiary.copy(alpha = 0.35f), CircleShape)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = onCollapse,
+                                    ),
+                        )
 
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .pointerInput(displayMode) {
-                                if (displayMode == PlayerDisplayMode.Lyrics) {
-                                    detectVerticalDragGestures(
-                                        onDragStart = {
-                                            accumulatedDragY = 0f
-                                            verticalVelocityTracker.resetTracking()
-                                            onDragStart?.invoke()
-                                        },
-                                        onVerticalDrag = { change, dragAmount ->
-                                            change.consume()
-                                            accumulatedDragY += dragAmount
-                                            verticalVelocityTracker.addPosition(change.uptimeMillis, Offset(0f, accumulatedDragY))
-                                            if (onDragDown != null) {
-                                                onDragDown(dragAmount)
-                                            } else {
-                                                coroutineScope.launch {
-                                                    internalSheetOffsetY.snapTo((internalSheetOffsetY.value + dragAmount).coerceAtLeast(0f))
-                                                }
-                                            }
-                                        },
-                                        onDragEnd = {
-                                            val velocityY = verticalVelocityTracker.calculateVelocity().y
-                                            if (onDragDownEnd != null) {
-                                                onDragDownEnd(velocityY)
-                                            } else {
-                                                val currentOffset = internalSheetOffsetY.value
-                                                val dismissThreshold = (size.height * 0.32f).coerceAtLeast(with(density) { 72.dp.toPx() })
-                                                val shouldDismiss =
-                                                    when {
-                                                        velocityY > 500f -> true
-                                                        velocityY < -400f -> false
-                                                        else -> currentOffset > dismissThreshold
-                                                    }
-                                                if (shouldDismiss) {
-                                                    coroutineScope.launch {
-                                                        internalSheetOffsetY.animateTo(size.height.toFloat(), tween(200, easing = FastOutSlowInEasing))
-                                                        onCollapse()
-                                                        internalSheetOffsetY.snapTo(0f)
-                                                    }
-                                                } else {
-                                                    coroutineScope.launch {
-                                                        internalSheetOffsetY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        onDragCancel = {
-                                            if (onDragDownCancel != null) {
-                                                onDragDownCancel()
-                                            } else {
-                                                coroutineScope.launch {
-                                                    internalSheetOffsetY.animateTo(0f)
-                                                }
+                        val curConnectState = connectState
+                        if (curConnectState is MobileConnectionState.Paired) {
+                            val pairedDevice = curConnectState.targetDevice
+                            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
+                                IconButton(
+                                    onClick = { showTvMenu = true },
+                                    modifier = Modifier.size(32.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Computer,
+                                        contentDescription = "已连接 ${pairedDevice.name}",
+                                        tint = animatedAccentColor,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showTvMenu,
+                                    onDismissRequest = { showTvMenu = false },
+                                ) {
+                                    Text(
+                                        text = pairedDevice.name,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                                    DropdownMenuItem(
+                                        text = { Text("立即播放") },
+                                        leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
+                                        enabled = song != null,
+                                        onClick = {
+                                            showTvMenu = false
+                                            if (song != null) {
+                                                MobileConnectManager.playOnTv(song)
+                                                android.widget.Toast
+                                                    .makeText(context, "已发送至 TV 播放", android.widget.Toast.LENGTH_SHORT)
+                                                    .show()
                                             }
                                         },
                                     )
+                                    DropdownMenuItem(
+                                        text = { Text("稍后播放") },
+                                        leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
+                                        enabled = song != null,
+                                        onClick = {
+                                            showTvMenu = false
+                                            if (song != null) {
+                                                MobileConnectManager.enqueueNextOnTv(song)
+                                                android.widget.Toast
+                                                    .makeText(context, "已插播至 TV 队列", android.widget.Toast.LENGTH_SHORT)
+                                                    .show()
+                                            }
+                                        },
+                                    )
+                                    val isTakeoverPortrait =
+                                        MobileConnectManager.remoteControlMode.collectAsState().value ==
+                                            org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
+                                    DropdownMenuItem(
+                                        text = { Text(if (isTakeoverPortrait) "接管模式" else "进度接力") },
+                                        leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
+                                        onClick = {
+                                            showTvMenu = false
+                                            if (isTakeoverPortrait) {
+                                                android.widget.Toast
+                                                    .makeText(
+                                                        context,
+                                                        "当前处于全面接管模式，播放直通 TV",
+                                                        android.widget.Toast.LENGTH_SHORT,
+                                                    ).show()
+                                            } else {
+                                                MobileConnectManager.relayCurrentPlaybackToTv()
+                                                android.widget.Toast
+                                                    .makeText(
+                                                        context,
+                                                        "已接力至 TV 播放",
+                                                        android.widget.Toast.LENGTH_SHORT,
+                                                    ).show()
+                                            }
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("断开连接", color = MaterialTheme.colorScheme.error) },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Rounded.LinkOff,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error,
+                                            )
+                                        },
+                                        onClick = {
+                                            showTvMenu = false
+                                            MobileConnectManager.disconnect()
+                                            android.widget.Toast
+                                                .makeText(context, "已断开与 TV 的连接", android.widget.Toast.LENGTH_SHORT)
+                                                .show()
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 封面与歌词区域
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AnimatedContent(
+                            targetState = displayMode,
+                            transitionSpec = {
+                                if (targetState == PlayerDisplayMode.Lyrics) {
+                                    (
+                                        fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                                    ).togetherWith(
+                                        fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                            scaleOut(targetScale = 1.04f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                                    )
+                                } else {
+                                    (
+                                        fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 1.04f, animationSpec = tween(280, easing = FastOutSlowInEasing))
+                                    ).togetherWith(
+                                        fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                                            scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                                    )
                                 }
                             },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // 歌曲信息
-                    PlayerSongInfoSection(
-                        song = song,
-                        isFavorite = isFavorite,
-                        isFavSupported = isFavSupported,
-                        currentTier = currentTier,
-                        isFromCache = isCurrentTrackFromCache,
-                        animatedAccentColor = animatedAccentColor,
-                        controlContainerColor = controlContainerColor,
-                        contentPrimary = contentPrimary,
-                        contentSecondary = contentSecondary,
-                        contentTertiary = contentTertiary,
-                        onSongInfoClick = {
-                            if (displayMode == PlayerDisplayMode.Lyrics) {
-                                displayMode = PlayerDisplayMode.Cover
+                            label = "PlayerCoverLyricsTransition",
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) { currentMode ->
+                            if (currentMode == PlayerDisplayMode.Cover) {
+                                PlayerCoverCarousel(
+                                    currentSong = song,
+                                    prevSong = prevSong,
+                                    nextSong = nextSong,
+                                    onPlayNext = onPlayNext,
+                                    onPlayPrevious = onPlayPrevious,
+                                    onClick = { displayMode = PlayerDisplayMode.Lyrics },
+                                    onLongClick = { actionTargetSong = song },
+                                    shadowTint = monetColors.shadowTint,
+                                    isDark = isDark,
+                                )
+                            } else {
+                                var lyricDragX by remember { mutableFloatStateOf(0f) }
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .pointerInput(Unit) {
+                                                detectHorizontalDragGestures(
+                                                    onDragStart = { lyricDragX = 0f },
+                                                    onHorizontalDrag = { _, dragAmount -> lyricDragX += dragAmount },
+                                                    onDragEnd = {
+                                                        if (abs(lyricDragX) > 70f) {
+                                                            displayMode = PlayerDisplayMode.Cover
+                                                        }
+                                                        lyricDragX = 0f
+                                                    },
+                                                    onDragCancel = { lyricDragX = 0f },
+                                                )
+                                            },
+                                ) {
+                                    val lyricPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+                                    MobileLyricsView(
+                                        lyrics = lyrics,
+                                        currentPositionMs = lyricPositionMs,
+                                        onSeekTo = onSeekTo,
+                                        highlightColor = animatedAccentColor,
+                                        textColor = contentPrimary.copy(alpha = 0.72f),
+                                        transColor = contentPrimary.copy(alpha = 0.55f),
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
                             }
-                        },
-                        onToggleFavorite = { PlaybackManager.toggleCurrentSongFavorite() },
-                        onOpenQualitySheet = {
-                            if (!PlaybackManager.isLocalOrWebDavSong(song)) {
-                                PlaybackManager.ensureQualityProbed()
-                                showQualitySheet = true
-                            }
-                        },
-                        isLandscape = false,
-                    )
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .pointerInput(displayMode) {
+                                    if (displayMode == PlayerDisplayMode.Lyrics) {
+                                        detectVerticalDragGestures(
+                                            onDragStart = {
+                                                accumulatedDragY = 0f
+                                                verticalVelocityTracker.resetTracking()
+                                                onDragStart?.invoke()
+                                            },
+                                            onVerticalDrag = { change, dragAmount ->
+                                                change.consume()
+                                                accumulatedDragY += dragAmount
+                                                verticalVelocityTracker.addPosition(change.uptimeMillis, Offset(0f, accumulatedDragY))
+                                                if (onDragDown != null) {
+                                                    onDragDown(dragAmount)
+                                                } else {
+                                                    coroutineScope.launch {
+                                                        internalSheetOffsetY.snapTo((internalSheetOffsetY.value + dragAmount).coerceAtLeast(0f))
+                                                    }
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                val velocityY = verticalVelocityTracker.calculateVelocity().y
+                                                if (onDragDownEnd != null) {
+                                                    onDragDownEnd(velocityY)
+                                                } else {
+                                                    val currentOffset = internalSheetOffsetY.value
+                                                    val dismissThreshold = (size.height * 0.32f).coerceAtLeast(with(density) { 72.dp.toPx() })
+                                                    val shouldDismiss =
+                                                        when {
+                                                            velocityY > 500f -> true
+                                                            velocityY < -400f -> false
+                                                            else -> currentOffset > dismissThreshold
+                                                        }
+                                                    if (shouldDismiss) {
+                                                        coroutineScope.launch {
+                                                            internalSheetOffsetY.animateTo(size.height.toFloat(), tween(200, easing = FastOutSlowInEasing))
+                                                            onCollapse()
+                                                            internalSheetOffsetY.snapTo(0f)
+                                                        }
+                                                    } else {
+                                                        coroutineScope.launch {
+                                                            internalSheetOffsetY.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                if (onDragDownCancel != null) {
+                                                    onDragDownCancel()
+                                                } else {
+                                                    coroutineScope.launch {
+                                                        internalSheetOffsetY.animateTo(0f)
+                                                    }
+                                                }
+                                            },
+                                        )
+                                    }
+                                },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Spacer(modifier = Modifier.height(if (isCompact) 6.dp else 16.dp))
 
-                    // 进度滑块
-                    PlayerProgressSlider(
-                        durationMs = durationMs,
-                        accentColor = animatedAccentColor,
-                        onSeekTo = onSeekTo,
-                        textColor = contentSecondary,
-                    )
+                        // 歌曲信息
+                        PlayerSongInfoSection(
+                            song = song,
+                            isFavorite = isFavorite,
+                            isFavSupported = isFavSupported,
+                            currentTier = currentTier,
+                            isFromCache = isCurrentTrackFromCache,
+                            animatedAccentColor = animatedAccentColor,
+                            controlContainerColor = controlContainerColor,
+                            contentPrimary = contentPrimary,
+                            contentSecondary = contentSecondary,
+                            contentTertiary = contentTertiary,
+                            onSongInfoClick = {
+                                if (displayMode == PlayerDisplayMode.Lyrics) {
+                                    displayMode = PlayerDisplayMode.Cover
+                                }
+                            },
+                            onToggleFavorite = { PlaybackManager.toggleCurrentSongFavorite() },
+                            onOpenQualitySheet = {
+                                if (!PlaybackManager.isLocalOrWebDavSong(song)) {
+                                    PlaybackManager.ensureQualityProbed()
+                                    showQualitySheet = true
+                                }
+                            },
+                            isLandscape = false,
+                        )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(if (isCompact) 6.dp else 14.dp))
 
-                    // 控制按钮栏
-                    PlayerControlBar(
-                        isPlaying = isPlaying,
-                        loopMode = loopMode,
-                        isRadioMode = isRadioMode,
-                        animatedAccentColor = animatedAccentColor,
-                        contentPrimary = contentPrimary,
-                        isMuted = isMuted,
-                        onTogglePlayPause = {
-                            if (isMuted) {
-                                PlaybackManager.setMuted(false)
-                                val preferred = PlaybackManager.preferredTier.value
-                                if (PlaybackManager.currentTier.value != preferred) {
-                                    PlaybackManager.switchTier(preferred)
-                                } else if (!isPlaying) {
+                        // 进度滑块
+                        PlayerProgressSlider(
+                            durationMs = durationMs,
+                            accentColor = animatedAccentColor,
+                            onSeekTo = onSeekTo,
+                            textColor = contentSecondary,
+                        )
+
+                        Spacer(modifier = Modifier.height(if (isCompact) 6.dp else 12.dp))
+
+                        // 控制按钮栏
+                        PlayerControlBar(
+                            isPlaying = isPlaying,
+                            loopMode = loopMode,
+                            isRadioMode = isRadioMode,
+                            animatedAccentColor = animatedAccentColor,
+                            contentPrimary = contentPrimary,
+                            isMuted = isMuted,
+                            onTogglePlayPause = {
+                                if (isMuted) {
+                                    PlaybackManager.setMuted(false)
+                                    val preferred = PlaybackManager.preferredTier.value
+                                    if (PlaybackManager.currentTier.value != preferred) {
+                                        PlaybackManager.switchTier(preferred)
+                                    } else if (!isPlaying) {
+                                        onTogglePlayPause()
+                                    }
+                                } else {
                                     onTogglePlayPause()
                                 }
-                            } else {
-                                onTogglePlayPause()
-                            }
-                        },
-                        onToggleLoopMode = onToggleLoopMode,
-                        onOpenQueue = { showQueueSheet = true },
-                        onDislikeClick = { showDislikeConfirmDialog = true },
-                        isLandscape = false,
-                    )
+                            },
+                            onToggleLoopMode = onToggleLoopMode,
+                            onOpenQueue = { showQueueSheet = true },
+                            onDislikeClick = { showDislikeConfirmDialog = true },
+                            isLandscape = false,
+                        )
+                    }
                 }
             }
         }

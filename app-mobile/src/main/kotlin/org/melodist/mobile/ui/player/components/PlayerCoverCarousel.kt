@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -77,14 +76,12 @@ fun PlayerCoverCarousel(
     val currentOnPlayPrevious by rememberUpdatedState(onPlayPrevious)
 
     BoxWithConstraints(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .aspectRatio(1f),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         val density = LocalDensity.current
-        val coverWidthDp = maxWidth * 0.92f
+        val coverFraction = if (maxHeight < maxWidth) 0.96f else 0.92f
+        val coverWidthDp = minOf(maxWidth, maxHeight) * coverFraction
         val coverWidthPx = with(density) { coverWidthDp.toPx() }
         val spacingPx = with(density) { 24.dp.toPx() }
         val fullStepPx = coverWidthPx + spacingPx
