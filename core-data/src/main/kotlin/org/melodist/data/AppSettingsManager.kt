@@ -3,6 +3,7 @@ package org.melodist.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -605,6 +606,7 @@ object AppSettingsManager {
                 refreshCacheUsage()
                 true
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to clear media and image cache", e)
                 false
             }
@@ -643,6 +645,7 @@ object AppSettingsManager {
                 refreshCacheUsage()
                 true
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to clear all cache", e)
                 false
             }
@@ -665,6 +668,7 @@ object AppSettingsManager {
                 refreshCacheUsage()
                 true
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to clear lyrics cache", e)
                 false
             }

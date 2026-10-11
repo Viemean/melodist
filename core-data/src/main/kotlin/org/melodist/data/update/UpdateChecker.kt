@@ -1,6 +1,7 @@
 package org.melodist.data.update
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -138,6 +139,7 @@ object UpdateChecker {
                     }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 UpdateResult.Error(e.message ?: "网络连接异常")
             }
         }

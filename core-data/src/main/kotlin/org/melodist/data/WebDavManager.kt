@@ -246,6 +246,7 @@ object WebDavManager {
                     null
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to fetch audio slice sample for $relativeHref", e)
                 null
             }
@@ -957,6 +958,7 @@ object WebDavManager {
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     Log.w("WebDavManager", "Failed to extract metadata for WebDAV song: ${song.name}", e)
                 } finally {
                     if (tmpHdrFile.exists()) tmpHdrFile.delete()
@@ -972,6 +974,7 @@ object WebDavManager {
                         saveCoverPair(folderCoverBytes)
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     Log.w("WebDavManager", "Failed to fetch remote cover for folder: $relativeHref", e)
                 }
             }

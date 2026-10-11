@@ -356,7 +356,8 @@ object UserLibraryCacheManager {
 
                 // Case 5: 列表既非完全一致也非头部新增，说明外部发生重排或清理，执行异步全量更新
                 loadFavoriteSongs(apiService, forceRefresh = true)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 favSongsCache.songs
             }
         }

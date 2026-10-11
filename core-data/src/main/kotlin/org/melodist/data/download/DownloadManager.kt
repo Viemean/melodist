@@ -546,6 +546,7 @@ object DownloadManager {
 
             finalizeDownload(task, song, actualTier, finalFile, apiService)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Download failed for ${task.song.name}: ${e.message}", e)
             val errorDesc =
                 when {
@@ -678,6 +679,7 @@ object DownloadManager {
                     }
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to fetch candidate cover from $candidateUrl", e)
             }
         }
@@ -699,6 +701,7 @@ object DownloadManager {
                 lyricsMerged = sb.toString().trim()
             }
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.w(TAG, "Error fetching lyrics for download", e)
         }
 
@@ -714,6 +717,7 @@ object DownloadManager {
                 )
             AudioMetadataWriter.writeMetadata(file, metadataPayload)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.w(TAG, "Failed to embed metadata, preserving raw audio: ${e.message}")
         }
     }
