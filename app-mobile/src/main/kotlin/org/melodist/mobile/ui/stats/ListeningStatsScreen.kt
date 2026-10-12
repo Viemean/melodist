@@ -47,6 +47,11 @@ import org.melodist.model.ListeningTextBlock
 import org.melodist.model.Song
 import kotlin.math.cos
 import kotlin.math.sin
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -136,7 +141,15 @@ fun ListeningStatsScreen(
             // 3. 听歌核心指标卡片
             item(key = "stats_hero_card") {
                 statsData?.let { report ->
-                    ListeningOverviewCard(report = report)
+                    ListeningOverviewCard(
+                        report = report,
+                        selectedSlot = selectedDate ?: report.dateKey,
+                        onSelectSlot = { newSlot ->
+                            coroutineScope.launch {
+                                ListeningStatsManager.setDate(newSlot)
+                            }
+                        },
+                    )
                 } ?: run {
                     if (isLoading) {
                         Box(
@@ -315,7 +328,11 @@ private fun DateNavigatorBar(
 }
 
 @Composable
-private fun ListeningOverviewCard(report: ListeningReportData) {
+private fun ListeningOverviewCard(
+    report: ListeningReportData,
+    selectedSlot: String,
+    onSelectSlot: (String) -> Unit = {},
+) {
     Card(
         shape = RoundedCornerShape(20.dp),
         colors =
@@ -331,8 +348,8 @@ private fun ListeningOverviewCard(report: ListeningReportData) {
             when (report.period) {
                 ListeningReportPeriod.Day -> DayOverviewContent(report)
                 ListeningReportPeriod.Week -> WeekOverviewContent(report)
-                ListeningReportPeriod.Month -> MonthOverviewContent(report)
-                ListeningReportPeriod.Year -> YearOverviewContent(report)
+                ListeningReportPeriod.Month -> MonthOverviewContent(report, selectedSlot, onSelectSlot)
+                ListeningReportPeriod.Year -> YearOverviewContent(report, selectedSlot, onSelectSlot)
             }
 
             if (report.topSingers.isNotEmpty()) {
@@ -423,7 +440,11 @@ private fun WeekOverviewContent(report: ListeningReportData) {
 }
 
 @Composable
-private fun MonthOverviewContent(report: ListeningReportData) {
+private fun MonthOverviewContent(
+    report: ListeningReportData,
+    selectedSlot: String,
+    onSelectSlot: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -445,12 +466,18 @@ private fun MonthOverviewContent(report: ListeningReportData) {
             }
 
             if (report.percent > 0f) {
+                val trendText =
+                    when (report.upOrDown) {
+                        1 -> "相比上月增加 ${(report.percent * 100).toInt()}%"
+                        2 -> "相比上月减少 ${(report.percent * 100).toInt()}%"
+                        else -> "相比上月 ${(report.percent * 100).toInt()}%"
+                    }
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
                 ) {
                     Text(
-                        text = "${(report.percent * 100).toInt()}%",
+                        text = trendText,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -463,14 +490,20 @@ private fun MonthOverviewContent(report: ListeningReportData) {
         if (report.chartPoints.isNotEmpty()) {
             ListeningTrendChart(
                 chartPoints = report.chartPoints,
-                modifier = Modifier.fillMaxWidth().height(100.dp),
+                selectedSlot = selectedSlot,
+                onSelectPoint = onSelectSlot,
+                modifier = Modifier.fillMaxWidth().height(120.dp),
             )
         }
     }
 }
 
 @Composable
-private fun YearOverviewContent(report: ListeningReportData) {
+private fun YearOverviewContent(
+    report: ListeningReportData,
+    selectedSlot: String,
+    onSelectSlot: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -504,7 +537,9 @@ private fun YearOverviewContent(report: ListeningReportData) {
         if (report.chartPoints.isNotEmpty()) {
             ListeningTrendChart(
                 chartPoints = report.chartPoints,
-                modifier = Modifier.fillMaxWidth().height(100.dp),
+                selectedSlot = selectedSlot,
+                onSelectPoint = onSelectSlot,
+                modifier = Modifier.fillMaxWidth().height(120.dp),
             )
         }
     }
@@ -617,62 +652,155 @@ private fun ListeningWeekBarChart(
 @Composable
 private fun ListeningTrendChart(
     chartPoints: List<ListeningChartPoint>,
+    selectedSlot: String,
+    onSelectPoint: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+    val density = LocalDensity.current
     val maxVal = (chartPoints.maxOfOrNull { it.value } ?: 1L).coerceAtLeast(1L)
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val trackDotColor = primaryColor.copy(alpha = 0.35f)
+    val curveBrush =
+        Brush.horizontalGradient(
+            colors = listOf(primaryColor.copy(alpha = 0.65f), primaryColor),
+        )
+
+    var pointOffsets by remember { mutableStateOf<List<Offset>>(emptyList()) }
 
     Column(modifier = modifier) {
-        Canvas(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            if (chartPoints.size < 2) return@Canvas
-            val w = size.width
-            val h = size.height
-            val step = w / (chartPoints.size - 1)
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .pointerInput(chartPoints) {
+                        detectTapGestures { tapOffset ->
+                            if (pointOffsets.isEmpty()) return@detectTapGestures
+                            val closestIndex =
+                                pointOffsets.indices.minByOrNull { idx ->
+                                    kotlin.math.abs(pointOffsets[idx].x - tapOffset.x)
+                                } ?: return@detectTapGestures
+                            onSelectPoint(chartPoints[closestIndex].slot)
+                        }
+                    },
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                if (chartPoints.size < 2) return@Canvas
+                val w = size.width
+                val h = size.height
+                val paddingX = 24.dp.toPx()
+                val step = (w - paddingX * 2f) / (chartPoints.size - 1)
 
-            val points =
-                chartPoints.mapIndexed { index, pt ->
-                    val x = index * step
-                    val y = h - ((pt.value.toFloat() / maxVal.toFloat()) * (h - 16.dp.toPx())) - 8.dp.toPx()
-                    Offset(x, y)
+                val points =
+                    chartPoints.mapIndexed { index, pt ->
+                        val x = paddingX + index * step
+                        val y = h - ((pt.value.toFloat() / maxVal.toFloat()) * (h - 36.dp.toPx())) - 24.dp.toPx()
+                        Offset(x, y)
+                    }
+                pointOffsets = points
+
+                // 平滑三次贝塞尔曲线构建，采用自适应切线平滑过渡
+                val path = Path().apply {
+                    moveTo(points[0].x, points[0].y)
+                    for (i in 0 until points.size - 1) {
+                        val p0 = points[i]
+                        val p1 = points[i + 1]
+                        val dx = (p1.x - p0.x) * 0.45f
+                        val c1x = p0.x + dx
+                        val c1y = p0.y
+                        val c2x = p1.x - dx
+                        val c2y = p1.y
+                        cubicTo(c1x, c1y, c2x, c2y, p1.x, p1.y)
+                    }
                 }
 
-            // 绘制底轨折线
-            for (i in 0 until points.size - 1) {
-                drawLine(
-                    color = primaryColor,
-                    start = points[i],
-                    end = points[i + 1],
-                    strokeWidth = 3.dp.toPx(),
-                    cap = StrokeCap.Round,
+                drawPath(
+                    path = path,
+                    brush = curveBrush,
+                    style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
                 )
+
+                // 绘制各点位指示器
+                points.forEachIndexed { idx, ptOffset ->
+                    val pt = chartPoints[idx]
+                    val isSelected = pt.slot == selectedSlot
+                    if (isSelected) {
+                        drawCircle(
+                            color = primaryColor,
+                            radius = 7.dp.toPx(),
+                            center = ptOffset,
+                            style = Stroke(width = 3.dp.toPx()),
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 4.dp.toPx(),
+                            center = ptOffset,
+                        )
+                    } else {
+                        drawCircle(
+                            color = trackDotColor,
+                            radius = 3.5.dp.toPx(),
+                            center = ptOffset,
+                        )
+                    }
+                }
             }
 
-            // 绘制点位圆环
-            points.forEachIndexed { idx, ptOffset ->
-                val isLast = idx == points.size - 1
-                drawCircle(
-                    color = if (isLast) primaryColor else trackColor,
-                    radius = if (isLast) 5.dp.toPx() else 3.dp.toPx(),
-                    center = ptOffset,
-                )
+            // 选中的点位下方悬挂小头像
+            val selectedIndex = chartPoints.indexOfFirst { it.slot == selectedSlot }
+            if (selectedIndex >= 0 && selectedIndex < pointOffsets.size) {
+                val selectedPt = chartPoints[selectedIndex]
+                val offset = pointOffsets[selectedIndex]
+                if (selectedPt.avatarUrl.isNotBlank()) {
+                    val avatarLeftDp = with(density) { (offset.x - 14.dp.toPx()).toDp() }
+                    val avatarTopDp = with(density) { (offset.y + 10.dp.toPx()).toDp() }
+                    AsyncImage(
+                        model = selectedPt.avatarUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier =
+                            Modifier
+                                .offset(x = avatarLeftDp, y = avatarTopDp)
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(1.5.dp)
+                                .clip(CircleShape),
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(4.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             chartPoints.forEach { pt ->
-                Text(
-                    text = pt.text,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
+                val isSelected = pt.slot == selectedSlot
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { onSelectPoint(pt.slot) }
+                            .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = pt.text,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
             }
         }
     }
@@ -735,6 +863,18 @@ private fun HighlightsSection(
     highlights: List<ListeningHighlightItem>,
     period: ListeningReportPeriod,
 ) {
+    val orderedHighlights = remember(highlights) {
+        val list = highlights.toMutableList()
+        val continuousIdx = list.indexOfFirst { it.title.contains("连续") }
+        val timeIdx = list.indexOfFirst { it.type == 3 || it.title.contains("深夜") }
+        if (continuousIdx != -1 && timeIdx != -1 && timeIdx < continuousIdx) {
+            val temp = list[continuousIdx]
+            list[continuousIdx] = list[timeIdx]
+            list[timeIdx] = temp
+        }
+        list
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text = "本${period.label}高光时刻",
@@ -743,58 +883,243 @@ private fun HighlightsSection(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            highlights.forEach { h ->
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        ),
-                    modifier = Modifier.weight(1f),
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val isWide = maxWidth >= 600.dp || orderedHighlights.size <= 2
+
+            if (isWide) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            text = h.title,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    orderedHighlights.forEach { h ->
+                        HighlightCard(
+                            highlight = h,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
-                        Text(
-                            text = h.subtitle,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (h.coverUrl.isNotBlank()) {
-                            AsyncImage(
-                                model = h.coverUrl,
-                                contentDescription = h.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)),
-                            )
-                        }
-                        if (h.tips.isNotBlank()) {
-                            Text(
-                                text = h.tips,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                    }
+                }
+            } else {
+                val chunked = orderedHighlights.chunked(2)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    chunked.forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            rowItems.forEach { h ->
+                                HighlightCard(
+                                    highlight = h,
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                )
+                            }
+                            if (rowItems.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun HighlightCard(
+    highlight: ListeningHighlightItem,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+            ),
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = highlight.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = highlight.subtitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                val clockTime = parseClockTime(highlight.subtitle)
+                val isTimeClock = highlight.type == 3 || (clockTime != null && (highlight.title.contains("深夜") || highlight.title.contains("听歌") || highlight.title.contains("早晨")))
+
+                if (isTimeClock) {
+                    val (hour, minute) = clockTime ?: (4 to 42)
+                    Md3DynamicClock(
+                        hour = hour,
+                        minute = minute,
+                        modifier = Modifier.size(44.dp),
+                    )
+                } else if (highlight.iconUrls.isNotEmpty()) {
+                    Box(modifier = Modifier.height(40.dp).fillMaxWidth()) {
+                        highlight.iconUrls.take(3).forEachIndexed { idx, iconUrl ->
+                            AsyncImage(
+                                model = iconUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier =
+                                    Modifier
+                                        .offset(x = (idx * 24).dp)
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(1.5.dp)
+                                        .clip(CircleShape),
+                            )
+                        }
+                    }
+                } else if (highlight.coverUrl.isNotBlank()) {
+                    Box(modifier = Modifier.wrapContentSize()) {
+                        AsyncImage(
+                            model = highlight.coverUrl,
+                            contentDescription = highlight.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)),
+                        )
+                        if (highlight.repeatCnt > 0) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary,
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp),
+                            ) {
+                                Text(
+                                    text = "x${highlight.repeatCnt}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (highlight.tips.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = highlight.tips,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun Md3DynamicClock(
+    hour: Int,
+    minute: Int,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    val outlineColor = MaterialTheme.colorScheme.primary
+    val hourHandColor = MaterialTheme.colorScheme.primary
+    val minuteHandColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    val centerDotColor = MaterialTheme.colorScheme.primary
+
+    Canvas(modifier = modifier) {
+        val strokeWidth = 3.2.dp.toPx()
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val radius = size.minDimension / 2f - strokeWidth / 2f
+
+        drawCircle(
+            color = containerColor,
+            radius = radius,
+            center = center,
+        )
+        drawCircle(
+            color = outlineColor,
+            radius = radius,
+            center = center,
+            style = Stroke(width = strokeWidth),
+        )
+
+        val tickRadius = radius - 4.dp.toPx()
+        val tickDotColor = outlineColor.copy(alpha = 0.45f)
+        for (i in 0 until 4) {
+            val angle = Math.toRadians((i * 90.0) - 90.0)
+            val dotCenter =
+                Offset(
+                    x = center.x + (tickRadius * cos(angle)).toFloat(),
+                    y = center.y + (tickRadius * sin(angle)).toFloat(),
+                )
+            drawCircle(
+                color = tickDotColor,
+                radius = 1.2.dp.toPx(),
+                center = dotCenter,
+            )
+        }
+
+        val h = hour % 12
+        val hourAngle = Math.toRadians(((h + minute / 60f) * 30f - 90f).toDouble())
+        val minuteAngle = Math.toRadians((minute * 6f - 90f).toDouble())
+
+        val hourLen = radius * 0.52f
+        val hourEnd =
+            Offset(
+                x = center.x + (hourLen * cos(hourAngle)).toFloat(),
+                y = center.y + (hourLen * sin(hourAngle)).toFloat(),
+            )
+        drawLine(
+            color = hourHandColor,
+            start = center,
+            end = hourEnd,
+            strokeWidth = 3.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        val minLen = radius * 0.72f
+        val minEnd =
+            Offset(
+                x = center.x + (minLen * cos(minuteAngle)).toFloat(),
+                y = center.y + (minLen * sin(minuteAngle)).toFloat(),
+            )
+        drawLine(
+            color = minuteHandColor,
+            start = center,
+            end = minEnd,
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        drawCircle(
+            color = centerDotColor,
+            radius = 2.6.dp.toPx(),
+            center = center,
+        )
+    }
+}
+
+private fun parseClockTime(timeStr: String): Pair<Int, Int>? {
+    val regex = Regex("""(\d{1,2}):(\d{2})""")
+    val match = regex.find(timeStr) ?: return null
+    val hour = match.groupValues[1].toIntOrNull() ?: return null
+    val minute = match.groupValues[2].toIntOrNull() ?: return null
+    return hour to minute
 }
 
 @Composable
