@@ -22,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -290,7 +291,10 @@ fun SongDiaryBottomSheet(
                                                             imageVector = Icons.Rounded.Nightlight,
                                                             contentDescription = null,
                                                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                                            modifier = Modifier.size(28.dp),
+                                                            modifier =
+                                                                Modifier
+                                                                    .size(28.dp)
+                                                                    .rotate(-35f),
                                                         )
                                                         Spacer(modifier = Modifier.height(4.dp))
                                                         Text(
