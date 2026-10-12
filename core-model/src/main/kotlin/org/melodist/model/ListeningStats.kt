@@ -87,6 +87,19 @@ data class ListeningRankItem(
 )
 
 /**
+ * 每月最爱歌曲项。
+ */
+@Serializable
+data class ListeningMonthlySongItem(
+    val month: Int = 0,
+    val song: Song? = null,
+    val songMid: String = "",
+    val songName: String = "",
+    val singerName: String = "",
+    val coverUrl: String = "",
+)
+
+/**
  * 综合听歌报告统计数据对象。
  */
 @Serializable
@@ -105,4 +118,5 @@ data class ListeningReportData(
     val availableDates: List<String> = emptyList(),
     val highlights: List<ListeningHighlightItem> = emptyList(),
     val textBlock: ListeningTextBlock? = null,
+    val monthlyTopSongs: List<ListeningMonthlySongItem> = emptyList(),
 )

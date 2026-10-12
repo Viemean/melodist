@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,12 +41,14 @@ import org.melodist.data.ListeningStatsManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.model.ListeningChartPoint
 import org.melodist.model.ListeningHighlightItem
+import org.melodist.model.ListeningMonthlySongItem
 import org.melodist.model.ListeningRankItem
 import org.melodist.model.ListeningReportData
 import org.melodist.model.ListeningReportPeriod
 import org.melodist.model.ListeningSingerStat
 import org.melodist.model.ListeningTextBlock
 import org.melodist.model.Song
+import androidx.compose.ui.text.style.TextAlign
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -176,6 +180,15 @@ fun ListeningStatsScreen(
                 if (report.highlights.isNotEmpty()) {
                     item(key = "highlights_section") {
                         HighlightsSection(highlights = report.highlights, period = selectedPeriod)
+                    }
+                }
+
+                if (selectedPeriod == ListeningReportPeriod.Year && report.monthlyTopSongs.isNotEmpty()) {
+                    item(key = "monthly_top_songs_section") {
+                        MonthlyTopSongsCard(
+                            monthlySongs = report.monthlyTopSongs,
+                            onPlaySong = onPlaySong,
+                        )
                     }
                 }
             }
@@ -1287,5 +1300,106 @@ private fun formatDateLabel(date: String, period: ListeningReportPeriod): String
                 "${date.substring(4, 6)}月${date.substring(6, 8)}日当周"
             } else date
         }
+    }
+}
+
+@Composable
+private fun MonthlyTopSongsCard(
+    monthlySongs: List<ListeningMonthlySongItem>,
+    onPlaySong: (Song) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+            ),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = "每月最爱歌曲",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(
+                    items = monthlySongs,
+                    key = { "${it.month}_${it.songMid}" },
+                ) { item ->
+                    MonthlySongItem(
+                        item = item,
+                        onClick = {
+                            item.song?.let { song -> onPlaySong(song) }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlySongItem(
+    item: ListeningMonthlySongItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .width(88.dp)
+                .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            AsyncImage(
+                model = item.coverUrl,
+                contentDescription = item.songName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+            Surface(
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                shape = RoundedCornerShape(topStart = 4.dp, bottomEnd = 4.dp),
+                modifier = Modifier.align(Alignment.BottomEnd),
+            ) {
+                Text(
+                    text = "${item.month}月",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                )
+            }
+        }
+
+        Text(
+            text = item.songName,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

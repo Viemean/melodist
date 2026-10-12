@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import org.melodist.model.ListeningChartPoint
 import org.melodist.model.ListeningHighlightItem
+import org.melodist.model.ListeningMonthlySongItem
 import org.melodist.model.ListeningRankItem
 import org.melodist.model.ListeningReportData
 import org.melodist.model.ListeningReportPeriod
@@ -303,6 +304,21 @@ internal fun parseListeningRecordReport(
             } else null
         } ?: emptyList()
 
+    val songOfMonthObj = barData?.get("SongOfMonth").asJsonObjectOrNull
+    val monthlyTopSongs =
+        songOfMonthObj?.entries?.mapNotNull { (monthKey, songElem) ->
+            val month = monthKey.toIntOrNull() ?: return@mapNotNull null
+            val song = MusicApiService.parseSongFromElement(songElem) ?: return@mapNotNull null
+            ListeningMonthlySongItem(
+                month = month,
+                song = song,
+                songMid = song.songMid,
+                songName = song.name,
+                singerName = song.singer,
+                coverUrl = song.coverUrl,
+            )
+        }?.sortedBy { it.month } ?: emptyList()
+
     return ListeningReportData(
         period = period,
         dateKey = dateKey,
@@ -318,5 +334,6 @@ internal fun parseListeningRecordReport(
         availableDates = availableDates,
         highlights = highlights,
         textBlock = textBlock,
+        monthlyTopSongs = monthlyTopSongs,
     )
 }
