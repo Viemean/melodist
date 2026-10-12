@@ -48,6 +48,7 @@ import org.melodist.model.ListeningReportPeriod
 import org.melodist.model.ListeningSingerStat
 import org.melodist.model.ListeningTextBlock
 import org.melodist.model.Song
+import org.melodist.playback.PlaybackManager
 import androidx.compose.ui.text.style.TextAlign
 import kotlin.math.cos
 import kotlin.math.sin
@@ -68,8 +69,11 @@ import androidx.compose.ui.text.withStyle
 fun ListeningStatsScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    onPlaySong: (Song) -> Unit = {},
-    onPlayAll: (List<Song>) -> Unit = {},
+    onPlayPlaylist: (songs: List<Song>, startIndex: Int) -> Unit = { songs, startIndex ->
+        if (songs.isNotEmpty()) {
+            PlaybackManager.setPlaylist(songs, startIndex = startIndex)
+        }
+    },
 ) {
     val coroutineScope = rememberCoroutineScope()
     val statsData by ListeningStatsManager.currentStats.collectAsState()
@@ -187,7 +191,7 @@ fun ListeningStatsScreen(
                     item(key = "monthly_top_songs_section") {
                         MonthlyTopSongsCard(
                             monthlySongs = report.monthlyTopSongs,
-                            onPlaySong = onPlaySong,
+                            onPlayPlaylist = onPlayPlaylist,
                         )
                     }
                 }
@@ -197,41 +201,24 @@ fun ListeningStatsScreen(
             statsData?.let { report ->
                 if (report.rankSongs.isNotEmpty()) {
                     item(key = "rank_section_header") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "本${selectedPeriod.label}听歌排行",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-
-                            FilledTonalButton(
-                                onClick = { onPlayAll(report.rankSongs.map { it.song }) },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                modifier = Modifier.height(34.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = "播放全部",
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "播放全部", fontSize = 12.sp)
-                            }
-                        }
+                        Text(
+                            text = "本${selectedPeriod.label}听歌排行",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                        )
                     }
+
+                    val playlistSongs = report.rankSongs.map { it.song }
 
                     itemsIndexed(
                         items = report.rankSongs,
                         key = { _, item -> "${item.song.songId}_${item.rankNo}" },
-                    ) { _, rankItem ->
+                    ) { index, rankItem ->
                         ListeningRankSongRow(
                             item = rankItem,
-                            onClick = { onPlaySong(rankItem.song) },
+                            onClick = { onPlayPlaylist(playlistSongs, index) },
                         )
                     }
                 }
@@ -1306,9 +1293,13 @@ private fun formatDateLabel(date: String, period: ListeningReportPeriod): String
 @Composable
 private fun MonthlyTopSongsCard(
     monthlySongs: List<ListeningMonthlySongItem>,
-    onPlaySong: (Song) -> Unit,
+    onPlayPlaylist: (songs: List<Song>, startIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val playableSongs = remember(monthlySongs) {
+        monthlySongs.mapNotNull { it.song }
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors =
@@ -1339,7 +1330,9 @@ private fun MonthlyTopSongsCard(
                     MonthlySongItem(
                         item = item,
                         onClick = {
-                            item.song?.let { song -> onPlaySong(song) }
+                            val targetSong = item.song ?: return@MonthlySongItem
+                            val targetIndex = playableSongs.indexOfFirst { it.songMid == targetSong.songMid }.takeIf { it >= 0 } ?: 0
+                            onPlayPlaylist(playableSongs, targetIndex)
                         },
                     )
                 }

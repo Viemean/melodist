@@ -1027,12 +1027,9 @@ private fun RenderAppScreen(
                             HomeFilter.Stats ->
                                 ListeningStatsScreen(
                                     contentPadding = innerPadding,
-                                    onPlaySong = { song ->
-                                        PlaybackManager.playSong(song)
-                                    },
-                                    onPlayAll = { songs ->
+                                    onPlayPlaylist = { songs, startIndex ->
                                         if (songs.isNotEmpty()) {
-                                            PlaybackManager.setPlaylist(songs, startIndex = 0)
+                                            PlaybackManager.setPlaylist(songs, startIndex = startIndex)
                                         }
                                     },
                                 )
