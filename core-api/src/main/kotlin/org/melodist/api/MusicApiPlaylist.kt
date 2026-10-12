@@ -170,6 +170,10 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
                             ?: obj["dissid"]?.jsonPrimitive?.longOrNull
                             ?: obj["dissId"]?.jsonPrimitive?.longOrNull ?: 0L
 
+                    val dirShow =
+                        obj["dirShow"]?.jsonPrimitive?.intOrNull
+                            ?: obj["dir_show"]?.jsonPrimitive?.intOrNull ?: 1
+
                     val item =
                         Playlist(
                             dirId = dirId,
@@ -178,6 +182,7 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
                             tid = tid,
                             isFav = false,
                             picUrl = pic,
+                            dirShow = dirShow,
                         )
                     if (excludeMyFavorite && item.isMyFavorite) {
                         continue
@@ -552,6 +557,86 @@ private suspend fun MusicApiService.renamePlaylistInternal(
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiPlaylist", "renamePlaylist failed: dirId=$dirId, newName=$trimmed", e)
             false to (e.message ?: "重命名异常")
+        }
+    }
+
+/**
+ * 修改自建歌单的公开/私密状态。
+ *
+ * @param dirId 自建歌单目录 ID
+ * @param isPrivate 是否设为私密（true 为设为私密，false 为设为公开）
+ * @return 包含操作结果与提示信息的 [Pair]；未登录、属于默认歌单或调用失败时返回具体原因
+ */
+suspend fun MusicApiService.setPlaylistPrivacy(dirId: Long, isPrivate: Boolean): Pair<Boolean, String> =
+    setPlaylistPrivacyInternal(dirId, isPrivate, canRetryWithRenew = true)
+
+/**
+ * 修改自建歌单的公开/私密状态。
+ *
+ * @param playlist 待修改公开状态的歌单模型
+ * @param isPrivate 是否设为私密（true 为设为私密，false 为设为公开）
+ * @return 包含操作结果与提示信息的 [Pair]
+ */
+suspend fun MusicApiService.setPlaylistPrivacy(playlist: Playlist, isPrivate: Boolean): Pair<Boolean, String> =
+    setPlaylistPrivacy(playlist.dirId, isPrivate)
+
+private suspend fun MusicApiService.setPlaylistPrivacyInternal(
+    dirId: Long,
+    isPrivate: Boolean,
+    canRetryWithRenew: Boolean,
+): Pair<Boolean, String> =
+    withContext(Dispatchers.IO) {
+        if (!UserSession.isLoggedIn || dirId <= 0L) {
+            return@withContext false to "未登录或歌单不存在"
+        }
+        if (dirId == 201L) {
+            return@withContext false to "默认歌单不可修改公开状态"
+        }
+        ensureMusicKeySafe()
+        val showVal = if (isPrivate) 2 else 1
+        val comm = MusicApiService.buildAppCommJson()
+        val payload =
+            """
+            {
+              "comm": $comm,
+              "editPlayList": {
+                "module": "music.musicasset.PlaylistBaseWrite",
+                "method": "EditPlaylist",
+                "param": {
+                  "dirId": $dirId,
+                  "mask": 16,
+                  "dirShow": $showVal
+                }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postAppGateway(payload, customCookieHeader = "")
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val obj = root["editPlayList"]?.jsonObject ?: return@withContext false to "响应为空"
+            val code = obj["code"]?.jsonPrimitive?.intOrNull ?: rootCode
+            if (code == 0) {
+                true to (if (isPrivate) "已设为私密歌单" else "已设为公开歌单")
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "setPlaylistPrivacy returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                setPlaylistPrivacyInternal(dirId, isPrivate, canRetryWithRenew = false)
+            } else {
+                val msg =
+                    obj["data"]
+                        ?.jsonObject
+                        ?.get("msg")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+                false to (if (msg.isNotBlank()) msg else "设置公开状态失败(code=$code)")
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "setPlaylistPrivacy failed: dirId=$dirId, isPrivate=$isPrivate", e)
+            false to (e.message ?: "修改公开状态异常")
         }
     }
 

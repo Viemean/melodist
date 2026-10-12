@@ -27,6 +27,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,6 +70,7 @@ import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.deletePlaylist
 import org.melodist.api.renamePlaylist
+import org.melodist.api.setPlaylistPrivacy
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CreatePlaylistDialog
@@ -329,7 +332,14 @@ fun LibraryScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (playlist.isCreated) "自建歌单 · ${playlist.songCount} 首" else "收藏歌单 · ${playlist.songCount} 首",
+                            text =
+                                if (playlist.isPrivate) {
+                                    "私密歌单 · ${playlist.songCount} 首"
+                                } else if (playlist.isCreated) {
+                                    "自建歌单 · ${playlist.songCount} 首"
+                                } else {
+                                    "收藏歌单 · ${playlist.songCount} 首"
+                                },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -341,7 +351,7 @@ fun LibraryScreen(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 )
 
-                val isShareable = playlist.tid > 0L
+                val isShareable = playlist.tid > 0L && !playlist.isPrivate
                 val copyTextColor =
                     if (isShareable) {
                         MaterialTheme.colorScheme.onSurface
@@ -380,7 +390,7 @@ fun LibraryScreen(
                         if (!isShareable) {
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "私人歌单无法获取分享链接",
+                                text = if (playlist.isPrivate) "私密歌单无法获取分享链接" else "私人歌单无法获取分享链接",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             )
@@ -409,6 +419,39 @@ fun LibraryScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
                             text = "重命名歌单",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+
+                    val isPrivate = playlist.isPrivate
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val target = playlist
+                                    val targetNewPrivate = !isPrivate
+                                    selectedPlaylistForAction = null
+                                    scope.launch {
+                                        val (success, msg) = apiService.setPlaylistPrivacy(target, targetNewPrivate)
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                        if (success) {
+                                            UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = true)
+                                        }
+                                    }
+                                }.padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = if (isPrivate) Icons.Rounded.LockOpen else Icons.Rounded.Lock,
+                            contentDescription = if (isPrivate) "公开歌单" else "私密此歌单",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = if (isPrivate) "公开歌单" else "私密此歌单",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
