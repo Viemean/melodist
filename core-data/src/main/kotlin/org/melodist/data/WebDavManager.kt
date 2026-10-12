@@ -83,7 +83,8 @@ object WebDavManager {
         if (!raw.isNullOrBlank()) {
             try {
                 inMemoryConfig = json.decodeFromString<WebDavConfig>(raw)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w("WebDavManager", "Failed to decode WebDavConfig from preferences, resetting to default", e)
                 inMemoryConfig = WebDavConfig()
             }
         }

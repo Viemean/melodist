@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import org.melodist.api.ApiLogger
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.getListeningRecordReport
@@ -205,7 +206,8 @@ object ListeningStatsManager {
             val file = File(dir, "$cacheKey.json")
             val content = json.encodeToString(ListeningReportData.serializer(), report)
             file.writeText(content, Charsets.UTF_8)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            ApiLogger.w("ListeningStatsManager", "Failed to cache listening report to disk: $cacheKey", e)
         }
     }
 
@@ -347,7 +349,8 @@ object ListeningStatsManager {
         _currentStats.value = null
         try {
             cacheDirectory?.listFiles()?.forEach { it.delete() }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            ApiLogger.w("ListeningStatsManager", "Failed to clear disk cache", e)
         }
     }
 }

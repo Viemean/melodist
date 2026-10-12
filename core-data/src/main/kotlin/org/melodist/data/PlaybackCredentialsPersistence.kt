@@ -24,7 +24,8 @@ object PlaybackCredentialsPersistence {
             if (!jsonStr.isNullOrBlank()) {
                 PlaybackCredentialsManager.fromJson(jsonStr)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("PlaybackCredentialsPersistence", "Failed to restore playback credentials, resetting", e)
             PlaybackCredentialsManager.clearCredentials()
         }
 

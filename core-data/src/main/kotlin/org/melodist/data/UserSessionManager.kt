@@ -23,7 +23,8 @@ object UserSessionManager {
             if (!jsonStr.isNullOrBlank()) {
                 UserSession.fromJson(jsonStr)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("UserSessionManager", "Failed to restore user session, resetting", e)
             UserSession.clear()
         }
 

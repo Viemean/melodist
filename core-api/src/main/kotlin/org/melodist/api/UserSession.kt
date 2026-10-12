@@ -217,7 +217,8 @@ object UserSession {
                 }
             }
             profile = loaded
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            ApiLogger.w("UserSession", "Failed to restore UserProfile from JSON, resetting session", e)
             clear()
         }
     }

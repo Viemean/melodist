@@ -67,7 +67,8 @@ object AudioMetadataWriter {
                     false
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.d(TAG, "Failed to read FLAC header for ${file.name}", e)
             false
         }
 
@@ -82,7 +83,8 @@ object AudioMetadataWriter {
                     false
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.d(TAG, "Failed to read MP3 header for ${file.name}", e)
             false
         }
 
