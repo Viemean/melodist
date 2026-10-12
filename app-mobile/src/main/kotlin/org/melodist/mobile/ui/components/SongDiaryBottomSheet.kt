@@ -24,6 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -66,6 +70,33 @@ fun SongDiaryBottomSheet(
     var nextCursor by remember { mutableStateOf("") }
     var hasMoreRecords by remember { mutableStateOf(true) }
 
+    val blockScrollOverflowConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                // 向上滚动到底部时（available.y < 0），吸收所有剩余未消费位移
+                if (available.y < 0f) {
+                    return available
+                }
+                // 向下拖动时放行，保持 1:1 原生顺滑跟手下拉关闭
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(
+                consumed: Velocity,
+                available: Velocity,
+            ): Velocity {
+                // 彻底吸收列表滚动到顶或到底时的全部多余 Fling 惯性速度：
+                // 1. 向上用力甩动到底时，严禁将弹窗向上甩冲到屏幕顶端
+                // 2. 向下快速滑回顶部时，严禁将弹窗意外甩关
+                return available
+            }
+        }
+    }
+
     LaunchedEffect(song.songMid) {
         isLoadingDiary = true
         val result = SongDiaryCacheManager.getSongDiary(song.songMid)
@@ -101,6 +132,7 @@ fun SongDiaryBottomSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight(0.85f)
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
@@ -111,51 +143,63 @@ fun SongDiaryBottomSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                if (viewMode == SongDiaryViewMode.RECORDS) {
-                    IconButton(onClick = { viewMode = SongDiaryViewMode.DIARY }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "返回",
-                        )
-                    }
-                    Text(
-                        text = "倒带·日记",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(modifier = Modifier.size(48.dp))
-                } else {
-                    Text(
-                        text = "单曲倒带日记",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                Text(
+                    text = if (viewMode == SongDiaryViewMode.RECORDS) "播放记录" else "单曲倒带日记",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
 
-                    if (diaryData?.hasListenRecord == true) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                            modifier =
-                                Modifier.clip(RoundedCornerShape(16.dp)).clickable {
-                                    viewMode = SongDiaryViewMode.RECORDS
-                                    if (records.isEmpty()) {
-                                        loadRecords(null)
-                                    }
-                                },
+                if (viewMode == SongDiaryViewMode.RECORDS) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                        modifier =
+                            Modifier.clip(RoundedCornerShape(16.dp)).clickable {
+                                viewMode = SongDiaryViewMode.DIARY
+                            },
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "返回倒带日记",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "播放记录",
+                                text = "倒带日记",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             )
                         }
-                    } else {
-                        Spacer(modifier = Modifier.width(1.dp))
                     }
+                } else if (diaryData?.hasListenRecord == true) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                        modifier =
+                            Modifier.clip(RoundedCornerShape(16.dp)).clickable {
+                                viewMode = SongDiaryViewMode.RECORDS
+                                if (records.isEmpty()) {
+                                    loadRecords(null)
+                                }
+                            },
+                    ) {
+                        Text(
+                            text = "播放记录",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
                 }
             }
 
@@ -201,6 +245,11 @@ fun SongDiaryBottomSheet(
                 targetState = viewMode,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 label = "view_mode_transition",
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .nestedScroll(blockScrollOverflowConnection),
             ) { mode ->
                 if (mode == SongDiaryViewMode.DIARY) {
                     if (isLoadingDiary) {
@@ -225,7 +274,7 @@ fun SongDiaryBottomSheet(
                             }
                         } else {
                             LazyColumn(
-                                modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
+                                modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 // 1. 红心时间 与 上次收听（两列）
@@ -470,7 +519,7 @@ fun SongDiaryBottomSheet(
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(0.dp),
                         ) {
                             itemsIndexed(records) { index, item ->
