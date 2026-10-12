@@ -109,11 +109,17 @@ fun ListeningStatsScreen(
                 ListeningStatsManager.refresh(force = true)
             }
         },
-        modifier = modifier.fillMaxSize().padding(contentPadding),
+        modifier = modifier.fillMaxSize(),
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding =
+                PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 12.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 1. 周期切换器（日 / 周 / 月 / 年）
