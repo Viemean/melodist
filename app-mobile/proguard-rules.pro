@@ -17,7 +17,9 @@
 -keep class org.melodist.model.** { *; }
 
 # Media3 & ExoPlayer
--keep class androidx.media3.** { *; }
+-keep class androidx.media3.extractor.** { *; }
+-keep class androidx.media3.decoder.** { *; }
+-keep class androidx.media3.session.** { *; }
 -dontwarn androidx.media3.**
 
 # OkHttp & Coil
@@ -31,6 +33,12 @@
     public static boolean isLoggable(java.lang.String, int);
     public static int v(...);
     public static int d(...);
+    public static int i(...);
+}
+
+-assumenosideeffects class org.melodist.api.ApiLogger {
+    public static void d(...);
+    public static void i(...);
 }
 
 # Keep line numbers for crash analysis
