@@ -1,17 +1,23 @@
 package org.melodist.data
 
+import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.getListeningRecordReport
 import org.melodist.model.ListeningChartPoint
 import org.melodist.model.ListeningReportData
 import org.melodist.model.ListeningReportPeriod
+import java.io.File
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -19,6 +25,9 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object ListeningStatsManager {
     private val apiService = MusicApiService()
+    private val json = Json { ignoreUnknownKeys = true }
+    private val zoneUtc8: ZoneId = ZoneId.of("GMT+8")
+    private const val RECENT_DATA_TTL_MS = 5 * 60 * 1000L
 
     private val _currentStats = MutableStateFlow<ListeningReportData?>(null)
     val currentStats: StateFlow<ListeningReportData?> = _currentStats.asStateFlow()
@@ -33,8 +42,18 @@ object ListeningStatsManager {
     val selectedDate: StateFlow<String?> = _selectedDate.asStateFlow()
 
     private val cache = ConcurrentHashMap<String, ListeningReportData>()
+    private val fetchTimeMap = ConcurrentHashMap<String, Long>()
     private val fullAvailableDatesByPeriod = ConcurrentHashMap<ListeningReportPeriod, List<String>>()
     private val fullChartPointsByPeriod = ConcurrentHashMap<ListeningReportPeriod, List<ListeningChartPoint>>()
+    private var cacheDirectory: File? = null
+
+    /**
+     * 初始化持久化存储环境。
+     */
+    fun init(context: Context) {
+        val appContext = context.applicationContext
+        cacheDirectory = appContext.cacheDir.resolve("listening_stats_cache").apply { mkdirs() }
+    }
 
     /**
      * 切换统计周期（日/周/月/年）。
@@ -61,6 +80,53 @@ object ListeningStatsManager {
         loadStats(_selectedPeriod.value, _selectedDate.value, force = force)
     }
 
+    private fun isHistoricalPeriod(period: ListeningReportPeriod, date: String?): Boolean {
+        if (date.isNullOrBlank()) return false
+        val now = LocalDate.now(zoneUtc8)
+        return when (period) {
+            ListeningReportPeriod.Day -> {
+                val todayStr = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                date < todayStr
+            }
+            ListeningReportPeriod.Week -> {
+                val currentMonday = now.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                val currentMondayStr = currentMonday.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                date < currentMondayStr
+            }
+            ListeningReportPeriod.Month -> {
+                val currentMonthStr = now.format(DateTimeFormatter.ofPattern("yyyyMM"))
+                date < currentMonthStr
+            }
+            ListeningReportPeriod.Year -> {
+                val currentYearStr = now.year.toString()
+                date < currentYearStr
+            }
+        }
+    }
+
+    private fun loadFromDisk(cacheKey: String): ListeningReportData? {
+        val dir = cacheDirectory ?: return null
+        val file = File(dir, "$cacheKey.json")
+        if (!file.exists() || file.length() == 0L) return null
+        return try {
+            val content = file.readText(Charsets.UTF_8)
+            json.decodeFromString<ListeningReportData>(content)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun saveToDisk(cacheKey: String, report: ListeningReportData) {
+        val dir = cacheDirectory ?: return
+        try {
+            if (!dir.exists()) dir.mkdirs()
+            val file = File(dir, "$cacheKey.json")
+            val content = json.encodeToString(ListeningReportData.serializer(), report)
+            file.writeText(content, Charsets.UTF_8)
+        } catch (_: Exception) {
+        }
+    }
+
     private suspend fun loadStats(
         period: ListeningReportPeriod,
         date: String?,
@@ -72,11 +138,28 @@ object ListeningStatsManager {
         }
 
         val cacheKey = "${period.typeCode}_${date ?: "latest"}"
+        val isHistorical = isHistoricalPeriod(period, date)
+
         if (!force) {
-            val cached = cache[cacheKey]
-            if (cached != null) {
-                _currentStats.value = cached
-                return@withContext
+            val memoryCached = cache[cacheKey]
+            if (memoryCached != null) {
+                if (isHistorical) {
+                    _currentStats.value = memoryCached
+                    return@withContext
+                } else {
+                    val lastFetch = fetchTimeMap[cacheKey] ?: 0L
+                    if (System.currentTimeMillis() - lastFetch < RECENT_DATA_TTL_MS) {
+                        _currentStats.value = memoryCached
+                        return@withContext
+                    }
+                }
+            } else if (isHistorical) {
+                val diskCached = loadFromDisk(cacheKey)
+                if (diskCached != null) {
+                    cache[cacheKey] = diskCached
+                    _currentStats.value = diskCached
+                    return@withContext
+                }
             }
         }
 
@@ -123,6 +206,11 @@ object ListeningStatsManager {
                 )
 
             cache[cacheKey] = report
+            fetchTimeMap[cacheKey] = System.currentTimeMillis()
+            if (isHistorical) {
+                saveToDisk(cacheKey, report)
+            }
+
             _currentStats.value = report
             if (date == null && report.dateKey.isNotBlank()) {
                 _selectedDate.value = report.dateKey
@@ -136,12 +224,17 @@ object ListeningStatsManager {
     }
 
     /**
-     * 清理内存缓存。
+     * 清理内存与本地持久化缓存。
      */
     fun clearCache() {
         cache.clear()
+        fetchTimeMap.clear()
         fullAvailableDatesByPeriod.clear()
         fullChartPointsByPeriod.clear()
         _currentStats.value = null
+        try {
+            cacheDirectory?.listFiles()?.forEach { it.delete() }
+        } catch (_: Exception) {
+        }
     }
 }

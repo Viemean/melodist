@@ -38,6 +38,8 @@ class MelodistApp :
         }
         org.melodist.data.AppSettingsManager
             .init(this)
+        org.melodist.data.ListeningStatsManager
+            .init(this)
         org.melodist.data.AppSettingsManager.imageCacheClearAction = {
             try {
                 SingletonImageLoader.get(this@MelodistApp).diskCache?.clear()
