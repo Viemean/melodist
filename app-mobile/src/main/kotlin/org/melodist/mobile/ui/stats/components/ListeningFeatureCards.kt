@@ -91,17 +91,18 @@ internal fun HighlightsSection(
     highlights: List<ListeningHighlightItem>,
     period: ListeningReportPeriod,
 ) {
-    val orderedHighlights = remember(highlights) {
-        val list = highlights.toMutableList()
-        val continuousIdx = list.indexOfFirst { it.title.contains("连续") }
-        val timeIdx = list.indexOfFirst { it.type == 3 || it.title.contains("深夜") }
-        if (continuousIdx != -1 && timeIdx != -1 && timeIdx < continuousIdx) {
-            val temp = list[continuousIdx]
-            list[continuousIdx] = list[timeIdx]
-            list[timeIdx] = temp
+    val orderedHighlights =
+        remember(highlights) {
+            val list = highlights.toMutableList()
+            val continuousIdx = list.indexOfFirst { it.title.contains("连续") }
+            val timeIdx = list.indexOfFirst { it.type == 3 || it.title.contains("深夜") }
+            if (continuousIdx != -1 && timeIdx != -1 && timeIdx < continuousIdx) {
+                val temp = list[continuousIdx]
+                list[continuousIdx] = list[timeIdx]
+                list[timeIdx] = temp
+            }
+            list
         }
-        list
-    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -189,7 +190,9 @@ internal fun HighlightCard(
                 )
 
                 val clockTime = parseClockTime(highlight.subtitle)
-                val isTimeClock = highlight.type == 3 || (clockTime != null && (highlight.title.contains("深夜") || highlight.title.contains("听歌") || highlight.title.contains("早晨")))
+                val isTimeClock =
+                    highlight.type == 3 ||
+                        (clockTime != null && (highlight.title.contains("深夜") || highlight.title.contains("听歌") || highlight.title.contains("早晨")))
 
                 if (isTimeClock) {
                     val (hour, minute) = clockTime ?: (4 to 42)
@@ -263,9 +266,10 @@ internal fun MonthlyTopSongsCard(
     onPlayPlaylist: (songs: List<Song>, startIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val playableSongs = remember(monthlySongs) {
-        monthlySongs.mapNotNull { it.song }
-    }
+    val playableSongs =
+        remember(monthlySongs) {
+            monthlySongs.mapNotNull { it.song }
+        }
 
     Card(
         shape = RoundedCornerShape(16.dp),

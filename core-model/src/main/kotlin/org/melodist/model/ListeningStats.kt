@@ -6,15 +6,18 @@ import kotlinx.serialization.Serializable
  * 听歌统计周期枚举。
  */
 @Serializable
-enum class ListeningReportPeriod(val typeCode: Int, val label: String) {
+enum class ListeningReportPeriod(
+    val typeCode: Int,
+    val label: String,
+) {
     Day(1, "日"),
     Week(2, "周"),
     Month(3, "月"),
-    Year(4, "年");
+    Year(4, "年"),
+    ;
 
     companion object {
-        fun fromTypeCode(code: Int): ListeningReportPeriod =
-            entries.firstOrNull { it.typeCode == code } ?: Day
+        fun fromTypeCode(code: Int): ListeningReportPeriod = entries.firstOrNull { it.typeCode == code } ?: Day
     }
 }
 
@@ -22,10 +25,12 @@ enum class ListeningReportPeriod(val typeCode: Int, val label: String) {
  * 听歌统计分布维度枚举。
  */
 @Serializable
-enum class ListeningOptionType(val optionCode: Int) {
+enum class ListeningOptionType(
+    val optionCode: Int,
+) {
     Singer(1),
     Genre(2),
-    ListenCnt(3);
+    ListenCnt(3),
 }
 
 /**

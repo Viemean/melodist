@@ -133,7 +133,11 @@ internal fun parseListeningRecordReport(
             activeHour = ltObj?.get("activeHour").asJsonPrimitiveOrNull?.intOrNull ?: 0
             percent = ltObj?.get("percent").asJsonPrimitiveOrNull?.floatOrNull ?: 0f
             upOrDown = ltObj?.get("upOrDown").asJsonPrimitiveOrNull?.intOrNull ?: 0
-            title = todayObj?.get("title").asJsonPrimitiveOrNull?.contentOrNull?.takeIf { it.isNotBlank() } ?: "今日听歌时长"
+            title = todayObj
+                ?.get("title")
+                .asJsonPrimitiveOrNull
+                ?.contentOrNull
+                ?.takeIf { it.isNotBlank() } ?: "今日听歌时长"
         }
         ListeningReportPeriod.Week -> {
             val ltObj = weekObj?.get("listenTime").asJsonObjectOrNull ?: rootListenTime
@@ -142,7 +146,11 @@ internal fun parseListeningRecordReport(
             activeHour = ltObj?.get("activeHour").asJsonPrimitiveOrNull?.intOrNull ?: 0
             percent = ltObj?.get("percent").asJsonPrimitiveOrNull?.floatOrNull ?: 0f
             upOrDown = ltObj?.get("upOrDown").asJsonPrimitiveOrNull?.intOrNull ?: 0
-            title = weekObj?.get("title").asJsonPrimitiveOrNull?.contentOrNull?.takeIf { it.isNotBlank() } ?: "本周日均"
+            title = weekObj
+                ?.get("title")
+                .asJsonPrimitiveOrNull
+                ?.contentOrNull
+                ?.takeIf { it.isNotBlank() } ?: "本周日均"
         }
         ListeningReportPeriod.Month -> {
             val ltObj = rootListenTime
@@ -168,17 +176,29 @@ internal fun parseListeningRecordReport(
     val chartPoints =
         when (period) {
             ListeningReportPeriod.Day -> {
-                val chartInfoObj = todayObj?.get("chart").asJsonObjectOrNull?.get("chartInfo").asJsonObjectOrNull
-                chartInfoObj?.entries?.mapNotNull { (slot, element) ->
-                    val ptObj = element.asJsonObjectOrNull ?: return@mapNotNull null
-                    val value = ptObj["value"].asJsonPrimitiveOrNull?.longOrNull ?: 0L
-                    val avg = ptObj["avgValue"].asJsonPrimitiveOrNull?.longOrNull ?: 0L
-                    val text = ptObj["text"].asJsonPrimitiveOrNull?.contentOrNull ?: ""
-                    ListeningChartPoint(slot = slot, value = value, avgValue = avg, text = text)
-                }?.sortedBy { it.slot.toIntOrNull() ?: 0 } ?: emptyList()
+                val chartInfoObj =
+                    todayObj
+                        ?.get("chart")
+                        .asJsonObjectOrNull
+                        ?.get("chartInfo")
+                        .asJsonObjectOrNull
+                chartInfoObj
+                    ?.entries
+                    ?.mapNotNull { (slot, element) ->
+                        val ptObj = element.asJsonObjectOrNull ?: return@mapNotNull null
+                        val value = ptObj["value"].asJsonPrimitiveOrNull?.longOrNull ?: 0L
+                        val avg = ptObj["avgValue"].asJsonPrimitiveOrNull?.longOrNull ?: 0L
+                        val text = ptObj["text"].asJsonPrimitiveOrNull?.contentOrNull ?: ""
+                        ListeningChartPoint(slot = slot, value = value, avgValue = avg, text = text)
+                    }?.sortedBy { it.slot.toIntOrNull() ?: 0 } ?: emptyList()
             }
             ListeningReportPeriod.Week -> {
-                val chartInfoObj = weekObj?.get("chart").asJsonObjectOrNull?.get("chartInfo").asJsonObjectOrNull
+                val chartInfoObj =
+                    weekObj
+                        ?.get("chart")
+                        .asJsonObjectOrNull
+                        ?.get("chartInfo")
+                        .asJsonObjectOrNull
                 val weekDaysOrder = listOf("1" to "一", "2" to "二", "3" to "三", "4" to "四", "5" to "五", "6" to "六", "0" to "日")
                 if (chartInfoObj != null) {
                     weekDaysOrder.map { (slotKey, label) ->
@@ -187,7 +207,9 @@ internal fun parseListeningRecordReport(
                         val avg = ptObj?.get("avgValue").asJsonPrimitiveOrNull?.longOrNull ?: 0L
                         ListeningChartPoint(slot = slotKey, value = value, avgValue = avg, text = label)
                     }
-                } else emptyList()
+                } else {
+                    emptyList()
+                }
             }
             ListeningReportPeriod.Month -> {
                 val optResultsObj = barObj?.get("optionResults").asJsonObjectOrNull
@@ -232,7 +254,9 @@ internal fun parseListeningRecordReport(
                         listenTimeSec = dur,
                         rank = index + 1,
                     )
-                } else null
+                } else {
+                    null
+                }
             }
         } else {
             barData?.get("optionResults").asJsonArrayOrNull?.mapIndexedNotNull { index, elem ->
@@ -249,7 +273,9 @@ internal fun parseListeningRecordReport(
                         listenTimeSec = dur,
                         rank = index + 1,
                     )
-                } else null
+                } else {
+                    null
+                }
             } ?: emptyList()
         }
 
@@ -278,7 +304,9 @@ internal fun parseListeningRecordReport(
                     iconUrls = iconUrls,
                     jumpUrl = jump,
                 )
-            } else null
+            } else {
+                null
+            }
         } ?: emptyList()
 
     val textBlockObj = barData?.get("textBlock").asJsonObjectOrNull
@@ -290,7 +318,9 @@ internal fun parseListeningRecordReport(
                     it.asJsonPrimitiveOrNull?.contentOrNull
                 } ?: emptyList()
             ListeningTextBlock(text = textContent, colorWords = colorWords)
-        } else null
+        } else {
+            null
+        }
 
     val rawRankArray = rankData?.get("rank").asJsonArrayOrNull
     val rankSongs =
@@ -301,23 +331,27 @@ internal fun parseListeningRecordReport(
             val cnt = itemObj["listenCnt"].asJsonPrimitiveOrNull?.intOrNull ?: 0
             if (song != null) {
                 ListeningRankItem(song = song, rankNo = index + 1, listenCnt = cnt)
-            } else null
+            } else {
+                null
+            }
         } ?: emptyList()
 
     val songOfMonthObj = barData?.get("SongOfMonth").asJsonObjectOrNull
     val monthlyTopSongs =
-        songOfMonthObj?.entries?.mapNotNull { (monthKey, songElem) ->
-            val month = monthKey.toIntOrNull() ?: return@mapNotNull null
-            val song = MusicApiService.parseSongFromElement(songElem) ?: return@mapNotNull null
-            ListeningMonthlySongItem(
-                month = month,
-                song = song,
-                songMid = song.songMid,
-                songName = song.name,
-                singerName = song.singer,
-                coverUrl = song.coverUrl,
-            )
-        }?.sortedBy { it.month } ?: emptyList()
+        songOfMonthObj
+            ?.entries
+            ?.mapNotNull { (monthKey, songElem) ->
+                val month = monthKey.toIntOrNull() ?: return@mapNotNull null
+                val song = MusicApiService.parseSongFromElement(songElem) ?: return@mapNotNull null
+                ListeningMonthlySongItem(
+                    month = month,
+                    song = song,
+                    songMid = song.songMid,
+                    songName = song.name,
+                    singerName = song.singer,
+                    coverUrl = song.coverUrl,
+                )
+            }?.sortedBy { it.month } ?: emptyList()
 
     return ListeningReportData(
         period = period,

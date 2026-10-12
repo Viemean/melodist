@@ -50,13 +50,12 @@ internal object DeviceReportHelper {
         return info
     }
 
-    private fun computeSha1(input: String): String {
-        return try {
+    private fun computeSha1(input: String): String =
+        try {
             val md = MessageDigest.getInstance("SHA-1")
             val bytes = md.digest(input.toByteArray(Charsets.UTF_8))
             bytes.joinToString("") { "%02x".format(it) }
         } catch (_: Exception) {
             "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
         }
-    }
 }

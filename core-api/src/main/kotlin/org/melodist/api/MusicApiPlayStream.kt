@@ -117,7 +117,7 @@ internal fun buildPlayStreamXml(
 
     val uidDigits = deriveNumericUid(deviceInfo.openUdid)
     val sid = SID_FORMATTER.format(Instant.ofEpochSecond(optime)) + uidDigits
-    val traceid = "11_${deriveTraceNumber(deviceInfo.openUdid, optime)}_${optime}"
+    val traceid = "11_${deriveTraceNumber(deviceInfo.openUdid, optime)}_$optime"
     val vkey = deriveHex32(deviceInfo.openUdid, optime)
     val tid = deriveNumeric19(deviceInfo.openUdid)
     val taid = deriveHex88(deviceInfo.openUdid)
@@ -164,7 +164,11 @@ internal fun buildPlayStreamXml(
         "</root>"
 }
 
-internal fun computeTimeKey(optime: Long, timeSec: Long, uin: String): String {
+internal fun computeTimeKey(
+    optime: Long,
+    timeSec: Long,
+    uin: String,
+): String {
     val raw = "${optime}${timeSec}${uin}$TIMEKEY_SALT"
     return md5Hex(raw).uppercase()
 }
@@ -188,15 +192,19 @@ private fun deriveNumericUid(openUdid: String): String {
     return hash.toString().padStart(10, '0').take(10)
 }
 
-private fun deriveTraceNumber(openUdid: String, optime: Long): String {
+private fun deriveTraceNumber(
+    openUdid: String,
+    optime: Long,
+): String {
     val combined = "$openUdid:$optime"
     val hash = abs(combined.hashCode().toLong())
     return hash.toString().padStart(11, '0').take(11)
 }
 
-private fun deriveHex32(openUdid: String, optime: Long): String {
-    return md5Hex("$openUdid:$optime")
-}
+private fun deriveHex32(
+    openUdid: String,
+    optime: Long,
+): String = md5Hex("$openUdid:$optime")
 
 private fun deriveNumeric19(openUdid: String): String {
     val h1 = abs(openUdid.hashCode().toLong()).toString().padStart(10, '0').take(10)

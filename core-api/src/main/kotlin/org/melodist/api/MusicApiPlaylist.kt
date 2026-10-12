@@ -486,8 +486,10 @@ private suspend fun MusicApiService.deletePlaylistInternal(
  * @param newName 新歌单名称
  * @return 包含操作结果与提示信息的 [Pair]；未登录、属于默认歌单或调用失败时返回具体原因
  */
-suspend fun MusicApiService.renamePlaylist(dirId: Long, newName: String): Pair<Boolean, String> =
-    renamePlaylistInternal(dirId, newName, canRetryWithRenew = true)
+suspend fun MusicApiService.renamePlaylist(
+    dirId: Long,
+    newName: String,
+): Pair<Boolean, String> = renamePlaylistInternal(dirId, newName, canRetryWithRenew = true)
 
 /**
  * 重命名指定的自建歌单。
@@ -496,8 +498,10 @@ suspend fun MusicApiService.renamePlaylist(dirId: Long, newName: String): Pair<B
  * @param newName 新歌单名称
  * @return 包含操作结果与提示信息的 [Pair]
  */
-suspend fun MusicApiService.renamePlaylist(playlist: Playlist, newName: String): Pair<Boolean, String> =
-    renamePlaylist(playlist.dirId, newName)
+suspend fun MusicApiService.renamePlaylist(
+    playlist: Playlist,
+    newName: String,
+): Pair<Boolean, String> = renamePlaylist(playlist.dirId, newName)
 
 private suspend fun MusicApiService.renamePlaylistInternal(
     dirId: Long,
@@ -567,8 +571,10 @@ private suspend fun MusicApiService.renamePlaylistInternal(
  * @param isPrivate 是否设为私密（true 为设为私密，false 为设为公开）
  * @return 包含操作结果与提示信息的 [Pair]；未登录、属于默认歌单或调用失败时返回具体原因
  */
-suspend fun MusicApiService.setPlaylistPrivacy(dirId: Long, isPrivate: Boolean): Pair<Boolean, String> =
-    setPlaylistPrivacyInternal(dirId, isPrivate, canRetryWithRenew = true)
+suspend fun MusicApiService.setPlaylistPrivacy(
+    dirId: Long,
+    isPrivate: Boolean,
+): Pair<Boolean, String> = setPlaylistPrivacyInternal(dirId, isPrivate, canRetryWithRenew = true)
 
 /**
  * 修改自建歌单的公开/私密状态。
@@ -577,8 +583,10 @@ suspend fun MusicApiService.setPlaylistPrivacy(dirId: Long, isPrivate: Boolean):
  * @param isPrivate 是否设为私密（true 为设为私密，false 为设为公开）
  * @return 包含操作结果与提示信息的 [Pair]
  */
-suspend fun MusicApiService.setPlaylistPrivacy(playlist: Playlist, isPrivate: Boolean): Pair<Boolean, String> =
-    setPlaylistPrivacy(playlist.dirId, isPrivate)
+suspend fun MusicApiService.setPlaylistPrivacy(
+    playlist: Playlist,
+    isPrivate: Boolean,
+): Pair<Boolean, String> = setPlaylistPrivacy(playlist.dirId, isPrivate)
 
 private suspend fun MusicApiService.setPlaylistPrivacyInternal(
     dirId: Long,
@@ -639,7 +647,6 @@ private suspend fun MusicApiService.setPlaylistPrivacyInternal(
             false to (e.message ?: "修改公开状态异常")
         }
     }
-
 
 /**
  * 收藏指定的第三方公开歌单。

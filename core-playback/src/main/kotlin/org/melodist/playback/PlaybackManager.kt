@@ -727,7 +727,10 @@ object PlaybackManager {
             onSongPlaybackSessionFinished = { song, playedMs -> handleSongPlaybackSessionFinished(song, playedMs) },
         )
 
-    private fun handleSongPlaybackSessionFinished(song: Song, playedDurationMs: Long) {
+    private fun handleSongPlaybackSessionFinished(
+        song: Song,
+        playedDurationMs: Long,
+    ) {
         if (song.isLocal || song.isWebDav || song.songMid.startsWith("local_") || song.songMid.startsWith("webdav_")) {
             return
         }
@@ -748,7 +751,8 @@ object PlaybackManager {
         }
         val deviceInfo = DeviceReportHelper.getDeviceInfo(appContext)
 
-        org.melodist.data.ListeningStatsManager.recordPlaybackDelta(song, effectivePlaySec)
+        org.melodist.data.ListeningStatsManager
+            .recordPlaybackDelta(song, effectivePlaySec)
 
         scope.launch(Dispatchers.IO) {
             try {

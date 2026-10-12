@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -37,9 +36,7 @@ import java.time.format.DateTimeFormatter
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MusicPreferenceBottomSheet(
-    onDismissRequest: () -> Unit,
-) {
+fun MusicPreferenceBottomSheet(onDismissRequest: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -67,30 +64,31 @@ fun MusicPreferenceBottomSheet(
         }
     }
 
-    val blockScrollOverflowConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource,
-            ): Offset {
-                if (available.y < 0f) {
-                    return available
+    val blockScrollOverflowConnection =
+        remember {
+            object : NestedScrollConnection {
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (available.y < 0f) {
+                        return available
+                    }
+                    return Offset.Zero
                 }
-                return Offset.Zero
-            }
 
-            override suspend fun onPostFling(
-                consumed: Velocity,
-                available: Velocity,
-            ): Velocity {
-                if (available.y < 0f) {
-                    return available
+                override suspend fun onPostFling(
+                    consumed: Velocity,
+                    available: Velocity,
+                ): Velocity {
+                    if (available.y < 0f) {
+                        return available
+                    }
+                    return Velocity.Zero
                 }
-                return Velocity.Zero
             }
         }
-    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,

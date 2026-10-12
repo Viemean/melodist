@@ -7,8 +7,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +25,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import org.melodist.model.ListeningChartPoint
 import kotlin.math.cos
@@ -142,19 +139,20 @@ internal fun ListeningTrendChart(
                 pointOffsets = points
 
                 // 平滑三次贝塞尔曲线构建，采用自适应切线平滑过渡
-                val path = Path().apply {
-                    moveTo(points[0].x, points[0].y)
-                    for (i in 0 until points.size - 1) {
-                        val p0 = points[i]
-                        val p1 = points[i + 1]
-                        val dx = (p1.x - p0.x) * 0.45f
-                        val c1x = p0.x + dx
-                        val c1y = p0.y
-                        val c2x = p1.x - dx
-                        val c2y = p1.y
-                        cubicTo(c1x, c1y, c2x, c2y, p1.x, p1.y)
+                val path =
+                    Path().apply {
+                        moveTo(points[0].x, points[0].y)
+                        for (i in 0 until points.size - 1) {
+                            val p0 = points[i]
+                            val p1 = points[i + 1]
+                            val dx = (p1.x - p0.x) * 0.45f
+                            val c1x = p0.x + dx
+                            val c1y = p0.y
+                            val c2x = p1.x - dx
+                            val c2y = p1.y
+                            cubicTo(c1x, c1y, c2x, c2y, p1.x, p1.y)
+                        }
                     }
-                }
 
                 drawPath(
                     path = path,

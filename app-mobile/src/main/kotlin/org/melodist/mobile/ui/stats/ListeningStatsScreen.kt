@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -22,7 +23,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import androidx.compose.material.icons.rounded.Tune
 import org.melodist.api.UserSession
 import org.melodist.data.ListeningStatsManager
 import org.melodist.mobile.ui.components.MusicPreferenceBottomSheet
@@ -385,18 +385,25 @@ private fun DateNavigatorBar(
  * @param period 统计周期类型
  * @return 格式化后的展示标签字符串
  */
-private fun formatDateLabel(date: String, period: ListeningReportPeriod): String {
+private fun formatDateLabel(
+    date: String,
+    period: ListeningReportPeriod,
+): String {
     if (date.isBlank()) return "最新"
     return when (period) {
         ListeningReportPeriod.Day -> {
             if (date.length == 8) {
                 "${date.substring(4, 6)}月${date.substring(6, 8)}日"
-            } else date
+            } else {
+                date
+            }
         }
         ListeningReportPeriod.Month -> {
             if (date.length >= 6) {
                 "${date.substring(0, 4)}年${date.substring(4, 6)}月"
-            } else date
+            } else {
+                date
+            }
         }
         ListeningReportPeriod.Year -> {
             "${date.take(4)}年"
@@ -404,7 +411,9 @@ private fun formatDateLabel(date: String, period: ListeningReportPeriod): String
         ListeningReportPeriod.Week -> {
             if (date.length == 8) {
                 "${date.substring(4, 6)}月${date.substring(6, 8)}日当周"
-            } else date
+            } else {
+                date
+            }
         }
     }
 }

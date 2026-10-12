@@ -46,8 +46,9 @@ data class UserMusicPreference(
 
     /** 风格偏好列表 (连续 0 ~ 100 分) */
     val styleItems: List<MusicPreferenceItem>
-        get() = scores.filter {
-            it.profileKey != MusicPreferenceItem.KEY_FAMILIARITY &&
-                it.profileKey != MusicPreferenceItem.KEY_EMOTION
-        }
+        get() =
+            scores.filter {
+                it.profileKey != MusicPreferenceItem.KEY_FAMILIARITY &&
+                    it.profileKey != MusicPreferenceItem.KEY_EMOTION
+            }
 }

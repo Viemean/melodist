@@ -124,7 +124,10 @@ suspend fun MusicApiService.getSongListenRecords(
  * @param fallbackMid 歌曲唯一标识后备值
  * @return 单曲倒带日记数据对象，解析失败或非预期报文时返回 null
  */
-internal fun parseSongDiary(jsonStr: String, fallbackMid: String): SongDiaryData? {
+internal fun parseSongDiary(
+    jsonStr: String,
+    fallbackMid: String,
+): SongDiaryData? {
     val root = Json.parseToJsonElement(jsonStr).asJsonObjectOrNull ?: return null
     val reqDiary = root["req_diary"].asJsonObjectOrNull ?: return null
     if (reqDiary["code"].asJsonPrimitiveOrNull?.intOrNull != 0) return null
@@ -139,44 +142,147 @@ internal fun parseSongDiary(jsonStr: String, fallbackMid: String): SongDiaryData
     val milestone = dataObj["Milestone"].asJsonObjectOrNull
 
     val songMid = base?.get("Song").asJsonPrimitiveOrNull?.contentOrNull ?: fallbackMid
-    val title = base?.get("Title").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val subTitle = base?.get("SubTitle").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val coverUrl = base?.get("Cover").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val title =
+        base
+            ?.get("Title")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val subTitle =
+        base
+            ?.get("SubTitle")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val coverUrl =
+        base
+            ?.get("Cover")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
 
-    val favDate = fav?.get("Center").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val favBottom = fav?.get("Bottom").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val favDate =
+        fav
+            ?.get("Center")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val favBottom =
+        fav
+            ?.get("Bottom")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
 
-    val firstLsnTimeCn = firstLsn?.get("TimeCn").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val firstLsnTime = firstLsn?.get("Time").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val firstLsnDevice = firstLsn?.get("Device").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val firstLsnTimeCn =
+        firstLsn
+            ?.get("TimeCn")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val firstLsnTime =
+        firstLsn
+            ?.get("Time")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val firstLsnDevice =
+        firstLsn
+            ?.get("Device")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
     val firstLsnDayCnt = firstLsn?.get("DayCnt").asJsonPrimitiveOrNull?.intOrNull ?: 0
-    val firstLsnPicUrl = firstLsn?.get("Pic").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val firstLsnPicUrl =
+        firstLsn
+            ?.get("Pic")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
 
     val totalCntObj = totalLsn?.get("Cnt").asJsonObjectOrNull
-    val totalLsnCountText = totalCntObj?.get("Center").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val totalLsnBottom = totalCntObj?.get("Bottom").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val totalLsnCountText =
+        totalCntObj
+            ?.get("Center")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val totalLsnBottom =
+        totalCntObj
+            ?.get("Bottom")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
 
     val totalDist = totalLsn?.get("Dist").asJsonObjectOrNull
-    val totalLsnYears = totalDist?.get("X").asJsonArrayOrNull?.mapNotNull { it.asJsonPrimitiveOrNull?.contentOrNull }.orEmpty()
-    val totalLsnCounts = totalDist?.get("V").asJsonArrayOrNull?.mapNotNull { it.asJsonPrimitiveOrNull?.intOrNull }.orEmpty()
+    val totalLsnYears =
+        totalDist
+            ?.get("X")
+            .asJsonArrayOrNull
+            ?.mapNotNull { it.asJsonPrimitiveOrNull?.contentOrNull }
+            .orEmpty()
+    val totalLsnCounts =
+        totalDist
+            ?.get("V")
+            .asJsonArrayOrNull
+            ?.mapNotNull { it.asJsonPrimitiveOrNull?.intOrNull }
+            .orEmpty()
 
     val recentTimeObj = recentLsn?.get("Time").asJsonObjectOrNull
-    val recentLsnCountText = recentTimeObj?.get("Center").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val recentLsnBottom = recentTimeObj?.get("Bottom").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val recentLsnCountText =
+        recentTimeObj
+            ?.get("Center")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val recentLsnBottom =
+        recentTimeObj
+            ?.get("Bottom")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
     val recentLsnMonths =
-        recentLsn?.get("Dates").asJsonArrayOrNull?.mapNotNull { element ->
-            val monthObj = element.asJsonObjectOrNull ?: return@mapNotNull null
-            val m = monthObj["Month"].asJsonPrimitiveOrNull?.intOrNull ?: return@mapNotNull null
-            val days = monthObj["DayFlag"].asJsonArrayOrNull?.mapNotNull { it.asJsonPrimitiveOrNull?.intOrNull }.orEmpty()
-            SongDiaryRecentMonth(month = m, activeDays = days)
-        }.orEmpty()
+        recentLsn
+            ?.get("Dates")
+            .asJsonArrayOrNull
+            ?.mapNotNull { element ->
+                val monthObj = element.asJsonObjectOrNull ?: return@mapNotNull null
+                val m = monthObj["Month"].asJsonPrimitiveOrNull?.intOrNull ?: return@mapNotNull null
+                val days = monthObj["DayFlag"].asJsonArrayOrNull?.mapNotNull { it.asJsonPrimitiveOrNull?.intOrNull }.orEmpty()
+                SongDiaryRecentMonth(month = m, activeDays = days)
+            }.orEmpty()
 
-    val lastLsnTime = lastLsn?.get("Center").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val lastLsnDate = lastLsn?.get("Bottom").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val lastLsnTime =
+        lastLsn
+            ?.get("Center")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val lastLsnDate =
+        lastLsn
+            ?.get("Bottom")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
 
-    val milestoneTitle = milestone?.get("Top").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val milestoneTime = milestone?.get("Center").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-    val milestoneBottom = milestone?.get("Bottom").asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+    val milestoneTitle =
+        milestone
+            ?.get("Top")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val milestoneTime =
+        milestone
+            ?.get("Center")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
+    val milestoneBottom =
+        milestone
+            ?.get("Bottom")
+            .asJsonPrimitiveOrNull
+            ?.contentOrNull
+            .orEmpty()
 
     val hasListenRecord = dataObj["LsnRecord"].asJsonPrimitiveOrNull?.booleanOrNull ?: false
 
@@ -221,13 +327,15 @@ internal fun parseSongListenRecords(jsonStr: String): SongListenRecordsPage? {
     val dataObj = reqRecord["data"].asJsonObjectOrNull ?: return null
 
     val items =
-        dataObj["Items"].asJsonArrayOrNull?.mapNotNull { element ->
-            val itemObj = element.asJsonObjectOrNull ?: return@mapNotNull null
-            val ts = itemObj["Timestamp"].asJsonPrimitiveOrNull?.longOrNull ?: 0L
-            val device = itemObj["Device"].asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-            val source = itemObj["Source"].asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
-            SongListenRecordItem(timestampSec = ts, device = device, source = source)
-        }.orEmpty()
+        dataObj["Items"]
+            .asJsonArrayOrNull
+            ?.mapNotNull { element ->
+                val itemObj = element.asJsonObjectOrNull ?: return@mapNotNull null
+                val ts = itemObj["Timestamp"].asJsonPrimitiveOrNull?.longOrNull ?: 0L
+                val device = itemObj["Device"].asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+                val source = itemObj["Source"].asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
+                SongListenRecordItem(timestampSec = ts, device = device, source = source)
+            }.orEmpty()
 
     val nextCursor = dataObj["NextCursor"].asJsonPrimitiveOrNull?.contentOrNull.orEmpty()
 

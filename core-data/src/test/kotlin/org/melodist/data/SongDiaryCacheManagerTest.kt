@@ -20,10 +20,11 @@ class SongDiaryCacheManagerTest {
         var currentTime = 1000L
         SongDiaryCacheManager.timeProvider = { currentTime }
 
-        val dummyDiary = SongDiaryData(
-            songMid = "test_mid",
-            title = "Test Title",
-        )
+        val dummyDiary =
+            SongDiaryData(
+                songMid = "test_mid",
+                title = "Test Title",
+            )
 
         SongDiaryCacheManager.diaryCache.put("test_mid", dummyDiary)
         assertEquals(dummyDiary, SongDiaryCacheManager.diaryCache.get("test_mid"))
@@ -42,10 +43,11 @@ class SongDiaryCacheManagerTest {
         var currentTime = 1000L
         SongDiaryCacheManager.timeProvider = { currentTime }
 
-        val dummyPage = SongListenRecordsPage(
-            items = listOf(SongListenRecordItem(timestampSec = 1700000000L, device = "Phone")),
-            nextCursor = "cursor_2",
-        )
+        val dummyPage =
+            SongListenRecordsPage(
+                items = listOf(SongListenRecordItem(timestampSec = 1700000000L, device = "Phone")),
+                nextCursor = "cursor_2",
+            )
 
         val key = "test_mid:cursor_1"
         SongDiaryCacheManager.recordsCache.put(key, dummyPage)

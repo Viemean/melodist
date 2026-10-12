@@ -69,7 +69,10 @@ object ListeningStatsManager {
     /**
      * 记录本地单次有效播放时长（>=5s），驱动今日统计乐观即时累加。
      */
-    fun recordPlaybackDelta(song: Song, playedSec: Long) {
+    fun recordPlaybackDelta(
+        song: Song,
+        playedSec: Long,
+    ) {
         if (playedSec < 5L) return
         val now = LocalDateTime.now(zoneUtc8)
         val todayStr = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
@@ -163,7 +166,10 @@ object ListeningStatsManager {
         loadStats(_selectedPeriod.value, _selectedDate.value, force = force)
     }
 
-    private fun isHistoricalPeriod(period: ListeningReportPeriod, date: String?): Boolean {
+    private fun isHistoricalPeriod(
+        period: ListeningReportPeriod,
+        date: String?,
+    ): Boolean {
         if (date.isNullOrBlank()) return false
         val now = LocalDate.now(zoneUtc8)
         return when (period) {
@@ -172,7 +178,11 @@ object ListeningStatsManager {
                 date < todayStr
             }
             ListeningReportPeriod.Week -> {
-                val currentMonday = now.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                val currentMonday =
+                    now.with(
+                        java.time.temporal.TemporalAdjusters
+                            .previousOrSame(java.time.DayOfWeek.MONDAY),
+                    )
                 val currentMondayStr = currentMonday.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 date < currentMondayStr
             }
@@ -199,7 +209,10 @@ object ListeningStatsManager {
         }
     }
 
-    private fun saveToDisk(cacheKey: String, report: ListeningReportData) {
+    private fun saveToDisk(
+        cacheKey: String,
+        report: ListeningReportData,
+    ) {
         val dir = cacheDirectory ?: return
         try {
             if (!dir.exists()) dir.mkdirs()

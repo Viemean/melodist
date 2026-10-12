@@ -246,7 +246,10 @@ internal fun EmptyStatsCard() {
     }
 }
 
-internal fun formatDurationDisplay(sec: Long, cnt: Int): String {
+internal fun formatDurationDisplay(
+    sec: Long,
+    cnt: Int,
+): String {
     if (sec <= 0L && cnt > 0) {
         return "$cnt 首"
     }
