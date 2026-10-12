@@ -30,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -61,10 +60,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
-import org.melodist.api.createPlaylist
 import org.melodist.api.deletePlaylist
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
+import org.melodist.mobile.ui.components.CreatePlaylistDialog
 import org.melodist.mobile.ui.library.components.FavoriteAlbumsCard
 import org.melodist.mobile.ui.library.components.FavoriteMusicCard
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
@@ -416,65 +415,8 @@ fun LibraryScreen(
 
     // 新建歌单弹窗
     if (showCreatePlaylistDialog) {
-        var newPlaylistName by remember { mutableStateOf("") }
-        var isCreating by remember { mutableStateOf(false) }
-
-        AlertDialog(
-            onDismissRequest = {
-                if (!isCreating) {
-                    showCreatePlaylistDialog = false
-                }
-            },
-            title = {
-                Text(
-                    text = "新建歌单",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = newPlaylistName,
-                        onValueChange = { newPlaylistName = it },
-                        label = { Text("歌单名称") },
-                        placeholder = { Text("请输入歌单名称") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isCreating,
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = newPlaylistName.isNotBlank() && !isCreating,
-                    onClick = {
-                        val name = newPlaylistName.trim()
-                        isCreating = true
-                        scope.launch {
-                            val (success, _, msg) = apiService.createPlaylist(name)
-                            isCreating = false
-                            if (success) {
-                                Toast.makeText(context, "歌单创建成功", Toast.LENGTH_SHORT).show()
-                                showCreatePlaylistDialog = false
-                                UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = true)
-                            } else {
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                ) {
-                    Text("创建")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !isCreating,
-                    onClick = { showCreatePlaylistDialog = false },
-                ) {
-                    Text("取消")
-                }
-            },
+        CreatePlaylistDialog(
+            onDismissRequest = { showCreatePlaylistDialog = false },
         )
     }
 }
