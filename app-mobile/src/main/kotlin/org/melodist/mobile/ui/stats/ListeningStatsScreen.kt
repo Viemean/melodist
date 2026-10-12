@@ -1,6 +1,10 @@
 package org.melodist.mobile.ui.stats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -238,40 +242,77 @@ private fun PeriodSegmentedTabs(
     selectedPeriod: ListeningReportPeriod,
     onPeriodSelect: (ListeningReportPeriod) -> Unit,
 ) {
+    val entries = remember { ListeningReportPeriod.entries }
+    val selectedIndex = entries.indexOf(selectedPeriod).coerceAtLeast(0)
+
     Surface(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().height(44.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(4.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        BoxWithConstraints(
+            modifier = Modifier.padding(4.dp).fillMaxSize(),
         ) {
-            ListeningReportPeriod.entries.forEach { period ->
-                val selected = period == selectedPeriod
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(
-                                if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            )
-                            .clickable { onPeriodSelect(period) }
-                            .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = period.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        color =
+            val count = entries.size
+            val spacing = 4.dp
+            val totalSpacing = spacing * (count - 1)
+            val tabWidth = (maxWidth - totalSpacing) / count
+
+            val animatedIndex by animateFloatAsState(
+                targetValue = selectedIndex.toFloat(),
+                animationSpec =
+                    spring(
+                        dampingRatio = 0.82f,
+                        stiffness = 380f,
+                    ),
+                label = "segmented_indicator_index",
+            )
+
+            // 单滑块指示器胶囊
+            Box(
+                modifier =
+                    Modifier
+                        .offset(x = (tabWidth + spacing) * animatedIndex)
+                        .width(tabWidth)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+            )
+
+            // 选项文本与点击响应
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(spacing),
+            ) {
+                entries.forEach { period ->
+                    val selected = period == selectedPeriod
+                    val textColor by animateColorAsState(
+                        targetValue =
                             if (selected) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             },
+                        animationSpec = tween(durationMillis = 200),
+                        label = "segmented_text_color",
                     )
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(18.dp))
+                                .clickable { onPeriodSelect(period) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = period.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = textColor,
+                        )
+                    }
                 }
             }
         }
