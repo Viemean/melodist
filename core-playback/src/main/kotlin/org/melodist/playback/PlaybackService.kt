@@ -1,12 +1,15 @@
 package org.melodist.playback
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -31,6 +34,7 @@ class PlaybackService : MediaSessionService() {
 
     companion object {
         const val ACTION_TOGGLE_FAVORITE = "org.melodist.playback.ACTION_TOGGLE_FAVORITE"
+        const val EXTRA_START_FOREGROUND = "org.melodist.playback.EXTRA_START_FOREGROUND"
         const val CHANNEL_ID = "melodist_playback_channel_v3"
         const val NOTIFICATION_ID = 1001
     }
@@ -159,12 +163,66 @@ class PlaybackService : MediaSessionService() {
         startId: Int,
     ): Int {
         val result = super.onStartCommand(intent, flags, startId)
+        val isExplicitForeground = intent?.getBooleanExtra(EXTRA_START_FOREGROUND, false) == true
+        if (isExplicitForeground) {
+            ensureForegroundStarted()
+        }
         mediaSession?.let { session ->
             if (PlaybackManager.shouldHoldForeground()) {
                 onUpdateNotification(session, true)
             }
         }
         return result
+    }
+
+    private fun ensureForegroundStarted() {
+        try {
+            val notification = createForegroundPlaceholderNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.w("PlaybackService", "Failed to startForeground: $e")
+        }
+    }
+
+    private fun createForegroundPlaceholderNotification(): Notification {
+        setupNotificationChannel()
+        val currentSong = PlaybackManager.currentSong.value
+        val title = currentSong?.name?.ifBlank { null } ?: "音乐播放服务"
+        val artist = currentSong?.singer?.ifBlank { null } ?: "正在准备播放..."
+
+        val launchIntent =
+            packageManager.getLaunchIntentForPackage(packageName)
+                ?: Intent(Intent.ACTION_MAIN).apply {
+                    setPackage(packageName)
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                }
+        launchIntent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val sessionActivity =
+            PendingIntent.getActivity(
+                this,
+                0,
+                launchIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(org.melodist.core.playback.R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(artist)
+            .setContentIntent(sessionActivity)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
