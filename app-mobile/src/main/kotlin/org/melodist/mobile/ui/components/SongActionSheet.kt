@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.FileDownloadDone
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
@@ -113,6 +114,7 @@ fun SongActionSheet(
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showSimilarSongsSheet by remember { mutableStateOf(false) }
+    var showDiarySheet by remember { mutableStateOf(false) }
 
     val connectState by MobileConnectManager.connectionState.collectAsState()
     val isTvConnected = connectState is MobileConnectionState.Paired
@@ -497,6 +499,17 @@ fun SongActionSheet(
                 )
             }
 
+            if (!song.isLocal && !song.isWebDav && song.songMid.isNotBlank() && UserSession.isLoggedIn) {
+                ActionSheetItem(
+                    icon = Icons.Rounded.History,
+                    title = "歌曲回忆",
+                    subtitle = "单曲倒带日记",
+                    onClick = {
+                        showDiarySheet = true
+                    },
+                )
+            }
+
             ActionSheetItem(
                 icon = Icons.Rounded.Info,
                 title = "查看歌曲信息",
@@ -588,6 +601,8 @@ fun SongActionSheet(
         onDismissSongInfoSheet = { showSongInfoSheet = false },
         showSimilarSongsSheet = showSimilarSongsSheet,
         onDismissSimilarSongsSheet = { showSimilarSongsSheet = false },
+        showDiarySheet = showDiarySheet,
+        onDismissDiarySheet = { showDiarySheet = false },
     )
 
     if (showDownloadQualityDialog) {
