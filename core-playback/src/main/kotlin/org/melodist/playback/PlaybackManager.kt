@@ -448,6 +448,7 @@ object PlaybackManager {
                     consecutiveErrorCount = 0
                     audioTrackRetryCount = 0
                 } else {
+                    progressTracker.flushActivePlaybackSession()
                     savePlaybackProgress(exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L)
                 }
             }
@@ -1538,7 +1539,15 @@ object PlaybackManager {
         if (playbackInterceptor?.onInterceptPause() == true) return
         val player = exoPlayer ?: return
         player.pause()
+        progressTracker.flushActivePlaybackSession()
         savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
+    }
+
+    /**
+     * 结算并触发当前正在追踪的曲目播放有效时长上报。
+     */
+    fun flushActivePlaybackSession() {
+        progressTracker.flushActivePlaybackSession()
     }
 
     /**

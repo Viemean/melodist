@@ -178,6 +178,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        PlaybackManager.flushActivePlaybackSession()
         val player = mediaSession?.player
         if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
             stopSelf()
@@ -185,6 +186,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        PlaybackManager.flushActivePlaybackSession()
         updateWakeLock(false)
         serviceScope.cancel()
         forwardingPlayer = null
