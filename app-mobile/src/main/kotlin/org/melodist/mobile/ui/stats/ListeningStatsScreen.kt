@@ -211,6 +211,12 @@ fun ListeningStatsScreen(
     }
 }
 
+/**
+ * 听歌统计周期分段切换器视图（日 / 周 / 月 / 年）。
+ *
+ * @param selectedPeriod 当前选中的周期类型
+ * @param onPeriodSelect 周期切换回调
+ */
 @Composable
 private fun PeriodSegmentedTabs(
     selectedPeriod: ListeningReportPeriod,
@@ -293,6 +299,15 @@ private fun PeriodSegmentedTabs(
     }
 }
 
+/**
+ * 听歌周期日期翻页导航条及偏好调节按钮视图。
+ *
+ * @param currentDate 当前选中的日期槽位字符串
+ * @param availableDates 可选的有效日期槽位列表
+ * @param period 当前统计周期类型
+ * @param onDateSelect 日期槽位切换回调
+ * @param onOpenPreference 点击偏好调节按钮时的回调
+ */
 @Composable
 private fun DateNavigatorBar(
     currentDate: String,
@@ -363,6 +378,13 @@ private fun DateNavigatorBar(
     }
 }
 
+/**
+ * 将原始日期槽位字符串转换为周期标签展示文本。
+ *
+ * @param date 原始日期槽位字符串
+ * @param period 统计周期类型
+ * @return 格式化后的展示标签字符串
+ */
 private fun formatDateLabel(date: String, period: ListeningReportPeriod): String {
     if (date.isBlank()) return "最新"
     return when (period) {

@@ -46,6 +46,9 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+/**
+ * 单曲倒带日记弹窗视图模式。
+ */
 private enum class SongDiaryViewMode {
     DIARY,
     RECORDS,
@@ -689,6 +692,11 @@ private fun DiaryHeatDots(
     }
 }
 
+/**
+ * 时间轴年份分组标题节点视图。
+ *
+ * @param yearText 年份展示文本
+ */
 @Composable
 private fun YearHeaderNode(yearText: String) {
     Row(
@@ -723,6 +731,11 @@ private fun YearHeaderNode(yearText: String) {
     }
 }
 
+/**
+ * 单条历史收听记录时间轴行视图。
+ *
+ * @param item 历史收听记录数据项
+ */
 @Composable
 private fun RecordTimelineRow(item: SongListenRecordItem) {
     Row(
@@ -782,12 +795,24 @@ private val zoneUtc8: ZoneId = ZoneId.of("GMT+8")
 private val yearFormatter = DateTimeFormatter.ofPattern("yyyy年")
 private val dateTimeFormatter = DateTimeFormatter.ofPattern("M月d日 HH:mm")
 
+/**
+ * 格式化时间戳为所属年份文本。
+ *
+ * @param timestampSec 秒级时间戳
+ * @return 格式化后的年份文本，非法时间戳返回“未知年份”
+ */
 private fun formatYear(timestampSec: Long): String {
     if (timestampSec <= 0L) return "未知年份"
     val dt = LocalDateTime.ofInstant(Instant.ofEpochSecond(timestampSec), zoneUtc8)
     return dt.format(yearFormatter)
 }
 
+/**
+ * 格式化时间戳为月日时分文本。
+ *
+ * @param timestampSec 秒级时间戳
+ * @return 格式化后的日期时间文本
+ */
 private fun formatDateTime(timestampSec: Long): String {
     if (timestampSec <= 0L) return ""
     val dt = LocalDateTime.ofInstant(Instant.ofEpochSecond(timestampSec), zoneUtc8)

@@ -347,12 +347,27 @@ fun MusicPreferenceBottomSheet(
     }
 }
 
+/**
+ * 听歌偏好选项配置项。
+ *
+ * @property label 选项展示文本
+ * @property score 对应的分值
+ * @property emoji 选项表情符号
+ */
 private data class PreferenceOptionItem(
     val label: String,
     val score: Int,
     val emoji: String,
 )
 
+/**
+ * 偏好分段选项卡片组视图。
+ *
+ * @param title 分组标题
+ * @param options 可选分值配置列表
+ * @param selectedScore 当前选中的分值
+ * @param onSelectScore 选中项分值变动回调
+ */
 @Composable
 private fun PreferenceOptionGroup(
     title: String,
@@ -419,6 +434,13 @@ private fun PreferenceOptionGroup(
     }
 }
 
+/**
+ * 歌曲风格平滑分值调节滑块行。
+ *
+ * @param name 风格或语言维度名称
+ * @param score 当前分值 (0..100)
+ * @param onScoreChanged 分值滑动变更回调
+ */
 @Composable
 private fun PreferenceSliderRow(
     name: String,
