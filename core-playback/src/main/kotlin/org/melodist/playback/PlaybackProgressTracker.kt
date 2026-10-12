@@ -31,8 +31,24 @@ class PlaybackProgressTracker(
     private val onTriggerPrefetchNextSongRequest: () -> Unit,
     private val onSongActivePlaybackQualified: ((Song) -> Unit)? = null,
     private val onContextActivePlaybackQualified: (() -> Unit)? = null,
+    private val onSongPlaybackSessionFinished: ((song: Song, playedDurationMs: Long) -> Unit)? = null,
 ) {
     private var progressJob: Job? = null
+    private var trackedSong: Song? = null
+    private var activePlayDurationMs: Long = 0L
+
+    /**
+     * 结算并触发当前正在追踪的曲目播放有效时长，重置累计计时器。
+     */
+    fun flushActivePlaybackSession() {
+        val song = trackedSong
+        val durationMs = activePlayDurationMs
+        trackedSong = null
+        activePlayDurationMs = 0L
+        if (song != null && durationMs > 0L) {
+            onSongPlaybackSessionFinished?.invoke(song, durationMs)
+        }
+    }
 
     fun start() {
         progressJob?.cancel()
@@ -41,7 +57,6 @@ class PlaybackProgressTracker(
                 var saveCounter = 0
                 var prefetchCounter = 0
                 var lastTrackedSongMid: String? = null
-                var activePlayDurationMs = 0L
                 var lastTickTime = android.os.SystemClock.elapsedRealtime()
                 var hasReportedCurrentSong = false
 
@@ -65,9 +80,18 @@ class PlaybackProgressTracker(
                         val currSong = getCurrentSong()
                         val mid = currSong?.songMid
                         if (mid != lastTrackedSongMid) {
+                            val prevSong = trackedSong
+                            val prevDuration = activePlayDurationMs
+                            if (prevSong != null && prevDuration > 0L) {
+                                onSongPlaybackSessionFinished?.invoke(prevSong, prevDuration)
+                            }
+
                             lastTrackedSongMid = mid
+                            trackedSong = currSong
                             activePlayDurationMs = 0L
                             hasReportedCurrentSong = false
+                        } else if (trackedSong == null && currSong != null) {
+                            trackedSong = currSong
                         }
 
                         if (!mid.isNullOrBlank()) {
@@ -146,6 +170,7 @@ class PlaybackProgressTracker(
     }
 
     fun stop() {
+        flushActivePlaybackSession()
         progressJob?.cancel()
         progressJob = null
     }

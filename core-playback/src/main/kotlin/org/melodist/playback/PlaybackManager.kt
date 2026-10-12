@@ -30,6 +30,7 @@ import org.melodist.api.RecentHistoryType
 import org.melodist.api.UserSession
 import org.melodist.api.getPlayUrl
 import org.melodist.api.getSongVisualMid
+import org.melodist.api.reportPlayStream
 import org.melodist.api.reportRecentHistory
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
@@ -129,6 +130,7 @@ object PlaybackManager {
                 playSong(song, forceTier = forceTier, seekToMs = seekToMs)
             },
             onStopPlaybackRequest = {
+                progressTracker.flushActivePlaybackSession()
                 exoPlayer?.stop()
                 exoPlayer?.clearMediaItems()
                 _currentSong.value = null
@@ -721,7 +723,44 @@ object PlaybackManager {
             onTriggerPrefetchNextSongRequest = { triggerPrefetchNextSong() },
             onSongActivePlaybackQualified = { song -> handleSongActivePlaybackQualified(song) },
             onContextActivePlaybackQualified = { handleContextActivePlaybackQualified() },
+            onSongPlaybackSessionFinished = { song, playedMs -> handleSongPlaybackSessionFinished(song, playedMs) },
         )
+
+    private fun handleSongPlaybackSessionFinished(song: Song, playedDurationMs: Long) {
+        if (song.isLocal || song.isWebDav || song.songMid.startsWith("local_") || song.songMid.startsWith("webdav_")) {
+            return
+        }
+        if (song.songId <= 0L) {
+            return
+        }
+        if (!UserSession.isLoggedIn) {
+            return
+        }
+        val playedSec = playedDurationMs / 1000L
+        if (playedSec < 5L) {
+            return
+        }
+        val durationSec = song.durationSeconds.toLong()
+        val effectivePlaySec = if (durationSec > 0L) minOf(playedSec, durationSec) else playedSec
+        if (effectivePlaySec < 5L) {
+            return
+        }
+        val deviceInfo = DeviceReportHelper.getDeviceInfo(appContext)
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                apiService.reportPlayStream(
+                    songId = song.songId,
+                    durationSec = durationSec,
+                    playTimeSec = effectivePlaySec,
+                    deviceInfo = deviceInfo,
+                )
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MelodistPlayback", "Failed to report play stream for song: ${song.songMid}", e)
+            }
+        }
+    }
 
     private fun handleSongActivePlaybackQualified(song: Song) {
         if (song.isLocal || song.isWebDav || song.songMid.startsWith("local_") || song.songMid.startsWith("webdav_")) {
@@ -2126,6 +2165,7 @@ object PlaybackManager {
         _isTransitioning.value = true
         when {
             !queueManager.isRadioMode.value && !queueManager.hasPendingNextPlay && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {
+                progressTracker.flushActivePlaybackSession()
                 _currentPositionMs.value = 0L
                 _bufferedPositionMs.value = 0L
                 exoPlayer?.seekTo(0L)
