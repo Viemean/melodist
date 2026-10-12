@@ -153,10 +153,7 @@ fun ListeningStatsScreen(
             // 4. 音乐基因卡片
             statsData?.textBlock?.let { tb ->
                 item(key = "music_gene_card") {
-                    MusicGeneCard(
-                        textBlock = tb,
-                        onOpenPreference = { showPreferenceSheet = true },
-                    )
+                    MusicGeneCard(textBlock = tb)
                 }
             }
 
