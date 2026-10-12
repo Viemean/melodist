@@ -213,7 +213,8 @@ class PlaybackService : MediaSessionService() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat
+            .Builder(this, CHANNEL_ID)
             .setSmallIcon(org.melodist.core.playback.R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(artist)
