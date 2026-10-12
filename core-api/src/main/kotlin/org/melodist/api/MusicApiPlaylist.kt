@@ -165,12 +165,17 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
                             ?: obj["logo"]?.jsonPrimitive?.contentOrNull
                             ?: obj["pic"]?.jsonPrimitive?.contentOrNull.orEmpty()
 
+                    val tid =
+                        obj["tid"]?.jsonPrimitive?.longOrNull
+                            ?: obj["dissid"]?.jsonPrimitive?.longOrNull
+                            ?: obj["dissId"]?.jsonPrimitive?.longOrNull ?: 0L
+
                     val item =
                         Playlist(
                             dirId = dirId,
                             name = name,
                             songCount = songCount,
-                            tid = 0L,
+                            tid = tid,
                             isFav = false,
                             picUrl = pic,
                         )

@@ -1,5 +1,8 @@
 package org.melodist.mobile.ui.library
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -330,6 +334,53 @@ fun LibraryScreen(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 )
 
+                val isShareable = playlist.tid > 0L
+                val copyTextColor =
+                    if (isShareable) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    }
+
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = isShareable) {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val url = "https://i.y.qq.com/n2/m/share/details/taoge.html?id=${playlist.tid}"
+                                val text = "${playlist.name}\n$url"
+                                val clip = ClipData.newPlainText("playlist", text)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                                selectedPlaylistForAction = null
+                            }.padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ContentCopy,
+                        contentDescription = "复制链接",
+                        tint = copyTextColor,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "复制链接",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = copyTextColor,
+                        )
+                        if (!isShareable) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "私人歌单无法获取分享链接",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                        }
+                    }
+                }
+
                 Row(
                     modifier =
                         Modifier
@@ -338,7 +389,7 @@ fun LibraryScreen(
                                 val target = playlist
                                 selectedPlaylistForAction = null
                                 playlistToDelete = target
-                            }.padding(horizontal = 20.dp, vertical = 14.dp),
+                            }.padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
