@@ -117,6 +117,7 @@ import org.melodist.mobile.ui.recent.RecentPlaylistsScreen
 import org.melodist.mobile.ui.search.SearchScreen
 import org.melodist.mobile.ui.search.SearchScreenState
 import org.melodist.mobile.ui.settings.MobileSettingsScreen
+import org.melodist.mobile.ui.stats.ListeningStatsScreen
 import org.melodist.mobile.ui.webdav.WebDavMobileScreen
 import org.melodist.model.Playlist
 import org.melodist.model.Song
@@ -130,6 +131,7 @@ enum class HomeFilter(
     Discover("每日推荐"),
     Library("我的收藏"),
     Recent("最近播放"),
+    Stats("听歌足迹"),
     Download("下载管理"),
     WebDav("WebDAV"),
     Local("本地音乐"),
@@ -1021,6 +1023,18 @@ private fun RenderAppScreen(
                             HomeFilter.Recent ->
                                 RecentPlaybackScreen(
                                     contentPadding = innerPadding,
+                                )
+                            HomeFilter.Stats ->
+                                ListeningStatsScreen(
+                                    contentPadding = innerPadding,
+                                    onPlaySong = { song ->
+                                        PlaybackManager.playSong(song)
+                                    },
+                                    onPlayAll = { songs ->
+                                        if (songs.isNotEmpty()) {
+                                            PlaybackManager.setPlaylist(songs, startIndex = 0)
+                                        }
+                                    },
                                 )
                             HomeFilter.Download ->
                                 DownloadMobileScreen(
