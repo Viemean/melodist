@@ -30,6 +30,11 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+/**
+ * 用户听歌偏好与风格设置底部弹窗。
+ *
+ * @param onDismissRequest 弹窗收起或关闭时的回调
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicPreferenceBottomSheet(

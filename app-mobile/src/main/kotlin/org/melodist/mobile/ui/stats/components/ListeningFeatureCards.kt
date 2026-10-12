@@ -32,6 +32,12 @@ import org.melodist.model.Song
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tune
 
+/**
+ * 听歌数据音乐基因与品味解读卡片。
+ *
+ * @param textBlock 包含高亮关键词与品味描述的文本块
+ * @param onOpenPreference 点击偏好调节胶囊按钮时的回调
+ */
 @Composable
 internal fun MusicGeneCard(
     textBlock: ListeningTextBlock,

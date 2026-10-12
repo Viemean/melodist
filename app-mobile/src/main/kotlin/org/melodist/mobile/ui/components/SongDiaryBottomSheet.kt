@@ -51,6 +51,12 @@ private enum class SongDiaryViewMode {
     RECORDS,
 }
 
+/**
+ * 单曲倒带日记与历史收听记录全屏展示底部弹窗。
+ *
+ * @param song 目标歌曲模型对象
+ * @param onDismissRequest 弹窗收起或关闭时的回调
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongDiaryBottomSheet(

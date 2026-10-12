@@ -126,6 +126,12 @@ suspend fun MusicApiService.setUserMusicPreference(
         }
     }
 
+/**
+ * 解析听歌偏好与风格设置响应 JSON 报文。
+ *
+ * @param jsonStr 网关回包原始 JSON 字符串
+ * @return 偏好设置数据对象，解析失败或非预期报文时返回 null
+ */
 internal fun parseUserMusicPreference(jsonStr: String): UserMusicPreference? {
     return try {
         val root = Json.parseToJsonElement(jsonStr).jsonObject

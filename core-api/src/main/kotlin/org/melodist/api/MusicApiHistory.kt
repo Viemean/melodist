@@ -406,6 +406,11 @@ fun parseRecentPlaylistsResponse(jsonStr: String): RecentHistoryResult<RecentPla
 
 // =================== MusicApiService 扩展方法 ===================
 
+/**
+ * 获取当前登录会话中可用的有效数字账号 UIN。
+ *
+ * @return 账号 UIN 字符串，未登录或无有效账号时返回空字符串
+ */
 internal fun getEffectiveUin(): String =
     UserSession.profile.uin.ifBlank {
         UserSession.profile.cookies["uin"]?.trimStart('o')
@@ -414,6 +419,11 @@ internal fun getEffectiveUin(): String =
             ?: ""
     }
 
+/**
+ * 获取当前登录会话中可用的有效鉴权令牌。
+ *
+ * @return 鉴权凭据字符串，未登录或无有效凭据时返回空字符串
+ */
 internal fun getEffectiveAuthst(): String =
     UserSession.profile.musicKey.ifBlank {
         UserSession.profile.cookies["qm_keyst"]

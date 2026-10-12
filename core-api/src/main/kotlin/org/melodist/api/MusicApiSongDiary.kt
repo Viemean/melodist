@@ -117,6 +117,13 @@ suspend fun MusicApiService.getSongListenRecords(
         }
     }
 
+/**
+ * 解析单曲倒带日记概览响应 JSON 报文。
+ *
+ * @param jsonStr 网关回包原始 JSON 字符串
+ * @param fallbackMid 歌曲唯一标识后备值
+ * @return 单曲倒带日记数据对象，解析失败或非预期报文时返回 null
+ */
 internal fun parseSongDiary(jsonStr: String, fallbackMid: String): SongDiaryData? {
     val root = Json.parseToJsonElement(jsonStr).asJsonObjectOrNull ?: return null
     val reqDiary = root["req_diary"].asJsonObjectOrNull ?: return null
@@ -201,6 +208,12 @@ internal fun parseSongDiary(jsonStr: String, fallbackMid: String): SongDiaryData
     )
 }
 
+/**
+ * 解析单曲历史收听记录流水分页响应 JSON 报文。
+ *
+ * @param jsonStr 网关回包原始 JSON 字符串
+ * @return 历史收听记录分页对象，解析失败或非预期报文时返回 null
+ */
 internal fun parseSongListenRecords(jsonStr: String): SongListenRecordsPage? {
     val root = Json.parseToJsonElement(jsonStr).asJsonObjectOrNull ?: return null
     val reqRecord = root["req_record"].asJsonObjectOrNull ?: return null
