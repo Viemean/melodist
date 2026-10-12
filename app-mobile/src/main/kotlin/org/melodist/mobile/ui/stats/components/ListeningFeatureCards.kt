@@ -29,8 +29,14 @@ import org.melodist.model.ListeningReportPeriod
 import org.melodist.model.ListeningTextBlock
 import org.melodist.model.Song
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Tune
+
 @Composable
-internal fun MusicGeneCard(textBlock: ListeningTextBlock) {
+internal fun MusicGeneCard(
+    textBlock: ListeningTextBlock,
+    onOpenPreference: (() -> Unit)? = null,
+) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors =
@@ -39,45 +45,85 @@ internal fun MusicGeneCard(textBlock: ListeningTextBlock) {
             ),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        val annotatedString =
-            buildAnnotatedString {
-                val fullText = textBlock.text
-                var currentIndex = 0
-                val primaryColor = MaterialTheme.colorScheme.primary
-
-                // 寻找所有关键词位置并高亮
-                val sortedKeywords = textBlock.colorWords.filter { it.isNotBlank() }.distinct()
-                val ranges = mutableListOf<Pair<IntRange, String>>()
-                sortedKeywords.forEach { kw ->
-                    var idx = fullText.indexOf(kw, 0)
-                    while (idx >= 0) {
-                        ranges.add((idx until idx + kw.length) to kw)
-                        idx = fullText.indexOf(kw, idx + kw.length)
-                    }
-                }
-                ranges.sortBy { it.first.first }
-
-                ranges.forEach { (range, _) ->
-                    if (range.first >= currentIndex) {
-                        append(fullText.substring(currentIndex, range.first))
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = primaryColor)) {
-                            append(fullText.substring(range.first, range.last + 1))
+        Column(modifier = Modifier.padding(16.dp)) {
+            if (onOpenPreference != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "音乐基因",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable { onOpenPreference() },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Tune,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Text(
+                                text = "调节听歌偏好",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
-                        currentIndex = range.last + 1
                     }
-                }
-                if (currentIndex < fullText.length) {
-                    append(fullText.substring(currentIndex))
                 }
             }
 
-        Text(
-            text = annotatedString,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 22.sp,
-            modifier = Modifier.padding(16.dp),
-        )
+            val annotatedString =
+                buildAnnotatedString {
+                    val fullText = textBlock.text
+                    var currentIndex = 0
+                    val primaryColor = MaterialTheme.colorScheme.primary
+
+                    // 寻找所有关键词位置并高亮
+                    val sortedKeywords = textBlock.colorWords.filter { it.isNotBlank() }.distinct()
+                    val ranges = mutableListOf<Pair<IntRange, String>>()
+                    sortedKeywords.forEach { kw ->
+                        var idx = fullText.indexOf(kw, 0)
+                        while (idx >= 0) {
+                            ranges.add((idx until idx + kw.length) to kw)
+                            idx = fullText.indexOf(kw, idx + kw.length)
+                        }
+                    }
+                    ranges.sortBy { it.first.first }
+
+                    ranges.forEach { (range, _) ->
+                        if (range.first >= currentIndex) {
+                            append(fullText.substring(currentIndex, range.first))
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = primaryColor)) {
+                                append(fullText.substring(range.first, range.last + 1))
+                            }
+                            currentIndex = range.last + 1
+                        }
+                    }
+                    if (currentIndex < fullText.length) {
+                        append(fullText.substring(currentIndex))
+                    }
+                }
+
+            Text(
+                text = annotatedString,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 22.sp,
+            )
+        }
     }
 }
 

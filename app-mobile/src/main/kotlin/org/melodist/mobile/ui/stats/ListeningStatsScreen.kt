@@ -22,8 +22,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.rounded.Tune
 import org.melodist.api.UserSession
 import org.melodist.data.ListeningStatsManager
+import org.melodist.mobile.ui.components.MusicPreferenceBottomSheet
 import org.melodist.mobile.ui.stats.components.*
 import org.melodist.model.ListeningReportPeriod
 import org.melodist.model.Song
@@ -49,6 +51,7 @@ fun ListeningStatsScreen(
     val selectedPeriod by ListeningStatsManager.selectedPeriod.collectAsState()
     val selectedDate by ListeningStatsManager.selectedDate.collectAsState()
     val isLoggedIn = UserSession.isLoggedIn
+    var showPreferenceSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn && statsData == null) {
@@ -102,7 +105,7 @@ fun ListeningStatsScreen(
                 )
             }
 
-            // 2. 日期切换导航（< 2026年10月12日 >）
+            // 2. 日期切换导航（< 2026年10月12日 >）及右侧偏好调节入口
             statsData?.let { report ->
                 if (report.availableDates.isNotEmpty()) {
                     item(key = "date_navigator") {
@@ -115,6 +118,7 @@ fun ListeningStatsScreen(
                                     ListeningStatsManager.setDate(newDate)
                                 }
                             },
+                            onOpenPreference = { showPreferenceSheet = true },
                         )
                     }
                 }
@@ -149,7 +153,10 @@ fun ListeningStatsScreen(
             // 4. 音乐基因卡片
             statsData?.textBlock?.let { tb ->
                 item(key = "music_gene_card") {
-                    MusicGeneCard(textBlock = tb)
+                    MusicGeneCard(
+                        textBlock = tb,
+                        onOpenPreference = { showPreferenceSheet = true },
+                    )
                 }
             }
 
@@ -198,6 +205,12 @@ fun ListeningStatsScreen(
                 }
             }
         }
+    }
+
+    if (showPreferenceSheet) {
+        MusicPreferenceBottomSheet(
+            onDismissRequest = { showPreferenceSheet = false },
+        )
     }
 }
 
@@ -289,50 +302,65 @@ private fun DateNavigatorBar(
     availableDates: List<String>,
     period: ListeningReportPeriod,
     onDateSelect: (String) -> Unit,
+    onOpenPreference: () -> Unit,
 ) {
     val currentIndex = availableDates.indexOf(currentDate).takeIf { it >= 0 } ?: 0
     val hasPrev = currentIndex < availableDates.size - 1
     val hasNext = currentIndex > 0
 
-    Row(
+    Box(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+        contentAlignment = Alignment.Center,
     ) {
-        IconButton(
-            onClick = {
-                if (hasPrev) onDateSelect(availableDates[currentIndex + 1])
-            },
-            enabled = hasPrev,
-            modifier = Modifier.size(36.dp),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                contentDescription = "前一周期",
+            IconButton(
+                onClick = {
+                    if (hasPrev) onDateSelect(availableDates[currentIndex + 1])
+                },
+                enabled = hasPrev,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                    contentDescription = "前一周期",
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = formatDateLabel(currentDate, period),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            IconButton(
+                onClick = {
+                    if (hasNext) onDateSelect(availableDates[currentIndex - 1])
+                },
+                enabled = hasNext,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = "后一周期",
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = formatDateLabel(currentDate, period),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
         IconButton(
-            onClick = {
-                if (hasNext) onDateSelect(availableDates[currentIndex - 1])
-            },
-            enabled = hasNext,
-            modifier = Modifier.size(36.dp),
+            onClick = onOpenPreference,
+            modifier = Modifier.align(Alignment.CenterEnd).size(36.dp),
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = "后一周期",
+                imageVector = Icons.Rounded.Tune,
+                contentDescription = "调节听歌偏好",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
