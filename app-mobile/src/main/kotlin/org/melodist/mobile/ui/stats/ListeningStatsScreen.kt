@@ -175,7 +175,7 @@ fun ListeningStatsScreen(
                 }
             }
 
-            // 4. 收听歌曲排行榜
+            // 6. 收听歌曲排行榜
             statsData?.let { report ->
                 if (report.rankSongs.isNotEmpty()) {
                     item(key = "rank_section_header") {

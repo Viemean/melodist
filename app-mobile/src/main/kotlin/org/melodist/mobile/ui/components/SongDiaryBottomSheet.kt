@@ -86,11 +86,11 @@ fun SongDiaryBottomSheet(
                 available: Offset,
                 source: NestedScrollSource,
             ): Offset {
-                // 向上滚动到底部时（available.y < 0），吸收所有剩余未消费位移
+                // 上滑未消费位移吸收
                 if (available.y < 0f) {
                     return available
                 }
-                // 向下拖动时放行，保持 1:1 原生顺滑跟手下拉关闭
+                // 下拉位移放行
                 return Offset.Zero
             }
 
@@ -98,9 +98,7 @@ fun SongDiaryBottomSheet(
                 consumed: Velocity,
                 available: Velocity,
             ): Velocity {
-                // 彻底吸收列表滚动到顶或到底时的全部多余 Fling 惯性速度：
-                // 1. 向上用力甩动到底时，严禁将弹窗向上甩冲到屏幕顶端
-                // 2. 向下快速滑回顶部时，严禁将弹窗意外甩关
+                // 吸收末端未消费惯性速度
                 return available
             }
         }
