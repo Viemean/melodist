@@ -32,9 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import org.melodist.api.MusicApiService
-import org.melodist.api.getSongDiary
-import org.melodist.api.getSongListenRecords
+import org.melodist.data.SongDiaryCacheManager
 import org.melodist.model.Song
 import org.melodist.model.SongDiaryData
 import org.melodist.model.SongListenRecordItem
@@ -56,7 +54,6 @@ fun SongDiaryBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
-    val apiService = remember { MusicApiService() }
 
     var viewMode by remember { mutableStateOf(SongDiaryViewMode.DIARY) }
 
@@ -70,7 +67,7 @@ fun SongDiaryBottomSheet(
 
     LaunchedEffect(song.songMid) {
         isLoadingDiary = true
-        val result = apiService.getSongDiary(song.songMid)
+        val result = SongDiaryCacheManager.getSongDiary(song.songMid)
         diaryData = result
         isLoadingDiary = false
     }
@@ -79,7 +76,7 @@ fun SongDiaryBottomSheet(
         if (isLoadingRecords) return
         coroutineScope.launch {
             isLoadingRecords = true
-            val page = apiService.getSongListenRecords(song.songMid, cursor = cursor)
+            val page = SongDiaryCacheManager.getSongListenRecords(song.songMid, cursor = cursor)
             if (page != null) {
                 if (cursor == null) {
                     records = page.items
