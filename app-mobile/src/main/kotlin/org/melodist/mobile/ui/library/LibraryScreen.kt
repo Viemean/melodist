@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -34,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -65,6 +67,7 @@ import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.deletePlaylist
+import org.melodist.api.renamePlaylist
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CreatePlaylistDialog
@@ -89,6 +92,7 @@ fun LibraryScreen(
     val apiService = remember { MusicApiService() }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var selectedPlaylistForAction by remember { mutableStateOf<Playlist?>(null) }
+    var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
     var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
     val userProfile by UserSession.profileFlow.collectAsState()
     val isLoggedIn = UserSession.isLoggedIn
@@ -381,6 +385,33 @@ fun LibraryScreen(
                     }
                 }
 
+                if (playlist.isCreated && !playlist.isMyFavorite) {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val target = playlist
+                                    selectedPlaylistForAction = null
+                                    playlistToRename = target
+                                }.padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Edit,
+                            contentDescription = "重命名歌单",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "重命名歌单",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+
                 Row(
                     modifier =
                         Modifier
@@ -458,6 +489,68 @@ fun LibraryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { playlistToDelete = null }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
+
+    if (playlistToRename != null) {
+        val target = playlistToRename!!
+        var newName by remember(target) { mutableStateOf(target.name) }
+        var isRenaming by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = {
+                if (!isRenaming) playlistToRename = null
+            },
+            title = {
+                Text(
+                    text = "重命名歌单",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        label = { Text("歌单名称") },
+                        placeholder = { Text("请输入歌单名称") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isRenaming,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = newName.isNotBlank() && newName.trim() != target.name && !isRenaming,
+                    onClick = {
+                        val trimmed = newName.trim()
+                        isRenaming = true
+                        scope.launch {
+                            val (success, msg) = apiService.renamePlaylist(target, trimmed)
+                            isRenaming = false
+                            if (success) {
+                                Toast.makeText(context, "歌单重命名成功", Toast.LENGTH_SHORT).show()
+                                playlistToRename = null
+                                UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = true)
+                            } else {
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !isRenaming,
+                    onClick = { playlistToRename = null },
+                ) {
                     Text("取消")
                 }
             },

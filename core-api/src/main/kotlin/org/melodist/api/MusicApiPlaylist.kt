@@ -475,6 +475,88 @@ private suspend fun MusicApiService.deletePlaylistInternal(
     }
 
 /**
+ * 重命名指定的自建歌单。
+ *
+ * @param dirId 自建歌单目录 ID
+ * @param newName 新歌单名称
+ * @return 包含操作结果与提示信息的 [Pair]；未登录、属于默认歌单或调用失败时返回具体原因
+ */
+suspend fun MusicApiService.renamePlaylist(dirId: Long, newName: String): Pair<Boolean, String> =
+    renamePlaylistInternal(dirId, newName, canRetryWithRenew = true)
+
+/**
+ * 重命名指定的自建歌单。
+ *
+ * @param playlist 待重命名的歌单模型
+ * @param newName 新歌单名称
+ * @return 包含操作结果与提示信息的 [Pair]
+ */
+suspend fun MusicApiService.renamePlaylist(playlist: Playlist, newName: String): Pair<Boolean, String> =
+    renamePlaylist(playlist.dirId, newName)
+
+private suspend fun MusicApiService.renamePlaylistInternal(
+    dirId: Long,
+    newName: String,
+    canRetryWithRenew: Boolean,
+): Pair<Boolean, String> =
+    withContext(Dispatchers.IO) {
+        val trimmed = newName.trim()
+        if (!UserSession.isLoggedIn || dirId <= 0L || trimmed.isBlank()) {
+            return@withContext false to "未登录或歌单名为空"
+        }
+        if (dirId == 201L) {
+            return@withContext false to "默认歌单不可重命名"
+        }
+        ensureMusicKeySafe()
+        val escapedName = Json.encodeToString(trimmed)
+        val comm = MusicApiService.buildAppCommJson()
+        val payload =
+            """
+            {
+              "comm": $comm,
+              "editPlayList": {
+                "module": "music.musicasset.PlaylistBaseWrite",
+                "method": "EditPlaylist",
+                "param": {
+                  "dirId": $dirId,
+                  "mask": 1,
+                  "dirNewName": $escapedName
+                }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postAppGateway(payload, customCookieHeader = "")
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val obj = root["editPlayList"]?.jsonObject ?: return@withContext false to "响应为空"
+            val code = obj["code"]?.jsonPrimitive?.intOrNull ?: rootCode
+            if (code == 0) {
+                true to "重命名成功"
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "renamePlaylist returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                renamePlaylistInternal(dirId, trimmed, canRetryWithRenew = false)
+            } else {
+                val msg =
+                    obj["data"]
+                        ?.jsonObject
+                        ?.get("msg")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+                false to (if (msg.isNotBlank()) msg else "重命名失败(code=$code)")
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiPlaylist", "renamePlaylist failed: dirId=$dirId, newName=$trimmed", e)
+            false to (e.message ?: "重命名异常")
+        }
+    }
+
+
+/**
  * 收藏指定的第三方公开歌单。
  *
  * @param playlist 待收藏的歌单模型
