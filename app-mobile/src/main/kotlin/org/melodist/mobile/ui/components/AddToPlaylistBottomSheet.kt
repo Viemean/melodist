@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -69,6 +73,7 @@ fun AddToPlaylistBottomSheet(
         }
 
     var isOperating by remember { mutableStateOf(false) }
+    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = {
@@ -82,13 +87,34 @@ fun AddToPlaylistBottomSheet(
                     .fillMaxWidth()
                     .padding(bottom = 24.dp),
         ) {
-            Text(
-                text = "选择要添加到的歌单",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            )
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "选择要添加到的歌单",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(vertical = 12.dp),
+                )
+                IconButton(
+                    onClick = { showCreatePlaylistDialog = true },
+                    enabled = !isOperating,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = "新建并添加",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
 
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -196,5 +222,53 @@ fun AddToPlaylistBottomSheet(
                 }
             }
         }
+    }
+
+    if (showCreatePlaylistDialog) {
+        CreatePlaylistDialog(
+            onDismissRequest = {
+                showCreatePlaylistDialog = false
+                isOperating = false
+            },
+            title = "新建并添加",
+            confirmButtonText = "创建并添加",
+            onCreated = { dirId, name ->
+                if (onlineSongs.isNotEmpty() && dirId > 0L) {
+                    val addResult =
+                        apiService.addSongsToPlaylist(
+                            dirId = dirId,
+                            songs = onlineSongs,
+                        )
+                    when (addResult) {
+                        AddSongResult.Success -> {
+                            val toastMsg =
+                                if (onlineSongs.size == 1) {
+                                    "已创建并添加到《$name》"
+                                } else {
+                                    "已创建《$name》并添加 ${onlineSongs.size} 首歌曲"
+                                }
+                            Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+                            UserLibraryCacheManager.onSongsAddedToPlaylist(dirId, onlineSongs)
+                            onDismissRequest()
+                            onSuccess?.invoke()
+                            true
+                        }
+                        AddSongResult.AlreadyExists -> {
+                            Toast.makeText(context, "歌单中已存在所选歌曲", Toast.LENGTH_SHORT).show()
+                            onDismissRequest()
+                            onSuccess?.invoke()
+                            true
+                        }
+                        AddSongResult.Failed -> {
+                            Toast.makeText(context, "歌单创建成功，但添加歌曲失败", Toast.LENGTH_SHORT).show()
+                            false
+                        }
+                    }
+                } else {
+                    Toast.makeText(context, "歌单创建成功", Toast.LENGTH_SHORT).show()
+                    true
+                }
+            },
+        )
     }
 }
