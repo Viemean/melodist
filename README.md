@@ -1,6 +1,6 @@
-# Melodist TV
+# Melodist
 
-简单的第三方QQ音乐播放器
+简单的音乐播放器
 
 - 支持 arm64 和 x86_64 的 Android 9.0+ 和 Android TV 9.0+
 - originOS 版本为伪装 qq 音乐包名以支持 originOS 系统原子控制中心版本
