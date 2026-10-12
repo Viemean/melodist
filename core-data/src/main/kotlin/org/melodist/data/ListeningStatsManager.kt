@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.getListeningRecordReport
+import org.melodist.model.ListeningChartPoint
 import org.melodist.model.ListeningReportData
 import org.melodist.model.ListeningReportPeriod
 import java.util.concurrent.ConcurrentHashMap
@@ -32,6 +33,8 @@ object ListeningStatsManager {
     val selectedDate: StateFlow<String?> = _selectedDate.asStateFlow()
 
     private val cache = ConcurrentHashMap<String, ListeningReportData>()
+    private val fullAvailableDatesByPeriod = ConcurrentHashMap<ListeningReportPeriod, List<String>>()
+    private val fullChartPointsByPeriod = ConcurrentHashMap<ListeningReportPeriod, List<ListeningChartPoint>>()
 
     /**
      * 切换统计周期（日/周/月/年）。
@@ -79,7 +82,46 @@ object ListeningStatsManager {
 
         _isLoading.value = true
         try {
-            val report = apiService.getListeningRecordReport(period = period, date = date)
+            val rawReport = apiService.getListeningRecordReport(period = period, date = date)
+
+            val knownDates = fullAvailableDatesByPeriod[period].orEmpty()
+            val mergedAvailableDates =
+                (rawReport.availableDates + knownDates)
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .sortedDescending()
+            if (mergedAvailableDates.isNotEmpty()) {
+                fullAvailableDatesByPeriod[period] = mergedAvailableDates
+            }
+
+            val baselinePoints = fullChartPointsByPeriod[period].orEmpty()
+            val currentPointsMap = rawReport.chartPoints.associateBy { it.slot }
+            val baselinePointsMap = baselinePoints.associateBy { it.slot }
+            val allSlots =
+                (currentPointsMap.keys + baselinePointsMap.keys)
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .sorted()
+
+            val mergedPoints =
+                if (allSlots.isNotEmpty()) {
+                    allSlots.mapNotNull { slot ->
+                        currentPointsMap[slot] ?: baselinePointsMap[slot]
+                    }
+                } else {
+                    rawReport.chartPoints
+                }
+
+            if (mergedPoints.isNotEmpty()) {
+                fullChartPointsByPeriod[period] = mergedPoints
+            }
+
+            val report =
+                rawReport.copy(
+                    availableDates = if (mergedAvailableDates.isNotEmpty()) mergedAvailableDates else rawReport.availableDates,
+                    chartPoints = if (mergedPoints.isNotEmpty()) mergedPoints else rawReport.chartPoints,
+                )
+
             cache[cacheKey] = report
             _currentStats.value = report
             if (date == null && report.dateKey.isNotBlank()) {
@@ -98,6 +140,8 @@ object ListeningStatsManager {
      */
     fun clearCache() {
         cache.clear()
+        fullAvailableDatesByPeriod.clear()
+        fullChartPointsByPeriod.clear()
         _currentStats.value = null
     }
 }
