@@ -1176,38 +1176,111 @@ private fun ListeningClockDial(
     modifier: Modifier = Modifier,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val containerColor = primaryColor.copy(alpha = 0.15f)
     val trackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+    val tickDotColor = primaryColor.copy(alpha = 0.45f)
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension / 2f - 4.dp.toPx()
+        val strokeWidth = 3.6.dp.toPx()
+        val radius = size.minDimension / 2f - strokeWidth / 2f - 2.dp.toPx()
 
-        // 绘制表盘环底
+        // 1. 表盘背景填充与外圈轮廓
+        drawCircle(
+            color = containerColor,
+            radius = radius,
+            center = center,
+        )
         drawCircle(
             color = trackColor,
             radius = radius,
             center = center,
-            style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round),
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
         )
 
-        // 高亮活跃槽位
+        // 2. 高亮 12 小时制活跃槽位弧段（与时针空间方位同步）
+        val peakH = (if (activeHour in 0..23) activeHour else 0) % 12
+        val activeSlots12 = mutableSetOf<Int>()
         chartPoints.forEach { pt ->
-            val hour = pt.slot.toIntOrNull() ?: return@forEach
             if (pt.value > 0L) {
-                val angle = (hour / 24f) * 360f - 90f
-                val sweep = 360f / 24f
-                val isPeak = hour == activeHour
-                drawArc(
-                    color = if (isPeak) primaryColor else primaryColor.copy(alpha = 0.5f),
-                    startAngle = angle,
-                    sweepAngle = sweep,
-                    useCenter = false,
-                    topLeft = Offset(center.x - radius, center.y - radius),
-                    size = Size(radius * 2f, radius * 2f),
-                    style = Stroke(width = if (isPeak) 8.dp.toPx() else 6.dp.toPx(), cap = StrokeCap.Round),
-                )
+                pt.slot.toIntOrNull()?.let { activeSlots12.add(it % 12) }
             }
         }
+
+        val sweep = 26f
+        // 先绘制普通活跃槽位，后绘制峰值槽位确保其位于顶层
+        val sortedSlots = activeSlots12.sortedBy { it == peakH }
+        sortedSlots.forEach { h ->
+            val isPeak = h == peakH
+            val centerAngle = (h * 30f) - 90f
+            val startAngle = centerAngle - (sweep / 2f)
+            drawArc(
+                color = if (isPeak) primaryColor else primaryColor.copy(alpha = 0.5f),
+                startAngle = startAngle,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = Offset(center.x - radius, center.y - radius),
+                size = Size(radius * 2f, radius * 2f),
+                style = Stroke(width = if (isPeak) strokeWidth * 1.5f else strokeWidth, cap = StrokeCap.Round),
+            )
+        }
+
+        // 3. 四象限刻度点
+        val tickRadius = radius - 6.dp.toPx()
+        for (i in 0 until 4) {
+            val angle = Math.toRadians((i * 90.0) - 90.0)
+            val dotCenter =
+                Offset(
+                    x = center.x + (tickRadius * cos(angle)).toFloat(),
+                    y = center.y + (tickRadius * sin(angle)).toFloat(),
+                )
+            drawCircle(
+                color = tickDotColor,
+                radius = 1.6.dp.toPx(),
+                center = dotCenter,
+            )
+        }
+
+        // 4. 时针与分针（时针指向最活跃时段，分针指向上方 12 点整）
+        val effectiveHour = if (activeHour in 0..23) activeHour else 0
+        val h = effectiveHour % 12
+        val hourAngle = Math.toRadians((h * 30.0 - 90.0))
+        val minuteAngle = Math.toRadians(-90.0)
+
+        val hourLen = radius * 0.48f
+        val hourEnd =
+            Offset(
+                x = center.x + (hourLen * cos(hourAngle)).toFloat(),
+                y = center.y + (hourLen * sin(hourAngle)).toFloat(),
+            )
+        drawLine(
+            color = primaryColor,
+            start = center,
+            end = hourEnd,
+            strokeWidth = 3.2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        val minLen = radius * 0.68f
+        val minEnd =
+            Offset(
+                x = center.x + (minLen * cos(minuteAngle)).toFloat(),
+                y = center.y + (minLen * sin(minuteAngle)).toFloat(),
+            )
+        drawLine(
+            color = primaryColor.copy(alpha = 0.85f),
+            start = center,
+            end = minEnd,
+            strokeWidth = 2.2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        // 5. 中心轴点
+        drawCircle(
+            color = primaryColor,
+            radius = 3.dp.toPx(),
+            center = center,
+        )
     }
 }
 
