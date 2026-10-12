@@ -748,6 +748,8 @@ object PlaybackManager {
         }
         val deviceInfo = DeviceReportHelper.getDeviceInfo(appContext)
 
+        org.melodist.data.ListeningStatsManager.recordPlaybackDelta(song, effectivePlaySec)
+
         scope.launch(Dispatchers.IO) {
             try {
                 apiService.reportPlayStream(

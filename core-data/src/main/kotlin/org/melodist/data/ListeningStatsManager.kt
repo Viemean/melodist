@@ -14,11 +14,25 @@ import org.melodist.api.getListeningRecordReport
 import org.melodist.model.ListeningChartPoint
 import org.melodist.model.ListeningReportData
 import org.melodist.model.ListeningReportPeriod
+import org.melodist.model.Song
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+
+/**
+ * 本地有效播放增量条目。
+ */
+data class LocalPlaybackDelta(
+    val songId: Long,
+    val playSec: Long,
+    val timestampMs: Long,
+    val dateKey: String,
+    val hour: Int,
+)
 
 /**
  * 用户听歌数据报告与足迹统计缓存管理器。
@@ -46,6 +60,74 @@ object ListeningStatsManager {
     private val fullAvailableDatesByPeriod = ConcurrentHashMap<ListeningReportPeriod, List<String>>()
     private val fullChartPointsByPeriod = ConcurrentHashMap<ListeningReportPeriod, List<ListeningChartPoint>>()
     private var cacheDirectory: File? = null
+
+    private val localDeltas = CopyOnWriteArrayList<LocalPlaybackDelta>()
+    private var todayBaselineFetchTimeMs: Long = 0L
+    private var todayCloudBaselineReport: ListeningReportData? = null
+
+    /**
+     * 记录本地单次有效播放时长（>=5s），驱动今日统计乐观即时累加。
+     */
+    fun recordPlaybackDelta(song: Song, playedSec: Long) {
+        if (playedSec < 5L) return
+        val now = LocalDateTime.now(zoneUtc8)
+        val todayStr = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+        val delta =
+            LocalPlaybackDelta(
+                songId = song.songId,
+                playSec = playedSec,
+                timestampMs = System.currentTimeMillis(),
+                dateKey = todayStr,
+                hour = now.hour,
+            )
+        localDeltas.add(delta)
+        localDeltas.removeIf { it.dateKey != todayStr }
+
+        applyOptimisticUpdateIfApplicable(todayStr)
+    }
+
+    private fun applyOptimisticUpdateIfApplicable(todayStr: String) {
+        val currentPeriod = _selectedPeriod.value
+        val currentDate = _selectedDate.value
+        if (currentPeriod != ListeningReportPeriod.Day) return
+        if (currentDate != null && currentDate != todayStr) return
+
+        val baseline = todayCloudBaselineReport ?: _currentStats.value ?: return
+        val uncommittedDeltas = localDeltas.filter { it.dateKey == todayStr && it.timestampMs > todayBaselineFetchTimeMs }
+        if (uncommittedDeltas.isEmpty()) return
+
+        val addedSec = uncommittedDeltas.sumOf { it.playSec }
+        val addedCnt = uncommittedDeltas.size
+
+        val updatedChartPoints = baseline.chartPoints.toMutableList()
+        val deltaByHour = uncommittedDeltas.groupBy { it.hour }
+        deltaByHour.forEach { (h, deltas) ->
+            val hourSlot = h.toString()
+            val hourAddedSec = deltas.sumOf { it.playSec }
+            val idx = updatedChartPoints.indexOfFirst { it.slot == hourSlot }
+            if (idx >= 0) {
+                val pt = updatedChartPoints[idx]
+                updatedChartPoints[idx] = pt.copy(value = pt.value + hourAddedSec)
+            } else {
+                updatedChartPoints.add(ListeningChartPoint(slot = hourSlot, value = hourAddedSec))
+            }
+        }
+        val maxHourPt = updatedChartPoints.maxByOrNull { it.value }
+        val newActiveHour = maxHourPt?.slot?.toIntOrNull() ?: baseline.activeHour
+
+        val optimisticReport =
+            baseline.copy(
+                listenTimeSec = baseline.listenTimeSec + addedSec,
+                listenCnt = baseline.listenCnt + addedCnt,
+                activeHour = if (newActiveHour > 0) newActiveHour else baseline.activeHour,
+                chartPoints = updatedChartPoints,
+            )
+
+        _currentStats.value = optimisticReport
+        val cacheKey = "${ListeningReportPeriod.Day.typeCode}_${currentDate ?: "latest"}"
+        cache[cacheKey] = optimisticReport
+        cache["${ListeningReportPeriod.Day.typeCode}_$todayStr"] = optimisticReport
+    }
 
     /**
      * 初始化持久化存储环境。
@@ -199,11 +281,39 @@ object ListeningStatsManager {
                 fullChartPointsByPeriod[period] = mergedPoints
             }
 
+            val now = LocalDate.now(zoneUtc8)
+            val todayStr = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+            val isTodayDayView = period == ListeningReportPeriod.Day && (date == null || date == todayStr)
+
             val report =
-                rawReport.copy(
-                    availableDates = if (mergedAvailableDates.isNotEmpty()) mergedAvailableDates else rawReport.availableDates,
-                    chartPoints = if (mergedPoints.isNotEmpty()) mergedPoints else rawReport.chartPoints,
-                )
+                if (isTodayDayView) {
+                    val fetchTime = System.currentTimeMillis()
+                    todayBaselineFetchTimeMs = fetchTime
+                    todayCloudBaselineReport = rawReport
+
+                    // 过滤出在此次拉取后发生的未确认增量
+                    val uncommittedDeltas = localDeltas.filter { it.dateKey == todayStr && it.timestampMs > fetchTime }
+                    val uncommittedSec = uncommittedDeltas.sumOf { it.playSec }
+                    val uncommittedCnt = uncommittedDeltas.size
+
+                    // 避免云端未及时汇总导致数字倒退：保证时长与首数单调不减少
+                    val previousSec = _currentStats.value?.takeIf { it.period == ListeningReportPeriod.Day && it.dateKey == todayStr }?.listenTimeSec ?: 0L
+                    val finalSec = maxOf(rawReport.listenTimeSec + uncommittedSec, previousSec)
+                    val previousCnt = _currentStats.value?.takeIf { it.period == ListeningReportPeriod.Day && it.dateKey == todayStr }?.listenCnt ?: 0
+                    val finalCnt = maxOf(rawReport.listenCnt + uncommittedCnt, previousCnt)
+
+                    rawReport.copy(
+                        availableDates = if (mergedAvailableDates.isNotEmpty()) mergedAvailableDates else rawReport.availableDates,
+                        chartPoints = if (mergedPoints.isNotEmpty()) mergedPoints else rawReport.chartPoints,
+                        listenTimeSec = finalSec,
+                        listenCnt = finalCnt,
+                    )
+                } else {
+                    rawReport.copy(
+                        availableDates = if (mergedAvailableDates.isNotEmpty()) mergedAvailableDates else rawReport.availableDates,
+                        chartPoints = if (mergedPoints.isNotEmpty()) mergedPoints else rawReport.chartPoints,
+                    )
+                }
 
             cache[cacheKey] = report
             fetchTimeMap[cacheKey] = System.currentTimeMillis()
@@ -231,6 +341,9 @@ object ListeningStatsManager {
         fetchTimeMap.clear()
         fullAvailableDatesByPeriod.clear()
         fullChartPointsByPeriod.clear()
+        localDeltas.clear()
+        todayBaselineFetchTimeMs = 0L
+        todayCloudBaselineReport = null
         _currentStats.value = null
         try {
             cacheDirectory?.listFiles()?.forEach { it.delete() }
