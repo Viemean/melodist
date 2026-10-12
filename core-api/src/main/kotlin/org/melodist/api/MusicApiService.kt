@@ -13,7 +13,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class MusicApiService(
-    private val client: OkHttpClient =
+    internal val client: OkHttpClient =
         OkHttpClient
             .Builder()
             .connectTimeout(12, TimeUnit.SECONDS)

@@ -406,7 +406,7 @@ fun parseRecentPlaylistsResponse(jsonStr: String): RecentHistoryResult<RecentPla
 
 // =================== MusicApiService 扩展方法 ===================
 
-private fun getEffectiveUin(): String =
+internal fun getEffectiveUin(): String =
     UserSession.profile.uin.ifBlank {
         UserSession.profile.cookies["uin"]?.trimStart('o')
             ?: UserSession.profile.cookies["qqmusic_uin"]?.trimStart('o')
@@ -414,7 +414,7 @@ private fun getEffectiveUin(): String =
             ?: ""
     }
 
-private fun getEffectiveAuthst(): String =
+internal fun getEffectiveAuthst(): String =
     UserSession.profile.musicKey.ifBlank {
         UserSession.profile.cookies["qm_keyst"]
             ?: UserSession.profile.cookies["qqmusic_key"]
