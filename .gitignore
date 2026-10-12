@@ -27,3 +27,5 @@ bin/
 build_release.sh
 *.raw.kt
 tools/
+app-tv/src/release/
+app-mobile/src/release/

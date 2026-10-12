@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.baselineprofile)
 }
 
 android {
@@ -86,14 +87,28 @@ android {
                     "/META-INF/*.version",
                     "/META-INF/*.kotlin_module",
                     "/META-INF/INDEX.LIST",
+                    "META-INF/*.txt",
+                    "META-INF/LICENSE*",
+                    "META-INF/NOTICE*",
+                    "**/*.kotlin_builtins",
                 )
         }
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 
     val isReleaseLintEnabled = project.hasProperty("enableLint") || project.hasProperty("ci") || System.getenv("CI") == "true"
     lint {
         checkReleaseBuilds = isReleaseLintEnabled
         abortOnError = isReleaseLintEnabled
+    }
+}
+
+androidComponents {
+    beforeVariants { builder ->
+        (builder as? com.android.build.api.variant.HasUnitTestBuilder)?.enableUnitTest = true
     }
 }
 
@@ -124,6 +139,10 @@ dependencies {
 
     // Kotlinx Serialization JSON
     implementation(libs.kotlinx.serialization.json)
+
+    // Baseline Profile Installer
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":benchmark-tv"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
