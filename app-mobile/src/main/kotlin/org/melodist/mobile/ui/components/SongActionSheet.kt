@@ -286,7 +286,8 @@ fun SongActionSheet(
             }
 
             val hasQuickActions =
-                (showFavorite && !isWebDavOrLocal) ||
+                onViewCover != null ||
+                    (showFavorite && !isWebDavOrLocal) ||
                     (showTvCast && isTvConnected && pairedDevice != null) ||
                     showNextPlay ||
                     (!song.isLocal && !song.isWebDav)
@@ -345,7 +346,7 @@ fun SongActionSheet(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                )
+                                    )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                 DropdownMenuItem(
                                     text = { Text("立即在电视播放") },
@@ -384,6 +385,18 @@ fun SongActionSheet(
                         )
                     }
 
+                    if (onViewCover != null) {
+                        QuickActionButton(
+                            icon = Icons.Rounded.Image,
+                            title = "查看大图",
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onDismissRequest()
+                                onViewCover()
+                            },
+                        )
+                    }
+
                     if (!song.isLocal && !song.isWebDav) {
                         val isDownloaded = localFilePath != null
                         QuickActionButton(
@@ -418,17 +431,6 @@ fun SongActionSheet(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(4.dp))
-
-            if (onViewCover != null) {
-                ActionSheetItem(
-                    icon = Icons.Rounded.Image,
-                    title = "查看大图",
-                    onClick = {
-                        onDismissRequest()
-                        onViewCover()
-                    },
-                )
-            }
 
             if (canShowArtistAction) {
                 val displaySubtitle =
