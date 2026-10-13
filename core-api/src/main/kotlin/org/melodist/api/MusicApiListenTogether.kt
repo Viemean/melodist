@@ -214,52 +214,65 @@ suspend fun MusicApiService.heartbeatListenTogetherRoom(showId: String): ListenT
 
         try {
             val responseStr = postAppGateway(payload)
-            val root = Json.parseToJsonElement(responseStr).jsonObject
-            val reqHb = root["req_hb"]?.jsonObject ?: return@withContext null
-            val code = reqHb["code"]?.jsonPrimitive?.intOrNull ?: -1
-            if (code == 11000) {
-                return@withContext ListenTogetherSyncState(
-                    showId = showId,
-                    isRoomValid = false,
-                )
-            }
-            if (code != 0) return@withContext null
-
-            val dataObj = reqHb["data"]?.jsonObject ?: return@withContext null
-            val songInfo = dataObj["songInfo"]?.jsonObject
-            val playingSong = songInfo?.get("playingSongInfo")?.jsonObject
-            val currentSongId = playingSong?.get("songID")?.jsonPrimitive?.longOrNull ?: 0L
-            val songTitle = playingSong?.get("title")?.jsonPrimitive?.contentOrNull.orEmpty()
-            val playStatus = songInfo?.get("playStatus")?.jsonPrimitive?.intOrNull ?: 0
-            val songOffsetMs = songInfo?.get("songOffset")?.jsonPrimitive?.longOrNull ?: 0L
-            val songPlayVersion = songInfo?.get("songPlayVersion")?.jsonPrimitive?.longOrNull ?: 0L
-            val mediaVersion = songInfo?.get("mediaVersion")?.jsonPrimitive?.longOrNull
-                ?: dataObj["mediaVersion"]?.jsonPrimitive?.longOrNull
-                ?: 0L
-            val usersArray = dataObj["users"]?.jsonArray
-            val usersCount = usersArray?.size ?: 1
-            val userEncUins = usersArray?.mapNotNull {
-                it.jsonObject["encryptUin"]?.jsonPrimitive?.contentOrNull
-            }.orEmpty()
-
-            ListenTogetherSyncState(
-                showId = showId,
-                currentSongId = currentSongId,
-                songTitle = songTitle,
-                playStatus = playStatus,
-                songOffsetMs = songOffsetMs,
-                songPlayVersion = songPlayVersion,
-                mediaVersion = mediaVersion,
-                usersCount = usersCount,
-                isRoomValid = true,
-                userEncUins = userEncUins,
-            )
+            parseHeartbeatResponse(responseStr, showId)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiListenTogether", "heartbeatListenTogetherRoom failed", e)
             null
         }
     }
+
+/**
+ * 解析心跳响应数据，并识别房间有效性。
+ */
+internal fun parseHeartbeatResponse(responseStr: String, showId: String): ListenTogetherSyncState? {
+    val root = Json.parseToJsonElement(responseStr).jsonObject
+    val reqHb = root["req_hb"]?.jsonObject ?: return null
+    val code = reqHb["code"]?.jsonPrimitive?.intOrNull ?: -1
+    // 1000: 房间已关闭/不存在（双人模式下一方退出时服务端销毁房间的返回码）
+    // 11000 / 11001: 房间已失效/未开启
+    if (code == 1000 || code == 11000 || code == 11001 || code == 10004) {
+        ApiLogger.i("MusicApiListenTogether", "Heartbeat returned code=$code, room closed: showId=$showId")
+        return ListenTogetherSyncState(
+            showId = showId,
+            isRoomValid = false,
+        )
+    }
+    if (code != 0) {
+        ApiLogger.w("MusicApiListenTogether", "Heartbeat received unexpected code=$code for showId=$showId")
+        return null
+    }
+
+    val dataObj = reqHb["data"]?.jsonObject ?: return null
+    val songInfo = dataObj["songInfo"]?.jsonObject
+    val playingSong = songInfo?.get("playingSongInfo")?.jsonObject
+    val currentSongId = playingSong?.get("songID")?.jsonPrimitive?.longOrNull ?: 0L
+    val songTitle = playingSong?.get("title")?.jsonPrimitive?.contentOrNull.orEmpty()
+    val playStatus = songInfo?.get("playStatus")?.jsonPrimitive?.intOrNull ?: 0
+    val songOffsetMs = songInfo?.get("songOffset")?.jsonPrimitive?.longOrNull ?: 0L
+    val songPlayVersion = songInfo?.get("songPlayVersion")?.jsonPrimitive?.longOrNull ?: 0L
+    val mediaVersion = songInfo?.get("mediaVersion")?.jsonPrimitive?.longOrNull
+        ?: dataObj["mediaVersion"]?.jsonPrimitive?.longOrNull
+        ?: 0L
+    val usersArray = dataObj["users"]?.jsonArray
+    val usersCount = usersArray?.size ?: 1
+    val userEncUins = usersArray?.mapNotNull {
+        it.jsonObject["encryptUin"]?.jsonPrimitive?.contentOrNull
+    }.orEmpty()
+
+    return ListenTogetherSyncState(
+        showId = showId,
+        currentSongId = currentSongId,
+        songTitle = songTitle,
+        playStatus = playStatus,
+        songOffsetMs = songOffsetMs,
+        songPlayVersion = songPlayVersion,
+        mediaVersion = mediaVersion,
+        usersCount = usersCount,
+        isRoomValid = true,
+        userEncUins = userEncUins,
+    )
+}
 
 /**
  * 退出指定的一起听房间。

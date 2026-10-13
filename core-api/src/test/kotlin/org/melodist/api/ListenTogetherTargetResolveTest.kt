@@ -106,5 +106,47 @@ class ListenTogetherTargetResolveTest {
         assertEquals(17, stats?.listenSongsCount)
         assertEquals(1, stats?.favoriteSongsCount)
     }
+
+    @Test
+    fun `test parse heartbeat with code 1000 marks room as invalid`() {
+        val jsonStr = """{"code":0,"ts":1791906002808,"req_hb":{"code":1000}}"""
+        val state = parseHeartbeatResponse(jsonStr, "LUGC_MOCK_ROOM")
+        org.junit.jupiter.api.Assertions.assertNotNull(state)
+        assertEquals(false, state?.isRoomValid)
+    }
+
+    @Test
+    fun `test parse heartbeat with normal data`() {
+        val jsonStr = """
+            {
+                "code": 0,
+                "req_hb": {
+                    "code": 0,
+                    "data": {
+                        "songInfo": {
+                            "playingSongInfo": {
+                                "songID": 1001,
+                                "title": "Test Song"
+                            },
+                            "playStatus": 1,
+                            "songOffset": 25000,
+                            "songPlayVersion": 1,
+                            "mediaVersion": 1
+                        },
+                        "users": [
+                            {"encryptUin": "dummy_uin_1"},
+                            {"encryptUin": "dummy_uin_2"}
+                        ]
+                    }
+                }
+            }
+        """.trimIndent()
+        val state = parseHeartbeatResponse(jsonStr, "LUGC_MOCK_ROOM")
+        org.junit.jupiter.api.Assertions.assertNotNull(state)
+        assertEquals(true, state?.isRoomValid)
+        assertEquals(1001L, state?.currentSongId)
+        assertEquals(2, state?.usersCount)
+        assertEquals(listOf("dummy_uin_1", "dummy_uin_2"), state?.userEncUins)
+    }
 }
 
