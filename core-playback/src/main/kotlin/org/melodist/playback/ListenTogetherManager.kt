@@ -21,6 +21,7 @@ import org.melodist.api.getSongsBySongIds
 import org.melodist.api.heartbeatListenTogetherRoom
 import org.melodist.api.joinListenTogetherRoom
 import org.melodist.api.quitListenTogetherRoom
+import org.melodist.api.resolveListenTogetherShareTarget
 import org.melodist.api.sendListenTogetherSongOper
 import org.melodist.api.UserSession
 import org.melodist.model.ListenTogetherRoomInfo
@@ -625,6 +626,16 @@ object ListenTogetherManager {
     private fun stopHeartbeatSync() {
         heartbeatJob?.cancel()
         heartbeatJob = null
+    }
+
+    /**
+     * 解析并还原一起听分享目标（支持识别落地页 URL、原始房间号以及短链接重定向）。
+     *
+     * @param rawText 用户输入的文本
+     * @return Triple(showId, encUin, songId)
+     */
+    suspend fun resolveRoomTarget(rawText: String): Triple<String, String, Long> {
+        return apiService.resolveListenTogetherShareTarget(rawText)
     }
 }
 
