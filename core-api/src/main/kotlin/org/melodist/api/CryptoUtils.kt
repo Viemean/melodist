@@ -122,6 +122,21 @@ object CryptoUtils {
     }
 
     /**
+     * 计算通用 g_tk (hash33)
+     */
+    fun computeGTk(
+        key: String,
+        seed: Long = 5381L,
+    ): Long {
+        if (key.isBlank()) return seed
+        var hash = seed
+        for (ch in key) {
+            hash = (hash shl 5) + hash + ch.code.toLong()
+        }
+        return hash and 0x7fffffffL
+    }
+
+    /**
      * 对明文 JSON 使用 AG-1（AES-128-GCM）进行载荷加密
      */
     fun encryptAg1Request(jsonPayload: String): String {

@@ -1,8 +1,11 @@
 package org.melodist.api
 
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import okhttp3.FormBody
+import okhttp3.Request
 import org.melodist.model.CommentPage
 import org.melodist.model.SongComment
 
@@ -412,6 +415,14 @@ internal fun parseCommentCountResponse(responseStr: String): Int? {
  * @param replyCommentId 若为回复评论则传入目标评论 ID，若发表主评论则为 null
  * @return 成功返回新生成的评论 ID，失败返回异常 Result
  */
+/**
+ * 发送歌曲评论或回复已有评论。
+ *
+ * @param songId 歌曲数字 ID
+ * @param content 评论文本内容
+ * @param replyCommentId 若为回复评论则传入目标评论 ID，若发表主评论则为 null
+ * @return 成功返回新生成的评论 ID，失败返回异常 Result
+ */
 suspend fun MusicApiService.sendSongComment(
     songId: Long,
     content: String,
@@ -429,66 +440,147 @@ suspend fun MusicApiService.sendSongComment(
         val uin = getEffectiveUin()
         val numericUin = uin.toLongOrNull() ?: 0L
         val musicKey = UserSession.profile.musicKey
+        val gTk = CryptoUtils.computeGTk(musicKey)
+
+        // 1. 尝试现代网关请求 AddComment
+        val commObj =
+            buildJsonObject {
+                put("ct", 24)
+                put("cv", 4747474)
+                put("platform", "yqq.json")
+                put("chid", "0")
+                if (numericUin > 0L) {
+                    put("uin", numericUin)
+                }
+                put("g_tk", gTk)
+                put("g_tk_new_20200303", gTk)
+                put("format", "json")
+                put("inCharset", "utf-8")
+                put("outCharset", "utf-8")
+                put("notice", 0)
+                put("need_new_code", 1)
+                put("needNewCode", 1)
+                if (musicKey.isNotBlank()) {
+                    put("authst", musicKey)
+                }
+            }
+
+        val paramObj =
+            buildJsonObject {
+                put("Content", trimmed)
+                put("BizType", 1)
+                put("BizId", songId.toString())
+                put("BizSubType", 2)
+                if (!replyCommentId.isNullOrBlank()) {
+                    put("RepliedCmId", replyCommentId)
+                }
+            }
+
+        val reqObj =
+            buildJsonObject {
+                put("module", "music.globalComment.CommentWriteServer")
+                put("method", "AddComment")
+                put("param", paramObj)
+            }
 
         val payload =
             buildJsonObject {
-                put(
-                    "comm",
-                    buildJsonObject {
-                        put("cv", 4747474)
-                        put("ct", 24)
-                        put("format", "json")
-                        put("inCharset", "utf-8")
-                        put("outCharset", "utf-8")
-                        put("notice", 0)
-                        put("platform", "yqq.json")
-                        put("needNewCode", 1)
-                        put("uin", numericUin)
-                        if (musicKey.isNotBlank()) {
-                            put("authst", musicKey)
-                        }
-                    },
-                )
-                put(
-                    "req",
-                    buildJsonObject {
-                        put("module", "music.globalComment.CommentWriteServer")
-                        put("method", "AddComment")
-                        put(
-                            "param",
-                            buildJsonObject {
-                                put("BizType", 1)
-                                put("BizId", songId.toString())
-                                put("Content", trimmed)
-                                put("RepliedCmId", replyCommentId.orEmpty())
-                            },
-                        )
-                    },
-                )
+                put("comm", commObj)
+                put("req_0", reqObj)
+                put("req", reqObj)
             }.toString()
 
-        try {
-            val respJson = postGateway(payload)
-            val root = Json.parseToJsonElement(respJson).jsonObject
-            val reqObj = root["req"]?.jsonObject ?: return@withContext Result.failure(IllegalStateException("返回数据为空"))
-            val code = reqObj["code"]?.jsonPrimitive?.intOrNull ?: -1
-            if (code != 0) {
-                val msg =
-                    reqObj["msg"]?.jsonPrimitive?.contentOrNull
-                        ?: reqObj["subcode"]?.jsonPrimitive?.contentOrNull
-                        ?: "发布失败 (code: $code)"
-                return@withContext Result.failure(IllegalStateException(msg))
-            }
+        var lastErrorMsg = "发布失败"
 
-            val dataObj = reqObj["data"]?.jsonObject
-            val addedCmId =
-                dataObj?.get("AddedCmId")?.jsonPrimitive?.contentOrNull
-                    ?: dataObj?.get("CmId")?.jsonPrimitive?.contentOrNull
-                    ?: System.currentTimeMillis().toString()
-            Result.success(addedCmId)
+        try {
+            ApiLogger.i("MusicApiComment", "sendSongComment -> postGateway songId=$songId reply=$replyCommentId")
+            val respJson = postGateway(payload)
+            ApiLogger.i("MusicApiComment", "sendSongComment <- respJson: $respJson")
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val targetReq = root["req_0"]?.jsonObject ?: root["req"]?.jsonObject
+            if (targetReq != null) {
+                val code = targetReq["code"]?.jsonPrimitive?.intOrNull ?: -1
+                if (code == 0) {
+                    val dataObj = targetReq["data"]?.jsonObject
+                    val addedCmId =
+                        dataObj?.get("AddedCmId")?.jsonPrimitive?.contentOrNull
+                            ?: dataObj?.get("CmId")?.jsonPrimitive?.contentOrNull
+                            ?: System.currentTimeMillis().toString()
+                    return@withContext Result.success(addedCmId)
+                }
+                lastErrorMsg =
+                    targetReq["msg"]?.jsonPrimitive?.contentOrNull
+                        ?: targetReq["subcode"]?.jsonPrimitive?.contentOrNull
+                        ?: "发布失败 (code: $code)"
+                ApiLogger.w("MusicApiComment", "sendSongComment gateway failed: code=$code, msg=$lastErrorMsg, fallback to H5 CGI")
+            }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Result.failure(e)
+            ApiLogger.w("MusicApiComment", "sendSongComment gateway exception: ${e.message}, fallback to H5 CGI")
+            lastErrorMsg = e.message ?: "网络异常"
+        }
+
+        // 2. 降级尝试全局 H5 评论写入 CGI (fcg_global_comment_h5.fcg)
+        try {
+            val cmd = if (!replyCommentId.isNullOrBlank()) 2 else 1
+            val formBodyBuilder =
+                FormBody.Builder()
+                    .add("g_tk", gTk.toString())
+                    .add("loginUin", uin)
+                    .add("hostUin", "0")
+                    .add("format", "json")
+                    .add("inCharset", "utf8")
+                    .add("outCharset", "utf-8")
+                    .add("notice", "0")
+                    .add("platform", "yqq.json")
+                    .add("needNewCode", "0")
+                    .add("cid", "205360772")
+                    .add("reqtype", "2")
+                    .add("biztype", "1")
+                    .add("topid", songId.toString())
+                    .add("cmd", cmd.toString())
+                    .add("content", trimmed)
+
+            if (!replyCommentId.isNullOrBlank()) {
+                formBodyBuilder.add("commentid", replyCommentId)
+            }
+
+            val requestBuilder =
+                Request.Builder()
+                    .url("https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_h5.fcg")
+                    .post(formBodyBuilder.build())
+                    .header("User-Agent", MusicApiService.WEB_USER_AGENT)
+                    .header("Referer", "https://y.qq.com/")
+                    .header("Origin", "https://y.qq.com")
+
+            val cookieHeader = UserSession.getCookieHeader()
+            if (cookieHeader.isNotBlank()) {
+                requestBuilder.header("Cookie", cookieHeader)
+            }
+
+            val h5Resp = client.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw IOException("H5 CGI HTTP ${response.code}")
+                }
+                response.body.string()
+            }
+            ApiLogger.i("MusicApiComment", "sendSongComment H5 CGI resp: $h5Resp")
+
+            val h5Root = Json.parseToJsonElement(h5Resp).jsonObject
+            val h5Code = h5Root["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (h5Code == 0) {
+                val newId =
+                    h5Root["newcommentid"]?.jsonPrimitive?.contentOrNull
+                        ?: h5Root["commentid"]?.jsonPrimitive?.contentOrNull
+                        ?: System.currentTimeMillis().toString()
+                return@withContext Result.success(newId)
+            }
+            val h5Msg = h5Root["msg"]?.jsonPrimitive?.contentOrNull ?: "发布失败 (code: $h5Code)"
+            Result.failure(IllegalStateException(h5Msg))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.e("MusicApiComment", "sendSongComment H5 CGI failed", e)
+            Result.failure(IllegalStateException(lastErrorMsg))
         }
     }
 
@@ -509,12 +601,22 @@ suspend fun MusicApiService.praiseSongComment(
         if (songId <= 0L || commentId.isBlank()) {
             return@withContext Result.failure(IllegalArgumentException("参数错误"))
         }
+
+        val uin = getEffectiveUin()
+        val musicKey = UserSession.profile.musicKey
+        val gTk = CryptoUtils.computeGTk(musicKey)
         val cmd = if (isPraise) 1 else 2
+
         val url =
-            "https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_praise_h5.fcg?cmd=$cmd&reqtype=2&biztype=1&topid=$songId&commentid=$commentId"
+            "https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_praise_h5.fcg?" +
+                "g_tk=$gTk&loginUin=$uin&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8" +
+                "&notice=0&platform=yqq.json&needNewCode=0&cid=205360774&cmd=$cmd&reqtype=2&biztype=1" +
+                "&topid=$songId&commentid=$commentId"
 
         try {
+            ApiLogger.i("MusicApiComment", "praiseSongComment url=$url")
             val respJson = getUrl(url)
+            ApiLogger.i("MusicApiComment", "praiseSongComment resp: $respJson")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val code = root["code"]?.jsonPrimitive?.intOrNull ?: -1
             if (code == 0) {
@@ -525,6 +627,7 @@ suspend fun MusicApiService.praiseSongComment(
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.e("MusicApiComment", "praiseSongComment failed", e)
             Result.failure(e)
         }
     }
