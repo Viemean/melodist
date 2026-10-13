@@ -379,7 +379,7 @@ fun NowPlayingHeroCard(
                             }
                         }
 
-                        // 用户框选位置：当前播放时间 / 总时长（提升为高对比纯白 85% 透明度）
+                        // 当前播放时间 / 总时长文本样式
                         HeroProgressText(
                             progressMsProvider = actualProgressProvider,
                             durationMs = durationMs,

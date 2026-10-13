@@ -584,7 +584,7 @@ fun PlaylistTvScreen(
                             totalCount = if (targetCount > 0) targetCount else cached.size
                             hasMore = false
                             saveToCache(cached, totalCount, false)
-                            // 后台智能差分探测第一页
+                            // 后台差分探测第一页
                             launch {
                                 try {
                                     val synced =

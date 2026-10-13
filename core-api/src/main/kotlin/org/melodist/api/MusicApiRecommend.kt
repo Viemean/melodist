@@ -9,7 +9,7 @@ import org.melodist.model.RecommendShelf
 import org.melodist.model.Song
 
 /**
- * 智能推荐与电台雷达扩展
+ * 推荐与电台雷达扩展
  */
 
 @Serializable

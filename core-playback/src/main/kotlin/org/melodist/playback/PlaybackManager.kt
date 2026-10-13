@@ -1931,7 +1931,7 @@ object PlaybackManager {
     fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? = PlaybackSourceResolver.getFallbackTier(current)
 
     /**
-     * 切换当前播放歌曲的音质级别并平滑续播。
+     * 切换当前播放歌曲的音质级别并续播。
      *
      * @param tier 目标音质级别
      * @param isAutoFallback 是否因播放故障引发的自动降级（为 true 时不覆盖用户全局首选音质偏好）

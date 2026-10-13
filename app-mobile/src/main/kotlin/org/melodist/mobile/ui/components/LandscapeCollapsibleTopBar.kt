@@ -83,7 +83,7 @@ fun rememberLandscapeCollapsibleTopBarState(): LandscapeCollapsibleTopBarState {
 }
 
 /**
- * 横屏手势折叠 TopBar 的平滑动画容器。
+ * 横屏手势折叠 TopBar 的动画容器。
  *
  * 折叠时沿顶部边缘向上收缩并淡出，展开时沿顶部边缘向下滑入并淡入。
  *

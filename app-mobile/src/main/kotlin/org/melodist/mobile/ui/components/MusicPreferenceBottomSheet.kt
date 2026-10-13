@@ -433,7 +433,7 @@ private fun PreferenceOptionGroup(
 }
 
 /**
- * 歌曲风格平滑分值调节滑块行。
+ * 歌曲风格分值调节滑块行。
  *
  * @param name 风格或语言维度名称
  * @param score 当前分值 (0..100)

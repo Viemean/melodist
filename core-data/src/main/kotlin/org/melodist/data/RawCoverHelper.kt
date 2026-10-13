@@ -86,7 +86,7 @@ object RawCoverHelper {
 
     /**
      * 给定缩略图路径（如 file:///.../cover_$hash.webp 或 webdav_$hash.webp），
-     * 智能探测其同级目录下是否存在无损原画大图
+     * 探测其同级目录下是否存在无损原画大图
      */
     fun findMatchingRawCoverUrl(thumbnailUrl: String): String? {
         val path =

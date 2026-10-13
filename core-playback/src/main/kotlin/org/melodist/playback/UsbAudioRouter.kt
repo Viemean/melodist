@@ -91,7 +91,7 @@ class UsbAudioRouter(
     }
 
     /**
-     * 配置 Android 14+ USB 位完美（Bit-Perfect）混音器属性。
+     * 配置 Android 14+ USB 直接传输（Bit-Perfect）混音器属性。
      *
      * @param audioManager 系统音频管理器
      * @param usbDevice 目标 USB 输出设备

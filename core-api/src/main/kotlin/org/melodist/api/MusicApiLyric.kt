@@ -12,7 +12,7 @@ import org.melodist.model.LyricLine
 import java.util.Base64
 
 /*
- * 歌词领域扩展：双语歌词拉取、传统降级接口与智能对齐纠偏
+ * 歌词领域扩展：双语歌词拉取、传统降级接口与时间戳对齐纠偏
  */
 
 /**

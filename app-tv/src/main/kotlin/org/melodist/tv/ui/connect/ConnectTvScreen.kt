@@ -342,7 +342,7 @@ fun ConnectTvScreen(onBack: () -> Unit = {}) {
                     color = MelodistColors.TextPrimary,
                 )
                 Text(
-                    text = "通过手机扫描二维码或局域网发现连接，实现双端接力与无缝遥控",
+                    text = "通过手机扫描二维码或局域网发现连接，实现双端接力与遥控同步",
                     fontSize = 14.sp,
                     color = MelodistColors.TextSecondary,
                 )

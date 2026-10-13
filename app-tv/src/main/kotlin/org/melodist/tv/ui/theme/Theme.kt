@@ -146,7 +146,7 @@ object MonetColorExtractor {
     suspend fun extractFromUrl(url: String): Color = extractFromUrl(null, url)
 
     /**
-     * 全局统一莫奈调色规则：温和饱和度、舒适暗色大屏氛围、防刺眼
+     * 全局莫奈调色规则：深色背景与低饱和度配置
      */
     fun applyUnifiedMonetCurve(
         avgHue: Float,

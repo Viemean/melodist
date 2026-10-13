@@ -277,7 +277,7 @@ object UserLibraryCacheManager {
     }
 
     /**
-     * 智能轻量第一页探测与同步 (Top-Page Smart Diff Probe)
+     * 第一页差分探测与同步 (Top-Page Diff Probe)
      * - 头部新增：仅将新收藏的歌曲追加合并到本地头部，0 后续网络开销
      * - 中间或末尾变动（外部大清理/取消收藏/重排）：触发异步全量拉取
      * - 无变动：仅更新时间戳

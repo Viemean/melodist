@@ -10,7 +10,7 @@ import androidx.media3.extractor.flac.FlacExtractor
 import java.io.IOException
 
 /**
- * 具备自动同步恢复与尾部坏帧平滑终止能力的 FLAC 解封装包装器。
+ * 具备自动同步恢复与尾部坏帧容错终止能力的 FLAC 解封装包装器。
  *
  * @param delegate 基础 Media3 FlacExtractor 实例
  */

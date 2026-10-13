@@ -52,7 +52,7 @@ data class RotatingCardItem(
 )
 
 /**
- * 轮换卡片组件：支持水平滑出滑入与动态 Monet 取色
+ * 轮换卡片组件：支持水平滑动切换与动态 Monet 取色
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
