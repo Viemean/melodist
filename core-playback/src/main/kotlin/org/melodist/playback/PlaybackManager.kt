@@ -70,8 +70,27 @@ interface PlaybackInterceptor {
     fun onInterceptCycleLoopMode(): Boolean = false
 }
 
+/**
+ * 播放器核心事件监听器接口。
+ */
+interface PlaybackEventListener {
+    fun onPlay() {}
+    fun onPause() {}
+    fun onSeekTo(positionMs: Long) {}
+    fun onSongPlay(song: Song) {}
+}
+
 object PlaybackManager {
     var playbackInterceptor: PlaybackInterceptor? = null
+    private val playbackEventListeners = java.util.concurrent.CopyOnWriteArrayList<PlaybackEventListener>()
+
+    fun addPlaybackEventListener(listener: PlaybackEventListener) {
+        playbackEventListeners.add(listener)
+    }
+
+    fun removePlaybackEventListener(listener: PlaybackEventListener) {
+        playbackEventListeners.remove(listener)
+    }
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val apiService = MusicApiService()
     private var appContext: Context? = null
@@ -1240,6 +1259,7 @@ object PlaybackManager {
 
         exoPlayer?.pause()
         _currentSong.value = effectiveSong
+        playbackEventListeners.forEach { it.onSongPlay(effectiveSong) }
         _currentPositionMs.value = seekToMs
         _bufferedPositionMs.value = seekToMs
         _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
@@ -1554,6 +1574,7 @@ object PlaybackManager {
         player.pause()
         progressTracker.flushActivePlaybackSession()
         savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
+        playbackEventListeners.forEach { it.onPause() }
     }
 
     /**
@@ -1580,6 +1601,7 @@ object PlaybackManager {
                 appContext?.let { startPlaybackService(it) }
             }
         }
+        playbackEventListeners.forEach { it.onPlay() }
     }
 
     private var targetVolume = 1f
@@ -1685,6 +1707,7 @@ object PlaybackManager {
         exoPlayer?.seekTo(positionMs)
         _currentPositionMs.value = positionMs
         savePlaybackProgress(positionMs)
+        playbackEventListeners.forEach { it.onSeekTo(positionMs) }
     }
 
     /**
