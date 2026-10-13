@@ -106,27 +106,54 @@ fun ListenTogetherBottomSheet(
 
             // 当前正在播放的曲目概览
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text(
-                        text = "当前曲目",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
+                    AlbumArtImage(
+                        coverUrl = song.thumbnailCoverUrl,
+                        candidates = song.thumbnailCandidates,
+                        songMid = song.songMid,
+                        contentDescription = song.name,
+                        shape = RoundedCornerShape(10.dp),
+                        elevation = 2.dp,
+                        placeholderIconSize = 22.dp,
+                        modifier = Modifier.size(48.dp),
                     )
-                    Text(
-                        text = "${song.name} - ${song.singer}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = song.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val subtitleText =
+                            if (song.album.isNotBlank()) {
+                                "${song.singer.ifBlank { "未知歌手" }} • ${song.album}"
+                            } else {
+                                song.singer.ifBlank { "未知歌手" }
+                            }
+                        Text(
+                            text = subtitleText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 
