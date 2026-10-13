@@ -48,6 +48,7 @@ object ListenTogetherManager {
     private var lastLocalActionTime: Long = 0L
     private var expectedPlayStatus: Int = -1
     private var expectedSongId: Long = 0L
+    private var isWaitingForGuestAutoPlay: Boolean = false
 
     init {
         PlaybackManager.addPlaybackEventListener(
@@ -65,6 +66,12 @@ object ListenTogetherManager {
                 }
 
                 override fun onSongPlay(song: Song) {
+                    val room = _currentRoom.value ?: return
+                    if (song.songId == lastObservedSongId) {
+                        return
+                    }
+                    lastObservedSongId = song.songId
+
                     val currentPlaylist = PlaybackManager.playlist.value
                     val targetIdx = currentPlaylist.indexOfFirst { it.songId == song.songId }
                     if (targetIdx >= 0) {
@@ -104,6 +111,10 @@ object ListenTogetherManager {
         val room = _currentRoom.value ?: return
         if (isSyncingFromRemote) return
 
+        if (cmd == 2) {
+            isWaitingForGuestAutoPlay = false
+        }
+
         val targetSong = PlaybackManager.currentSong.value
         val targetSongId = if (songId > 0L) songId else (targetSong?.songId ?: 0L)
         val targetTitle = songTitle.ifBlank { targetSong?.name.orEmpty() }
@@ -129,6 +140,16 @@ object ListenTogetherManager {
 
         scope.launch(Dispatchers.IO) {
             try {
+                if (cmd == 2 && targetOffset > 0L) {
+                    apiService.sendListenTogetherSongOper(
+                        showId = room.showId,
+                        cmd = 7,
+                        songId = targetSongId,
+                        songTitle = targetTitle,
+                        songIndex = targetIndex,
+                        offsetMs = targetOffset,
+                    )
+                }
                 apiService.sendListenTogetherSongOper(
                     showId = room.showId,
                     cmd = cmd,
@@ -154,16 +175,64 @@ object ListenTogetherManager {
     suspend fun startRoom(song: Song): Result<ListenTogetherRoomInfo> {
         return try {
             val currentPlaylist = PlaybackManager.playlist.value
-            val room = apiService.createListenTogetherRoom(song, currentPlaylist)
+            val currentOffsetMs = PlaybackManager.currentPositionMs.value
+            val currentSongId = song.songId
+
+            withContext(Dispatchers.Main) {
+                PlaybackManager.pause()
+            }
+            isWaitingForGuestAutoPlay = true
+            lastLocalActionTime = System.currentTimeMillis()
+            expectedPlayStatus = 0
+            expectedSongId = currentSongId
+
+            val room =
+                apiService.createListenTogetherRoom(
+                    song = song,
+                    playlist = currentPlaylist,
+                    offsetMs = currentOffsetMs,
+                    playStatus = 2,
+                )
             if (room != null) {
                 _currentRoom.value = room
-                lastObservedSongId = song.songId
+                lastObservedSongId = currentSongId
+
+                val targetIndex = currentPlaylist.indexOfFirst { it.songId == currentSongId }.coerceAtLeast(0)
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        if (currentOffsetMs > 0L) {
+                            apiService.sendListenTogetherSongOper(
+                                showId = room.showId,
+                                cmd = 7,
+                                songId = currentSongId,
+                                songTitle = song.name,
+                                songIndex = targetIndex,
+                                offsetMs = currentOffsetMs,
+                            )
+                        }
+                        apiService.sendListenTogetherSongOper(
+                            showId = room.showId,
+                            cmd = 3,
+                            songId = currentSongId,
+                            songTitle = song.name,
+                            songIndex = targetIndex,
+                            offsetMs = currentOffsetMs,
+                        )
+                    } catch (e: Exception) {
+                        ApiLogger.w("ListenTogetherManager", "startRoom send sync oper failed", e)
+                    }
+                }
+
                 startHeartbeatSync(room.showId)
                 Result.success(room)
             } else {
+                isWaitingForGuestAutoPlay = false
+                expectedPlayStatus = -1
                 Result.failure(IllegalStateException("创建一起听房间失败"))
             }
         } catch (e: Exception) {
+            isWaitingForGuestAutoPlay = false
+            expectedPlayStatus = -1
             if (e is CancellationException) throw e
             ApiLogger.w("ListenTogetherManager", "startRoom failed", e)
             Result.failure(e)
@@ -203,6 +272,10 @@ object ListenTogetherManager {
                 // 进房后立即拉取房主的完整播放队列 (cmd=0)
                 scope.launch(Dispatchers.IO) {
                     try {
+                        val state = apiService.heartbeatListenTogetherRoom(showId)
+                        val initialOffsetMs = state?.songOffsetMs ?: 0L
+                        val isHostPlaying = state?.playStatus == 1
+
                         val songIds = apiService.getListenTogetherSongList(showId)
                         if (songIds.isNotEmpty()) {
                             val fullSongs = apiService.getSongsBySongIds(songIds)
@@ -211,7 +284,14 @@ object ListenTogetherManager {
                                     isSyncingFromRemote = true
                                     try {
                                         val targetIdx = fullSongs.indexOfFirst { it.songId == initialSongId }.coerceAtLeast(0)
-                                        PlaybackManager.setPlaylist(fullSongs, startIndex = targetIdx)
+                                        PlaybackManager.setPlaylist(
+                                            songs = fullSongs,
+                                            startIndex = targetIdx,
+                                            initialSeekToMs = initialOffsetMs,
+                                        )
+                                        if (!isHostPlaying) {
+                                            PlaybackManager.pause()
+                                        }
                                     } finally {
                                         isSyncingFromRemote = false
                                     }
@@ -259,6 +339,7 @@ object ListenTogetherManager {
      */
     fun leaveRoom() {
         val room = _currentRoom.value ?: return
+        isWaitingForGuestAutoPlay = false
         stopHeartbeatSync()
         _currentRoom.value = null
         lastObservedSongId = 0L
@@ -291,6 +372,11 @@ object ListenTogetherManager {
                             continue
                         }
 
+                        ApiLogger.i(
+                            "ListenTogetherManager",
+                            "HB tick: valid=${state.isRoomValid} users=${state.usersCount} songId=${state.currentSongId} status=${state.playStatus} offset=${state.songOffsetMs} waiting=$isWaitingForGuestAutoPlay",
+                        )
+
                         // 房间已解散或关闭
                         if (!state.isRoomValid) {
                             ApiLogger.i("ListenTogetherManager", "Room $showId has been closed by host/server")
@@ -300,8 +386,18 @@ object ListenTogetherManager {
 
                         // 更新房间成员数
                         _currentRoom.value?.let { current ->
+                            val oldUsersCount = current.usersCount
                             if (current.usersCount != state.usersCount) {
                                 _currentRoom.value = current.copy(usersCount = state.usersCount)
+                            }
+                            if (isWaitingForGuestAutoPlay && oldUsersCount < 2 && state.usersCount >= 2) {
+                                ApiLogger.i("ListenTogetherManager", "Guest joined, auto-resuming playback (users=${state.usersCount})")
+                                isWaitingForGuestAutoPlay = false
+                                lastLocalActionTime = System.currentTimeMillis()
+                                expectedPlayStatus = 1
+                                withContext(Dispatchers.Main) {
+                                    PlaybackManager.play()
+                                }
                             }
                         }
 
@@ -325,13 +421,13 @@ object ListenTogetherManager {
                                                 val currentList = PlaybackManager.playlist.value
                                                 val existingSong = currentList.firstOrNull { it.songId == state.currentSongId }
                                                 if (existingSong != null) {
-                                                    PlaybackManager.playSong(existingSong)
+                                                    PlaybackManager.playSong(existingSong, seekToMs = state.songOffsetMs)
                                                 } else {
                                                     withContext(Dispatchers.IO) {
                                                         val targetSong = apiService.getSongBySongId(state.currentSongId)
                                                         if (targetSong != null) {
                                                             withContext(Dispatchers.Main) {
-                                                                PlaybackManager.playSong(targetSong)
+                                                                PlaybackManager.playSong(targetSong, seekToMs = state.songOffsetMs)
                                                             }
                                                         }
                                                     }
@@ -346,7 +442,18 @@ object ListenTogetherManager {
                         }
 
                         // 对齐播放/暂停状态
-                        if (isWithinActionWindow && expectedPlayStatus != -1) {
+                        if (isWaitingForGuestAutoPlay) {
+                            if (PlaybackManager.isPlaying.value) {
+                                withContext(Dispatchers.Main) {
+                                    isSyncingFromRemote = true
+                                    try {
+                                        PlaybackManager.pause()
+                                    } finally {
+                                        isSyncingFromRemote = false
+                                    }
+                                }
+                            }
+                        } else if (isWithinActionWindow && expectedPlayStatus != -1) {
                             val matchesExpected = (expectedPlayStatus == 1 && state.playStatus == 1) ||
                                 ((expectedPlayStatus == 0 || expectedPlayStatus == 2) && (state.playStatus == 0 || state.playStatus == 2))
                             if (matchesExpected) {
@@ -367,18 +474,20 @@ object ListenTogetherManager {
                             }
                         }
 
-                        // 进度校准：仅当本地当前播放的正是服务端当前歌曲时，才进行对齐校准
-                        val currentLocalSong = PlaybackManager.currentSong.value
-                        if (currentLocalSong != null && currentLocalSong.songId == state.currentSongId) {
-                            if (state.playStatus == 1 && state.songOffsetMs > 0L) {
-                                val currentPos = PlaybackManager.currentPositionMs.value
-                                if (abs(currentPos - state.songOffsetMs) > 3000L) {
-                                    withContext(Dispatchers.Main) {
-                                        isSyncingFromRemote = true
-                                        try {
-                                            PlaybackManager.seekTo(state.songOffsetMs)
-                                        } finally {
-                                            isSyncingFromRemote = false
+                        // 进度校准：仅当房间内有 2 人及以上、不在等待好友加入状态、不在本地主动控制窗口内，且本地当前播放的正是服务端当前歌曲时，才进行对齐校准
+                        if (state.usersCount >= 2 && !isWaitingForGuestAutoPlay && !isWithinActionWindow) {
+                            val currentLocalSong = PlaybackManager.currentSong.value
+                            if (currentLocalSong != null && currentLocalSong.songId == state.currentSongId) {
+                                if (state.playStatus == 1 && state.songOffsetMs > 0L) {
+                                    val currentPos = PlaybackManager.currentPositionMs.value
+                                    if (abs(currentPos - state.songOffsetMs) > 3000L) {
+                                        withContext(Dispatchers.Main) {
+                                            isSyncingFromRemote = true
+                                            try {
+                                                PlaybackManager.seekTo(state.songOffsetMs)
+                                            } finally {
+                                                isSyncingFromRemote = false
+                                            }
                                         }
                                     }
                                 }

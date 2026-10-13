@@ -104,12 +104,14 @@ suspend fun MusicApiService.getListenTogetherOnlineFriends(): List<ListenTogethe
  * 创建一起听房间并返回房间信息及外部落地页链接。
  *
  * @param song 初始播放歌曲
- * @param playlist 当前待播放列表（可选，前 50 首同步至房间队列）
+ * @param playlist 当前待播放列表
  * @return 房间信息实体，创建失败时返回 null
  */
 suspend fun MusicApiService.createListenTogetherRoom(
     song: Song,
     playlist: List<Song> = emptyList(),
+    offsetMs: Long = 0L,
+    playStatus: Int = 2,
 ): ListenTogetherRoomInfo? =
     withContext(Dispatchers.IO) {
         val commJson = MusicApiService.buildAppCommJson()
@@ -136,9 +138,10 @@ suspend fun MusicApiService.createListenTogetherRoom(
                             "param",
                             buildJsonObject {
                                 put("fromTag", 0)
-                                put("playStatus", 1)
+                                put("playStatus", playStatus)
                                 put("playMode", 0)
-                                put("songOffset", 0)
+                                put("songOffset", offsetMs)
+                                put("seekTime", offsetMs)
                                 put("sourceType", 0)
                                 put("avatarValid", 0)
                                 put("musicWorldValid", 0)
@@ -530,6 +533,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                 put("playlistType", 0)
                                 when (cmd) {
                                     2 -> {
+                                        put("seekTime", offsetMs)
                                         put("songOffset", offsetMs)
                                         if (songId > 0L) {
                                             put(
@@ -544,6 +548,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                         }
                                     }
                                     3 -> {
+                                        put("seekTime", offsetMs)
                                         put("songOffset", offsetMs)
                                         if (songId > 0L) {
                                             put(
