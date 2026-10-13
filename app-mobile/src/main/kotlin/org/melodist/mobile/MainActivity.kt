@@ -136,6 +136,34 @@ class MainActivity : ComponentActivity() {
                 MainNavigationScreen()
             }
         }
+
+        handleListenTogetherIntent(intent)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleListenTogetherIntent(intent)
+    }
+
+    private fun handleListenTogetherIntent(intent: android.content.Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.host == "i.y.qq.com" && uri.path?.contains("listen_together") == true) {
+            val showId = uri.getQueryParameter("showid").orEmpty()
+            val encUin = uri.getQueryParameter("share_encrypt_uin").orEmpty()
+            val songId = uri.getQueryParameter("songid")?.toLongOrNull() ?: 0L
+            if (showId.isNotBlank()) {
+                lifecycleScope.launch(Dispatchers.Main) {
+                    android.widget.Toast.makeText(this@MainActivity, "正在加入一起听房间...", android.widget.Toast.LENGTH_SHORT).show()
+                    val result = org.melodist.playback.ListenTogetherManager.joinRoom(showId, encUin, songId)
+                    result.onSuccess {
+                        android.widget.Toast.makeText(this@MainActivity, "成功加入一起听", android.widget.Toast.LENGTH_SHORT).show()
+                    }.onFailure {
+                        android.widget.Toast.makeText(this@MainActivity, "加入失败: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
     }
 
     override fun onResume() {

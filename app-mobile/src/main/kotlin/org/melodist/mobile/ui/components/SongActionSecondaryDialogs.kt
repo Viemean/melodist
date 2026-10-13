@@ -164,7 +164,16 @@ fun SongActionSecondaryDialogs(
     onDismissSimilarSongsSheet: () -> Unit = {},
     showDiarySheet: Boolean = false,
     onDismissDiarySheet: () -> Unit = {},
+    showListenTogetherSheet: Boolean = false,
+    onDismissListenTogetherSheet: () -> Unit = {},
 ) {
+    if (showListenTogetherSheet) {
+        ListenTogetherBottomSheet(
+            song = song,
+            onDismissRequest = onDismissListenTogetherSheet,
+        )
+    }
+
     if (showDiarySheet) {
         SongDiaryBottomSheet(
             song = song,

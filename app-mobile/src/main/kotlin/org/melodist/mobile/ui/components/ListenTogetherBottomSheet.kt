@@ -1,0 +1,509 @@
+package org.melodist.mobile.ui.components
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
+import org.melodist.api.MusicApiService
+import org.melodist.api.getListenTogetherOnlineFriends
+import org.melodist.model.ListenTogetherFriend
+import org.melodist.model.Song
+import org.melodist.playback.ListenTogetherManager
+
+/**
+ * 一起听好友列表与房间交互底部弹窗。
+ *
+ * @param song 当前播放或目标曲目
+ * @param onDismissRequest 弹窗收起回调
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ListenTogetherBottomSheet(
+    song: Song,
+    onDismissRequest: () -> Unit,
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val currentRoom by ListenTogetherManager.currentRoom.collectAsState()
+    val isJoining by ListenTogetherManager.isJoining.collectAsState()
+
+    var friends by remember { mutableStateOf<List<ListenTogetherFriend>>(emptyList()) }
+    var isLoadingFriends by remember { mutableStateOf(true) }
+    var showJoinDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val apiService = MusicApiService()
+        friends = apiService.getListenTogetherOnlineFriends()
+        isLoadingFriends = false
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp),
+        ) {
+            // 头部标题与当前房间状态
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Headphones,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Text(
+                        text = "一起听",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+
+                if (currentRoom != null) {
+                    FilledTonalButton(
+                        onClick = {
+                            ListenTogetherManager.leaveRoom()
+                            Toast.makeText(context, "已退出一起听", Toast.LENGTH_SHORT).show()
+                        },
+                        colors =
+                            ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        Text("退出房间", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 当前正在播放的曲目概览
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "当前曲目",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "${song.name} - ${song.singer}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 在线好友列表标题
+            Text(
+                text = "在线好友",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 在线好友列表内容
+            if (isLoadingFriends) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
+                }
+            } else if (friends.isEmpty()) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(90.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "暂无在线的一起听好友",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 240.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(friends, key = { it.uin.toString() + it.encryptedUin }) { friend ->
+                        OnlineFriendItem(
+                            friend = friend,
+                            onInvite = {
+                                coroutineScope.launch {
+                                    val result = ListenTogetherManager.startRoom(song)
+                                    result.onSuccess { room ->
+                                        copyToClipboard(context, room.shareUrl)
+                                        Toast.makeText(context, "已生成邀请链接并复制到剪贴板", Toast.LENGTH_SHORT).show()
+                                    }.onFailure {
+                                        Toast.makeText(context, "邀请发起失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 底部操作按钮组：复制链接、输入链接
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // 复制链接按钮
+                FilledTonalButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            val activeRoom = currentRoom
+                            if (activeRoom != null) {
+                                copyToClipboard(context, activeRoom.shareUrl)
+                                Toast.makeText(context, "已复制一起听链接", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val result = ListenTogetherManager.startRoom(song)
+                                result.onSuccess { room ->
+                                    copyToClipboard(context, room.shareUrl)
+                                    Toast.makeText(context, "已创建房间并复制链接", Toast.LENGTH_SHORT).show()
+                                }.onFailure {
+                                    Toast.makeText(context, "创建房间失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("复制链接")
+                }
+
+                // 输入链接按钮
+                Button(
+                    onClick = {
+                        showJoinDialog = true
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Link,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("输入链接")
+                }
+            }
+        }
+    }
+
+    if (showJoinDialog) {
+        JoinRoomDialog(
+            isJoining = isJoining,
+            onDismissRequest = { showJoinDialog = false },
+            onConfirmJoin = { inputUrl ->
+                val (showId, encUin, songId) = parseListenTogetherUrl(inputUrl)
+                if (showId.isBlank()) {
+                    Toast.makeText(context, "未识别到有效的一起听链接或房间号", Toast.LENGTH_SHORT).show()
+                } else {
+                    coroutineScope.launch {
+                        val result = ListenTogetherManager.joinRoom(showId, encUin, songId)
+                        result.onSuccess {
+                            Toast.makeText(context, "成功加入一起听", Toast.LENGTH_SHORT).show()
+                            showJoinDialog = false
+                            onDismissRequest()
+                        }.onFailure {
+                            Toast.makeText(context, "加入失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            },
+        )
+    }
+}
+
+/**
+ * 单个在线好友展示项。
+ */
+@Composable
+private fun OnlineFriendItem(
+    friend: ListenTogetherFriend,
+    onInvite: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                // 用户头像
+                if (friend.avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = friend.avatarUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(CircleShape),
+                    )
+                } else {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+
+                // 昵称与状态
+                Column {
+                    Text(
+                        text = friend.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF4CAF50)),
+                        )
+                        Text(
+                            text = friend.tag.ifBlank { "当前在线" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            // 邀请按钮
+            OutlinedButton(
+                onClick = onInvite,
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+            ) {
+                Text("邀请", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+}
+
+/**
+ * 手动输入或粘贴一起听链接加入对话框。
+ */
+@Composable
+private fun JoinRoomDialog(
+    isJoining: Boolean,
+    onDismissRequest: () -> Unit,
+    onConfirmJoin: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    var inputUrl by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text("输入一起听链接")
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "粘贴好友分享的一起听落地页链接或房间号：",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = inputUrl,
+                    onValueChange = { inputUrl = it },
+                    placeholder = { Text("https://i.y.qq.com/...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = false,
+                    maxLines = 3,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = clipboard.primaryClip
+                            if (clip != null && clip.itemCount > 0) {
+                                val text = clip.getItemAt(0).text?.toString().orEmpty()
+                                if (text.isNotBlank()) {
+                                    inputUrl = text
+                                }
+                            }
+                        },
+                    ) {
+                        Text("从剪贴板粘贴")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirmJoin(inputUrl.trim()) },
+                enabled = inputUrl.isNotBlank() && !isJoining,
+            ) {
+                if (isJoining) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("加入")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("取消")
+            }
+        },
+    )
+}
+
+/**
+ * 写入剪贴板。
+ */
+private fun copyToClipboard(context: Context, text: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    val clip = ClipData.newPlainText("ListenTogetherLink", text)
+    clipboard.setPrimaryClip(clip)
+}
+
+/**
+ * 解析一起听分享链接或原始房间号。
+ *
+ * @return Triple(showId, encUin, songId)
+ */
+fun parseListenTogetherUrl(rawText: String): Triple<String, String, Long> {
+    if (rawText.isBlank()) return Triple("", "", 0L)
+
+    var showId = ""
+    var encUin = ""
+    var songId = 0L
+
+    try {
+        if (rawText.contains("http://") || rawText.contains("https://")) {
+            val uri = Uri.parse(rawText)
+            showId = uri.getQueryParameter("showid").orEmpty()
+            encUin = uri.getQueryParameter("share_encrypt_uin").orEmpty()
+            songId = uri.getQueryParameter("songid")?.toLongOrNull() ?: 0L
+        }
+
+        if (showId.isBlank()) {
+            val match = Regex("LUGC[0-9a-zA-Z]+").find(rawText)
+            if (match != null) {
+                showId = match.value
+            }
+        }
+    } catch (_: Exception) {
+    }
+
+    return Triple(showId, encUin, songId)
+}
