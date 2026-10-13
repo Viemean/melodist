@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +58,7 @@ object UserLibraryCacheManager {
     private const val TAG = "UserLibraryCache"
     private const val CACHE_FILE_NAME = "user_library_cache.json"
     private const val FAV_SONGS_CACHE_FILE_NAME = "favorite_songs_cache.json"
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val json = Json { ignoreUnknownKeys = true }
 
     private val _libraryFlow = MutableStateFlow(UserLibraryData())

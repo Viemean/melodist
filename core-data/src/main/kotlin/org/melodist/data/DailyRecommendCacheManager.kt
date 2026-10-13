@@ -5,6 +5,7 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,7 +50,7 @@ object DailyRecommendCacheManager {
         return String.format(java.util.Locale.getDefault(), "%02d:%02d", localTime.hour, localTime.minute)
     }
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val json = Json { ignoreUnknownKeys = true }
     private val _recommendFlow = MutableStateFlow(DailyRecommendData())
     val recommendFlow: StateFlow<DailyRecommendData> = _recommendFlow.asStateFlow()
