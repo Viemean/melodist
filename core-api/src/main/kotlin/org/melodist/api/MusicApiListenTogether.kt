@@ -2,6 +2,8 @@ package org.melodist.api
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -116,11 +118,11 @@ suspend fun MusicApiService.createListenTogetherRoom(
 
         val songsToSync =
             if (playlist.isNotEmpty()) {
-                val currIdx = playlist.indexOfFirst { it.songId == songId }.coerceAtLeast(0)
-                playlist.drop(currIdx).take(50).ifEmpty { listOf(song) }
+                playlist.take(1000).ifEmpty { listOf(song) }
             } else {
                 listOf(song)
             }
+        val currIdx = songsToSync.indexOfFirst { it.songId == songId }.coerceAtLeast(0)
 
         val payload =
             buildJsonObject {
@@ -147,17 +149,19 @@ suspend fun MusicApiService.createListenTogetherRoom(
                                     buildJsonObject {
                                         put("songID", songId)
                                         put("songType", 0)
+                                        put("songIndex", currIdx)
                                         put("title", songTitle)
                                     },
                                 )
                                 put(
                                     "songInfos",
                                     buildJsonArray {
-                                        songsToSync.forEach { s ->
+                                        songsToSync.forEachIndexed { idx, s ->
                                             add(
                                                 buildJsonObject {
                                                     put("songID", s.songId)
                                                     put("songType", 0)
+                                                    put("songIndex", idx)
                                                     put("title", s.name)
                                                 },
                                             )
@@ -383,51 +387,61 @@ suspend fun MusicApiService.getSongBySongId(songId: Long): Song? =
  */
 suspend fun MusicApiService.getSongsBySongIds(songIds: List<Long>): List<Song> =
     withContext(Dispatchers.IO) {
-        val validIds = songIds.filter { it > 0L }.distinct().take(100)
+        val validIds = songIds.filter { it > 0L }
         if (validIds.isEmpty()) return@withContext emptyList()
+        val distinctIds = validIds.distinct().take(1000)
+        val chunks = distinctIds.chunked(100)
         val commJson = MusicApiService.buildAppCommJson()
 
-        val payload =
-            buildJsonObject {
-                put("comm", Json.parseToJsonElement(commJson))
-                put(
-                    "req_track",
-                    buildJsonObject {
-                        put("module", "music.trackInfo.UniformRuleCtrl")
-                        put("method", "CgiGetTrackInfo")
-                        put(
-                            "param",
-                            buildJsonObject {
-                                put(
-                                    "ids",
-                                    buildJsonArray {
-                                        validIds.forEach { add(it) }
-                                    },
-                                )
-                                put(
-                                    "types",
-                                    buildJsonArray {
-                                        validIds.forEach { add(0) }
-                                    },
-                                )
-                            },
-                        )
-                    },
-                )
-            }.toString()
+        val allSongs =
+            chunks.map { chunkIds ->
+                async {
+                    val payload =
+                        buildJsonObject {
+                            put("comm", Json.parseToJsonElement(commJson))
+                            put(
+                                "req_track",
+                                buildJsonObject {
+                                    put("module", "music.trackInfo.UniformRuleCtrl")
+                                    put("method", "CgiGetTrackInfo")
+                                    put(
+                                        "param",
+                                        buildJsonObject {
+                                            put(
+                                                "ids",
+                                                buildJsonArray {
+                                                    chunkIds.forEach { add(it) }
+                                                },
+                                            )
+                                            put(
+                                                "types",
+                                                buildJsonArray {
+                                                    chunkIds.forEach { add(0) }
+                                                },
+                                            )
+                                        },
+                                    )
+                                },
+                            )
+                        }.toString()
 
-        try {
-            val responseStr = postAppGateway(payload)
-            val root = Json.parseToJsonElement(responseStr).jsonObject
-            val reqTrack = root["req_track"]?.jsonObject ?: return@withContext emptyList()
-            val dataObj = reqTrack["data"]?.jsonObject ?: return@withContext emptyList()
-            val tracks = dataObj["tracks"]?.jsonArray ?: return@withContext emptyList()
-            tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            ApiLogger.w("MusicApiListenTogether", "getSongsBySongIds failed", e)
-            emptyList()
-        }
+                    try {
+                        val responseStr = postAppGateway(payload)
+                        val root = Json.parseToJsonElement(responseStr).jsonObject
+                        val reqTrack = root["req_track"]?.jsonObject ?: return@async emptyList()
+                        val dataObj = reqTrack["data"]?.jsonObject ?: return@async emptyList()
+                        val tracks = dataObj["tracks"]?.jsonArray ?: return@async emptyList()
+                        tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        ApiLogger.w("MusicApiListenTogether", "getSongsBySongIds chunk failed", e)
+                        emptyList()
+                    }
+                }
+            }.awaitAll().flatten()
+
+        val songMap = allSongs.associateBy { it.songId }
+        validIds.mapNotNull { songMap[it] }
     }
 
 /**
@@ -587,7 +601,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                             put(
                                                 "songList",
                                                 buildJsonArray {
-                                                    playlist.take(50).forEachIndexed { idx, s ->
+                                                    playlist.take(1000).forEachIndexed { idx, s ->
                                                         add(
                                                             buildJsonObject {
                                                                 put("songID", s.songId)
