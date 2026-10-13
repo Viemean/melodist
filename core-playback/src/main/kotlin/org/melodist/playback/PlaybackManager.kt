@@ -1550,18 +1550,9 @@ object PlaybackManager {
         }
 
         if (player.isPlaying) {
-            player.pause()
-            savePlaybackProgress(player.currentPosition.coerceAtLeast(0L))
+            pause()
         } else {
-            if (player.playbackState == androidx.media3.common.Player.STATE_IDLE) {
-                if (currSong != null) {
-                    playSong(currSong, seekToMs = _currentPositionMs.value)
-                    return
-                }
-                player.prepare()
-            }
-            player.play()
-            appContext?.let { startPlaybackService(it) }
+            play()
         }
     }
 
