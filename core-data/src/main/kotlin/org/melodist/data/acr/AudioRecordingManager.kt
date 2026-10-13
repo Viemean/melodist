@@ -37,10 +37,10 @@ class AudioRecordingManager {
         get() = isRecording.get()
 
     /**
-     * 开始采集音频（支持麦克风与系统内录两种模式）
+     * 开始采集音频。
      */
     @SuppressLint("MissingPermission")
-    fun start(mediaProjection: android.media.projection.MediaProjection? = null): Boolean {
+    fun start(): Boolean {
         synchronized(lock) {
             if (isRecording.get()) return true
 
@@ -49,75 +49,34 @@ class AudioRecordingManager {
 
             var initializedRecord: AudioRecord? = null
 
-            // 1. Android 10+ 优先尝试 AudioPlaybackCapture 系统内录
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q && mediaProjection != null) {
+            val audioSources =
+                listOf(
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    MediaRecorder.AudioSource.MIC,
+                )
+
+            for (source in audioSources) {
                 try {
-                    val captureConfig =
-                        android.media.AudioPlaybackCaptureConfiguration
-                            .Builder(mediaProjection)
-                            .addMatchingUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                            .addMatchingUsage(android.media.AudioAttributes.USAGE_GAME)
-                            .addMatchingUsage(android.media.AudioAttributes.USAGE_UNKNOWN)
-                            .build()
-
-                    val audioFormat =
-                        AudioFormat
-                            .Builder()
-                            .setEncoding(AUDIO_FORMAT)
-                            .setSampleRate(SAMPLE_RATE)
-                            .setChannelMask(CHANNEL_CONFIG)
-                            .build()
-
-                    val captureRecord =
-                        AudioRecord
-                            .Builder()
-                            .setAudioPlaybackCaptureConfig(captureConfig)
-                            .setAudioFormat(audioFormat)
-                            .setBufferSizeInBytes(bufferSize)
-                            .build()
-
-                    if (captureRecord.state == AudioRecord.STATE_INITIALIZED) {
-                        initializedRecord = captureRecord
-                        android.util.Log.i("AudioRecordingManager", "AudioPlaybackCapture initialized successfully")
+                    val record =
+                        AudioRecord(
+                            source,
+                            SAMPLE_RATE,
+                            CHANNEL_CONFIG,
+                            AUDIO_FORMAT,
+                            bufferSize,
+                        )
+                    if (record.state == AudioRecord.STATE_INITIALIZED) {
+                        initializedRecord = record
+                        android.util.Log.i(
+                            "AudioRecordingManager",
+                            "AudioRecord initialized successfully with source=$source, bufferSize=$bufferSize",
+                        )
+                        break
                     } else {
-                        captureRecord.release()
+                        record.release()
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("AudioRecordingManager", "AudioPlaybackCapture init failed: ${e.message}")
-                }
-            }
-
-            // 2. 麦克风常规采集源
-            if (initializedRecord == null) {
-                val audioSources =
-                    listOf(
-                        MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                        MediaRecorder.AudioSource.MIC,
-                    )
-
-                for (source in audioSources) {
-                    try {
-                        val record =
-                            AudioRecord(
-                                source,
-                                SAMPLE_RATE,
-                                CHANNEL_CONFIG,
-                                AUDIO_FORMAT,
-                                bufferSize,
-                            )
-                        if (record.state == AudioRecord.STATE_INITIALIZED) {
-                            initializedRecord = record
-                            android.util.Log.i(
-                                "AudioRecordingManager",
-                                "AudioRecord initialized successfully with source=$source, bufferSize=$bufferSize",
-                            )
-                            break
-                        } else {
-                            record.release()
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.w("AudioRecordingManager", "AudioRecord init attempt failed for source=$source: ${e.message}")
-                    }
+                    android.util.Log.w("AudioRecordingManager", "AudioRecord init attempt failed for source=$source: ${e.message}")
                 }
             }
 

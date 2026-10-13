@@ -72,7 +72,7 @@ class MobileAcrViewModel(
         recordStartRealtimeMs = 0L
         successOffsetSeconds = 0.0
 
-        val started = recordingManager.start(null)
+        val started = recordingManager.start()
         if (!started) {
             _uiState.value = MobileAcrUiState.Failed("无法初始化麦克风录音设备")
             return
