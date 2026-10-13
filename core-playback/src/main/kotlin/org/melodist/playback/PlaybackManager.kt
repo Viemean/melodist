@@ -1092,6 +1092,13 @@ object PlaybackManager {
         queueTag: String? = null,
         sourceContext: PlaybackSourceContext? = null,
     ) {
+        if (ListenTogetherManager.isInRoom) {
+            val targetSong = songs.getOrNull(startIndex) ?: songs.firstOrNull()
+            if (targetSong != null && isLocalOrWebDavSong(targetSong)) {
+                notifyUser("请退出一起听后再播放哦")
+                return
+            }
+        }
         hasReportedCurrentContext = false
         setMuted(startMuted)
         queueManager.setPlaylist(
@@ -1113,14 +1120,37 @@ object PlaybackManager {
     fun appendPlaylist(
         newSongs: List<Song>,
         targetTag: String? = null,
-    ) = queueManager.appendPlaylist(newSongs, targetTag)
+    ) {
+        if (ListenTogetherManager.isInRoom) {
+            val filtered = newSongs.filterNot { isLocalOrWebDavSong(it) }
+            if (filtered.isEmpty() && newSongs.isNotEmpty()) {
+                notifyUser("请退出一起听后再播放哦")
+                return
+            }
+            queueManager.appendPlaylist(filtered, targetTag)
+            return
+        }
+        queueManager.appendPlaylist(newSongs, targetTag)
+    }
 
-    fun insertNextPlay(song: Song) = queueManager.insertNextPlay(song)
+    fun insertNextPlay(song: Song) {
+        if (ListenTogetherManager.isInRoom && isLocalOrWebDavSong(song)) {
+            notifyUser("请退出一起听后再播放哦")
+            return
+        }
+        queueManager.insertNextPlay(song)
+    }
 
     fun insertAndPlay(
         song: Song,
         seekToMs: Long = 0L,
-    ) = queueManager.insertAndPlay(song, seekToMs)
+    ) {
+        if (ListenTogetherManager.isInRoom && isLocalOrWebDavSong(song)) {
+            notifyUser("请退出一起听后再播放哦")
+            return
+        }
+        queueManager.insertAndPlay(song, seekToMs)
+    }
 
     fun removeFromPlaylist(index: Int) = queueManager.removeFromPlaylist(index)
 
@@ -1182,11 +1212,15 @@ object PlaybackManager {
         forceTier: AudioQualityTier? = null,
         seekToMs: Long = 0L,
     ) {
-        val isLocalOrWebDav = song.isLocal || song.isWebDav || !song.localFilePath.isNullOrBlank()
+        val isLocalOrWebDav = isLocalOrWebDavSong(song)
+        if (ListenTogetherManager.isInRoom && isLocalOrWebDav) {
+            notifyUser("请退出一起听后再播放哦")
+            return
+        }
         if (!isLocalOrWebDav && song.isVip) {
             val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
             if (effectiveVipTier == PlaybackVipTier.NONE) {
-                notifyUser("此歌曲需要开通会员后才可以播放")
+                notifyUser("需要开通会员后才可以播放哦")
                 return
             }
         }
@@ -1580,9 +1614,13 @@ object PlaybackManager {
      */
     fun play() {
         if (playbackInterceptor?.onInterceptResume() == true) return
+        val currSong = _currentSong.value
+        if (currSong != null && ListenTogetherManager.isInRoom && isLocalOrWebDavSong(currSong)) {
+            notifyUser("请退出一起听后再播放哦")
+            return
+        }
         val player = exoPlayer ?: return
         if (!player.isPlaying) {
-            val currSong = _currentSong.value
             if (player.playbackState == androidx.media3.common.Player.STATE_IDLE && currSong != null) {
                 playSong(currSong, seekToMs = _currentPositionMs.value)
             } else if (player.currentMediaItem == null && currSong != null) {
@@ -1622,6 +1660,10 @@ object PlaybackManager {
         headers: Map<String, String> = emptyMap(),
         seekToMs: Long = 0L,
     ) {
+        if (ListenTogetherManager.isInRoom && isLocalOrWebDavSong(song)) {
+            notifyUser("请退出一起听后再播放哦")
+            return
+        }
         lastCustomStreamArgs = Triple(song, streamUrl, headers)
         MelodistCacheManager.onNewSongStarted(song.songMid)
         if (_currentSong.value?.songMid != song.songMid) {

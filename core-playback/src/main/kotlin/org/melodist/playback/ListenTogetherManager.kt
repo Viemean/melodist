@@ -40,6 +40,12 @@ object ListenTogetherManager {
     private val _currentRoom = MutableStateFlow<ListenTogetherRoomInfo?>(null)
     val currentRoom: StateFlow<ListenTogetherRoomInfo?> = _currentRoom.asStateFlow()
 
+    /**
+     * 当前是否处于一起听房间会话中。
+     */
+    val isInRoom: Boolean
+        get() = _currentRoom.value != null
+
     private val _isJoining = MutableStateFlow(false)
     val isJoining: StateFlow<Boolean> = _isJoining.asStateFlow()
 
