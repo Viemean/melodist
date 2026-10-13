@@ -478,9 +478,10 @@ suspend fun MusicApiService.getListenTogetherSongList(showId: String): List<Long
  * 向上报房间歌曲播放控制操作（播放、暂停、进度跳转、切歌）。
  *
  * @param showId 房间唯一标识
- * @param cmd 指令码：1 切歌/同步队列，2 恢复播放，3 暂停，7 进度跳转
+ * @param cmd 指令码：1 全量队列同步，2 恢复播放，3 暂停，4 切歌，7 进度跳转
  * @param songId 目标曲目 ID
  * @param songTitle 目标曲目名称
+ * @param songIndex 目标曲目在播放列表中的索引
  * @param offsetMs 当前播放进度偏移（毫秒）
  * @param playlist 同步队列曲目列表（仅在 cmd = 1 时有效）
  * @return 操作是否成功被服务端接收
@@ -490,6 +491,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
     cmd: Int,
     songId: Long = 0L,
     songTitle: String = "",
+    songIndex: Int = 0,
     offsetMs: Long = 0L,
     playlist: List<Song> = emptyList(),
 ): Boolean =
@@ -510,9 +512,10 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                             buildJsonObject {
                                 put("showID", showId)
                                 put("cmd", cmd)
+                                put("sourceType", 0)
+                                put("playlistType", 0)
                                 when (cmd) {
                                     2 -> {
-                                        put("playStatus", 1)
                                         put("songOffset", offsetMs)
                                         if (songId > 0L) {
                                             put(
@@ -520,13 +523,13 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                                 buildJsonObject {
                                                     put("songID", songId)
                                                     put("songType", 0)
+                                                    put("songIndex", songIndex)
                                                     if (songTitle.isNotBlank()) put("title", songTitle)
                                                 },
                                             )
                                         }
                                     }
                                     3 -> {
-                                        put("playStatus", 2)
                                         put("songOffset", offsetMs)
                                         if (songId > 0L) {
                                             put(
@@ -534,6 +537,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                                 buildJsonObject {
                                                     put("songID", songId)
                                                     put("songType", 0)
+                                                    put("songIndex", songIndex)
                                                     if (songTitle.isNotBlank()) put("title", songTitle)
                                                 },
                                             )
@@ -548,13 +552,25 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                                 buildJsonObject {
                                                     put("songID", songId)
                                                     put("songType", 0)
+                                                    put("songIndex", songIndex)
                                                     if (songTitle.isNotBlank()) put("title", songTitle)
                                                 },
                                             )
                                         }
                                     }
+                                    4 -> {
+                                        put("songOffset", 0)
+                                        put(
+                                            "songPlaying",
+                                            buildJsonObject {
+                                                put("songID", songId)
+                                                put("songType", 0)
+                                                put("songIndex", songIndex)
+                                                if (songTitle.isNotBlank()) put("title", songTitle)
+                                            },
+                                        )
+                                    }
                                     1 -> {
-                                        put("playStatus", 1)
                                         put("songOffset", offsetMs)
                                         if (songId > 0L) {
                                             put(
@@ -562,6 +578,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                                 buildJsonObject {
                                                     put("songID", songId)
                                                     put("songType", 0)
+                                                    put("songIndex", songIndex)
                                                     if (songTitle.isNotBlank()) put("title", songTitle)
                                                 },
                                             )
@@ -570,11 +587,12 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                             put(
                                                 "songList",
                                                 buildJsonArray {
-                                                    playlist.take(50).forEach { s ->
+                                                    playlist.take(50).forEachIndexed { idx, s ->
                                                         add(
                                                             buildJsonObject {
                                                                 put("songID", s.songId)
                                                                 put("songType", 0)
+                                                                put("songIndex", idx)
                                                                 put("title", s.name)
                                                             },
                                                         )
@@ -595,6 +613,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
             val root = Json.parseToJsonElement(responseStr).jsonObject
             val reqOper = root["req_oper"]?.jsonObject ?: return@withContext false
             val code = reqOper["code"]?.jsonPrimitive?.intOrNull ?: -1
+            ApiLogger.i("MusicApiListenTogether", "sendListenTogetherSongOper cmd=$cmd code=$code")
             code == 0
         } catch (e: Exception) {
             if (e is CancellationException) throw e
