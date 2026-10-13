@@ -2,18 +2,6 @@ package org.melodist.model
 
 import kotlinx.serialization.Serializable
 
-/**
- * 一起听好友信息实体。
- */
-@Serializable
-data class ListenTogetherFriend(
-    val uin: Long = 0L,
-    val encryptedUin: String = "",
-    val name: String = "",
-    val avatarUrl: String = "",
-    val isOnline: Boolean = false,
-    val tag: String = "",
-)
 
 /**
  * 一起听房间状态与元数据实体。

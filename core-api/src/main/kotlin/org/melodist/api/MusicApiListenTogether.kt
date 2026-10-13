@@ -17,88 +17,10 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
-import org.melodist.model.ListenTogetherFriend
 import org.melodist.model.ListenTogetherHistoryRecord
 import org.melodist.model.ListenTogetherRoomInfo
 import org.melodist.model.ListenTogetherSyncState
 import org.melodist.model.Song
-
-/**
- * 拉取当前账号可邀请或历史一起听过的在线好友列表。
- *
- * @return 过滤出的当前在线好友列表
- */
-suspend fun MusicApiService.getListenTogetherOnlineFriends(): List<ListenTogetherFriend> =
-    withContext(Dispatchers.IO) {
-        val commJson = MusicApiService.buildAppCommJson()
-        val payload =
-            """
-            {
-              "comm": $commJson,
-              "req_friends": {
-                "module": "music.togetherRoom.TogetherRoomUser",
-                "method": "GetInvitedUserList",
-                "param": {}
-              }
-            }
-            """.trimIndent()
-
-        try {
-            val responseStr = postAppGateway(payload)
-            val root = Json.parseToJsonElement(responseStr).jsonObject
-            val reqFriends = root["req_friends"]?.jsonObject ?: return@withContext emptyList()
-            val code = reqFriends["code"]?.jsonPrimitive?.intOrNull ?: -1
-            if (code != 0) {
-                ApiLogger.w("MusicApiListenTogether", "GetInvitedUserList error code=$code")
-                return@withContext emptyList()
-            }
-
-            val dataObj = reqFriends["data"]?.jsonObject ?: return@withContext emptyList()
-            val invitedUsers = (dataObj["invitedUsers"] as? JsonArray) ?: return@withContext emptyList()
-
-            invitedUsers.mapNotNull { itemElement ->
-                try {
-                    val itemObj = itemElement.jsonObject
-                    val userObj = itemObj["user"]?.jsonObject ?: itemObj
-                    val name = userObj["name"]?.jsonPrimitive?.contentOrNull
-                        ?: userObj["nick"]?.jsonPrimitive?.contentOrNull
-                        ?: ""
-                    if (name.isBlank()) return@mapNotNull null
-
-                    val uin = userObj["uin"]?.jsonPrimitive?.longOrNull ?: 0L
-                    val encryptedUin = userObj["encryptedUin"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                    val avatarUrl = userObj["avatar"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                    val tag = itemObj["tag"]?.jsonPrimitive?.contentOrNull
-                        ?: userObj["tag"]?.jsonPrimitive?.contentOrNull
-                        ?: ""
-                    val isOnline = tag.contains("在线") ||
-                        (userObj["online"]?.jsonPrimitive?.contentOrNull == "1") ||
-                        (userObj["isOnline"]?.jsonPrimitive?.contentOrNull == "true")
-
-                    // 仅保留在线好友
-                    if (!isOnline && tag.isNotBlank() && !tag.contains("在线")) {
-                        return@mapNotNull null
-                    }
-
-                    ListenTogetherFriend(
-                        uin = uin,
-                        encryptedUin = encryptedUin,
-                        name = name,
-                        avatarUrl = avatarUrl,
-                        isOnline = true,
-                        tag = if (tag.isNotBlank()) tag else "当前在线",
-                    )
-                } catch (e: Exception) {
-                    if (e is CancellationException) throw e
-                    null
-                }
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            ApiLogger.w("MusicApiListenTogether", "getListenTogetherOnlineFriends failed", e)
-            emptyList()
-        }
-    }
 
 /**
  * 创建一起听房间并返回房间信息及外部落地页链接。
