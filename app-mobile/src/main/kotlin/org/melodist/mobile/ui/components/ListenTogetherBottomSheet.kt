@@ -5,9 +5,12 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.Link
@@ -29,7 +32,7 @@ import org.melodist.playback.ListenTogetherManager
  * @param song 当前播放或目标曲目
  * @param onDismissRequest 弹窗收起回调
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ListenTogetherBottomSheet(
     song: Song,
@@ -42,6 +45,7 @@ fun ListenTogetherBottomSheet(
     val currentRoom by ListenTogetherManager.currentRoom.collectAsState()
     val isJoining by ListenTogetherManager.isJoining.collectAsState()
 
+    var isCreatingRoom by remember { mutableStateOf(false) }
     var showJoinDialog by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
@@ -134,7 +138,16 @@ fun ListenTogetherBottomSheet(
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = {
+                                    copyToClipboard(context, activeRoom.showId)
+                                    Toast.makeText(context, "已复制房间号: ${activeRoom.showId}", Toast.LENGTH_SHORT).show()
+                                },
+                            ),
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
@@ -161,12 +174,12 @@ fun ListenTogetherBottomSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 底部操作按钮组：复制链接、输入链接
+            // 底部操作按钮组：创建房间 / 复制链接、输入链接
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // 复制链接按钮
+                // 创建房间 / 复制链接按钮
                 FilledTonalButton(
                     onClick = {
                         coroutineScope.launch {
@@ -175,7 +188,9 @@ fun ListenTogetherBottomSheet(
                                 copyToClipboard(context, room.shareUrl)
                                 Toast.makeText(context, "已复制一起听链接", Toast.LENGTH_SHORT).show()
                             } else {
+                                isCreatingRoom = true
                                 val result = ListenTogetherManager.startRoom(song)
+                                isCreatingRoom = false
                                 result.onSuccess { newRoom ->
                                     copyToClipboard(context, newRoom.shareUrl)
                                     Toast.makeText(context, "已创建房间并复制链接", Toast.LENGTH_SHORT).show()
@@ -185,16 +200,35 @@ fun ListenTogetherBottomSheet(
                             }
                         }
                     },
+                    enabled = !isCreatingRoom,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("复制链接")
+                    if (isCreatingRoom) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("创建中...")
+                    } else if (currentRoom != null) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("复制链接")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("创建房间")
+                    }
                 }
 
                 // 输入链接按钮
@@ -225,6 +259,8 @@ fun ListenTogetherBottomSheet(
                 val (showId, encUin, songId) = parseListenTogetherUrl(inputUrl)
                 if (showId.isBlank()) {
                     Toast.makeText(context, "未识别到有效的一起听链接或房间号", Toast.LENGTH_SHORT).show()
+                } else if (ListenTogetherManager.isSelfCreatedRoom(showId, encUin)) {
+                    Toast.makeText(context, "请不要输入自己创建的房间", Toast.LENGTH_SHORT).show()
                 } else {
                     coroutineScope.launch {
                         val result = ListenTogetherManager.joinRoom(showId, encUin, songId)

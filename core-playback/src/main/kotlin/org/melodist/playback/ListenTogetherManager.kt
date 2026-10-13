@@ -22,6 +22,7 @@ import org.melodist.api.heartbeatListenTogetherRoom
 import org.melodist.api.joinListenTogetherRoom
 import org.melodist.api.quitListenTogetherRoom
 import org.melodist.api.sendListenTogetherSongOper
+import org.melodist.api.UserSession
 import org.melodist.model.ListenTogetherRoomInfo
 import org.melodist.model.Song
 import kotlin.math.abs
@@ -38,6 +39,33 @@ object ListenTogetherManager {
 
     private val _isJoining = MutableStateFlow(false)
     val isJoining: StateFlow<Boolean> = _isJoining.asStateFlow()
+
+    private val selfCreatedRoomIds = mutableSetOf<String>()
+
+    /**
+     * 判断指定房间号或加密 UIN 是否属于当前用户自身创建的房间。
+     *
+     * @param showId 待检测的房间号
+     * @param encUin 待检测的邀请者加密 UIN
+     * @return 若为自身创建的房间则返回 true
+     */
+    fun isSelfCreatedRoom(showId: String, encUin: String = ""): Boolean {
+        val trimmedShowId = showId.trim()
+        if (trimmedShowId.isNotBlank()) {
+            if (_currentRoom.value?.showId.equals(trimmedShowId, ignoreCase = true)) {
+                return true
+            }
+            if (selfCreatedRoomIds.any { it.equals(trimmedShowId, ignoreCase = true) }) {
+                return true
+            }
+        }
+        val trimmedEncUin = encUin.trim()
+        val myEncUin = UserSession.profileFlow.value.encryptedUin.trim()
+        if (trimmedEncUin.isNotBlank() && myEncUin.isNotBlank() && trimmedEncUin == myEncUin) {
+            return true
+        }
+        return false
+    }
 
     private var heartbeatJob: Job? = null
     private var lastObservedSongId: Long = 0L
@@ -227,6 +255,7 @@ object ListenTogetherManager {
                     playStatus = 2,
                 )
             if (room != null) {
+                selfCreatedRoomIds.add(room.showId)
                 _currentRoom.value = room
                 lastObservedSongId = currentSongId
                 lastSyncedPlaylistSongIds = currentPlaylist.map { it.songId }
@@ -286,7 +315,11 @@ object ListenTogetherManager {
         encUin: String = "",
         initialSongId: Long = 0L,
     ): Result<Unit> {
-        if (showId.isBlank()) return Result.failure(IllegalArgumentException("房间 ID 不能为空"))
+        val trimmedShowId = showId.trim()
+        if (trimmedShowId.isBlank()) return Result.failure(IllegalArgumentException("房间 ID 不能为空"))
+        if (isSelfCreatedRoom(trimmedShowId, encUin)) {
+            return Result.failure(IllegalArgumentException("请不要输入自己创建的房间"))
+        }
         _isJoining.value = true
         return try {
             val success = apiService.joinListenTogetherRoom(showId, encUin)
