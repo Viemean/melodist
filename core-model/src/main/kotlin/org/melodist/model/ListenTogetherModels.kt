@@ -31,6 +31,7 @@ data class ListenTogetherSyncState(
     val mediaVersion: Long = 0L,
     val usersCount: Int = 0,
     val isRoomValid: Boolean = true,
+    val userEncUins: List<String> = emptyList(),
 )
 
 /**
@@ -45,4 +46,14 @@ data class ListenTogetherHistoryRecord(
     val friendAvatar: String = "",
     val lastSongName: String = "",
     val lastSinger: String = "",
+)
+
+/**
+ * 一起听好友空间统计数据。
+ */
+@Serializable
+data class ListenTogetherSpaceStats(
+    val listenMinutes: Long = 0L,
+    val listenSongsCount: Int = 0,
+    val favoriteSongsCount: Int = 0,
 )
