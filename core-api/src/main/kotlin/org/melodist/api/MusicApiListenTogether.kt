@@ -1,0 +1,727 @@
+package org.melodist.api
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.put
+import org.melodist.model.ListenTogetherFriend
+import org.melodist.model.ListenTogetherHistoryRecord
+import org.melodist.model.ListenTogetherRoomInfo
+import org.melodist.model.ListenTogetherSyncState
+import org.melodist.model.Song
+
+/**
+ * 拉取当前账号可邀请或历史一起听过的在线好友列表。
+ *
+ * @return 过滤出的当前在线好友列表
+ */
+suspend fun MusicApiService.getListenTogetherOnlineFriends(): List<ListenTogetherFriend> =
+    withContext(Dispatchers.IO) {
+        val commJson = MusicApiService.buildAppCommJson()
+        val payload =
+            """
+            {
+              "comm": $commJson,
+              "req_friends": {
+                "module": "music.togetherRoom.TogetherRoomUser",
+                "method": "GetInvitedUserList",
+                "param": {}
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqFriends = root["req_friends"]?.jsonObject ?: return@withContext emptyList()
+            val code = reqFriends["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (code != 0) {
+                ApiLogger.w("MusicApiListenTogether", "GetInvitedUserList error code=$code")
+                return@withContext emptyList()
+            }
+
+            val dataObj = reqFriends["data"]?.jsonObject ?: return@withContext emptyList()
+            val invitedUsers = (dataObj["invitedUsers"] as? JsonArray) ?: return@withContext emptyList()
+
+            invitedUsers.mapNotNull { itemElement ->
+                try {
+                    val itemObj = itemElement.jsonObject
+                    val userObj = itemObj["user"]?.jsonObject ?: itemObj
+                    val name = userObj["name"]?.jsonPrimitive?.contentOrNull
+                        ?: userObj["nick"]?.jsonPrimitive?.contentOrNull
+                        ?: ""
+                    if (name.isBlank()) return@mapNotNull null
+
+                    val uin = userObj["uin"]?.jsonPrimitive?.longOrNull ?: 0L
+                    val encryptedUin = userObj["encryptedUin"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val avatarUrl = userObj["avatar"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val tag = itemObj["tag"]?.jsonPrimitive?.contentOrNull
+                        ?: userObj["tag"]?.jsonPrimitive?.contentOrNull
+                        ?: ""
+                    val isOnline = tag.contains("在线") ||
+                        (userObj["online"]?.jsonPrimitive?.contentOrNull == "1") ||
+                        (userObj["isOnline"]?.jsonPrimitive?.contentOrNull == "true")
+
+                    // 仅保留在线好友
+                    if (!isOnline && tag.isNotBlank() && !tag.contains("在线")) {
+                        return@mapNotNull null
+                    }
+
+                    ListenTogetherFriend(
+                        uin = uin,
+                        encryptedUin = encryptedUin,
+                        name = name,
+                        avatarUrl = avatarUrl,
+                        isOnline = true,
+                        tag = if (tag.isNotBlank()) tag else "当前在线",
+                    )
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "getListenTogetherOnlineFriends failed", e)
+            emptyList()
+        }
+    }
+
+/**
+ * 创建一起听房间并返回房间信息及外部落地页链接。
+ *
+ * @param song 初始播放歌曲
+ * @param playlist 当前待播放列表（可选，前 50 首同步至房间队列）
+ * @return 房间信息实体，创建失败时返回 null
+ */
+suspend fun MusicApiService.createListenTogetherRoom(
+    song: Song,
+    playlist: List<Song> = emptyList(),
+): ListenTogetherRoomInfo? =
+    withContext(Dispatchers.IO) {
+        val commJson = MusicApiService.buildAppCommJson()
+        val songId = song.songId
+        val songTitle = song.name
+
+        val songsToSync =
+            if (playlist.isNotEmpty()) {
+                val currIdx = playlist.indexOfFirst { it.songId == songId }.coerceAtLeast(0)
+                playlist.drop(currIdx).take(50).ifEmpty { listOf(song) }
+            } else {
+                listOf(song)
+            }
+
+        val payload =
+            buildJsonObject {
+                put("comm", Json.parseToJsonElement(commJson))
+                put(
+                    "req_create",
+                    buildJsonObject {
+                        put("module", "music.lightUGCRoom.LightUGCRoomSvr")
+                        put("method", "LightUGCRoomCreate")
+                        put(
+                            "param",
+                            buildJsonObject {
+                                put("fromTag", 0)
+                                put("playStatus", 1)
+                                put("playMode", 0)
+                                put("songOffset", 0)
+                                put("sourceType", 0)
+                                put("avatarValid", 0)
+                                put("musicWorldValid", 0)
+                                put("isAITogether", 0)
+                                put("isMatchStranger", 0)
+                                put(
+                                    "songPlaying",
+                                    buildJsonObject {
+                                        put("songID", songId)
+                                        put("songType", 0)
+                                        put("title", songTitle)
+                                    },
+                                )
+                                put(
+                                    "songInfos",
+                                    buildJsonArray {
+                                        songsToSync.forEach { s ->
+                                            add(
+                                                buildJsonObject {
+                                                    put("songID", s.songId)
+                                                    put("songType", 0)
+                                                    put("title", s.name)
+                                                },
+                                            )
+                                        }
+                                    },
+                                )
+                            },
+                        )
+                    },
+                )
+            }.toString()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqCreate = root["req_create"]?.jsonObject ?: return@withContext null
+            val code = reqCreate["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (code != 0) {
+                ApiLogger.w("MusicApiListenTogether", "LightUGCRoomCreate failed code=$code")
+                return@withContext null
+            }
+
+            val dataObj = reqCreate["data"]?.jsonObject ?: return@withContext null
+            val entryInfo = dataObj["entryInfo"]?.jsonObject ?: return@withContext null
+            val roomInfo = entryInfo["roomInfo"]?.jsonObject ?: return@withContext null
+            val showId = roomInfo["showID"]?.jsonPrimitive?.contentOrNull ?: return@withContext null
+            val creatorUin = roomInfo["createUin"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val encUin = UserSession.profile.uin
+
+            val shareUrl =
+                "https://i.y.qq.com/n2/m/share/listen_together/index.html?showid=$showId&songid=$songId&share_encrypt_uin=$encUin"
+
+            ListenTogetherRoomInfo(
+                showId = showId,
+                creatorUin = creatorUin,
+                shareUrl = shareUrl,
+                currentSongId = songId,
+                currentSongTitle = songTitle,
+                usersCount = 1,
+                isValid = true,
+            )
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "createListenTogetherRoom failed", e)
+            null
+        }
+    }
+
+/**
+ * 加入已存在的一起听房间。
+ *
+ * @param showId 房间唯一标识 (例如 LUGC...)
+ * @param fromEncUin 邀请者加密 UIN
+ * @return 是否加入成功
+ */
+suspend fun MusicApiService.joinListenTogetherRoom(
+    showId: String,
+    fromEncUin: String = "",
+): Boolean =
+    withContext(Dispatchers.IO) {
+        if (showId.isBlank()) return@withContext false
+        val commJson = MusicApiService.buildAppCommJson()
+
+        val payload =
+            buildJsonObject {
+                put("comm", Json.parseToJsonElement(commJson))
+                put(
+                    "req_join",
+                    buildJsonObject {
+                        put("module", "music.lightUGCRoom.LightUGCRoomSvr")
+                        put("method", "LightUGCRoomEntry")
+                        put(
+                            "param",
+                            buildJsonObject {
+                                put("showID", showId)
+                                put("fromEncryptedUin", fromEncUin)
+                                put("entryType", 0)
+                                put("fromTag", 0)
+                                put("avatarValid", 0)
+                                put("musicWorldValid", 0)
+                                put("songInfos", buildJsonArray {})
+                            },
+                        )
+                    },
+                )
+            }.toString()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqJoin = root["req_join"]?.jsonObject ?: return@withContext false
+            val code = reqJoin["code"]?.jsonPrimitive?.intOrNull ?: -1
+            code == 0
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "joinListenTogetherRoom failed", e)
+            false
+        }
+    }
+
+/**
+ * 发送一起听心跳并拉取当前房间的实时播放与成员状态。
+ *
+ * @param showId 房间唯一标识
+ * @return 实时同步状态，房间已关闭时返回 isRoomValid = false
+ */
+suspend fun MusicApiService.heartbeatListenTogetherRoom(showId: String): ListenTogetherSyncState? =
+    withContext(Dispatchers.IO) {
+        if (showId.isBlank()) return@withContext null
+        val commJson = MusicApiService.buildAppCommJson()
+
+        val payload =
+            """
+            {
+              "comm": $commJson,
+              "req_hb": {
+                "module": "music.lightUGCRoom.LightUGCRoomSvr",
+                "method": "LightUGCRoomHeartBeat",
+                "param": { "showID": "$showId" }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqHb = root["req_hb"]?.jsonObject ?: return@withContext null
+            val code = reqHb["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (code == 11000) {
+                return@withContext ListenTogetherSyncState(
+                    showId = showId,
+                    isRoomValid = false,
+                )
+            }
+            if (code != 0) return@withContext null
+
+            val dataObj = reqHb["data"]?.jsonObject ?: return@withContext null
+            val songInfo = dataObj["songInfo"]?.jsonObject
+            val playingSong = songInfo?.get("playingSongInfo")?.jsonObject
+            val currentSongId = playingSong?.get("songID")?.jsonPrimitive?.longOrNull ?: 0L
+            val songTitle = playingSong?.get("title")?.jsonPrimitive?.contentOrNull.orEmpty()
+            val playStatus = songInfo?.get("playStatus")?.jsonPrimitive?.intOrNull ?: 0
+            val songOffsetMs = songInfo?.get("songOffset")?.jsonPrimitive?.longOrNull ?: 0L
+            val songPlayVersion = songInfo?.get("songPlayVersion")?.jsonPrimitive?.longOrNull ?: 0L
+            val usersCount = dataObj["users"]?.jsonArray?.size ?: 1
+
+            ListenTogetherSyncState(
+                showId = showId,
+                currentSongId = currentSongId,
+                songTitle = songTitle,
+                playStatus = playStatus,
+                songOffsetMs = songOffsetMs,
+                songPlayVersion = songPlayVersion,
+                usersCount = usersCount,
+                isRoomValid = true,
+            )
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "heartbeatListenTogetherRoom failed", e)
+            null
+        }
+    }
+
+/**
+ * 退出指定的一起听房间。
+ *
+ * @param showId 房间唯一标识
+ * @return 是否成功请求退出
+ */
+suspend fun MusicApiService.quitListenTogetherRoom(showId: String): Boolean =
+    withContext(Dispatchers.IO) {
+        if (showId.isBlank()) return@withContext false
+        val commJson = MusicApiService.buildAppCommJson()
+        val currentUin = UserSession.profile.uin
+
+        val payload =
+            """
+            {
+              "comm": $commJson,
+              "req_quit": {
+                "module": "music.lightUGCRoom.LightUGCRoomSvr",
+                "method": "LightUGCRoomQuit",
+                "param": {
+                  "showID": "$showId",
+                  "uinList": ["$currentUin"],
+                  "from": "player"
+                }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqQuit = root["req_quit"]?.jsonObject ?: return@withContext false
+            val code = reqQuit["code"]?.jsonPrimitive?.intOrNull ?: -1
+            code == 0
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "quitListenTogetherRoom failed", e)
+            false
+        }
+    }
+
+/**
+ * 通过歌曲数字 ID 检索并构建完整的 Song 实体。
+ *
+ * @param songId 歌曲数字 ID
+ * @return 解析得到的完整 Song 实体，失败返回 null
+ */
+suspend fun MusicApiService.getSongBySongId(songId: Long): Song? =
+    withContext(Dispatchers.IO) {
+        if (songId <= 0L) return@withContext null
+        val list = getSongsBySongIds(listOf(songId))
+        list.firstOrNull()
+    }
+
+/**
+ * 批量通过歌曲数字 ID 集合检索并构建完整的 Song 实体列表。
+ *
+ * @param songIds 歌曲数字 ID 集合
+ * @return 解析得到的完整 Song 列表
+ */
+suspend fun MusicApiService.getSongsBySongIds(songIds: List<Long>): List<Song> =
+    withContext(Dispatchers.IO) {
+        val validIds = songIds.filter { it > 0L }.distinct().take(100)
+        if (validIds.isEmpty()) return@withContext emptyList()
+        val commJson = MusicApiService.buildAppCommJson()
+
+        val payload =
+            buildJsonObject {
+                put("comm", Json.parseToJsonElement(commJson))
+                put(
+                    "req_track",
+                    buildJsonObject {
+                        put("module", "music.trackInfo.UniformRuleCtrl")
+                        put("method", "CgiGetTrackInfo")
+                        put(
+                            "param",
+                            buildJsonObject {
+                                put(
+                                    "ids",
+                                    buildJsonArray {
+                                        validIds.forEach { add(it) }
+                                    },
+                                )
+                                put(
+                                    "types",
+                                    buildJsonArray {
+                                        validIds.forEach { add(0) }
+                                    },
+                                )
+                            },
+                        )
+                    },
+                )
+            }.toString()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqTrack = root["req_track"]?.jsonObject ?: return@withContext emptyList()
+            val dataObj = reqTrack["data"]?.jsonObject ?: return@withContext emptyList()
+            val tracks = dataObj["tracks"]?.jsonArray ?: return@withContext emptyList()
+            tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "getSongsBySongIds failed", e)
+            emptyList()
+        }
+    }
+
+/**
+ * 初次入房拉取当前房间媒体信息与完整曲目 ID 列表 (cmd=0)。
+ *
+ * @param showId 房间唯一标识
+ * @return 房间内的歌曲数字 ID 队列
+ */
+suspend fun MusicApiService.getListenTogetherSongList(showId: String): List<Long> =
+    withContext(Dispatchers.IO) {
+        if (showId.isBlank()) return@withContext emptyList()
+        val commJson = MusicApiService.buildAppCommJson()
+
+        val payload =
+            buildJsonObject {
+                put("comm", Json.parseToJsonElement(commJson))
+                put(
+                    "req_oper",
+                    buildJsonObject {
+                        put("module", "music.lightUGCRoom.LightUGCRoomSongSvr")
+                        put("method", "LightUGCRoomSongOper")
+                        put(
+                            "param",
+                            buildJsonObject {
+                                put("showID", showId)
+                                put("cmd", 0)
+                            },
+                        )
+                    },
+                )
+            }.toString()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqOper = root["req_oper"]?.jsonObject ?: return@withContext emptyList()
+            val dataObj = reqOper["data"]?.jsonObject ?: return@withContext emptyList()
+            val songList = dataObj["songList"]?.jsonArray ?: return@withContext emptyList()
+            songList.mapNotNull { it.jsonObject["songID"]?.jsonPrimitive?.longOrNull }.filter { it > 0L }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "getListenTogetherSongList failed", e)
+            emptyList()
+        }
+    }
+
+/**
+ * 向上报房间歌曲播放控制操作（播放、暂停、进度跳转、切歌）。
+ *
+ * @param showId 房间唯一标识
+ * @param cmd 指令码：1 切歌/同步队列，2 恢复播放，3 暂停，7 进度跳转
+ * @param songId 目标曲目 ID
+ * @param songTitle 目标曲目名称
+ * @param offsetMs 当前播放进度偏移（毫秒）
+ * @param playlist 同步队列曲目列表（仅在 cmd = 1 时有效）
+ * @return 操作是否成功被服务端接收
+ */
+suspend fun MusicApiService.sendListenTogetherSongOper(
+    showId: String,
+    cmd: Int,
+    songId: Long = 0L,
+    songTitle: String = "",
+    offsetMs: Long = 0L,
+    playlist: List<Song> = emptyList(),
+): Boolean =
+    withContext(Dispatchers.IO) {
+        if (showId.isBlank()) return@withContext false
+        val commJson = MusicApiService.buildAppCommJson()
+
+        val payload =
+            buildJsonObject {
+                put("comm", Json.parseToJsonElement(commJson))
+                put(
+                    "req_oper",
+                    buildJsonObject {
+                        put("module", "music.lightUGCRoom.LightUGCRoomSongSvr")
+                        put("method", "LightUGCRoomSongOper")
+                        put(
+                            "param",
+                            buildJsonObject {
+                                put("showID", showId)
+                                put("cmd", cmd)
+                                when (cmd) {
+                                    2 -> {
+                                        put("playStatus", 1)
+                                        put("songOffset", offsetMs)
+                                        if (songId > 0L) {
+                                            put(
+                                                "songPlaying",
+                                                buildJsonObject {
+                                                    put("songID", songId)
+                                                    put("songType", 0)
+                                                    if (songTitle.isNotBlank()) put("title", songTitle)
+                                                },
+                                            )
+                                        }
+                                    }
+                                    3 -> {
+                                        put("playStatus", 2)
+                                        put("songOffset", offsetMs)
+                                        if (songId > 0L) {
+                                            put(
+                                                "songPlaying",
+                                                buildJsonObject {
+                                                    put("songID", songId)
+                                                    put("songType", 0)
+                                                    if (songTitle.isNotBlank()) put("title", songTitle)
+                                                },
+                                            )
+                                        }
+                                    }
+                                    7 -> {
+                                        put("seekTime", offsetMs)
+                                        put("songOffset", offsetMs)
+                                        if (songId > 0L) {
+                                            put(
+                                                "songPlaying",
+                                                buildJsonObject {
+                                                    put("songID", songId)
+                                                    put("songType", 0)
+                                                    if (songTitle.isNotBlank()) put("title", songTitle)
+                                                },
+                                            )
+                                        }
+                                    }
+                                    1 -> {
+                                        put("playStatus", 1)
+                                        put("songOffset", offsetMs)
+                                        if (songId > 0L) {
+                                            put(
+                                                "songPlaying",
+                                                buildJsonObject {
+                                                    put("songID", songId)
+                                                    put("songType", 0)
+                                                    if (songTitle.isNotBlank()) put("title", songTitle)
+                                                },
+                                            )
+                                        }
+                                        if (playlist.isNotEmpty()) {
+                                            put(
+                                                "songList",
+                                                buildJsonArray {
+                                                    playlist.take(50).forEach { s ->
+                                                        add(
+                                                            buildJsonObject {
+                                                                put("songID", s.songId)
+                                                                put("songType", 0)
+                                                                put("title", s.name)
+                                                            },
+                                                        )
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                        )
+                    },
+                )
+            }.toString()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqOper = root["req_oper"]?.jsonObject ?: return@withContext false
+            val code = reqOper["code"]?.jsonPrimitive?.intOrNull ?: -1
+            code == 0
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "sendListenTogetherSongOper failed cmd=$cmd", e)
+            false
+        }
+    }
+
+/**
+ * 查询指定房间的当前实时静态状态与成员列表。
+ *
+ * @param showId 房间唯一标识
+ * @return 房间详情，房间不存在或已结束返回 null
+ */
+suspend fun MusicApiService.queryListenTogetherRoomState(showId: String): ListenTogetherRoomInfo? =
+    withContext(Dispatchers.IO) {
+        if (showId.isBlank()) return@withContext null
+        val commJson = MusicApiService.buildAppCommJson()
+
+        val payload =
+            """
+            {
+              "comm": $commJson,
+              "req_query": {
+                "module": "music.lightUGCRoom.LightUGCRoomSvr",
+                "method": "QueryLightUGCRoomState",
+                "param": { "showID": "$showId" }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqQuery = root["req_query"]?.jsonObject ?: return@withContext null
+            val code = reqQuery["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (code != 0) return@withContext null
+
+            val dataObj = reqQuery["data"]?.jsonObject ?: return@withContext null
+            val roomInfo = dataObj["roomInfo"]?.jsonObject ?: return@withContext null
+            val together = roomInfo["together"]?.jsonObject
+            val isTogetherValid = together?.get("valid")?.jsonPrimitive?.contentOrNull == "true"
+            val users = (dataObj["users"] as? JsonArray) ?: JsonArray(emptyList())
+
+            val creatorUin = roomInfo["createUin"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            val encUin = UserSession.profile.uin
+
+            ListenTogetherRoomInfo(
+                showId = showId,
+                creatorUin = creatorUin,
+                shareUrl = "https://i.y.qq.com/n2/m/share/listen_together/index.html?showid=$showId&songid=0&share_encrypt_uin=$encUin",
+                usersCount = users.size,
+                isValid = isTogetherValid,
+            )
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "queryListenTogetherRoomState failed", e)
+            null
+        }
+    }
+
+/**
+ * 拉取当前账号历史一起听房间记录列表。
+ *
+ * @param reqNum 请求返回的最大记录数（默认 50 条）
+ * @return 历史房间记录列表
+ */
+suspend fun MusicApiService.getListenTogetherHistory(reqNum: Int = 50): List<ListenTogetherHistoryRecord> =
+    withContext(Dispatchers.IO) {
+        val commJson = MusicApiService.buildAppCommJson()
+
+        val payload =
+            """
+            {
+              "comm": $commJson,
+              "req_hist": {
+                "module": "music.lightUGCRoom.LightUGCRoomDataRecordSvr",
+                "method": "GetLightUGCRoomHistory",
+                "param": { "reqNum": $reqNum }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val responseStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(responseStr).jsonObject
+            val reqHist = root["req_hist"]?.jsonObject ?: return@withContext emptyList()
+            val code = reqHist["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (code != 0) return@withContext emptyList()
+
+            val dataObj = reqHist["data"]?.jsonObject ?: return@withContext emptyList()
+            val historyList = (dataObj["historyList"] as? JsonArray)
+                ?: (dataObj["records"] as? JsonArray)
+                ?: (dataObj["roomList"] as? JsonArray)
+                ?: return@withContext emptyList()
+
+            historyList.mapNotNull { itemElement ->
+                try {
+                    val itemObj = itemElement.jsonObject
+                    val showId = itemObj["showID"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val createTime = itemObj["createTime"]?.jsonPrimitive?.longOrNull ?: 0L
+                    val closeTime = itemObj["closeTime"]?.jsonPrimitive?.longOrNull ?: 0L
+                    val userObj = itemObj["user"]?.jsonObject
+                    val nick = userObj?.get("nick")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val avatar = userObj?.get("avatar")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val songObj = itemObj["songInfo"]?.jsonObject
+                    val songName = songObj?.get("title")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val singer = songObj?.get("singer")?.jsonPrimitive?.contentOrNull.orEmpty()
+
+                    ListenTogetherHistoryRecord(
+                        showId = showId,
+                        createTime = createTime,
+                        closeTime = closeTime,
+                        friendNick = nick,
+                        friendAvatar = avatar,
+                        lastSongName = songName,
+                        lastSinger = singer,
+                    )
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "getListenTogetherHistory failed", e)
+            emptyList()
+        }
+    }
+
+
