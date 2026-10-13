@@ -328,7 +328,7 @@ object ListenTogetherManager {
                     ListenTogetherRoomInfo(
                         showId = showId,
                         creatorUin = encUin,
-                        shareUrl = "https://i.y.qq.com/n2/m/share/listen_together/index.html?showid=$showId&songid=$initialSongId&share_encrypt_uin=$encUin",
+                        shareUrl = "https://i.y.qq.com/n2/m/share/listen_together/index.html?showid=$showId&songid=$initialSongId",
                         currentSongId = initialSongId,
                         usersCount = 2,
                         isValid = true,

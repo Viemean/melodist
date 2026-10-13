@@ -114,10 +114,8 @@ suspend fun MusicApiService.createListenTogetherRoom(
             val roomInfo = entryInfo["roomInfo"]?.jsonObject ?: return@withContext null
             val showId = roomInfo["showID"]?.jsonPrimitive?.contentOrNull ?: return@withContext null
             val creatorUin = roomInfo["createUin"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val encUin = UserSession.profile.uin
-
             val shareUrl =
-                "https://i.y.qq.com/n2/m/share/listen_together/index.html?showid=$showId&songid=$songId&share_encrypt_uin=$encUin"
+                "https://i.y.qq.com/n2/m/share/listen_together/index.html?showid=$showId&songid=$songId"
 
             ListenTogetherRoomInfo(
                 showId = showId,
