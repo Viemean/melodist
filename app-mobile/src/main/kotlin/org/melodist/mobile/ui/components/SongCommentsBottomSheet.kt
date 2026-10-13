@@ -73,7 +73,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -81,6 +83,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -89,6 +92,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
@@ -913,6 +917,18 @@ private fun CommentInputBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val cardShape = RoundedCornerShape(16.dp)
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var isFocused by remember { mutableStateOf(false) }
+
+    // 用户3秒未继续输入时自动取消焦点并隐藏闪烁光标
+    LaunchedEffect(isFocused, inputText) {
+        if (isFocused) {
+            delay(3000L)
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+    }
 
     Column(
         modifier =
@@ -1018,12 +1034,20 @@ private fun CommentInputBottomBar(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .focusRequester(focusRequester),
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    isFocused = focusState.isFocused
+                                },
                         textStyle =
                             MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurface,
                             ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        cursorBrush =
+                            if (isFocused) {
+                                SolidColor(MaterialTheme.colorScheme.primary)
+                            } else {
+                                SolidColor(Color.Transparent)
+                            },
                         maxLines = 3,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = { onSend() }),
