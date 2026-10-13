@@ -44,6 +44,7 @@ fun ListenTogetherBottomSheet(
 
     val currentRoom by ListenTogetherManager.currentRoom.collectAsState()
     val isJoining by ListenTogetherManager.isJoining.collectAsState()
+    val spaceStats by ListenTogetherManager.spaceStats.collectAsState()
 
     var isCreatingRoom by remember { mutableStateOf(false) }
     var showJoinDialog by remember { mutableStateOf(false) }
@@ -189,6 +190,46 @@ fun ListenTogetherBottomSheet(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+
+                val stats = spaceStats
+                if (stats != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        ) {
+                            Text(
+                                text = "与好友一起听",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceAround,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TogetherStatItem(
+                                    value = stats.listenMinutes.toString(),
+                                    label = "一起听歌(分钟)",
+                                )
+                                TogetherStatItem(
+                                    value = stats.listenSongsCount.toString(),
+                                    label = "一起听过歌曲",
+                                )
+                                TogetherStatItem(
+                                    value = stats.favoriteSongsCount.toString(),
+                                    label = "共同收藏歌曲",
+                                )
+                            }
+                        }
                     }
                 }
             } else {
@@ -437,3 +478,31 @@ fun parseListenTogetherUrl(rawText: String): Triple<String, String, Long> {
 
     return Triple(showId, encUin, songId)
 }
+
+/**
+ * 一起听好友空间统计数据项。
+ */
+@Composable
+private fun TogetherStatItem(
+    value: String,
+    label: String,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
