@@ -251,26 +251,37 @@ fun ListenTogetherBottomSheet(
         }
     }
 
+    var isResolvingUrl by remember { mutableStateOf(false) }
+
     if (showJoinDialog) {
         JoinRoomDialog(
-            isJoining = isJoining,
-            onDismissRequest = { showJoinDialog = false },
+            isJoining = isJoining || isResolvingUrl,
+            onDismissRequest = {
+                if (!isResolvingUrl && !isJoining) {
+                    showJoinDialog = false
+                }
+            },
             onConfirmJoin = { inputUrl ->
-                val (showId, encUin, songId) = parseListenTogetherUrl(inputUrl)
-                if (showId.isBlank()) {
-                    Toast.makeText(context, "未识别到有效的一起听链接或房间号", Toast.LENGTH_SHORT).show()
-                } else if (ListenTogetherManager.isSelfCreatedRoom(showId, encUin)) {
-                    Toast.makeText(context, "请不要输入自己创建的房间", Toast.LENGTH_SHORT).show()
-                } else {
-                    coroutineScope.launch {
-                        val result = ListenTogetherManager.joinRoom(showId, encUin, songId)
-                        result.onSuccess {
-                            Toast.makeText(context, "成功加入一起听", Toast.LENGTH_SHORT).show()
-                            showJoinDialog = false
-                            onDismissRequest()
-                        }.onFailure {
-                            Toast.makeText(context, "加入失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                coroutineScope.launch {
+                    isResolvingUrl = true
+                    try {
+                        val (showId, encUin, songId) = ListenTogetherManager.resolveRoomTarget(inputUrl)
+                        if (showId.isBlank()) {
+                            Toast.makeText(context, "未识别到有效的一起听链接或房间号", Toast.LENGTH_SHORT).show()
+                        } else if (ListenTogetherManager.isSelfCreatedRoom(showId, encUin)) {
+                            Toast.makeText(context, "请不要输入自己创建的房间", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val result = ListenTogetherManager.joinRoom(showId, encUin, songId)
+                            result.onSuccess {
+                                Toast.makeText(context, "成功加入一起听", Toast.LENGTH_SHORT).show()
+                                showJoinDialog = false
+                                onDismissRequest()
+                            }.onFailure {
+                                Toast.makeText(context, "加入失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                            }
                         }
+                    } finally {
+                        isResolvingUrl = false
                     }
                 }
             },
@@ -301,14 +312,14 @@ private fun JoinRoomDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = "粘贴好友分享的一起听落地页链接或房间号：",
+                    text = "粘贴好友分享的一起听落地页链接、短链或房间号：",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     value = inputUrl,
                     onValueChange = { inputUrl = it },
-                    placeholder = { Text("https://i.y.qq.com/...") },
+                    placeholder = { Text("落地页链接 / 短链 / 房间号") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     singleLine = false,
@@ -348,7 +359,10 @@ private fun JoinRoomDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismissRequest) {
+            TextButton(
+                onClick = onDismissRequest,
+                enabled = !isJoining,
+            ) {
                 Text("取消")
             }
         },
@@ -365,7 +379,7 @@ private fun copyToClipboard(context: Context, text: String) {
 }
 
 /**
- * 解析一起听分享链接或原始房间号。
+ * 静态解析一起听分享链接或原始房间号。
  *
  * @return Triple(showId, encUin, songId)
  */
@@ -380,7 +394,8 @@ fun parseListenTogetherUrl(rawText: String): Triple<String, String, Long> {
         if (rawText.contains("http://") || rawText.contains("https://")) {
             val uri = Uri.parse(rawText)
             showId = uri.getQueryParameter("showid").orEmpty()
-            encUin = uri.getQueryParameter("share_encrypt_uin").orEmpty()
+            encUin = uri.getQueryParameter("share_encrypt_uin")?.ifBlank { null }
+                ?: uri.getQueryParameter("hosteuin").orEmpty()
             songId = uri.getQueryParameter("songid")?.toLongOrNull() ?: 0L
         }
 
