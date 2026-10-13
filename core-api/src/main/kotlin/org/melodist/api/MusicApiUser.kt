@@ -124,11 +124,38 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                 val identity = vipData["identity"]?.jsonObject
                 if (identity != null) {
                     val vip = identity["vip"]?.jsonPrimitive?.intOrNull ?: 0
-                    val hugeVip = identity["HugeVip"]?.jsonPrimitive?.intOrNull ?: 0
+                    val hugeVip =
+                        identity["HugeVip"]?.jsonPrimitive?.intOrNull
+                            ?: identity["huge_vip"]?.jsonPrimitive?.intOrNull
+                            ?: 0
                     val svipId = identity["svip"]?.jsonPrimitive?.intOrNull ?: 0
-                    val isSvip = svipRoot > 0 || svipId > 0
-                    val isHuge = hugeVip > 0
-                    val isGreen = vip > 0
+                    val eight = identity["eight"]?.jsonPrimitive?.intOrNull ?: 0
+                    val twelve = identity["twelve"]?.jsonPrimitive?.intOrNull ?: 0
+                    val superVip =
+                        identity["super_vip"]?.jsonPrimitive?.intOrNull
+                            ?: identity["iSuperVip"]?.jsonPrimitive?.intOrNull
+                            ?: identity["svip_flag"]?.jsonPrimitive?.intOrNull
+                            ?: vipData["super_vip"]?.jsonPrimitive?.intOrNull
+                            ?: 0
+
+                    val hugeEnd = identity["HugeVipEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val overdate = identity["overdate"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val lmEnd = identity["LMEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val eightEnd = identity["eightEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val twelveEnd = identity["twelveEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
+
+                    val isSvip =
+                        hugeVip > 0 ||
+                            (hugeEnd.isNotBlank() && hugeEnd != "0") ||
+                            twelve > 0 ||
+                            (twelveEnd.isNotBlank() && twelveEnd != "0") ||
+                            superVip > 0
+                    val isHuge =
+                        eight > 0 ||
+                            (eightEnd.isNotBlank() && eightEnd != "0") ||
+                            svipRoot > 0 ||
+                            svipId > 0
+                    val isGreen = vip > 0 || (lmEnd.isNotBlank() && lmEnd != "0")
                     val isYear =
                         (identity["yearflag"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
                             (identity["yearffb"]?.jsonPrimitive?.intOrNull ?: 0) > 0
@@ -138,31 +165,9 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                     val upgradePct = identity["upgradepct"]?.jsonPrimitive?.floatOrNull ?: 0f
                     val upgradeDays = identity["upgradeday"]?.jsonPrimitive?.intOrNull ?: 0
 
-                    val hugeEnd = identity["HugeVipEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                    val overdate = identity["overdate"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                    val lmEnd = identity["LMEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                    val eightEnd = identity["eightEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
-
-                    val svipEnd =
-                        if (isSvip) {
-                            hugeEnd.ifBlank { overdate }
-                        } else {
-                            ""
-                        }
-
-                    val hugeExpire =
-                        if (isHuge) {
-                            if (isSvip && overdate.isNotBlank()) overdate else hugeEnd.ifBlank { overdate }
-                        } else {
-                            ""
-                        }
-
-                    val greenEnd =
-                        if (isGreen && !isHuge && !isSvip) {
-                            if (lmEnd.isNotBlank()) lmEnd else overdate
-                        } else {
-                            ""
-                        }
+                    val svipEnd = if (isSvip) hugeEnd.ifBlank { twelveEnd.ifBlank { if (!isHuge) overdate else "" } } else ""
+                    val hugeExpire = if (isHuge) eightEnd.ifBlank { overdate } else ""
+                    val greenEnd = if (isGreen && !isHuge && !isSvip) lmEnd.ifBlank { overdate } else ""
 
                     val cpLoverFlag = identity["CPLoverFlag"]?.jsonPrimitive?.intOrNull ?: 0
                     val cpLoverEnd = identity["CPLoverEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
@@ -187,7 +192,13 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                     newProfile.hugeVipExpireAt = hugeExpire
                     newProfile.svipExpireAt = svipEnd
                     newProfile.greenVipExpireAt = greenEnd
-                    newProfile.vipExpireAt = hugeExpire.ifBlank { svipEnd.ifBlank { cpLoverEnd.ifBlank { overdate } } }
+                    newProfile.vipExpireAt =
+                        when {
+                            isSvip && svipEnd.isNotBlank() -> svipEnd
+                            isHuge && hugeExpire.isNotBlank() -> hugeExpire
+                            isGreen && greenEnd.isNotBlank() -> greenEnd
+                            else -> cpLoverEnd.ifBlank { groupVipEnd.ifBlank { overdate } }
+                        }
                     changed = true
                 }
 
