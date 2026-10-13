@@ -49,8 +49,36 @@ object ListenTogetherManager {
     private var expectedPlayStatus: Int = -1
     private var expectedSongId: Long = 0L
     private var isWaitingForGuestAutoPlay: Boolean = false
+    private var lastSyncedPlaylistSongIds: List<Long> = emptyList()
+    private var lastObservedMediaVersion: Long = 0L
 
     init {
+        scope.launch {
+            PlaybackManager.playlist.collect { newPlaylist ->
+                val room = _currentRoom.value ?: return@collect
+                if (isSyncingFromRemote) return@collect
+                if (newPlaylist.isEmpty()) return@collect
+
+                val newSongIds = newPlaylist.map { it.songId }
+                if (newSongIds == lastSyncedPlaylistSongIds) {
+                    return@collect
+                }
+                lastSyncedPlaylistSongIds = newSongIds
+
+                val targetSong = PlaybackManager.currentSong.value ?: newPlaylist.firstOrNull() ?: return@collect
+                val targetIdx = newPlaylist.indexOfFirst { it.songId == targetSong.songId }.coerceAtLeast(0)
+                ApiLogger.i("ListenTogetherManager", "Detected local playlist change (size=${newPlaylist.size}), syncing via cmd=1")
+                handleLocalAction(
+                    cmd = 1,
+                    songId = targetSong.songId,
+                    songTitle = targetSong.name,
+                    songIndex = targetIdx,
+                    offsetMs = 0L,
+                    playlist = newPlaylist,
+                )
+            }
+        }
+
         PlaybackManager.addPlaybackEventListener(
             object : PlaybackEventListener {
                 override fun onPlay() {
@@ -73,24 +101,29 @@ object ListenTogetherManager {
                     lastObservedSongId = song.songId
 
                     val currentPlaylist = PlaybackManager.playlist.value
-                    val targetIdx = currentPlaylist.indexOfFirst { it.songId == song.songId }
-                    if (targetIdx >= 0) {
-                        handleLocalAction(
-                            cmd = 4,
-                            songId = song.songId,
-                            songTitle = song.name,
-                            songIndex = targetIdx,
-                            offsetMs = 0L,
-                        )
-                    } else {
+                    val currentSongIds = currentPlaylist.map { it.songId }
+                    if (currentSongIds != lastSyncedPlaylistSongIds) {
+                        lastSyncedPlaylistSongIds = currentSongIds
+                        val targetIdx = currentPlaylist.indexOfFirst { it.songId == song.songId }.coerceAtLeast(0)
                         handleLocalAction(
                             cmd = 1,
                             songId = song.songId,
                             songTitle = song.name,
-                            songIndex = 0,
+                            songIndex = targetIdx,
                             offsetMs = 0L,
                             playlist = currentPlaylist,
                         )
+                    } else {
+                        val targetIdx = currentPlaylist.indexOfFirst { it.songId == song.songId }
+                        if (targetIdx >= 0) {
+                            handleLocalAction(
+                                cmd = 4,
+                                songId = song.songId,
+                                songTitle = song.name,
+                                songIndex = targetIdx,
+                                offsetMs = 0L,
+                            )
+                        }
                     }
                 }
             },
@@ -196,6 +229,7 @@ object ListenTogetherManager {
             if (room != null) {
                 _currentRoom.value = room
                 lastObservedSongId = currentSongId
+                lastSyncedPlaylistSongIds = currentPlaylist.map { it.songId }
 
                 val targetIndex = currentPlaylist.indexOfFirst { it.songId == currentSongId }.coerceAtLeast(0)
                 scope.launch(Dispatchers.IO) {
@@ -292,6 +326,8 @@ object ListenTogetherManager {
                                         if (!isHostPlaying) {
                                             PlaybackManager.pause()
                                         }
+                                        lastSyncedPlaylistSongIds = fullSongs.map { it.songId }
+                                        lastObservedMediaVersion = state?.mediaVersion ?: 0L
                                     } finally {
                                         isSyncingFromRemote = false
                                     }
@@ -346,6 +382,8 @@ object ListenTogetherManager {
         lastLocalActionTime = 0L
         expectedPlayStatus = -1
         expectedSongId = 0L
+        lastSyncedPlaylistSongIds = emptyList()
+        lastObservedMediaVersion = 0L
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -404,36 +442,82 @@ object ListenTogetherManager {
                         val now = System.currentTimeMillis()
                         val isWithinActionWindow = (now - lastLocalActionTime) < 3000L
 
-                        // 对齐切歌
+                        // 对齐切歌与全量歌单
                         if (state.currentSongId > 0L) {
+                            val isMediaVersionChanged = state.mediaVersion > 0L && lastObservedMediaVersion > 0L && state.mediaVersion != lastObservedMediaVersion
+                            val isSongChanged = state.currentSongId != lastObservedSongId
+
                             if (isWithinActionWindow && expectedSongId > 0L && state.currentSongId != expectedSongId) {
                                 // 本地处于切歌保护窗，服务端尚未生效，忽略旧歌曲
                             } else {
                                 if (state.currentSongId == expectedSongId) {
                                     expectedSongId = 0L
                                 }
-                                if (state.currentSongId != lastObservedSongId) {
+                                if (isSongChanged || isMediaVersionChanged) {
                                     lastObservedSongId = state.currentSongId
-                                    if (state.currentSongId != PlaybackManager.currentSong.value?.songId) {
-                                        withContext(Dispatchers.Main) {
-                                            isSyncingFromRemote = true
-                                            try {
-                                                val currentList = PlaybackManager.playlist.value
-                                                val existingSong = currentList.firstOrNull { it.songId == state.currentSongId }
-                                                if (existingSong != null) {
+                                    if (state.mediaVersion > 0L) {
+                                        lastObservedMediaVersion = state.mediaVersion
+                                    }
+
+                                    val currentList = PlaybackManager.playlist.value
+                                    val existingSong = currentList.firstOrNull { it.songId == state.currentSongId }
+
+                                    if (existingSong != null && !isMediaVersionChanged) {
+                                        if (state.currentSongId != PlaybackManager.currentSong.value?.songId) {
+                                            withContext(Dispatchers.Main) {
+                                                isSyncingFromRemote = true
+                                                try {
                                                     PlaybackManager.playSong(existingSong, seekToMs = state.songOffsetMs)
-                                                } else {
-                                                    withContext(Dispatchers.IO) {
-                                                        val targetSong = apiService.getSongBySongId(state.currentSongId)
-                                                        if (targetSong != null) {
-                                                            withContext(Dispatchers.Main) {
-                                                                PlaybackManager.playSong(targetSong, seekToMs = state.songOffsetMs)
+                                                } finally {
+                                                    isSyncingFromRemote = false
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // 歌曲不在本地当前播放队列中，或者服务端歌单版本号已变更：拉取服务端最新全量播放队列 (cmd=0)
+                                        ApiLogger.i("ListenTogetherManager", "Remote playlist changed or song missing, syncing full playlist from server (songId=${state.currentSongId})")
+                                        scope.launch(Dispatchers.IO) {
+                                            try {
+                                                val songIds = apiService.getListenTogetherSongList(showId)
+                                                if (songIds.isNotEmpty()) {
+                                                    val fullSongs = apiService.getSongsBySongIds(songIds)
+                                                    if (fullSongs.isNotEmpty()) {
+                                                        withContext(Dispatchers.Main) {
+                                                            isSyncingFromRemote = true
+                                                            try {
+                                                                val targetIdx = fullSongs.indexOfFirst { it.songId == state.currentSongId }.coerceAtLeast(0)
+                                                                PlaybackManager.setPlaylist(
+                                                                    songs = fullSongs,
+                                                                    startIndex = targetIdx,
+                                                                    initialSeekToMs = state.songOffsetMs,
+                                                                )
+                                                                if (state.playStatus != 1) {
+                                                                    PlaybackManager.pause()
+                                                                }
+                                                                lastSyncedPlaylistSongIds = fullSongs.map { it.songId }
+                                                            } finally {
+                                                                isSyncingFromRemote = false
                                                             }
                                                         }
+                                                        return@launch
                                                     }
                                                 }
-                                            } finally {
-                                                isSyncingFromRemote = false
+                                            } catch (e: Exception) {
+                                                if (e is CancellationException) throw e
+                                                ApiLogger.w("ListenTogetherManager", "Fetch remote playlist error", e)
+                                            }
+
+                                            // 回退兜底：如果拉取全量歌单失败，仅起播当前单曲
+                                            val targetSong = apiService.getSongBySongId(state.currentSongId)
+                                            if (targetSong != null) {
+                                                withContext(Dispatchers.Main) {
+                                                    isSyncingFromRemote = true
+                                                    try {
+                                                        PlaybackManager.playSong(targetSong, seekToMs = state.songOffsetMs)
+                                                    } finally {
+                                                        isSyncingFromRemote = false
+                                                    }
+                                                }
                                             }
                                         }
                                     }

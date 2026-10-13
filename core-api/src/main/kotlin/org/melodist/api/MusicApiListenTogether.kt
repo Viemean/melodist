@@ -309,6 +309,9 @@ suspend fun MusicApiService.heartbeatListenTogetherRoom(showId: String): ListenT
             val playStatus = songInfo?.get("playStatus")?.jsonPrimitive?.intOrNull ?: 0
             val songOffsetMs = songInfo?.get("songOffset")?.jsonPrimitive?.longOrNull ?: 0L
             val songPlayVersion = songInfo?.get("songPlayVersion")?.jsonPrimitive?.longOrNull ?: 0L
+            val mediaVersion = songInfo?.get("mediaVersion")?.jsonPrimitive?.longOrNull
+                ?: dataObj["mediaVersion"]?.jsonPrimitive?.longOrNull
+                ?: 0L
             val usersCount = dataObj["users"]?.jsonArray?.size ?: 1
 
             ListenTogetherSyncState(
@@ -318,6 +321,7 @@ suspend fun MusicApiService.heartbeatListenTogetherRoom(showId: String): ListenT
                 playStatus = playStatus,
                 songOffsetMs = songOffsetMs,
                 songPlayVersion = songPlayVersion,
+                mediaVersion = mediaVersion,
                 usersCount = usersCount,
                 isRoomValid = true,
             )
@@ -590,6 +594,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                         )
                                     }
                                     1 -> {
+                                        put("seekTime", offsetMs)
                                         put("songOffset", offsetMs)
                                         if (songId > 0L) {
                                             put(

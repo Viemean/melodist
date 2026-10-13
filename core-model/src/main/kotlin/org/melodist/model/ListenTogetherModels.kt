@@ -40,6 +40,7 @@ data class ListenTogetherSyncState(
     val playStatus: Int = 0, // 1: 播放中, 2: 暂停
     val songOffsetMs: Long = 0L,
     val songPlayVersion: Long = 0L,
+    val mediaVersion: Long = 0L,
     val usersCount: Int = 0,
     val isRoomValid: Boolean = true,
 )
