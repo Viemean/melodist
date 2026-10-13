@@ -16,6 +16,7 @@ import org.melodist.api.ApiLogger
 import org.melodist.api.MusicApiService
 import org.melodist.api.createListenTogetherRoom
 import org.melodist.api.getListenTogetherSongList
+import org.melodist.api.getListenTogetherSpaceStats
 import org.melodist.api.getSongBySongId
 import org.melodist.api.getSongsBySongIds
 import org.melodist.api.heartbeatListenTogetherRoom
@@ -25,6 +26,7 @@ import org.melodist.api.resolveListenTogetherShareTarget
 import org.melodist.api.sendListenTogetherSongOper
 import org.melodist.api.UserSession
 import org.melodist.model.ListenTogetherRoomInfo
+import org.melodist.model.ListenTogetherSpaceStats
 import org.melodist.model.Song
 import kotlin.math.abs
 
@@ -40,6 +42,14 @@ object ListenTogetherManager {
 
     private val _isJoining = MutableStateFlow(false)
     val isJoining: StateFlow<Boolean> = _isJoining.asStateFlow()
+
+    private val _spaceStats = MutableStateFlow<ListenTogetherSpaceStats?>(null)
+    val spaceStats: StateFlow<ListenTogetherSpaceStats?> = _spaceStats.asStateFlow()
+
+    private var lastFetchedStatsRoomId: String = ""
+    private var lastStatsFetchTime: Long = 0L
+    private var accumulatedPlayMs: Long = 0L
+    private var lastRecordedStatsSongId: Long = 0L
 
     private val selfCreatedRoomIds = mutableSetOf<String>()
 
@@ -337,6 +347,10 @@ object ListenTogetherManager {
                 _currentRoom.value = room
                 lastObservedSongId = initialSongId
 
+                if (encUin.isNotBlank()) {
+                    fetchSpaceStats(showId, encUin)
+                }
+
                 // 进房后立即拉取房主的完整播放队列 (cmd=0)
                 scope.launch(Dispatchers.IO) {
                     try {
@@ -412,6 +426,7 @@ object ListenTogetherManager {
         isWaitingForGuestAutoPlay = false
         stopHeartbeatSync()
         _currentRoom.value = null
+        resetSpaceStats()
         lastObservedSongId = 0L
         lastLocalActionTime = 0L
         expectedPlayStatus = -1
@@ -452,6 +467,7 @@ object ListenTogetherManager {
                         // 房间已解散或关闭
                         if (!state.isRoomValid) {
                             ApiLogger.i("ListenTogetherManager", "Room $showId has been closed by host/server")
+                            resetSpaceStats()
                             _currentRoom.value = null
                             break
                         }
@@ -473,6 +489,35 @@ object ListenTogetherManager {
                             }
                         }
 
+                        // 好友空间统计拉取与2分钟周期对齐
+                        if (state.usersCount >= 2) {
+                            val myEnc = UserSession.profileFlow.value.encryptedUin
+                            val partnerEnc = state.userEncUins.firstOrNull { it != myEnc }
+                                ?: _currentRoom.value?.creatorUin.takeIf { it != myEnc }
+                                ?: state.userEncUins.firstOrNull()
+                                ?: ""
+                            if (partnerEnc.isNotBlank()) {
+                                val now = System.currentTimeMillis()
+                                if (_spaceStats.value == null) {
+                                    fetchSpaceStats(state.showId, partnerEnc, force = true)
+                                    lastRecordedStatsSongId = state.currentSongId
+                                } else if (now - lastStatsFetchTime >= 120_000L) {
+                                    fetchSpaceStats(state.showId, partnerEnc, force = true)
+                                }
+                            }
+                        }
+
+                        // 本地乐观更新：两人都在线且正在播放时累加听歌时长（每满60秒自增1分钟）
+                        if (state.usersCount >= 2 && state.playStatus == 1 && _spaceStats.value != null) {
+                            accumulatedPlayMs += 1500L
+                            if (accumulatedPlayMs >= 60_000L) {
+                                accumulatedPlayMs -= 60_000L
+                                _spaceStats.value?.let { currentStats ->
+                                    _spaceStats.value = currentStats.copy(listenMinutes = currentStats.listenMinutes + 1)
+                                }
+                            }
+                        }
+
                         val now = System.currentTimeMillis()
                         val isWithinActionWindow = (now - lastLocalActionTime) < 3000L
 
@@ -488,6 +533,12 @@ object ListenTogetherManager {
                                     expectedSongId = 0L
                                 }
                                 if (isSongChanged || isMediaVersionChanged) {
+                                    if (isSongChanged && state.usersCount >= 2 && _spaceStats.value != null && lastRecordedStatsSongId > 0L && state.currentSongId != lastRecordedStatsSongId) {
+                                        _spaceStats.value?.let { currentStats ->
+                                            _spaceStats.value = currentStats.copy(listenSongsCount = currentStats.listenSongsCount + 1)
+                                        }
+                                    }
+                                    lastRecordedStatsSongId = state.currentSongId
                                     lastObservedSongId = state.currentSongId
                                     if (state.mediaVersion > 0L) {
                                         lastObservedMediaVersion = state.mediaVersion
@@ -541,7 +592,7 @@ object ListenTogetherManager {
                                                 ApiLogger.w("ListenTogetherManager", "Fetch remote playlist error", e)
                                             }
 
-                                            // 回退兜底：如果拉取全量歌单失败，仅起播当前单曲
+                                            // 回退：如果拉取全量歌单失败，仅起播当前单曲
                                             val targetSong = apiService.getSongBySongId(state.currentSongId)
                                             if (targetSong != null) {
                                                 withContext(Dispatchers.Main) {
@@ -636,6 +687,41 @@ object ListenTogetherManager {
      */
     suspend fun resolveRoomTarget(rawText: String): Triple<String, String, Long> {
         return apiService.resolveListenTogetherShareTarget(rawText)
+    }
+
+    /**
+     * 异步拉取并更新好友空间统计数据。
+     *
+     * @param showId 房间唯一标识
+     * @param partnerEncUin 对方加密 UIN
+     * @param force 是否强制拉取（用于首次同步或周期性对齐）
+     */
+    private fun fetchSpaceStats(showId: String, partnerEncUin: String, force: Boolean = false) {
+        if (showId.isBlank() || partnerEncUin.isBlank()) return
+        val now = System.currentTimeMillis()
+        if (!force && lastFetchedStatsRoomId == showId && _spaceStats.value != null && (now - lastStatsFetchTime) < 120_000L) {
+            return
+        }
+        scope.launch(Dispatchers.IO) {
+            val selfEnc = UserSession.profileFlow.value.encryptedUin
+            val stats = apiService.getListenTogetherSpaceStats(showId, partnerEncUin, selfEnc)
+            if (stats != null) {
+                lastFetchedStatsRoomId = showId
+                lastStatsFetchTime = System.currentTimeMillis()
+                _spaceStats.value = stats
+            }
+        }
+    }
+
+    /**
+     * 重置好友空间统计数据与本地乐观累计状态。
+     */
+    private fun resetSpaceStats() {
+        _spaceStats.value = null
+        lastFetchedStatsRoomId = ""
+        lastStatsFetchTime = 0L
+        accumulatedPlayMs = 0L
+        lastRecordedStatsSongId = 0L
     }
 }
 
