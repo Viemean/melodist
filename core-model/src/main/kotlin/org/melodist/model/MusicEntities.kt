@@ -131,6 +131,7 @@ data class SongComment(
     val picSize: String = "",
     val location: String = "",
     val seqNo: String = "",
+    val isPraised: Boolean = false,
 )
 
 @Serializable
