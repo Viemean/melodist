@@ -302,3 +302,94 @@ internal fun parseCommentElement(
         isHot = isHot,
     )
 }
+
+/**
+ * 歌曲评论数全局内存缓存（会话级 LRU 缓存，加速长按菜单与详情页即时展示）。
+ */
+object SongCommentCountCache {
+    private val cache = java.util.concurrent.ConcurrentHashMap<Long, Int>()
+
+    fun get(songId: Long): Int? = cache[songId]
+
+    fun put(songId: Long, count: Int) {
+        if (songId > 0L && count >= 0) {
+            cache[songId] = count
+        }
+    }
+
+    fun clear() {
+        cache.clear()
+    }
+}
+
+/**
+ * 轻量获取单曲的评论总数（仅拉取统计数值，不携带任何评论列表内容）。
+ *
+ * @param songId 歌曲数字 ID
+ * @param forceRefresh 是否强制忽略缓存拉取远端
+ * @return 评论总数，若失败或不存在则返回 null
+ */
+suspend fun MusicApiService.getSongCommentCount(songId: Long, forceRefresh: Boolean = false): Int? =
+    withContext(Dispatchers.IO) {
+        if (songId <= 0L) return@withContext null
+        if (!forceRefresh) {
+            val cached = SongCommentCountCache.get(songId)
+            if (cached != null) return@withContext cached
+        }
+        val payload =
+            """
+            {
+                "comm": {
+                    "cv": 4747474,
+                    "ct": 24,
+                    "format": "json",
+                    "platform": "yqq.json",
+                    "uin": 0
+                },
+                "req": {
+                    "module": "music.globalComment.CommentRead",
+                    "method": "GetCommentCount",
+                    "param": {
+                        "request_list": [
+                            {
+                                "biz_type": 1,
+                                "biz_id": "$songId"
+                            }
+                        ]
+                    }
+                }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postGateway(payload)
+            val count = parseCommentCountResponse(respJson)
+            if (count != null) {
+                SongCommentCountCache.put(songId, count)
+            }
+            count
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.w("MusicApiComment", "getSongCommentCount failed for songId=$songId", e)
+            null
+        }
+    }
+
+/**
+ * 解析评论计数网关响应 JSON。
+ */
+internal fun parseCommentCountResponse(responseStr: String): Int? {
+    return try {
+        val root = Json.parseToJsonElement(responseStr).jsonObject
+        val reqObj = root["req"]?.jsonObject ?: return null
+        val code = reqObj["code"]?.jsonPrimitive?.intOrNull ?: -1
+        if (code != 0) return null
+
+        val dataObj = reqObj["data"]?.jsonObject ?: return null
+        val responseList = dataObj["response_list"]?.jsonArray
+        val firstItem = responseList?.firstOrNull()?.jsonObject
+        firstItem?.get("count")?.jsonPrimitive?.intOrNull
+    } catch (_: Exception) {
+        null
+    }
+}

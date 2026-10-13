@@ -148,5 +148,29 @@ class ListenTogetherTargetResolveTest {
         assertEquals(2, state?.usersCount)
         assertEquals(listOf("dummy_uin_1", "dummy_uin_2"), state?.userEncUins)
     }
+
+    @Test
+    fun `test parse comment count response`() {
+        val jsonStr = """
+            {
+                "code": 0,
+                "req": {
+                    "code": 0,
+                    "data": {
+                        "response_list": [
+                            {
+                                "biz_type": 1,
+                                "biz_id": "1001",
+                                "biz_sub_type": 0,
+                                "count": 12345
+                            }
+                        ]
+                    }
+                }
+            }
+        """.trimIndent()
+        val count = parseCommentCountResponse(jsonStr)
+        assertEquals(12345, count)
+    }
 }
 
