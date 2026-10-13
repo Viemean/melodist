@@ -451,13 +451,22 @@ object ListenTogetherManager {
         stopHeartbeatSync()
         heartbeatJob =
             scope.launch(Dispatchers.IO) {
+                var consecutiveFailures = 0
                 while (isActive) {
                     try {
                         val state = apiService.heartbeatListenTogetherRoom(showId)
                         if (state == null) {
+                            consecutiveFailures++
+                            if (consecutiveFailures >= 5) {
+                                ApiLogger.w("ListenTogetherManager", "Heartbeat failed $consecutiveFailures consecutive times, closing room $showId")
+                                resetSpaceStats()
+                                _currentRoom.value = null
+                                break
+                            }
                             delay(1500)
                             continue
                         }
+                        consecutiveFailures = 0
 
                         ApiLogger.i(
                             "ListenTogetherManager",
