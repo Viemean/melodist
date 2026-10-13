@@ -21,6 +21,8 @@ import org.melodist.model.ListenTogetherHistoryRecord
 import org.melodist.model.ListenTogetherRoomInfo
 import org.melodist.model.ListenTogetherSyncState
 import org.melodist.model.Song
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Request
 
 /**
  * 创建一起听房间并返回房间信息及外部落地页链接。
@@ -686,5 +688,88 @@ suspend fun MusicApiService.getListenTogetherHistory(reqNum: Int = 50): List<Lis
             emptyList()
         }
     }
+
+/**
+ * 从 URL 中解析一起听落地页参数。
+ *
+ * @param urlString 待解析的目标链接
+ * @return Triple(showId, encUin, songId)
+ */
+private fun parseFromListenTogetherHttpUrl(urlString: String): Triple<String, String, Long> {
+    val httpUrl = urlString.toHttpUrlOrNull() ?: return Triple("", "", 0L)
+    val showId = httpUrl.queryParameter("showid").orEmpty()
+    val encUin = httpUrl.queryParameter("share_encrypt_uin")?.ifBlank { null }
+        ?: httpUrl.queryParameter("hosteuin").orEmpty()
+    val songId = httpUrl.queryParameter("songid")?.toLongOrNull() ?: 0L
+    return Triple(showId, encUin, songId)
+}
+
+/**
+ * 解析并还原一起听分享文本，支持识别落地页 URL、原始房间号以及短链接重定向。
+ *
+ * @param rawText 用户输入的文本
+ * @return Triple(showId, encUin, songId)
+ */
+suspend fun MusicApiService.resolveListenTogetherShareTarget(
+    rawText: String,
+): Triple<String, String, Long> = withContext(Dispatchers.IO) {
+    if (rawText.isBlank()) return@withContext Triple("", "", 0L)
+
+    val cleanText = rawText.trim()
+
+    // 1. 尝试从文本中提取 URL
+    val urlRegex = Regex("https?://[a-zA-Z0-9\\-._~:/?#\\[\\]@!$&'*+,;=%]+")
+    var matchedUrl = urlRegex.find(cleanText)?.value
+    if (matchedUrl == null) {
+        val domainRegex = Regex("(?:[a-zA-Z0-9-]+\\.)*y\\.qq\\.com/[a-zA-Z0-9\\-._~:/?#\\[\\]@!$&'*+,;=%]+")
+        val domainMatch = domainRegex.find(cleanText)?.value
+        if (domainMatch != null) {
+            matchedUrl = "https://$domainMatch"
+        }
+    }
+
+    if (matchedUrl != null) {
+        val trimmedUrl = matchedUrl.trimEnd(',', '.', ';', ')', '，', '。')
+        val initialParsed = parseFromListenTogetherHttpUrl(trimmedUrl)
+        if (initialParsed.first.isNotBlank()) {
+            return@withContext initialParsed
+        }
+
+        // 若直接解析未获得 showId，发起网络探测获取 302 重定向落地页
+        try {
+            val redirectClient = client.newBuilder()
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .build()
+
+            val request = Request.Builder()
+                .url(trimmedUrl)
+                .header("User-Agent", MusicApiService.WEB_USER_AGENT)
+                .build()
+
+            redirectClient.newCall(request).execute().use { response ->
+                val location = response.header("Location")
+                if (!location.isNullOrBlank()) {
+                    val resolvedHttpUrl = response.request.url.resolve(location)?.toString() ?: location
+                    val resolved = parseFromListenTogetherHttpUrl(resolvedHttpUrl)
+                    if (resolved.first.isNotBlank()) {
+                        return@withContext resolved
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "resolve short url redirect failed", e)
+        }
+    }
+
+    // 2. 兜底正则匹配房间号 (LUGC 开头)
+    val lugcMatch = Regex("LUGC[0-9a-zA-Z]+").find(cleanText)
+    if (lugcMatch != null) {
+        return@withContext Triple(lugcMatch.value, "", 0L)
+    }
+
+    Triple("", "", 0L)
+}
 
 
