@@ -73,4 +73,38 @@ class ListenTogetherTargetResolveTest {
         assertEquals("dummy_uin_mock", encUin)
         assertEquals(123456L, songId)
     }
+
+    @Test
+    fun `test resolve space stats from mock SSR html`() = runBlocking {
+        val mockHtml = """
+            <!DOCTYPE html><html><head>
+            <script>window.__ssrFirstPageData__="{\"rsp_1\":{\"req_0\":{\"code\":0,\"data\":{\"Together\":{\"TogetherData\":{\"ListenTime\":14160,\"ListenNum\":17,\"FavoriteSongNum\":1}}}}}}"</script>
+            </head><body></body></html>
+        """.trimIndent()
+
+        val mockClient = okhttp3.OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request()
+                if (request.url.encodedPath.contains("close_friend_space")) {
+                    okhttp3.Response.Builder()
+                        .request(request)
+                        .protocol(okhttp3.Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK")
+                        .body(mockHtml.toResponseBody(null))
+                        .build()
+                } else {
+                    chain.proceed(request)
+                }
+            }
+            .build()
+
+        val api = MusicApiService(mockClient)
+        val stats = api.getListenTogetherSpaceStats("LUGC_MOCK_ROOM", "dummy_partner_uin")
+        org.junit.jupiter.api.Assertions.assertNotNull(stats)
+        assertEquals(236L, stats?.listenMinutes)
+        assertEquals(17, stats?.listenSongsCount)
+        assertEquals(1, stats?.favoriteSongsCount)
+    }
 }
+

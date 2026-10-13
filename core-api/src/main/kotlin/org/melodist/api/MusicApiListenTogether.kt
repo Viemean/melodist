@@ -7,6 +7,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -19,6 +20,7 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import org.melodist.model.ListenTogetherHistoryRecord
 import org.melodist.model.ListenTogetherRoomInfo
+import org.melodist.model.ListenTogetherSpaceStats
 import org.melodist.model.ListenTogetherSyncState
 import org.melodist.model.Song
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -234,7 +236,11 @@ suspend fun MusicApiService.heartbeatListenTogetherRoom(showId: String): ListenT
             val mediaVersion = songInfo?.get("mediaVersion")?.jsonPrimitive?.longOrNull
                 ?: dataObj["mediaVersion"]?.jsonPrimitive?.longOrNull
                 ?: 0L
-            val usersCount = dataObj["users"]?.jsonArray?.size ?: 1
+            val usersArray = dataObj["users"]?.jsonArray
+            val usersCount = usersArray?.size ?: 1
+            val userEncUins = usersArray?.mapNotNull {
+                it.jsonObject["encryptUin"]?.jsonPrimitive?.contentOrNull
+            }.orEmpty()
 
             ListenTogetherSyncState(
                 showId = showId,
@@ -246,6 +252,7 @@ suspend fun MusicApiService.heartbeatListenTogetherRoom(showId: String): ListenT
                 mediaVersion = mediaVersion,
                 usersCount = usersCount,
                 isRoomValid = true,
+                userEncUins = userEncUins,
             )
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -770,6 +777,77 @@ suspend fun MusicApiService.resolveListenTogetherShareTarget(
     }
 
     Triple("", "", 0L)
+}
+
+/**
+ * 获取一起听好友空间统计数据（双方累计听歌时长、听过歌曲数、共同收藏数）。
+ *
+ * @param showId 房间唯一标识
+ * @param targetEncUin 对方加密 UIN
+ * @param selfEncUin 自身加密 UIN
+ * @return 统计实体，未获取到或未登录返回 null
+ */
+suspend fun MusicApiService.getListenTogetherSpaceStats(
+    showId: String,
+    targetEncUin: String = "",
+    selfEncUin: String = "",
+): ListenTogetherSpaceStats? = withContext(Dispatchers.IO) {
+    if (showId.isBlank()) return@withContext null
+    val uinsParam = when {
+        selfEncUin.isNotBlank() && targetEncUin.isNotBlank() -> "$selfEncUin,$targetEncUin"
+        targetEncUin.isNotBlank() -> targetEncUin
+        selfEncUin.isNotBlank() -> selfEncUin
+        else -> ""
+    }
+
+    val url = "https://i2.y.qq.com/n3/client/pages/close_friend_space/index.html?type=1&roomid=$showId&uins=$uinsParam"
+    val requestBuilder = Request.Builder()
+        .url(url)
+        .header("User-Agent", MusicApiService.WEB_USER_AGENT)
+
+    val cookie = UserSession.getCookieHeader()
+    if (cookie.isNotBlank()) {
+        requestBuilder.header("Cookie", cookie)
+    }
+
+    try {
+        client.newCall(requestBuilder.build()).execute().use { response ->
+            if (!response.isSuccessful) return@withContext null
+            val html = response.body.string()
+            val prefix = "window.__ssrFirstPageData__="
+            val startIndex = html.indexOf(prefix)
+            if (startIndex == -1) return@withContext null
+            val endIndex = html.indexOf("</script>", startIndex)
+            if (endIndex == -1) return@withContext null
+
+            val jsStatement = html.substring(startIndex + prefix.length, endIndex).trim().removeSuffix(";")
+            val rawElement = Json.parseToJsonElement(jsStatement)
+            val jsonContent = (rawElement as? JsonPrimitive)?.content ?: rawElement.toString()
+
+            val rootObj = Json.parseToJsonElement(jsonContent).jsonObject
+            val rsp1 = rootObj["rsp_1"]?.jsonObject ?: return@withContext null
+            val req0 = rsp1["req_0"]?.jsonObject ?: return@withContext null
+            val dataObj = req0["data"]?.jsonObject ?: return@withContext null
+            val together = dataObj["Together"]?.jsonObject ?: return@withContext null
+            val togetherData = together["TogetherData"]?.jsonObject
+                ?: together["BaseData"]?.jsonObject
+                ?: return@withContext null
+
+            val listenTimeSec = togetherData["ListenTime"]?.jsonPrimitive?.longOrNull ?: 0L
+            val listenSongsCount = togetherData["ListenNum"]?.jsonPrimitive?.intOrNull ?: 0
+            val favSongsCount = togetherData["FavoriteSongNum"]?.jsonPrimitive?.intOrNull ?: 0
+
+            ListenTogetherSpaceStats(
+                listenMinutes = (listenTimeSec / 60L).coerceAtLeast(0L),
+                listenSongsCount = listenSongsCount,
+                favoriteSongsCount = favSongsCount,
+            )
+        }
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        ApiLogger.w("MusicApiListenTogether", "getListenTogetherSpaceStats failed", e)
+        null
+    }
 }
 
 
