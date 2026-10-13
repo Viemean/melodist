@@ -71,7 +71,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
+import org.melodist.api.SongCommentCountCache
 import org.melodist.api.UserSession
+import org.melodist.api.getSongCommentCount
 import org.melodist.api.probeSongQualities
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.data.AppSettingsManager
@@ -137,6 +139,23 @@ fun SongActionSheet(
 
     var probedQualityOptions by remember(song.songMid) { mutableStateOf<List<QualityOption>>(emptyList()) }
     var isProbing by remember(song.songMid) { mutableStateOf(false) }
+
+    var commentCount by remember(song.songId) { mutableStateOf(SongCommentCountCache.get(song.songId)) }
+
+    LaunchedEffect(song.songId) {
+        if (!song.isLocal && !song.isWebDav && song.songId > 0L) {
+            val cached = SongCommentCountCache.get(song.songId)
+            if (cached != null) {
+                commentCount = cached
+            } else {
+                val api = MusicApiService()
+                val count = api.getSongCommentCount(song.songId)
+                if (count != null && count > 0) {
+                    commentCount = count
+                }
+            }
+        }
+    }
 
     LaunchedEffect(showDownloadQualityDialog, song.songMid) {
         if (showDownloadQualityDialog && probedQualityOptions.isEmpty()) {
@@ -494,9 +513,18 @@ fun SongActionSheet(
             }
 
             if (!song.isLocal && !song.isWebDav) {
+                val commentSubtitle =
+                    commentCount?.takeIf { it > 0 }?.let { count ->
+                        when {
+                            count >= 100_000_000 -> "%.1f亿 条评论".format(count / 100_000_000.0)
+                            count >= 10_000 -> "%.1f万 条评论".format(count / 10_000.0)
+                            else -> "$count 条评论"
+                        }
+                    }
                 ActionSheetItem(
                     icon = Icons.AutoMirrored.Rounded.Comment,
                     title = "查看评论",
+                    subtitle = commentSubtitle,
                     onClick = {
                         showCommentsSheet = true
                     },

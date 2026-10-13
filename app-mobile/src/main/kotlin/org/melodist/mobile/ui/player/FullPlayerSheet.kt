@@ -98,6 +98,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.launch
+import org.melodist.api.MusicApiService
+import org.melodist.api.getSongCommentCount
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.components.AudioQualityBottomSheet
@@ -164,6 +166,13 @@ fun FullPlayerSheet(
     val remotePrevSong by PlaybackManager.remotePrevSong.collectAsState()
     val remoteNextSong by PlaybackManager.remoteNextSong.collectAsState()
     val isRemoteActive by PlaybackManager.isRemoteActive.collectAsState()
+
+    LaunchedEffect(song?.songId) {
+        val songId = song?.songId ?: 0L
+        if (songId > 0L && song?.isLocal != true && song?.isWebDav != true) {
+            MusicApiService().getSongCommentCount(songId)
+        }
+    }
 
     val prevSong =
         remember(playlist, currentIndex, loopMode, song?.songMid, isRemoteActive, remotePrevSong) {
