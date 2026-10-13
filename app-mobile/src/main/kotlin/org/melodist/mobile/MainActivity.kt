@@ -154,13 +154,22 @@ class MainActivity : ComponentActivity() {
             val songId = uri.getQueryParameter("songid")?.toLongOrNull() ?: 0L
             if (showId.isNotBlank()) {
                 lifecycleScope.launch(Dispatchers.Main) {
-                    android.widget.Toast.makeText(this@MainActivity, "正在加入一起听房间...", android.widget.Toast.LENGTH_SHORT).show()
-                    val result = org.melodist.playback.ListenTogetherManager.joinRoom(showId, encUin, songId)
-                    result.onSuccess {
-                        android.widget.Toast.makeText(this@MainActivity, "成功加入一起听", android.widget.Toast.LENGTH_SHORT).show()
-                    }.onFailure {
-                        android.widget.Toast.makeText(this@MainActivity, "加入失败: ${it.message}", android.widget.Toast.LENGTH_SHORT).show()
-                    }
+                    android.widget.Toast
+                        .makeText(this@MainActivity, "正在加入一起听房间...", android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                    val result =
+                        org.melodist.playback.ListenTogetherManager
+                            .joinRoom(showId, encUin, songId)
+                    result
+                        .onSuccess {
+                            android.widget.Toast
+                                .makeText(this@MainActivity, "成功加入一起听", android.widget.Toast.LENGTH_SHORT)
+                                .show()
+                        }.onFailure {
+                            android.widget.Toast
+                                .makeText(this@MainActivity, "加入失败: ${it.message}", android.widget.Toast.LENGTH_SHORT)
+                                .show()
+                        }
                 }
             }
         }

@@ -2,7 +2,6 @@ package org.melodist.model
 
 import kotlinx.serialization.Serializable
 
-
 /**
  * 一起听房间状态与元数据实体。
  */

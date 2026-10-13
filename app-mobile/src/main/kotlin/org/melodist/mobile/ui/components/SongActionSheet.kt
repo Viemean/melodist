@@ -366,7 +366,7 @@ fun SongActionSheet(
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                    )
+                                )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                 DropdownMenuItem(
                                     text = { Text("立即在电视播放") },

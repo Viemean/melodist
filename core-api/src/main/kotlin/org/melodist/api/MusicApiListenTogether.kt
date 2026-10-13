@@ -18,13 +18,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Request
 import org.melodist.model.ListenTogetherHistoryRecord
 import org.melodist.model.ListenTogetherRoomInfo
 import org.melodist.model.ListenTogetherSpaceStats
 import org.melodist.model.ListenTogetherSyncState
 import org.melodist.model.Song
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.Request
 
 /**
  * 创建一起听房间并返回房间信息及外部落地页链接。
@@ -225,7 +225,10 @@ suspend fun MusicApiService.heartbeatListenTogetherRoom(showId: String): ListenT
 /**
  * 解析心跳响应数据，并识别房间有效性。
  */
-internal fun parseHeartbeatResponse(responseStr: String, showId: String): ListenTogetherSyncState? {
+internal fun parseHeartbeatResponse(
+    responseStr: String,
+    showId: String,
+): ListenTogetherSyncState? {
     val root = Json.parseToJsonElement(responseStr).jsonObject
     val reqHb = root["req_hb"]?.jsonObject ?: return null
     val code = reqHb["code"]?.jsonPrimitive?.intOrNull ?: -1
@@ -247,18 +250,26 @@ internal fun parseHeartbeatResponse(responseStr: String, showId: String): Listen
     val songInfo = dataObj["songInfo"]?.jsonObject
     val playingSong = songInfo?.get("playingSongInfo")?.jsonObject
     val currentSongId = playingSong?.get("songID")?.jsonPrimitive?.longOrNull ?: 0L
-    val songTitle = playingSong?.get("title")?.jsonPrimitive?.contentOrNull.orEmpty()
+    val songTitle =
+        playingSong
+            ?.get("title")
+            ?.jsonPrimitive
+            ?.contentOrNull
+            .orEmpty()
     val playStatus = songInfo?.get("playStatus")?.jsonPrimitive?.intOrNull ?: 0
     val songOffsetMs = songInfo?.get("songOffset")?.jsonPrimitive?.longOrNull ?: 0L
     val songPlayVersion = songInfo?.get("songPlayVersion")?.jsonPrimitive?.longOrNull ?: 0L
-    val mediaVersion = songInfo?.get("mediaVersion")?.jsonPrimitive?.longOrNull
-        ?: dataObj["mediaVersion"]?.jsonPrimitive?.longOrNull
-        ?: 0L
+    val mediaVersion =
+        songInfo?.get("mediaVersion")?.jsonPrimitive?.longOrNull
+            ?: dataObj["mediaVersion"]?.jsonPrimitive?.longOrNull
+            ?: 0L
     val usersArray = dataObj["users"]?.jsonArray
     val usersCount = usersArray?.size ?: 1
-    val userEncUins = usersArray?.mapNotNull {
-        it.jsonObject["encryptUin"]?.jsonPrimitive?.contentOrNull
-    }.orEmpty()
+    val userEncUins =
+        usersArray
+            ?.mapNotNull {
+                it.jsonObject["encryptUin"]?.jsonPrimitive?.contentOrNull
+            }.orEmpty()
 
     return ListenTogetherSyncState(
         showId = showId,
@@ -343,51 +354,53 @@ suspend fun MusicApiService.getSongsBySongIds(songIds: List<Long>): List<Song> =
         val commJson = MusicApiService.buildAppCommJson()
 
         val allSongs =
-            chunks.map { chunkIds ->
-                async {
-                    val payload =
-                        buildJsonObject {
-                            put("comm", Json.parseToJsonElement(commJson))
-                            put(
-                                "req_track",
-                                buildJsonObject {
-                                    put("module", "music.trackInfo.UniformRuleCtrl")
-                                    put("method", "CgiGetTrackInfo")
-                                    put(
-                                        "param",
-                                        buildJsonObject {
-                                            put(
-                                                "ids",
-                                                buildJsonArray {
-                                                    chunkIds.forEach { add(it) }
-                                                },
-                                            )
-                                            put(
-                                                "types",
-                                                buildJsonArray {
-                                                    chunkIds.forEach { add(0) }
-                                                },
-                                            )
-                                        },
-                                    )
-                                },
-                            )
-                        }.toString()
+            chunks
+                .map { chunkIds ->
+                    async {
+                        val payload =
+                            buildJsonObject {
+                                put("comm", Json.parseToJsonElement(commJson))
+                                put(
+                                    "req_track",
+                                    buildJsonObject {
+                                        put("module", "music.trackInfo.UniformRuleCtrl")
+                                        put("method", "CgiGetTrackInfo")
+                                        put(
+                                            "param",
+                                            buildJsonObject {
+                                                put(
+                                                    "ids",
+                                                    buildJsonArray {
+                                                        chunkIds.forEach { add(it) }
+                                                    },
+                                                )
+                                                put(
+                                                    "types",
+                                                    buildJsonArray {
+                                                        chunkIds.forEach { add(0) }
+                                                    },
+                                                )
+                                            },
+                                        )
+                                    },
+                                )
+                            }.toString()
 
-                    try {
-                        val responseStr = postAppGateway(payload)
-                        val root = Json.parseToJsonElement(responseStr).jsonObject
-                        val reqTrack = root["req_track"]?.jsonObject ?: return@async emptyList()
-                        val dataObj = reqTrack["data"]?.jsonObject ?: return@async emptyList()
-                        val tracks = dataObj["tracks"]?.jsonArray ?: return@async emptyList()
-                        tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        ApiLogger.w("MusicApiListenTogether", "getSongsBySongIds chunk failed", e)
-                        emptyList()
+                        try {
+                            val responseStr = postAppGateway(payload)
+                            val root = Json.parseToJsonElement(responseStr).jsonObject
+                            val reqTrack = root["req_track"]?.jsonObject ?: return@async emptyList()
+                            val dataObj = reqTrack["data"]?.jsonObject ?: return@async emptyList()
+                            val tracks = dataObj["tracks"]?.jsonArray ?: return@async emptyList()
+                            tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            ApiLogger.w("MusicApiListenTogether", "getSongsBySongIds chunk failed", e)
+                            emptyList()
+                        }
                     }
-                }
-            }.awaitAll().flatten()
+                }.awaitAll()
+                .flatten()
 
         val songMap = allSongs.associateBy { it.songId }
         validIds.mapNotNull { songMap[it] }
@@ -671,10 +684,11 @@ suspend fun MusicApiService.getListenTogetherHistory(reqNum: Int = 50): List<Lis
             if (code != 0) return@withContext emptyList()
 
             val dataObj = reqHist["data"]?.jsonObject ?: return@withContext emptyList()
-            val historyList = (dataObj["historyList"] as? JsonArray)
-                ?: (dataObj["records"] as? JsonArray)
-                ?: (dataObj["roomList"] as? JsonArray)
-                ?: return@withContext emptyList()
+            val historyList =
+                (dataObj["historyList"] as? JsonArray)
+                    ?: (dataObj["records"] as? JsonArray)
+                    ?: (dataObj["roomList"] as? JsonArray)
+                    ?: return@withContext emptyList()
 
             historyList.mapNotNull { itemElement ->
                 try {
@@ -683,11 +697,31 @@ suspend fun MusicApiService.getListenTogetherHistory(reqNum: Int = 50): List<Lis
                     val createTime = itemObj["createTime"]?.jsonPrimitive?.longOrNull ?: 0L
                     val closeTime = itemObj["closeTime"]?.jsonPrimitive?.longOrNull ?: 0L
                     val userObj = itemObj["user"]?.jsonObject
-                    val nick = userObj?.get("nick")?.jsonPrimitive?.contentOrNull.orEmpty()
-                    val avatar = userObj?.get("avatar")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val nick =
+                        userObj
+                            ?.get("nick")
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
+                    val avatar =
+                        userObj
+                            ?.get("avatar")
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
                     val songObj = itemObj["songInfo"]?.jsonObject
-                    val songName = songObj?.get("title")?.jsonPrimitive?.contentOrNull.orEmpty()
-                    val singer = songObj?.get("singer")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val songName =
+                        songObj
+                            ?.get("title")
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
+                    val singer =
+                        songObj
+                            ?.get("singer")
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
 
                     ListenTogetherHistoryRecord(
                         showId = showId,
@@ -718,8 +752,9 @@ suspend fun MusicApiService.getListenTogetherHistory(reqNum: Int = 50): List<Lis
 private fun parseFromListenTogetherHttpUrl(urlString: String): Triple<String, String, Long> {
     val httpUrl = urlString.toHttpUrlOrNull() ?: return Triple("", "", 0L)
     val showId = httpUrl.queryParameter("showid").orEmpty()
-    val encUin = httpUrl.queryParameter("share_encrypt_uin")?.ifBlank { null }
-        ?: httpUrl.queryParameter("hosteuin").orEmpty()
+    val encUin =
+        httpUrl.queryParameter("share_encrypt_uin")?.ifBlank { null }
+            ?: httpUrl.queryParameter("hosteuin").orEmpty()
     val songId = httpUrl.queryParameter("songid")?.toLongOrNull() ?: 0L
     return Triple(showId, encUin, songId)
 }
@@ -730,67 +765,73 @@ private fun parseFromListenTogetherHttpUrl(urlString: String): Triple<String, St
  * @param rawText 用户输入的文本
  * @return Triple(showId, encUin, songId)
  */
-suspend fun MusicApiService.resolveListenTogetherShareTarget(
-    rawText: String,
-): Triple<String, String, Long> = withContext(Dispatchers.IO) {
-    if (rawText.isBlank()) return@withContext Triple("", "", 0L)
+suspend fun MusicApiService.resolveListenTogetherShareTarget(rawText: String): Triple<String, String, Long> =
+    withContext(Dispatchers.IO) {
+        if (rawText.isBlank()) return@withContext Triple("", "", 0L)
 
-    val cleanText = rawText.trim()
+        val cleanText = rawText.trim()
 
-    // 1. 尝试从文本中提取 URL
-    val urlRegex = Regex("https?://[a-zA-Z0-9\\-._~:/?#\\[\\]@!$&'*+,;=%]+")
-    var matchedUrl = urlRegex.find(cleanText)?.value
-    if (matchedUrl == null) {
-        val domainRegex = Regex("(?:[a-zA-Z0-9-]+\\.)*y\\.qq\\.com/[a-zA-Z0-9\\-._~:/?#\\[\\]@!$&'*+,;=%]+")
-        val domainMatch = domainRegex.find(cleanText)?.value
-        if (domainMatch != null) {
-            matchedUrl = "https://$domainMatch"
-        }
-    }
-
-    if (matchedUrl != null) {
-        val trimmedUrl = matchedUrl.trimEnd(',', '.', ';', ')', '，', '。')
-        val initialParsed = parseFromListenTogetherHttpUrl(trimmedUrl)
-        if (initialParsed.first.isNotBlank()) {
-            return@withContext initialParsed
+        // 1. 尝试从文本中提取 URL
+        val urlRegex = Regex("https?://[a-zA-Z0-9\\-._~:/?#\\[\\]@!$&'*+,;=%]+")
+        var matchedUrl = urlRegex.find(cleanText)?.value
+        if (matchedUrl == null) {
+            val domainRegex = Regex("(?:[a-zA-Z0-9-]+\\.)*y\\.qq\\.com/[a-zA-Z0-9\\-._~:/?#\\[\\]@!$&'*+,;=%]+")
+            val domainMatch = domainRegex.find(cleanText)?.value
+            if (domainMatch != null) {
+                matchedUrl = "https://$domainMatch"
+            }
         }
 
-        // 若直接解析未获得 showId，发起网络探测获取 302 重定向落地页
-        try {
-            val redirectClient = client.newBuilder()
-                .followRedirects(false)
-                .followSslRedirects(false)
-                .build()
+        if (matchedUrl != null) {
+            val trimmedUrl = matchedUrl.trimEnd(',', '.', ';', ')', '，', '。')
+            val initialParsed = parseFromListenTogetherHttpUrl(trimmedUrl)
+            if (initialParsed.first.isNotBlank()) {
+                return@withContext initialParsed
+            }
 
-            val request = Request.Builder()
-                .url(trimmedUrl)
-                .header("User-Agent", MusicApiService.WEB_USER_AGENT)
-                .build()
+            // 若直接解析未获得 showId，发起网络探测获取 302 重定向落地页
+            try {
+                val redirectClient =
+                    client
+                        .newBuilder()
+                        .followRedirects(false)
+                        .followSslRedirects(false)
+                        .build()
 
-            redirectClient.newCall(request).execute().use { response ->
-                val location = response.header("Location")
-                if (!location.isNullOrBlank()) {
-                    val resolvedHttpUrl = response.request.url.resolve(location)?.toString() ?: location
-                    val resolved = parseFromListenTogetherHttpUrl(resolvedHttpUrl)
-                    if (resolved.first.isNotBlank()) {
-                        return@withContext resolved
+                val request =
+                    Request
+                        .Builder()
+                        .url(trimmedUrl)
+                        .header("User-Agent", MusicApiService.WEB_USER_AGENT)
+                        .build()
+
+                redirectClient.newCall(request).execute().use { response ->
+                    val location = response.header("Location")
+                    if (!location.isNullOrBlank()) {
+                        val resolvedHttpUrl =
+                            response.request.url
+                                .resolve(location)
+                                ?.toString() ?: location
+                        val resolved = parseFromListenTogetherHttpUrl(resolvedHttpUrl)
+                        if (resolved.first.isNotBlank()) {
+                            return@withContext resolved
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("MusicApiListenTogether", "resolve short url redirect failed", e)
             }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            ApiLogger.w("MusicApiListenTogether", "resolve short url redirect failed", e)
         }
-    }
 
-    // 2. 兜底正则匹配房间号 (LUGC 开头)
-    val lugcMatch = Regex("LUGC[0-9a-zA-Z]+").find(cleanText)
-    if (lugcMatch != null) {
-        return@withContext Triple(lugcMatch.value, "", 0L)
-    }
+        // 2. 兜底正则匹配房间号 (LUGC 开头)
+        val lugcMatch = Regex("LUGC[0-9a-zA-Z]+").find(cleanText)
+        if (lugcMatch != null) {
+            return@withContext Triple(lugcMatch.value, "", 0L)
+        }
 
-    Triple("", "", 0L)
-}
+        Triple("", "", 0L)
+    }
 
 /**
  * 获取一起听好友空间统计数据（双方累计听歌时长、听过歌曲数、共同收藏数）。
@@ -804,63 +845,66 @@ suspend fun MusicApiService.getListenTogetherSpaceStats(
     showId: String,
     targetEncUin: String = "",
     selfEncUin: String = "",
-): ListenTogetherSpaceStats? = withContext(Dispatchers.IO) {
-    if (showId.isBlank()) return@withContext null
-    val uinsParam = when {
-        selfEncUin.isNotBlank() && targetEncUin.isNotBlank() -> "$selfEncUin,$targetEncUin"
-        targetEncUin.isNotBlank() -> targetEncUin
-        selfEncUin.isNotBlank() -> selfEncUin
-        else -> ""
-    }
+): ListenTogetherSpaceStats? =
+    withContext(Dispatchers.IO) {
+        if (showId.isBlank()) return@withContext null
+        val uinsParam =
+            when {
+                selfEncUin.isNotBlank() && targetEncUin.isNotBlank() -> "$selfEncUin,$targetEncUin"
+                targetEncUin.isNotBlank() -> targetEncUin
+                selfEncUin.isNotBlank() -> selfEncUin
+                else -> ""
+            }
 
-    val url = "https://i2.y.qq.com/n3/client/pages/close_friend_space/index.html?type=1&roomid=$showId&uins=$uinsParam"
-    val requestBuilder = Request.Builder()
-        .url(url)
-        .header("User-Agent", MusicApiService.WEB_USER_AGENT)
+        val url = "https://i2.y.qq.com/n3/client/pages/close_friend_space/index.html?type=1&roomid=$showId&uins=$uinsParam"
+        val requestBuilder =
+            Request
+                .Builder()
+                .url(url)
+                .header("User-Agent", MusicApiService.WEB_USER_AGENT)
 
-    val cookie = UserSession.getCookieHeader()
-    if (cookie.isNotBlank()) {
-        requestBuilder.header("Cookie", cookie)
-    }
-
-    try {
-        client.newCall(requestBuilder.build()).execute().use { response ->
-            if (!response.isSuccessful) return@withContext null
-            val html = response.body.string()
-            val prefix = "window.__ssrFirstPageData__="
-            val startIndex = html.indexOf(prefix)
-            if (startIndex == -1) return@withContext null
-            val endIndex = html.indexOf("</script>", startIndex)
-            if (endIndex == -1) return@withContext null
-
-            val jsStatement = html.substring(startIndex + prefix.length, endIndex).trim().removeSuffix(";")
-            val rawElement = Json.parseToJsonElement(jsStatement)
-            val jsonContent = (rawElement as? JsonPrimitive)?.content ?: rawElement.toString()
-
-            val rootObj = Json.parseToJsonElement(jsonContent).jsonObject
-            val rsp1 = rootObj["rsp_1"]?.jsonObject ?: return@withContext null
-            val req0 = rsp1["req_0"]?.jsonObject ?: return@withContext null
-            val dataObj = req0["data"]?.jsonObject ?: return@withContext null
-            val together = dataObj["Together"]?.jsonObject ?: return@withContext null
-            val togetherData = together["TogetherData"]?.jsonObject
-                ?: together["BaseData"]?.jsonObject
-                ?: return@withContext null
-
-            val listenTimeSec = togetherData["ListenTime"]?.jsonPrimitive?.longOrNull ?: 0L
-            val listenSongsCount = togetherData["ListenNum"]?.jsonPrimitive?.intOrNull ?: 0
-            val favSongsCount = togetherData["FavoriteSongNum"]?.jsonPrimitive?.intOrNull ?: 0
-
-            ListenTogetherSpaceStats(
-                listenMinutes = (listenTimeSec / 60L).coerceAtLeast(0L),
-                listenSongsCount = listenSongsCount,
-                favoriteSongsCount = favSongsCount,
-            )
+        val cookie = UserSession.getCookieHeader()
+        if (cookie.isNotBlank()) {
+            requestBuilder.header("Cookie", cookie)
         }
-    } catch (e: Exception) {
-        if (e is CancellationException) throw e
-        ApiLogger.w("MusicApiListenTogether", "getListenTogetherSpaceStats failed", e)
-        null
+
+        try {
+            client.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val html = response.body.string()
+                val prefix = "window.__ssrFirstPageData__="
+                val startIndex = html.indexOf(prefix)
+                if (startIndex == -1) return@withContext null
+                val endIndex = html.indexOf("</script>", startIndex)
+                if (endIndex == -1) return@withContext null
+
+                val jsStatement = html.substring(startIndex + prefix.length, endIndex).trim().removeSuffix(";")
+                val rawElement = Json.parseToJsonElement(jsStatement)
+                val jsonContent = (rawElement as? JsonPrimitive)?.content ?: rawElement.toString()
+
+                val rootObj = Json.parseToJsonElement(jsonContent).jsonObject
+                val rsp1 = rootObj["rsp_1"]?.jsonObject ?: return@withContext null
+                val req0 = rsp1["req_0"]?.jsonObject ?: return@withContext null
+                val dataObj = req0["data"]?.jsonObject ?: return@withContext null
+                val together = dataObj["Together"]?.jsonObject ?: return@withContext null
+                val togetherData =
+                    together["TogetherData"]?.jsonObject
+                        ?: together["BaseData"]?.jsonObject
+                        ?: return@withContext null
+
+                val listenTimeSec = togetherData["ListenTime"]?.jsonPrimitive?.longOrNull ?: 0L
+                val listenSongsCount = togetherData["ListenNum"]?.jsonPrimitive?.intOrNull ?: 0
+                val favSongsCount = togetherData["FavoriteSongNum"]?.jsonPrimitive?.intOrNull ?: 0
+
+                ListenTogetherSpaceStats(
+                    listenMinutes = (listenTimeSec / 60L).coerceAtLeast(0L),
+                    listenSongsCount = listenSongsCount,
+                    favoriteSongsCount = favSongsCount,
+                )
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ApiLogger.w("MusicApiListenTogether", "getListenTogetherSpaceStats failed", e)
+            null
+        }
     }
-}
-
-

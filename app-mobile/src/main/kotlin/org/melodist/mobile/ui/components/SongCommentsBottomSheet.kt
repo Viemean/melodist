@@ -1067,8 +1067,7 @@ private fun CommentInputBottomBar(
                                 } else {
                                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                                 },
-                            )
-                            .clickable(enabled = canSend) { onSend() },
+                            ).clickable(enabled = canSend) { onSend() },
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isSending) {
@@ -1110,4 +1109,3 @@ private fun formatTimestamp(timestampSec: Long): String =
     } catch (_: Exception) {
         ""
     }
-

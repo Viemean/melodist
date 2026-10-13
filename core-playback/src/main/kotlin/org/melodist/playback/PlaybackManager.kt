@@ -75,8 +75,11 @@ interface PlaybackInterceptor {
  */
 interface PlaybackEventListener {
     fun onPlay() {}
+
     fun onPause() {}
+
     fun onSeekTo(positionMs: Long) {}
+
     fun onSongPlay(song: Song) {}
 }
 
@@ -91,6 +94,7 @@ object PlaybackManager {
     fun removePlaybackEventListener(listener: PlaybackEventListener) {
         playbackEventListeners.remove(listener)
     }
+
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val apiService = MusicApiService()
     private var appContext: Context? = null

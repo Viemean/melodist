@@ -259,12 +259,13 @@ fun ListenTogetherBottomSheet(
                                 isCreatingRoom = true
                                 val result = ListenTogetherManager.startRoom(song)
                                 isCreatingRoom = false
-                                result.onSuccess { newRoom ->
-                                    copyToClipboard(context, newRoom.shareUrl)
-                                    Toast.makeText(context, "已创建房间并复制链接", Toast.LENGTH_SHORT).show()
-                                }.onFailure {
-                                    Toast.makeText(context, "创建房间失败: ${it.message}", Toast.LENGTH_SHORT).show()
-                                }
+                                result
+                                    .onSuccess { newRoom ->
+                                        copyToClipboard(context, newRoom.shareUrl)
+                                        Toast.makeText(context, "已创建房间并复制链接", Toast.LENGTH_SHORT).show()
+                                    }.onFailure {
+                                        Toast.makeText(context, "创建房间失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                                    }
                             }
                         }
                     },
@@ -340,13 +341,14 @@ fun ListenTogetherBottomSheet(
                             Toast.makeText(context, "请不要输入自己创建的房间", Toast.LENGTH_SHORT).show()
                         } else {
                             val result = ListenTogetherManager.joinRoom(showId, encUin, songId)
-                            result.onSuccess {
-                                Toast.makeText(context, "成功加入一起听", Toast.LENGTH_SHORT).show()
-                                showJoinDialog = false
-                                onDismissRequest()
-                            }.onFailure {
-                                Toast.makeText(context, "加入失败: ${it.message}", Toast.LENGTH_SHORT).show()
-                            }
+                            result
+                                .onSuccess {
+                                    Toast.makeText(context, "成功加入一起听", Toast.LENGTH_SHORT).show()
+                                    showJoinDialog = false
+                                    onDismissRequest()
+                                }.onFailure {
+                                    Toast.makeText(context, "加入失败: ${it.message}", Toast.LENGTH_SHORT).show()
+                                }
                         }
                     } finally {
                         isResolvingUrl = false
@@ -402,7 +404,12 @@ private fun JoinRoomDialog(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             val clip = clipboard.primaryClip
                             if (clip != null && clip.itemCount > 0) {
-                                val text = clip.getItemAt(0).text?.toString().orEmpty()
+                                val text =
+                                    clip
+                                        .getItemAt(0)
+                                        .text
+                                        ?.toString()
+                                        .orEmpty()
                                 if (text.isNotBlank()) {
                                     inputUrl = text
                                 }
@@ -440,7 +447,10 @@ private fun JoinRoomDialog(
 /**
  * 写入剪贴板。
  */
-private fun copyToClipboard(context: Context, text: String) {
+private fun copyToClipboard(
+    context: Context,
+    text: String,
+) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val clip = ClipData.newPlainText("ListenTogetherLink", text)
     clipboard.setPrimaryClip(clip)
@@ -505,4 +515,3 @@ private fun TogetherStatItem(
         )
     }
 }
-

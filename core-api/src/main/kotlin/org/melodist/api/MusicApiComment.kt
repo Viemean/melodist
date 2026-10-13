@@ -1,6 +1,5 @@
 package org.melodist.api
 
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -8,6 +7,7 @@ import okhttp3.FormBody
 import okhttp3.Request
 import org.melodist.model.CommentPage
 import org.melodist.model.SongComment
+import java.io.IOException
 
 /**
  * 歌曲评论区 API 扩展
@@ -324,7 +324,10 @@ object SongCommentCountCache {
 
     fun get(songId: Long): Int? = cache[songId]
 
-    fun put(songId: Long, count: Int) {
+    fun put(
+        songId: Long,
+        count: Int,
+    ) {
         if (songId > 0L && count >= 0) {
             cache[songId] = count
         }
@@ -342,7 +345,10 @@ object SongCommentCountCache {
  * @param forceRefresh 是否强制忽略缓存拉取远端
  * @return 评论总数，若失败或不存在则返回 null
  */
-suspend fun MusicApiService.getSongCommentCount(songId: Long, forceRefresh: Boolean = false): Int? =
+suspend fun MusicApiService.getSongCommentCount(
+    songId: Long,
+    forceRefresh: Boolean = false,
+): Int? =
     withContext(Dispatchers.IO) {
         if (songId <= 0L) return@withContext null
         if (!forceRefresh) {
@@ -407,14 +413,6 @@ internal fun parseCommentCountResponse(responseStr: String): Int? {
     }
 }
 
-/**
- * 发送歌曲评论或回复已有评论。
- *
- * @param songId 歌曲数字 ID
- * @param content 评论文本内容
- * @param replyCommentId 若为回复评论则传入目标评论 ID，若发表主评论则为 null
- * @return 成功返回新生成的评论 ID，失败返回异常 Result
- */
 /**
  * 发送歌曲评论或回复已有评论。
  *
@@ -524,7 +522,8 @@ suspend fun MusicApiService.sendSongComment(
         try {
             val cmd = if (!replyCommentId.isNullOrBlank()) 2 else 1
             val formBodyBuilder =
-                FormBody.Builder()
+                FormBody
+                    .Builder()
                     .add("g_tk", gTk.toString())
                     .add("loginUin", uin)
                     .add("hostUin", "0")
@@ -546,7 +545,8 @@ suspend fun MusicApiService.sendSongComment(
             }
 
             val requestBuilder =
-                Request.Builder()
+                Request
+                    .Builder()
                     .url("https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_h5.fcg")
                     .post(formBodyBuilder.build())
                     .header("User-Agent", MusicApiService.WEB_USER_AGENT)
@@ -558,12 +558,13 @@ suspend fun MusicApiService.sendSongComment(
                 requestBuilder.header("Cookie", cookieHeader)
             }
 
-            val h5Resp = client.newCall(requestBuilder.build()).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("H5 CGI HTTP ${response.code}")
+            val h5Resp =
+                client.newCall(requestBuilder.build()).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException("H5 CGI HTTP ${response.code}")
+                    }
+                    response.body.string()
                 }
-                response.body.string()
-            }
             ApiLogger.i("MusicApiComment", "sendSongComment H5 CGI resp: $h5Resp")
 
             val h5Root = Json.parseToJsonElement(h5Resp).jsonObject
@@ -631,4 +632,3 @@ suspend fun MusicApiService.praiseSongComment(
             Result.failure(e)
         }
     }
-

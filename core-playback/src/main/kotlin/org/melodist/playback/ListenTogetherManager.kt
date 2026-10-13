@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.ApiLogger
 import org.melodist.api.MusicApiService
+import org.melodist.api.UserSession
 import org.melodist.api.createListenTogetherRoom
 import org.melodist.api.getListenTogetherSongList
 import org.melodist.api.getListenTogetherSpaceStats
@@ -24,7 +25,6 @@ import org.melodist.api.joinListenTogetherRoom
 import org.melodist.api.quitListenTogetherRoom
 import org.melodist.api.resolveListenTogetherShareTarget
 import org.melodist.api.sendListenTogetherSongOper
-import org.melodist.api.UserSession
 import org.melodist.model.ListenTogetherRoomInfo
 import org.melodist.model.ListenTogetherSpaceStats
 import org.melodist.model.Song
@@ -66,7 +66,10 @@ object ListenTogetherManager {
      * @param encUin 待检测的邀请者加密 UIN
      * @return 若为自身创建的房间则返回 true
      */
-    fun isSelfCreatedRoom(showId: String, encUin: String = ""): Boolean {
+    fun isSelfCreatedRoom(
+        showId: String,
+        encUin: String = "",
+    ): Boolean {
         val trimmedShowId = showId.trim()
         if (trimmedShowId.isNotBlank()) {
             if (_currentRoom.value?.showId.equals(trimmedShowId, ignoreCase = true)) {
@@ -77,7 +80,9 @@ object ListenTogetherManager {
             }
         }
         val trimmedEncUin = encUin.trim()
-        val myEncUin = UserSession.profileFlow.value.encryptedUin.trim()
+        val myEncUin =
+            UserSession.profileFlow.value.encryptedUin
+                .trim()
         if (trimmedEncUin.isNotBlank() && myEncUin.isNotBlank() && trimmedEncUin == myEncUin) {
             return true
         }
@@ -250,8 +255,8 @@ object ListenTogetherManager {
      * @param song 当前播放曲目
      * @return 创建结果，包含房间元数据与分享链接
      */
-    suspend fun startRoom(song: Song): Result<ListenTogetherRoomInfo> {
-        return try {
+    suspend fun startRoom(song: Song): Result<ListenTogetherRoomInfo> =
+        try {
             val currentPlaylist = PlaybackManager.playlist.value
             val currentOffsetMs = PlaybackManager.currentPositionMs.value
             val currentSongId = song.songId
@@ -317,7 +322,6 @@ object ListenTogetherManager {
             ApiLogger.w("ListenTogetherManager", "startRoom failed", e)
             Result.failure(e)
         }
-    }
 
     /**
      * 加入指定的一起听房间，成功后拉取房主播放队列、对齐播放并启动同步心跳。
@@ -507,10 +511,11 @@ object ListenTogetherManager {
                         // 好友空间统计拉取与2分钟周期对齐
                         if (state.usersCount >= 2) {
                             val myEnc = UserSession.profileFlow.value.encryptedUin
-                            val partnerEnc = state.userEncUins.firstOrNull { it != myEnc }
-                                ?: _currentRoom.value?.creatorUin.takeIf { it != myEnc }
-                                ?: state.userEncUins.firstOrNull()
-                                ?: ""
+                            val partnerEnc =
+                                state.userEncUins.firstOrNull { it != myEnc }
+                                    ?: _currentRoom.value?.creatorUin.takeIf { it != myEnc }
+                                    ?: state.userEncUins.firstOrNull()
+                                    ?: ""
                             if (partnerEnc.isNotBlank()) {
                                 val now = System.currentTimeMillis()
                                 if (_spaceStats.value == null) {
@@ -538,7 +543,8 @@ object ListenTogetherManager {
 
                         // 对齐切歌与全量歌单
                         if (state.currentSongId > 0L) {
-                            val isMediaVersionChanged = state.mediaVersion > 0L && lastObservedMediaVersion > 0L && state.mediaVersion != lastObservedMediaVersion
+                            val isMediaVersionChanged =
+                                state.mediaVersion > 0L && lastObservedMediaVersion > 0L && state.mediaVersion != lastObservedMediaVersion
                             val isSongChanged = state.currentSongId != lastObservedSongId
 
                             if (isWithinActionWindow && expectedSongId > 0L && state.currentSongId != expectedSongId) {
@@ -548,7 +554,12 @@ object ListenTogetherManager {
                                     expectedSongId = 0L
                                 }
                                 if (isSongChanged || isMediaVersionChanged) {
-                                    if (isSongChanged && state.usersCount >= 2 && _spaceStats.value != null && lastRecordedStatsSongId > 0L && state.currentSongId != lastRecordedStatsSongId) {
+                                    if (isSongChanged &&
+                                        state.usersCount >= 2 &&
+                                        _spaceStats.value != null &&
+                                        lastRecordedStatsSongId > 0L &&
+                                        state.currentSongId != lastRecordedStatsSongId
+                                    ) {
                                         _spaceStats.value?.let { currentStats ->
                                             _spaceStats.value = currentStats.copy(listenSongsCount = currentStats.listenSongsCount + 1)
                                         }
@@ -575,7 +586,10 @@ object ListenTogetherManager {
                                         }
                                     } else {
                                         // 歌曲不在本地当前播放队列中，或者服务端歌单版本号已变更：拉取服务端最新全量播放队列 (cmd=0)
-                                        ApiLogger.i("ListenTogetherManager", "Remote playlist changed or song missing, syncing full playlist from server (songId=${state.currentSongId})")
+                                        ApiLogger.i(
+                                            "ListenTogetherManager",
+                                            "Remote playlist changed or song missing, syncing full playlist from server (songId=${state.currentSongId})",
+                                        )
                                         scope.launch(Dispatchers.IO) {
                                             try {
                                                 val songIds = apiService.getListenTogetherSongList(showId)
@@ -638,8 +652,9 @@ object ListenTogetherManager {
                                 }
                             }
                         } else if (isWithinActionWindow && expectedPlayStatus != -1) {
-                            val matchesExpected = (expectedPlayStatus == 1 && state.playStatus == 1) ||
-                                ((expectedPlayStatus == 0 || expectedPlayStatus == 2) && (state.playStatus == 0 || state.playStatus == 2))
+                            val matchesExpected =
+                                (expectedPlayStatus == 1 && state.playStatus == 1) ||
+                                    ((expectedPlayStatus == 0 || expectedPlayStatus == 2) && (state.playStatus == 0 || state.playStatus == 2))
                             if (matchesExpected) {
                                 expectedPlayStatus = -1
                             }
@@ -700,9 +715,7 @@ object ListenTogetherManager {
      * @param rawText 用户输入的文本
      * @return Triple(showId, encUin, songId)
      */
-    suspend fun resolveRoomTarget(rawText: String): Triple<String, String, Long> {
-        return apiService.resolveListenTogetherShareTarget(rawText)
-    }
+    suspend fun resolveRoomTarget(rawText: String): Triple<String, String, Long> = apiService.resolveListenTogetherShareTarget(rawText)
 
     /**
      * 异步拉取并更新好友空间统计数据。
@@ -711,7 +724,11 @@ object ListenTogetherManager {
      * @param partnerEncUin 对方加密 UIN
      * @param force 是否强制拉取（用于首次同步或周期性对齐）
      */
-    private fun fetchSpaceStats(showId: String, partnerEncUin: String, force: Boolean = false) {
+    private fun fetchSpaceStats(
+        showId: String,
+        partnerEncUin: String,
+        force: Boolean = false,
+    ) {
         if (showId.isBlank() || partnerEncUin.isBlank()) return
         val now = System.currentTimeMillis()
         if (!force && lastFetchedStatsRoomId == showId && _spaceStats.value != null && (now - lastStatsFetchTime) < 120_000L) {
@@ -739,4 +756,3 @@ object ListenTogetherManager {
         lastRecordedStatsSongId = 0L
     }
 }
-
