@@ -97,6 +97,7 @@ fun SongActionSheet(
     isFromPlayer: Boolean = false,
     showTvCast: Boolean = !isFromPlayer,
     onViewCover: (() -> Unit)? = null,
+    showTogether: Boolean = isFromPlayer && onViewCover != null,
     onRemoveFromQueue: (() -> Unit)? = null,
     onDeleteLocalFile: ((Song) -> Unit)? = null,
     onNavigate: (() -> Unit)? = null,
@@ -531,7 +532,7 @@ fun SongActionSheet(
                 )
             }
 
-            if (!song.isLocal && !song.isWebDav && song.songMid.isNotBlank() && UserSession.isLoggedIn) {
+            if (showTogether && !song.isLocal && !song.isWebDav && song.songMid.isNotBlank() && UserSession.isLoggedIn) {
                 ActionSheetItem(
                     icon = Icons.Rounded.Headphones,
                     title = "一起听",
