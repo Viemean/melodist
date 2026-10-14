@@ -23,6 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
+import org.melodist.playback.PlaybackManager
 
 @Composable
 fun PlayerSongInfoSection(
@@ -55,8 +58,12 @@ fun PlayerSongInfoSection(
             song?.songMid?.startsWith("local_") == true ||
             !song?.localFilePath.isNullOrBlank()
 
+    val isListenTogetherTrial by PlaybackManager.isListenTogetherTrialActive.collectAsState()
+
     val badgeText =
-        if (!isLocalOrWebDav && isFromCache) {
+        if (isListenTogetherTrial) {
+            "试听"
+        } else if (!isLocalOrWebDav && isFromCache) {
             "${AudioQualityTier.getBadge(currentTier)} · 缓存"
         } else {
             AudioQualityTier.getBadge(currentTier)
@@ -127,7 +134,11 @@ fun PlayerSongInfoSection(
 
                 Surface(
                     onClick = {
-                        if (!isLocalOrWebDav) onOpenQualitySheet()
+                        if (isListenTogetherTrial) {
+                            PlaybackManager.notifyUser("试听音乐不支持切换音质哦")
+                        } else if (!isLocalOrWebDav) {
+                            onOpenQualitySheet()
+                        }
                     },
                     shape = RoundedCornerShape(4.dp),
                     color = animatedAccentColor.copy(alpha = 0.12f),
@@ -235,7 +246,13 @@ fun PlayerSongInfoSection(
                 } else {
                     // 在线音质标签
                     Surface(
-                        onClick = onOpenQualitySheet,
+                        onClick = {
+                            if (isListenTogetherTrial) {
+                                PlaybackManager.notifyUser("试听音乐不支持切换音质哦")
+                            } else {
+                                onOpenQualitySheet()
+                            }
+                        },
                         shape = RoundedCornerShape(6.dp),
                         color = animatedAccentColor.copy(alpha = 0.12f),
                         border = BorderStroke(1.dp, animatedAccentColor.copy(alpha = 0.35f)),

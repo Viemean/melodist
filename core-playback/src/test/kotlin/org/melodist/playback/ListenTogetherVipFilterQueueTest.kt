@@ -116,4 +116,21 @@ class ListenTogetherVipFilterQueueTest {
         queueManager.playPrevious()
         assertEquals("mid_0", requestedSong?.songMid)
     }
+
+    @Test
+    fun `test trial stream active determination`() {
+        val isInRoom = true
+        val isBothVip = false
+        val vipSong = createSong("vip_1", isVip = true)
+        val nonVipSong = createSong("free_1", isVip = false)
+
+        val isTrialVip = isInRoom && !isBothVip && vipSong.isVip
+        val isTrialFree = isInRoom && !isBothVip && nonVipSong.isVip
+        val isBothVipActive = true
+        val isTrialWhenBothVip = isInRoom && !isBothVipActive && vipSong.isVip
+
+        assertEquals(true, isTrialVip)
+        assertEquals(false, isTrialFree)
+        assertEquals(false, isTrialWhenBothVip)
+    }
 }

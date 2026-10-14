@@ -83,6 +83,7 @@ fun PlayerTvScreen(
     val lyrics by PlaybackManager.lyrics.collectAsState()
     val loopMode by PlaybackManager.loopMode.collectAsState()
     val isLoading by PlaybackManager.isLoading.collectAsState()
+    val isTrial by PlaybackManager.isListenTogetherTrialActive.collectAsState()
     val errorMessage by PlaybackManager.errorMessage.collectAsState()
 
     val scope = rememberCoroutineScope()
@@ -201,7 +202,7 @@ fun PlayerTvScreen(
                         animationSpec = tween(durationMillis = 300),
                     ) + fadeOut(animationSpec = tween(durationMillis = 300)),
             ) {
-                val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activeSong)
+                val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activeSong) && !isTrial
                 BottomPlayerBar(
                     modifier = Modifier.fillMaxWidth(),
                     surfaceColor = surfaceColor,
@@ -213,7 +214,7 @@ fun PlayerTvScreen(
                     isFavorite = isFavorite,
                     canFavorite = canFavorite,
                     loopMode = loopMode.label,
-                    qualityLabel = AudioQualityTier.getBadge(selectedTier),
+                    qualityLabel = if (isTrial) "试听" else AudioQualityTier.getBadge(selectedTier),
                     canChangeQuality = canChangeQuality,
                     onFavoriteClick = {
                         PlaybackManager.toggleCurrentSongFavorite()
@@ -225,6 +226,8 @@ fun PlayerTvScreen(
                     onQualityClick = {
                         if (canChangeQuality) {
                             showQualityDialog = true
+                        } else if (isTrial) {
+                            PlaybackManager.notifyUser("试听音乐不支持切换音质哦")
                         }
                     },
                     onFullscreenClick = { isControlsHidden = true },

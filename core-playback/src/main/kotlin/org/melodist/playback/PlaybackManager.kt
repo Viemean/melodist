@@ -246,6 +246,19 @@ object PlaybackManager {
     private val _currentTrackSpec = MutableStateFlow<AudioTrackSpec?>(null)
     val currentTrackSpec: StateFlow<AudioTrackSpec?> = _currentTrackSpec.asStateFlow()
 
+    val isListenTogetherTrialActive: StateFlow<Boolean> =
+        combine(
+            ListenTogetherManager.currentRoom,
+            ListenTogetherManager.isBothVip,
+            _currentSong,
+        ) { room, bothVip, song ->
+            room != null && !bothVip && song?.isVip == true
+        }.stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = false,
+        )
+
     val qualityCoordinator by lazy { AudioQualityCoordinator(scope, apiService) }
     val lyricsCoordinator by lazy {
         PlaybackLyricsCoordinator(
@@ -1486,7 +1499,9 @@ object PlaybackManager {
 
         qualityCoordinator.resetForSong(song)
         if (!PlaybackSourceResolver.isLocalOrWebDavSong(song)) {
-            launchProbeJob(song, delayMs = 3000L)
+            if (!isListenTogetherTrial) {
+                launchProbeJob(song, delayMs = 3000L)
+            }
             launchCoverHealJob(song)
         }
 
@@ -2078,6 +2093,12 @@ object PlaybackManager {
         isAutoFallback: Boolean = false,
     ) {
         val current = _currentSong.value ?: return
+        if (isListenTogetherTrialActive.value) {
+            if (!isAutoFallback) {
+                notifyUser("试听音乐不支持切换音质哦")
+            }
+            return
+        }
         val effectiveTier = clampCellularTier(tier, current)
         if (effectiveTier != tier) {
             _errorMessage.value = "当前为移动网络，已限制为上限音质：${AudioQualityTier.getBadge(effectiveTier)}"
@@ -2190,6 +2211,7 @@ object PlaybackManager {
     }
 
     fun ensureQualityProbed() {
+        if (isListenTogetherTrialActive.value) return
         qualityCoordinator.ensureQualityProbed(
             song = _currentSong.value,
             currentSongMidProvider = { _currentSong.value?.songMid },

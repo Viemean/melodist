@@ -259,6 +259,7 @@ fun FullPlayerSheet(
     val currentTrackSpec by PlaybackManager.currentTrackSpec.collectAsState()
     val probedQualityOptions by PlaybackManager.probedQualityOptions.collectAsState()
     val isProbingQuality by PlaybackManager.isProbingQuality.collectAsState()
+    val isListenTogetherTrial by PlaybackManager.isListenTogetherTrialActive.collectAsState()
     var showQualitySheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     val requestOpenQueue by PlaybackManager.showQueueSheetFlow.collectAsState()
@@ -378,7 +379,12 @@ fun FullPlayerSheet(
                             song?.songMid?.startsWith("local_") == true ||
                             !song?.localFilePath.isNullOrBlank()
 
-                    val badgeText = AudioQualityTier.getBadge(currentTier)
+                    val badgeText =
+                        if (isListenTogetherTrial) {
+                            "试听"
+                        } else {
+                            AudioQualityTier.getBadge(currentTier)
+                        }
 
                     // 专辑封面
                     Box(
@@ -408,7 +414,9 @@ fun FullPlayerSheet(
                                     // 音质徽标
                                     Surface(
                                         onClick = {
-                                            if (!isLocalOrWebDav) {
+                                            if (isListenTogetherTrial) {
+                                                PlaybackManager.notifyUser("试听音乐不支持切换音质哦")
+                                            } else if (!isLocalOrWebDav) {
                                                 PlaybackManager.ensureQualityProbed()
                                                 showQualitySheet = true
                                             }
@@ -1004,7 +1012,9 @@ fun FullPlayerSheet(
                             },
                             onToggleFavorite = { PlaybackManager.toggleCurrentSongFavorite() },
                             onOpenQualitySheet = {
-                                if (!PlaybackManager.isLocalOrWebDavSong(song)) {
+                                if (isListenTogetherTrial) {
+                                    PlaybackManager.notifyUser("试听音乐不支持切换音质哦")
+                                } else if (!PlaybackManager.isLocalOrWebDavSong(song)) {
                                     PlaybackManager.ensureQualityProbed()
                                     showQualitySheet = true
                                 }
