@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.components
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -41,11 +42,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Reply
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ThumbUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -95,6 +98,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
+import org.melodist.api.deleteSongComment
 import org.melodist.api.getSongComments
 import org.melodist.api.praiseSongComment
 import org.melodist.api.sendSongComment
@@ -139,6 +143,8 @@ fun SongCommentsBottomSheet(
     var replyingTo by remember { mutableStateOf<SongComment?>(null) }
     var inputText by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
+    var commentToDelete by remember { mutableStateOf<SongComment?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
 
     fun togglePraise(comment: SongComment) {
         if (!UserSession.isLoggedIn) {
@@ -224,6 +230,7 @@ fun SongCommentsBottomSheet(
                             isPraised = false,
                             location = "刚刚",
                             isHot = false,
+                            isSelf = true,
                         )
                     seenCommentIds.add(newCommentId)
                     normalComments.add(0, newComment)
@@ -238,6 +245,35 @@ fun SongCommentsBottomSheet(
                 Toast.makeText(context, e.message ?: "发布失败", Toast.LENGTH_SHORT).show()
             } finally {
                 isSending = false
+            }
+        }
+    }
+
+    fun doDeleteComment(comment: SongComment) {
+        if (isDeleting) return
+        isDeleting = true
+        scope.launch {
+            try {
+                val result =
+                    apiService.deleteSongComment(
+                        songId = targetSong.songId,
+                        commentId = comment.commentId,
+                    )
+                if (result.isSuccess) {
+                    normalComments.removeAll { it.commentId == comment.commentId }
+                    hotComments.removeAll { it.commentId == comment.commentId }
+                    totalCommentCount = (totalCommentCount - 1).coerceAtLeast(0)
+                    Toast.makeText(context, "评论已删除", Toast.LENGTH_SHORT).show()
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "删除失败"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Toast.makeText(context, e.message ?: "删除失败", Toast.LENGTH_SHORT).show()
+            } finally {
+                isDeleting = false
+                commentToDelete = null
             }
         }
     }
@@ -546,6 +582,7 @@ fun SongCommentsBottomSheet(
                                         comment = comment,
                                         onReplyClick = ::startReply,
                                         onPraiseClick = ::togglePraise,
+                                        onDeleteClick = { commentToDelete = it },
                                         onImageClick = { previewImageUrl = it },
                                     )
                                 }
@@ -610,6 +647,7 @@ fun SongCommentsBottomSheet(
                                         comment = comment,
                                         onReplyClick = ::startReply,
                                         onPraiseClick = ::togglePraise,
+                                        onDeleteClick = { commentToDelete = it },
                                         onImageClick = { previewImageUrl = it },
                                     )
                                 }
@@ -698,6 +736,50 @@ fun SongCommentsBottomSheet(
             onDismissRequest = { previewImageUrl = null },
         )
     }
+
+    // 删除评论二次确认弹窗
+    commentToDelete?.let { comment ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!isDeleting) {
+                    commentToDelete = null
+                }
+            },
+            title = {
+                Text(
+                    text = "删除评论",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = "确定要删除这条评论吗？删除后将无法恢复。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { doDeleteComment(comment) },
+                    enabled = !isDeleting,
+                ) {
+                    Text(
+                        text = if (isDeleting) "正在删除..." else "删除",
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { commentToDelete = null },
+                    enabled = !isDeleting,
+                ) {
+                    Text("取消")
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -706,6 +788,7 @@ private fun SongCommentItem(
     modifier: Modifier = Modifier,
     onReplyClick: (SongComment) -> Unit = {},
     onPraiseClick: (SongComment) -> Unit = {},
+    onDeleteClick: (SongComment) -> Unit = {},
     onImageClick: ((String) -> Unit)? = null,
 ) {
     Row(
@@ -835,6 +918,31 @@ private fun SongCommentItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
+                    // 自身评论展示删除按钮
+                    if (comment.isSelf) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { onDeleteClick(comment) }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeleteOutline,
+                                contentDescription = "删除",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                modifier = Modifier.size(13.dp),
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "删除",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            )
+                        }
+                    }
+
                     // 回复按钮
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

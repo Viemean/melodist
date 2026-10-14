@@ -227,6 +227,9 @@ internal fun parseModernCommentElement(
     val picUrl = obj["Pic"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val picSize = obj["PicSize"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val location = obj["Location"]?.jsonPrimitive?.contentOrNull.orEmpty()
+    val isSelf =
+        obj["IsSelf"]?.jsonPrimitive?.intOrNull == 1 ||
+            obj["is_self"]?.jsonPrimitive?.intOrNull == 1
 
     return SongComment(
         commentId = commentId,
@@ -241,6 +244,7 @@ internal fun parseModernCommentElement(
         location = location,
         seqNo = seqNo,
         isPraised = isPraised,
+        isSelf = isSelf,
     )
 }
 
@@ -303,6 +307,9 @@ internal fun parseCommentElement(
     val isPraised =
         obj["ispraise"]?.jsonPrimitive?.intOrNull == 1 ||
             obj["is_praised"]?.jsonPrimitive?.intOrNull == 1
+    val isSelf =
+        obj["enable_delete"]?.jsonPrimitive?.intOrNull == 1 ||
+            obj["root_enable_delete"]?.jsonPrimitive?.intOrNull == 1
 
     return SongComment(
         commentId = commentId,
@@ -313,6 +320,7 @@ internal fun parseCommentElement(
         praiseNum = praiseNum,
         isHot = isHot,
         isPraised = isPraised,
+        isSelf = isSelf,
     )
 }
 
@@ -630,5 +638,156 @@ suspend fun MusicApiService.praiseSongComment(
             if (e is kotlinx.coroutines.CancellationException) throw e
             ApiLogger.e("MusicApiComment", "praiseSongComment failed", e)
             Result.failure(e)
+        }
+    }
+
+/**
+ * 删除评论。
+ *
+ * @param songId 歌曲数字 ID
+ * @param commentId 待删除的评论 ID
+ * @return 成功返回 Result.success(Unit)，失败返回异常 Result
+ */
+suspend fun MusicApiService.deleteSongComment(
+    songId: Long,
+    commentId: String,
+): Result<Unit> =
+    withContext(Dispatchers.IO) {
+        if (commentId.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("评论ID不能为空"))
+        }
+
+        val uin = getEffectiveUin()
+        val musicKey = UserSession.profile.musicKey
+        val gTk = CryptoUtils.computeGTk(musicKey)
+        val numericUin = uin.toLongOrNull() ?: 0L
+
+        // 1. 优先调用现代 RPC 网关接口 (music.globalComment.CommentWriteServer -> DelComment)
+        val commObj =
+            buildJsonObject {
+                put("cv", 4747474)
+                put("ct", 24)
+                if (numericUin > 0L) {
+                    put("uin", numericUin)
+                }
+                put("g_tk", gTk)
+                put("g_tk_new_20200303", gTk)
+                put("format", "json")
+                put("inCharset", "utf-8")
+                put("outCharset", "utf-8")
+                put("notice", 0)
+                put("need_new_code", 1)
+                put("needNewCode", 1)
+                if (musicKey.isNotBlank()) {
+                    put("authst", musicKey)
+                }
+            }
+
+        val paramObj =
+            buildJsonObject {
+                put("CommentId", commentId)
+                if (songId > 0L) {
+                    put("BizType", 1)
+                    put("BizId", songId.toString())
+                }
+            }
+
+        val reqObj =
+            buildJsonObject {
+                put("module", "music.globalComment.CommentWriteServer")
+                put("method", "DelComment")
+                put("param", paramObj)
+            }
+
+        val payload =
+            buildJsonObject {
+                put("comm", commObj)
+                put("req_0", reqObj)
+                put("req", reqObj)
+            }.toString()
+
+        var lastErrorMsg = "删除失败"
+
+        try {
+            ApiLogger.i("MusicApiComment", "deleteSongComment -> postGateway commentId=$commentId")
+            val respJson = postGateway(payload)
+            ApiLogger.i("MusicApiComment", "deleteSongComment <- respJson: $respJson")
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val targetReq = root["req_0"]?.jsonObject ?: root["req"]?.jsonObject
+            if (targetReq != null) {
+                val code = targetReq["code"]?.jsonPrimitive?.intOrNull ?: -1
+                val subCode =
+                    targetReq["subcode"]?.jsonPrimitive?.intOrNull
+                        ?: targetReq["data"]?.jsonObject?.get("SubCode")?.jsonPrimitive?.intOrNull
+                        ?: 0
+                if (code == 0 && subCode == 0) {
+                    return@withContext Result.success(Unit)
+                }
+                lastErrorMsg =
+                    targetReq["msg"]?.jsonPrimitive?.contentOrNull
+                        ?: "删除失败 (code: $code, subCode: $subCode)"
+                ApiLogger.w("MusicApiComment", "deleteSongComment gateway failed: code=$code, subCode=$subCode, msg=$lastErrorMsg, fallback to H5 CGI")
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.w("MusicApiComment", "deleteSongComment gateway exception: ${e.message}, fallback to H5 CGI")
+            lastErrorMsg = e.message ?: "网络异常"
+        }
+
+        // 2. 降级尝试全局 H5 评论 CGI (fcg_global_comment_h5.fcg, cmd=3)
+        try {
+            val formBodyBuilder =
+                FormBody
+                    .Builder()
+                    .add("g_tk", gTk.toString())
+                    .add("loginUin", uin)
+                    .add("hostUin", "0")
+                    .add("format", "json")
+                    .add("inCharset", "utf8")
+                    .add("outCharset", "utf-8")
+                    .add("notice", "0")
+                    .add("platform", "yqq.json")
+                    .add("needNewCode", "0")
+                    .add("cid", "205360772")
+                    .add("reqtype", "2")
+                    .add("biztype", "1")
+                    .add("topid", songId.toString())
+                    .add("cmd", "3")
+                    .add("commentid", commentId)
+
+            val requestBuilder =
+                Request
+                    .Builder()
+                    .url("https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_h5.fcg")
+                    .post(formBodyBuilder.build())
+                    .header("User-Agent", MusicApiService.WEB_USER_AGENT)
+                    .header("Referer", "https://y.qq.com/")
+                    .header("Origin", "https://y.qq.com")
+
+            val cookieHeader = UserSession.getCookieHeader()
+            if (cookieHeader.isNotBlank()) {
+                requestBuilder.header("Cookie", cookieHeader)
+            }
+
+            val h5Resp =
+                client.newCall(requestBuilder.build()).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException("H5 CGI HTTP ${response.code}")
+                    }
+                    response.body.string()
+                }
+            ApiLogger.i("MusicApiComment", "deleteSongComment H5 CGI resp: $h5Resp")
+
+            val h5Root = Json.parseToJsonElement(h5Resp).jsonObject
+            val h5Code = h5Root["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (h5Code == 0) {
+                return@withContext Result.success(Unit)
+            }
+            val h5Msg = h5Root["msg"]?.jsonPrimitive?.contentOrNull ?: "删除失败 (code: $h5Code)"
+            Result.failure(IllegalStateException(h5Msg))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.e("MusicApiComment", "deleteSongComment H5 CGI failed", e)
+            Result.failure(IllegalStateException(lastErrorMsg))
         }
     }

@@ -161,4 +161,40 @@ class MusicApiCommentTest {
         val decoded = decodeHtmlEntities(raw)
         assertEquals("\"Hello\" & <World>\nLine2", decoded)
     }
+
+    @Test
+    fun `parseModernCommentElement correctly parses IsSelf field`() {
+        val rawJson =
+            """
+            {
+              "CmId": "my_cmt_01",
+              "Nick": "我",
+              "Content": "自己发布的评论",
+              "IsSelf": 1
+            }
+            """.trimIndent()
+        val element = Json.parseToJsonElement(rawJson)
+        val comment = parseModernCommentElement(element, isHot = false)
+
+        assertNotNull(comment)
+        assertTrue(comment?.isSelf == true)
+    }
+
+    @Test
+    fun `parseCommentElement correctly parses enable_delete as isSelf`() {
+        val rawJson =
+            """
+            {
+              "commentid": "legacy_my_cmt",
+              "nick": "测试用户",
+              "rootcommentcontent": "旧版自己的评论",
+              "enable_delete": 1
+            }
+            """.trimIndent()
+        val element = Json.parseToJsonElement(rawJson)
+        val comment = parseCommentElement(element, isHot = false)
+
+        assertNotNull(comment)
+        assertTrue(comment?.isSelf == true)
+    }
 }
