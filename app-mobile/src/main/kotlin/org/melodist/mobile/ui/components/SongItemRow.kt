@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import org.melodist.api.PlaybackCredentialsManager
 import org.melodist.api.PlaybackVipTier
 import org.melodist.model.Song
+import org.melodist.playback.ListenTogetherManager
 
 private val CoverShape = RoundedCornerShape(8.dp)
 private val VipBadgeShape = RoundedCornerShape(3.dp)
@@ -213,7 +214,15 @@ fun SongItemRow(
                 }
 
             val currentCreds by PlaybackCredentialsManager.credentialsFlow.collectAsState()
-            val shouldShowVipBadge = song.isVip && PlaybackCredentialsManager.getEffectiveVipTier() == PlaybackVipTier.NONE
+            val currentRoom by ListenTogetherManager.currentRoom.collectAsState()
+            val isBothVip by ListenTogetherManager.isBothVip.collectAsState()
+            val isListenTogetherNonBothVip = currentRoom != null && !isBothVip
+            val shouldShowVipBadge =
+                song.isVip &&
+                    (
+                        isListenTogetherNonBothVip ||
+                            PlaybackCredentialsManager.getEffectiveVipTier() == PlaybackVipTier.NONE
+                    )
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,

@@ -152,7 +152,7 @@ object PlaybackManager {
             apiService = apiService,
             onStateChanged = { savePlaybackState() },
             onPlaySongRequest = { song, forceTier, seekToMs ->
-                playSong(song, forceTier = forceTier, seekToMs = seekToMs)
+                playSong(song, forceTier = forceTier, seekToMs = seekToMs, isQueueAdvance = true)
             },
             onStopPlaybackRequest = {
                 progressTracker.flushActivePlaybackSession()
@@ -163,6 +163,56 @@ object PlaybackManager {
                 _isPlaying.value = false
             },
         )
+
+    private var pendingTrialSongMid: String? = null
+    private var pendingTrialTime: Long = 0L
+    private var lastNotifiedTrialSongMid: String? = null
+
+    init {
+        scope.launch {
+            ListenTogetherManager.isBothVip.collect { bothVip ->
+                if (!bothVip) {
+                    checkAndNotifyListenTogetherTrial(_currentSong.value)
+                }
+            }
+        }
+    }
+
+    fun resetListenTogetherTrialState() {
+        pendingTrialSongMid = null
+        pendingTrialTime = 0L
+        lastNotifiedTrialSongMid = null
+    }
+
+    private fun checkListenTogetherTrialClick(song: Song): Boolean {
+        val now = System.currentTimeMillis()
+        return if (pendingTrialSongMid == song.songMid && (now - pendingTrialTime) < 3000L) {
+            pendingTrialSongMid = null
+            pendingTrialTime = 0L
+            true
+        } else {
+            pendingTrialSongMid = song.songMid
+            pendingTrialTime = now
+            notifyUser("VIP音乐需要双方开通后播放，再次点击可播放1分钟试听")
+            false
+        }
+    }
+
+    fun checkAndNotifyListenTogetherTrial(song: Song?) {
+        val target = song ?: _currentSong.value ?: return
+        if (ListenTogetherManager.isInRoom && !ListenTogetherManager.isBothVip.value && target.isVip) {
+            if (lastNotifiedTrialSongMid != target.songMid) {
+                lastNotifiedTrialSongMid = target.songMid
+                val isSelfVip = UserSession.profileFlow.value.isVip
+                if (isSelfVip) {
+                    notifyUser("对方不是vip正在播放试听1分钟")
+                } else {
+                    notifyUser("您不是vip正在播放试听1分钟")
+                }
+            }
+        }
+    }
+
     val playlist: StateFlow<List<Song>> = queueManager.playlist
     val currentIndex: StateFlow<Int> = queueManager.currentIndex
     val loopMode: StateFlow<PlaybackLoopMode> = queueManager.loopMode
@@ -291,6 +341,10 @@ object PlaybackManager {
             _errorMessage.value = "$errorMsg (即将尝试下一首 $consecutiveErrorCount/3)"
             if (remoteStateHolder.isRemoteActive.value) {
                 Log.w("MelodistPlayback", "Remote playback is active, skip local error auto-advance.")
+                return
+            }
+            if (ListenTogetherManager.isInRoom) {
+                Log.w("MelodistPlayback", "In listen together room, skip local error auto-advance.")
                 return
             }
             scope.launch {
@@ -1125,9 +1179,16 @@ object PlaybackManager {
     ) {
         if (ListenTogetherManager.isInRoom) {
             val targetSong = songs.getOrNull(startIndex) ?: songs.firstOrNull()
-            if (targetSong != null && isLocalOrWebDavSong(targetSong)) {
-                notifyUser("请退出一起听后再播放哦")
-                return
+            if (targetSong != null) {
+                if (isLocalOrWebDavSong(targetSong)) {
+                    notifyUser("请退出一起听后再播放哦")
+                    return
+                }
+                if (targetSong.isVip && !ListenTogetherManager.isBothVip.value && !ListenTogetherManager.isSyncingRemote) {
+                    if (!checkListenTogetherTrialClick(targetSong)) {
+                        return
+                    }
+                }
             }
         }
         hasReportedCurrentContext = false
@@ -1176,9 +1237,16 @@ object PlaybackManager {
         song: Song,
         seekToMs: Long = 0L,
     ) {
-        if (ListenTogetherManager.isInRoom && isLocalOrWebDavSong(song)) {
-            notifyUser("请退出一起听后再播放哦")
-            return
+        if (ListenTogetherManager.isInRoom) {
+            if (isLocalOrWebDavSong(song)) {
+                notifyUser("请退出一起听后再播放哦")
+                return
+            }
+            if (song.isVip && !ListenTogetherManager.isBothVip.value && !ListenTogetherManager.isSyncingRemote) {
+                if (!checkListenTogetherTrialClick(song)) {
+                    return
+                }
+            }
         }
         queueManager.insertAndPlay(song, seekToMs)
     }
@@ -1242,18 +1310,36 @@ object PlaybackManager {
         song: Song,
         forceTier: AudioQualityTier? = null,
         seekToMs: Long = 0L,
+        isQueueAdvance: Boolean = false,
     ) {
         val isLocalOrWebDav = isLocalOrWebDavSong(song)
         if (ListenTogetherManager.isInRoom && isLocalOrWebDav) {
             notifyUser("请退出一起听后再播放哦")
             return
         }
+        val isInTogether = ListenTogetherManager.isInRoom
+        val isBothVip = ListenTogetherManager.isBothVip.value
+        val isSyncing = ListenTogetherManager.isSyncingRemote
+
         if (!isLocalOrWebDav && song.isVip) {
-            val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
-            if (effectiveVipTier == PlaybackVipTier.NONE) {
-                notifyUser("需要开通会员后才可以播放哦")
-                return
+            if (isInTogether && !isBothVip) {
+                if (!isSyncing && !isQueueAdvance) {
+                    if (!checkListenTogetherTrialClick(song)) {
+                        return
+                    }
+                }
+                checkAndNotifyListenTogetherTrial(song)
+            } else if (!isInTogether) {
+                val effectiveVipTier = PlaybackCredentialsManager.getEffectiveVipTier()
+                if (effectiveVipTier == PlaybackVipTier.NONE) {
+                    notifyUser("需要开通会员后才可以播放哦")
+                    return
+                }
+            } else {
+                lastNotifiedTrialSongMid = null
             }
+        } else {
+            lastNotifiedTrialSongMid = null
         }
 
         stopSilentKeepAlive()
@@ -1332,7 +1418,15 @@ object PlaybackManager {
         playbackEventListeners.forEach { it.onSongPlay(effectiveSong) }
         _currentPositionMs.value = seekToMs
         _bufferedPositionMs.value = seekToMs
-        _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
+        val isListenTogetherTrial = ListenTogetherManager.isInRoom && !ListenTogetherManager.isBothVip.value && effectiveSong.isVip
+        _durationMs.value =
+            if (isListenTogetherTrial) {
+                60_000L
+            } else if (effectiveSong.durationSeconds > 0) {
+                effectiveSong.durationSeconds * 1000L
+            } else {
+                0L
+            }
         _isTransitioning.value = true
         appContext?.let { startPlaybackService(it) }
 
@@ -1343,17 +1437,24 @@ object PlaybackManager {
                 .getCompletedDownload(effectiveSong.songMid)
                 ?.second
         val initialCachedTier =
-            completedDownloadTier
-                ?: MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
-                ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
+            if (isListenTogetherTrial) {
+                null
+            } else {
+                completedDownloadTier
+                    ?: MelodistCacheManager.findHigherOrEqualStereoCachedTier(effectiveSong.songMid, targetTierInit)
+                    ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
+            }
         val isDirectCachedInit =
-            initialCachedTier != null ||
-                effectiveSong.isLocal ||
-                effectiveSong.songMid.startsWith("local_") ||
-                !effectiveSong.localFilePath.isNullOrBlank()
+            !isListenTogetherTrial &&
+                (
+                    initialCachedTier != null ||
+                        effectiveSong.isLocal ||
+                        effectiveSong.songMid.startsWith("local_") ||
+                        !effectiveSong.localFilePath.isNullOrBlank()
+                )
         _isCurrentTrackFromCache.value = isDirectCachedInit
         _fileCacheFraction.value = if (isDirectCachedInit) 1f else 0f
-        _currentTier.value = initialCachedTier ?: targetTierInit
+        _currentTier.value = if (isListenTogetherTrial) AudioQualityTier.Standard else (initialCachedTier ?: targetTierInit)
 
         updateCurrentMediaMetadata(effectiveSong)
         org.melodist.data.RecentPlaybackManager
@@ -1401,11 +1502,12 @@ object PlaybackManager {
                         PlaybackMediaLoader.resolveTarget(
                             context = ctx,
                             song = song,
-                            targetTier = targetTier,
+                            targetTier = if (isListenTogetherTrial) AudioQualityTier.Standard else targetTier,
                             apiService = apiService,
                             isSongFavorite = { isSongFavorite(it) },
                             metadataBuilder = { buildMediaMetadata(it) },
-                            prefetchedUrlInfo = if (forceTier == null) prefetchedUrlInfo else null,
+                            prefetchedUrlInfo = if (forceTier == null && !isListenTogetherTrial) prefetchedUrlInfo else null,
+                            forceTrial = isListenTogetherTrial,
                         )
                 ) {
                     is PlaybackTargetResult.LocalFile -> {

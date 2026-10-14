@@ -16,6 +16,7 @@ import org.melodist.api.ApiLogger
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.createListenTogetherRoom
+import org.melodist.api.fetchUserIsVip
 import org.melodist.api.getListenTogetherSongList
 import org.melodist.api.getListenTogetherSpaceStats
 import org.melodist.api.getSongBySongId
@@ -34,11 +35,16 @@ import kotlin.math.abs
  * 一起听（LightUGCRoom）房间会话与跨端播放状态同步管理器。
  */
 object ListenTogetherManager {
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val apiService = MusicApiService()
 
     private val _currentRoom = MutableStateFlow<ListenTogetherRoomInfo?>(null)
     val currentRoom: StateFlow<ListenTogetherRoomInfo?> = _currentRoom.asStateFlow()
+
+    private val _isBothVip = MutableStateFlow(true)
+    val isBothVip: StateFlow<Boolean> = _isBothVip.asStateFlow()
+
+    private val partnerVipCache = mutableMapOf<String, Boolean>()
 
     /**
      * 当前是否处于一起听房间会话中。
@@ -94,6 +100,9 @@ object ListenTogetherManager {
 
     @Volatile
     private var isSyncingFromRemote: Boolean = false
+
+    val isSyncingRemote: Boolean
+        get() = isSyncingFromRemote
 
     private var lastLocalActionTime: Long = 0L
     private var expectedPlayStatus: Int = -1
@@ -443,6 +452,7 @@ object ListenTogetherManager {
         expectedSongId = 0L
         lastSyncedPlaylistSongIds = emptyList()
         lastObservedMediaVersion = 0L
+        PlaybackManager.resetListenTogetherTrialState()
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -509,6 +519,7 @@ object ListenTogetherManager {
                         }
 
                         // 好友空间统计拉取与2分钟周期对齐
+                        val selfIsVip = UserSession.profileFlow.value.isVip
                         if (state.usersCount >= 2) {
                             val myEnc = UserSession.profileFlow.value.encryptedUin
                             val partnerEnc =
@@ -524,7 +535,23 @@ object ListenTogetherManager {
                                 } else if (now - lastStatsFetchTime >= 120_000L) {
                                     fetchSpaceStats(state.showId, partnerEnc, force = true)
                                 }
+
+                                val cachedPartnerVip = state.userVipMap[partnerEnc] ?: partnerVipCache[partnerEnc]
+                                if (cachedPartnerVip != null) {
+                                    partnerVipCache[partnerEnc] = cachedPartnerVip
+                                    _isBothVip.value = selfIsVip && cachedPartnerVip
+                                } else {
+                                    scope.launch(Dispatchers.IO) {
+                                        val vipStatus = apiService.fetchUserIsVip(partnerEnc)
+                                        partnerVipCache[partnerEnc] = vipStatus
+                                        _isBothVip.value = UserSession.profileFlow.value.isVip && vipStatus
+                                    }
+                                }
+                            } else {
+                                _isBothVip.value = selfIsVip
                             }
+                        } else {
+                            _isBothVip.value = selfIsVip
                         }
 
                         // 本地乐观更新：两人都在线且正在播放时累加听歌时长（每满60秒自增1分钟）
@@ -754,5 +781,7 @@ object ListenTogetherManager {
         lastStatsFetchTime = 0L
         accumulatedPlayMs = 0L
         lastRecordedStatsSongId = 0L
+        _isBothVip.value = true
+        partnerVipCache.clear()
     }
 }

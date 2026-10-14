@@ -91,6 +91,7 @@ object PlaybackMediaLoader {
         isSongFavorite: (String) -> Boolean,
         metadataBuilder: ((Song) -> androidx.media3.common.MediaMetadata)? = null,
         prefetchedUrlInfo: Pair<String, QualityResult>? = null,
+        forceTrial: Boolean = false,
     ): PlaybackTargetResult =
         withContext(Dispatchers.IO) {
             val isPureLocal = !song.localFilePath.isNullOrBlank() && !song.songMid.startsWith("webdav_")
@@ -200,7 +201,7 @@ object PlaybackMediaLoader {
             }
 
             // 4. 线上歌曲流式处理
-            val higherStereoTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(song.songMid, targetTier)
+            val higherStereoTier = if (forceTrial) null else MelodistCacheManager.findHigherOrEqualStereoCachedTier(song.songMid, targetTier)
             val playUrlInfo =
                 if (higherStereoTier != null) {
                     val dummyUri = "https://cache.melodist.internal/${song.songMid}?tier=${higherStereoTier.name}"
@@ -211,7 +212,7 @@ object PlaybackMediaLoader {
                     )
                 } else {
                     val cachedInfo =
-                        if (prefetchedUrlInfo?.first == song.songMid) {
+                        if (!forceTrial && prefetchedUrlInfo?.first == song.songMid) {
                             prefetchedUrlInfo.second
                         } else {
                             null
@@ -220,7 +221,7 @@ object PlaybackMediaLoader {
                         cachedInfo
                     } else {
                         try {
-                            apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier)
+                            apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier, forceTrial = forceTrial)
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
                             Log.w(TAG, "Failed to fetch play URL for ${song.name}", e)
@@ -232,11 +233,18 @@ object PlaybackMediaLoader {
             if (playUrlInfo != null && !playUrlInfo.url.isNullOrBlank()) {
                 val ctx = context ?: return@withContext PlaybackTargetResult.Failure("缺少 Context 上下文")
                 val isFav = isSongFavorite(song.songMid)
-                val isCached = higherStereoTier != null || MelodistCacheManager.isSongTierCached(song.songMid, playUrlInfo.tier)
+                val isCached = !forceTrial && (higherStereoTier != null || MelodistCacheManager.isSongTierCached(song.songMid, playUrlInfo.tier))
                 val targetCacheKey = MelodistCacheManager.getCacheKey(song.songMid, playUrlInfo.tier)
-                val isPrecached = MelodistCacheManager.isKeyCached(targetCacheKey)
-                val shouldCache = MelodistCacheManager.shouldCacheSong(song.songMid, isFav, playUrlInfo.tier)
-                val fileCacheFraction = if (isCached) 1f else MelodistCacheManager.getSongFileCacheProgress(song.songMid, playUrlInfo.tier).fraction
+                val isPrecached = !forceTrial && MelodistCacheManager.isKeyCached(targetCacheKey)
+                val shouldCache = if (forceTrial) false else MelodistCacheManager.shouldCacheSong(song.songMid, isFav, playUrlInfo.tier)
+                val fileCacheFraction =
+                    if (isCached) {
+                        1f
+                    } else if (forceTrial) {
+                        0f
+                    } else {
+                        MelodistCacheManager.getSongFileCacheProgress(song.songMid, playUrlInfo.tier).fraction
+                    }
 
                 val httpFactory =
                     DefaultHttpDataSource
