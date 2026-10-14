@@ -3,6 +3,7 @@ package org.melodist.mobile.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,9 +65,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -246,6 +252,22 @@ fun SongActionSheet(
     val candidateArtists = artists
 
     val scrollState = rememberScrollState()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val maxSheetHeight = configuration.screenHeightDp.dp * (if (isLandscape) 0.9f else 0.82f)
+
+    val flingConnection =
+        remember {
+            object : NestedScrollConnection {
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    return if (available.y < 0f) {
+                        Velocity(x = 0f, y = available.y)
+                    } else {
+                        super.onPostFling(consumed, available)
+                    }
+                }
+            }
+        }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -255,6 +277,8 @@ fun SongActionSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .heightIn(max = maxSheetHeight)
+                    .nestedScroll(flingConnection)
                     .verticalScroll(scrollState)
                     .navigationBarsPadding()
                     .padding(bottom = 32.dp),
