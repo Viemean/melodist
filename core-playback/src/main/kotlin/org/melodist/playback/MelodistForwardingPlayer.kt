@@ -98,23 +98,29 @@ class MelodistForwardingPlayer(
             super.isPlaying()
         }
 
-    override fun getCurrentMediaItem(): MediaItem? =
-        if (isRemoteVirtual) {
-            PlaybackManager.currentSong.value?.let {
-                PlaybackManager.buildMediaItemForSong(it, PlaybackManager.remoteDeviceName.value)
-            }
+    override fun getCurrentMediaItem(): MediaItem? {
+        val current = super.getCurrentMediaItem()
+        val currentSong = PlaybackManager.currentSong.value
+        return if (current != null && currentSong != null && current.mediaId == currentSong.songMid) {
+            current
+                .buildUpon()
+                .setMediaMetadata(PlaybackManager.buildMediaMetadata(currentSong, PlaybackManager.remoteDeviceName.value))
+                .build()
+        } else if (isRemoteVirtual && currentSong != null) {
+            PlaybackManager.buildMediaItemForSong(currentSong, PlaybackManager.remoteDeviceName.value)
         } else {
-            super.getCurrentMediaItem()
+            current
         }
+    }
 
-    override fun getMediaMetadata(): MediaMetadata =
-        if (isRemoteVirtual) {
-            PlaybackManager.currentSong.value?.let {
-                PlaybackManager.buildMediaMetadata(it, PlaybackManager.remoteDeviceName.value)
-            } ?: MediaMetadata.EMPTY
+    override fun getMediaMetadata(): MediaMetadata {
+        val currentSong = PlaybackManager.currentSong.value
+        return if (currentSong != null) {
+            PlaybackManager.buildMediaMetadata(currentSong, PlaybackManager.remoteDeviceName.value)
         } else {
             super.getMediaMetadata()
         }
+    }
 
     override fun getCurrentPosition(): Long =
         if (isRemoteVirtual) {

@@ -164,9 +164,10 @@ class PlaybackService : MediaSessionService() {
             combine(
                 PlaybackManager.currentSong,
                 PlaybackManager.lyrics,
-            ) { song, lyrics ->
-                song to lyrics
-            }.distinctUntilChanged().collect { (song, lyrics) ->
+                PlaybackManager.isPlaying,
+            ) { song, lyrics, isPlaying ->
+                Triple(song, lyrics, isPlaying)
+            }.distinctUntilChanged().collect { (song, lyrics, _) ->
                 if (song != null) {
                     syncLegacyMediaMetadata(song, lyrics)
                 }
@@ -288,12 +289,14 @@ class PlaybackService : MediaSessionService() {
             builder.putString(android.media.MediaMetadata.METADATA_KEY_TITLE, song.name)
             builder.putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, song.singer)
             builder.putString(android.media.MediaMetadata.METADATA_KEY_ALBUM, song.album)
-            val duration = PlaybackManager.durationMs.value
+            val duration =
+                PlaybackManager.durationMs.value.takeIf { it > 0 }
+                    ?: (if (song.durationSeconds > 0) song.durationSeconds * 1000L else 0L)
             if (duration > 0) {
                 builder.putLong(android.media.MediaMetadata.METADATA_KEY_DURATION, duration)
             }
             val currentFwk = fwkSession.controller.metadata
-            if (currentFwk != null) {
+            if (currentFwk != null && currentFwk.getString(android.media.MediaMetadata.METADATA_KEY_MEDIA_ID) == song.songMid) {
                 val existingArt =
                     currentFwk.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
                         ?: currentFwk.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
@@ -303,7 +306,8 @@ class PlaybackService : MediaSessionService() {
                 }
             }
             val extras = PlaybackMediaItemFactory.extraMetadataProvider?.invoke(song, lyrics)
-            if (extras != null) {
+            val hasLyricInfo = extras?.containsKey("lyricInfo") == true
+            if (extras != null && !extras.isEmpty) {
                 for (key in extras.keySet()) {
                     @Suppress("DEPRECATION")
                     val value = extras.get(key)
@@ -312,6 +316,16 @@ class PlaybackService : MediaSessionService() {
                     } else if (value is Number) {
                         builder.putLong(key, value.toLong())
                     }
+                }
+            }
+            if (!hasLyricInfo && currentFwk != null && currentFwk.getString(android.media.MediaMetadata.METADATA_KEY_MEDIA_ID) == song.songMid) {
+                val existingLyricInfo = currentFwk.getString("lyricInfo")
+                val existingConfig = currentFwk.getString("oplus.media.config")
+                if (!existingLyricInfo.isNullOrBlank()) {
+                    builder.putString("lyricInfo", existingLyricInfo)
+                }
+                if (!existingConfig.isNullOrBlank()) {
+                    builder.putString("oplus.media.config", existingConfig)
                 }
             }
             fwkSession.setMetadata(builder.build())

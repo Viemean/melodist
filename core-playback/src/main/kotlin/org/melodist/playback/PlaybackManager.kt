@@ -32,6 +32,7 @@ import org.melodist.api.getPlayUrl
 import org.melodist.api.getSongVisualMid
 import org.melodist.api.reportPlayStream
 import org.melodist.api.reportRecentHistory
+import org.melodist.data.LyricCacheManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
 import org.melodist.model.PlaybackSourceContext
@@ -200,10 +201,12 @@ object PlaybackManager {
             scope = scope,
             apiService = apiService,
             currentSongProvider = { _currentSong.value },
-            onLyricsUpdated = {
-                _lyrics.value = it
-                _currentSong.value?.let { current ->
-                    updateCurrentMediaMetadata(current)
+            onLyricsUpdated = { lyrics ->
+                scope.launch(Dispatchers.Main) {
+                    _lyrics.value = lyrics
+                    _currentSong.value?.let { current ->
+                        updateCurrentMediaMetadata(current)
+                    }
                 }
             },
             onOffsetCalibrated = { _currentLyricOffsetMs.value = it },
@@ -520,6 +523,11 @@ object PlaybackManager {
                     Player.STATE_READY -> {
                         _isLoading.value = false
                         _durationMs.value = exoPlayer?.duration?.coerceAtLeast(0L) ?: 0L
+                        if (_lyrics.value.isNotEmpty()) {
+                            _currentSong.value?.let { current ->
+                                legacyMetadataSyncCallback?.invoke(current, _lyrics.value)
+                            }
+                        }
                         if (exoPlayer?.isPlaying == true) {
                             currentSongRetryCount = 0
                             consecutiveErrorCount = 0
@@ -884,8 +892,8 @@ object PlaybackManager {
 
     fun updateCurrentMediaMetadata(song: Song) {
         val player = exoPlayer ?: return
-        val currentItem = player.currentMediaItem ?: return
-        if (player.currentMediaItemIndex >= 0) {
+        val currentItem = player.currentMediaItem
+        if (currentItem != null && player.currentMediaItemIndex >= 0) {
             val updatedItem = currentItem.buildUpon().setMediaMetadata(buildMediaMetadata(song, lyrics = _lyrics.value)).build()
             player.replaceMediaItem(player.currentMediaItemIndex, updatedItem)
         }
@@ -1291,6 +1299,9 @@ object PlaybackManager {
             }
         }
 
+        val initialLyrics = LyricCacheManager.getLyrics(effectiveSong.songMid).orEmpty()
+        _lyrics.value = initialLyrics
+
         if (playbackInterceptor?.onInterceptPlaySong(effectiveSong, forceTier, seekToMs) == true) {
             exoPlayer?.pause()
             _currentSong.value = effectiveSong
@@ -1351,7 +1362,6 @@ object PlaybackManager {
 
         _isLoading.value = true
         _errorMessage.value = null
-        _lyrics.value = emptyList()
         _currentPositionMs.value = seekToMs
 
         appContext?.let { ctx ->

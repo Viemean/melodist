@@ -125,7 +125,7 @@ class PlaybackLyricsCoordinator(
                             )
                         if (currentSongProvider()?.songMid == song.songMid && onlineLyrics.isNotEmpty()) {
                             val current = LyricCacheManager.getLyrics(song.songMid).orEmpty()
-                            if (LyricCacheManager.isBetterQuality(onlineLyrics, current)) {
+                            if (current.isEmpty() || LyricCacheManager.isBetterQuality(onlineLyrics, current)) {
                                 onLyricsUpdated(onlineLyrics)
                                 LyricCacheManager.saveLyrics(song.songMid, onlineLyrics)
                                 onLyricsLoadedBroadcast(song to onlineLyrics)

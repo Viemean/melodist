@@ -34,6 +34,19 @@ class ColorOsLyricHelperTest {
     }
 
     @Test
+    fun `test formatLyricsToLrc inserts prelude when first line starts after 1000ms`() {
+        val lyrics =
+            listOf(
+                LyricLine(timestampMs = 5000L, text = "First vocal line"),
+            )
+        val lrc = ColorOsLyricHelper.formatLyricsToLrc(lyrics)
+        val lines = lrc.trimEnd().split('\n')
+        assertEquals(2, lines.size)
+        assertEquals("[00:00.00]前奏", lines[0])
+        assertEquals("[00:05.00]First vocal line", lines[1])
+    }
+
+    @Test
     fun `test buildLyricInfoJson creates valid json payload`() {
         val song =
             Song(

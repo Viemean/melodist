@@ -24,6 +24,10 @@ object ColorOsLyricHelper {
     fun formatLyricsToLrc(lyrics: List<LyricLine>): String {
         if (lyrics.isEmpty()) return ""
         val sb = StringBuilder(lyrics.size * 32)
+        val firstLine = lyrics.firstOrNull()
+        if (firstLine != null && firstLine.timestampMs > 1000L) {
+            sb.append("[00:00.00]前奏\n")
+        }
         for (line in lyrics) {
             val totalSeconds = line.timestampMs / 1000
             val minutes = totalSeconds / 60
