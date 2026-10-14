@@ -49,6 +49,8 @@ class MelodistMobileApp :
                 false
             }
         }
+        org.melodist.mobile.coloros.ColorOsLyricBridge
+            .init(this)
         try {
             if (packageName == "com.tencent.qqmusic") {
                 val serviceIntent =
