@@ -275,11 +275,19 @@ internal fun parseHeartbeatResponse(
         val userObj = userEl.jsonObject
         val enc = userObj["encryptUin"]?.jsonPrimitive?.contentOrNull.orEmpty()
         if (enc.isNotBlank()) {
-            val isVip =
-                (userObj["isVip"]?.jsonPrimitive?.intOrNull ?: userObj["is_vip"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
-                    (userObj["vip"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
-                    (userObj["vipType"]?.jsonPrimitive?.intOrNull ?: userObj["vip_type"]?.jsonPrimitive?.intOrNull ?: 0) > 0
-            userVipMap[enc] = isVip
+            val hasVipField =
+                userObj.containsKey("isVip") ||
+                    userObj.containsKey("is_vip") ||
+                    userObj.containsKey("vip") ||
+                    userObj.containsKey("vipType") ||
+                    userObj.containsKey("vip_type")
+            if (hasVipField) {
+                val isVip =
+                    (userObj["isVip"]?.jsonPrimitive?.intOrNull ?: userObj["is_vip"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
+                        (userObj["vip"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
+                        (userObj["vipType"]?.jsonPrimitive?.intOrNull ?: userObj["vip_type"]?.jsonPrimitive?.intOrNull ?: 0) > 0
+                userVipMap[enc] = isVip
+            }
         }
     }
 
@@ -939,26 +947,58 @@ suspend fun MusicApiService.fetchUserIsVip(encUin: String): Boolean =
               "profile": {
                 "module": "music.UnifiedHomepage.UnifiedHomepageSrv",
                 "method": "GetHomepageHeader",
-                "param": { "enc_host_uin": "$encUin", "IsQueryTabDetail": 1 }
+                "param": { "enc_uin": "$encUin", "IsQueryTabDetail": 1 }
               }
             }
             """.trimIndent()
         try {
             val respStr = postAppGateway(payload)
             val root = Json.parseToJsonElement(respStr).jsonObject
-            val vipObj =
+            val info =
                 root["profile"]
                     ?.jsonObject
                     ?.get("data")
                     ?.jsonObject
                     ?.get("Info")
-                    ?.jsonObject
-                    ?.get("VipInfo")
-                    ?.jsonObject
-            val isVip = vipObj?.get("isVip")?.jsonPrimitive?.intOrNull ?: 0
-            val vipType = vipObj?.get("vipType")?.jsonPrimitive?.intOrNull ?: 0
-            val vipLevel = vipObj?.get("vipLevel")?.jsonPrimitive?.intOrNull ?: 0
-            isVip > 0 || vipType > 0 || vipLevel > 0
+                    ?.jsonObject ?: return@withContext false
+
+            val hasVipIcon =
+                info["Icons"]?.jsonArray?.any { iconEl ->
+                    val url =
+                        iconEl.jsonObject["IconURL"]
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
+                            .lowercase()
+                    url.contains("/vip/") || url.contains("svip") || url.contains("/pay/")
+                } == true
+
+            val hasVipNewIcon =
+                info["NewIconInfo"]?.jsonObject?.get("iconlist")?.jsonArray?.any { itemEl ->
+                    val obj = itemEl.jsonObject
+                    val helpText = obj["Helptxt"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    val srcUrl =
+                        obj["srcUrl"]
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
+                            .lowercase()
+                    helpText.contains("绿钻") ||
+                        helpText.contains("VIP") ||
+                        helpText.contains("vip") ||
+                        helpText.contains("超级会员") ||
+                        helpText.contains("SVIP") ||
+                        srcUrl.contains("/vip") ||
+                        srcUrl.contains("svip")
+                } == true
+
+            val vipObj = info["VipInfo"]?.jsonObject
+            val isVipLegacy =
+                (vipObj?.get("isVip")?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
+                    (vipObj?.get("vipType")?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
+                    (vipObj?.get("vipLevel")?.jsonPrimitive?.intOrNull ?: 0) > 0
+
+            hasVipIcon || hasVipNewIcon || isVipLegacy
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             false

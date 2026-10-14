@@ -45,6 +45,9 @@ object ListenTogetherManager {
     val isBothVip: StateFlow<Boolean> = _isBothVip.asStateFlow()
 
     private val partnerVipCache = mutableMapOf<String, Boolean>()
+    private val pendingPartnerVipFetches =
+        java.util.concurrent.ConcurrentHashMap
+            .newKeySet<String>()
 
     /**
      * 当前是否处于一起听房间会话中。
@@ -540,11 +543,15 @@ object ListenTogetherManager {
                                 if (cachedPartnerVip != null) {
                                     partnerVipCache[partnerEnc] = cachedPartnerVip
                                     _isBothVip.value = selfIsVip && cachedPartnerVip
-                                } else {
+                                } else if (pendingPartnerVipFetches.add(partnerEnc)) {
                                     scope.launch(Dispatchers.IO) {
-                                        val vipStatus = apiService.fetchUserIsVip(partnerEnc)
-                                        partnerVipCache[partnerEnc] = vipStatus
-                                        _isBothVip.value = UserSession.profileFlow.value.isVip && vipStatus
+                                        try {
+                                            val vipStatus = apiService.fetchUserIsVip(partnerEnc)
+                                            partnerVipCache[partnerEnc] = vipStatus
+                                            _isBothVip.value = UserSession.profileFlow.value.isVip && vipStatus
+                                        } finally {
+                                            pendingPartnerVipFetches.remove(partnerEnc)
+                                        }
                                     }
                                 }
                             } else {
@@ -783,5 +790,6 @@ object ListenTogetherManager {
         lastRecordedStatsSongId = 0L
         _isBothVip.value = true
         partnerVipCache.clear()
+        pendingPartnerVipFetches.clear()
     }
 }
