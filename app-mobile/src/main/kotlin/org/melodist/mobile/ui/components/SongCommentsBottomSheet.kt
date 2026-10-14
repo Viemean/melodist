@@ -83,7 +83,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -92,7 +91,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
@@ -917,18 +915,7 @@ private fun CommentInputBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val cardShape = RoundedCornerShape(16.dp)
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
     var isFocused by remember { mutableStateOf(false) }
-
-    // 用户3秒未继续输入时自动取消焦点并隐藏闪烁光标
-    LaunchedEffect(isFocused, inputText) {
-        if (isFocused) {
-            delay(3000L)
-            focusManager.clearFocus(force = true)
-            keyboardController?.hide()
-        }
-    }
 
     Column(
         modifier =
