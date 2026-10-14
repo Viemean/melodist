@@ -277,13 +277,15 @@ suspend fun MusicApiService.getPlayUrl(
     songMid: String,
     mediaMid: String = "",
     preferredTier: AudioQualityTier = AudioQualityTier.SQ,
-): QualityResult = getPlayUrlInternal(songMid, mediaMid, preferredTier, canRetryWithRenew = true)
+    forceTrial: Boolean = false,
+): QualityResult = getPlayUrlInternal(songMid, mediaMid, preferredTier, canRetryWithRenew = true, forceTrial = forceTrial)
 
 private suspend fun MusicApiService.getPlayUrlInternal(
     songMid: String,
     mediaMid: String = "",
     preferredTier: AudioQualityTier = AudioQualityTier.SQ,
     canRetryWithRenew: Boolean = true,
+    forceTrial: Boolean = false,
 ): QualityResult =
     withContext(Dispatchers.IO) {
         if (!PlaybackCredentialsManager.hasCustomCredentials) {
@@ -294,6 +296,47 @@ private suspend fun MusicApiService.getPlayUrlInternal(
         val uin = PlaybackCredentialsManager.getActiveUin()
         val authst = PlaybackCredentialsManager.getActiveAuthst()
         val cookieHeader = PlaybackCredentialsManager.getActiveCookieHeader()
+
+        if (forceTrial) {
+            val trialPayload =
+                """{"comm":{"uin":"$uin","format":"json","ct":28,"cv":1,"authst":"$authst"}, "req_trial":{"module":"vkey.GetVkeyServer","method":"CgiGetVkey","param":{"guid":"10000","songmid":["$songMid"],"songtype":[0],"uin":"$uin","loginflag":1,"platform":"20","filename":["RS02$targetMediaMid.mp3"]}}}"""
+            try {
+                val respJson = postGateway(trialPayload, customCookieHeader = cookieHeader)
+                val root = Json.parseToJsonElement(respJson).jsonObject
+                val reqData = root["req_trial"]?.jsonObject?.get("data")?.jsonObject
+                val sips = reqData?.get("sip")?.jsonArray
+                val sip =
+                    sips
+                        ?.firstOrNull()
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+                val midInfo =
+                    reqData
+                        ?.get("midurlinfo")
+                        ?.jsonArray
+                        ?.firstOrNull()
+                        ?.jsonObject
+                val purl =
+                    midInfo
+                        ?.get("purl")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+                val result = midInfo?.get("result")?.jsonPrimitive?.intOrNull ?: -1
+                if (result == 0 && purl.isNotBlank() && sip.isNotBlank()) {
+                    return@withContext QualityResult(
+                        url = sip + purl,
+                        tier = AudioQualityTier.Standard,
+                        badge = AudioQualityTier.getBadge(AudioQualityTier.Standard),
+                    )
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                ApiLogger.w("MusicApiPlayback", "Failed to fetch trial play url for $songMid", e)
+            }
+            return@withContext QualityResult(null, AudioQualityTier.Standard, AudioQualityTier.getBadge(AudioQualityTier.Standard))
+        }
 
         val requests =
             listOf(

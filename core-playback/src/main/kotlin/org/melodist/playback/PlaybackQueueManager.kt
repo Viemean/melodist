@@ -22,6 +22,7 @@ class PlaybackQueueManager(
     private val onStateChanged: () -> Unit,
     private val onPlaySongRequest: (song: Song, forceTier: AudioQualityTier?, seekToMs: Long) -> Unit,
     private val onStopPlaybackRequest: () -> Unit,
+    private val isVipFilterEnabledProvider: (() -> Boolean)? = null,
 ) {
     private val _playlist = MutableStateFlow<List<Song>>(emptyList())
     val playlist: StateFlow<List<Song>> = _playlist.asStateFlow()
@@ -696,12 +697,24 @@ class PlaybackQueueManager(
         val nextIndex =
             when (_loopMode.value) {
                 PlaybackLoopMode.Shuffle -> {
-                    val idx = shuffleQueue.next(list)
-                    if (idx in list.indices) idx else ((_currentIndex.value + 1) % list.size)
+                    var idx = shuffleQueue.next(list)
+                    val hasNonVip = list.any { !it.isVip }
+                    if (shouldFilterVipSongs() && hasNonVip) {
+                        var attempts = 0
+                        while (idx in list.indices && list[idx].isVip && attempts < list.size) {
+                            idx = shuffleQueue.next(list)
+                            attempts++
+                        }
+                    }
+                    if (idx in list.indices && (!shouldFilterVipSongs() || !list[idx].isVip || !hasNonVip)) {
+                        idx
+                    } else {
+                        findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
+                    }
                 }
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
-                -> (_currentIndex.value + 1) % list.size
+                -> findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
             }
         if (nextIndex in list.indices) {
             _currentIndex.value = nextIndex
@@ -729,24 +742,61 @@ class PlaybackQueueManager(
         val prevIndex =
             when (_loopMode.value) {
                 PlaybackLoopMode.Shuffle -> {
-                    val idx = shuffleQueue.previous()
-                    if (idx in list.indices) {
+                    var idx = shuffleQueue.previous()
+                    val hasNonVip = list.any { !it.isVip }
+                    if (shouldFilterVipSongs() && hasNonVip) {
+                        var attempts = 0
+                        while (idx in list.indices && list[idx].isVip && attempts < list.size) {
+                            idx = shuffleQueue.previous()
+                            attempts++
+                        }
+                    }
+                    if (idx in list.indices && (!shouldFilterVipSongs() || !list[idx].isVip || !hasNonVip)) {
                         idx
-                    } else if (_currentIndex.value - 1 < 0) {
-                        list.size - 1
                     } else {
-                        _currentIndex.value - 1
+                        val fallback = if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                        findPreviousNonVipIndex(fallback, list)
                     }
                 }
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
-                ->
-                    if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                -> {
+                    val fallback = if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                    findPreviousNonVipIndex(fallback, list)
+                }
             }
         if (prevIndex in list.indices) {
             _currentIndex.value = prevIndex
             onPlaySongRequest(list[prevIndex], null, 0L)
         }
+    }
+
+    private fun shouldFilterVipSongs(): Boolean =
+        isVipFilterEnabledProvider?.invoke()
+            ?: (ListenTogetherManager.isInRoom && !ListenTogetherManager.isBothVip.value)
+
+    private fun findNextNonVipIndex(
+        startIndex: Int,
+        list: List<Song>,
+    ): Int {
+        if (!shouldFilterVipSongs() || list.none { !it.isVip }) return startIndex
+        for (offset in 0 until list.size) {
+            val idx = (startIndex + offset) % list.size
+            if (!list[idx].isVip) return idx
+        }
+        return startIndex
+    }
+
+    private fun findPreviousNonVipIndex(
+        startIndex: Int,
+        list: List<Song>,
+    ): Int {
+        if (!shouldFilterVipSongs() || list.none { !it.isVip }) return startIndex
+        for (offset in 0 until list.size) {
+            val idx = (startIndex - offset + list.size) % list.size
+            if (!list[idx].isVip) return idx
+        }
+        return startIndex
     }
 
     /**
