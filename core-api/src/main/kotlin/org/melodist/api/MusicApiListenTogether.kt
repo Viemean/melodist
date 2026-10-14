@@ -270,6 +270,18 @@ internal fun parseHeartbeatResponse(
             ?.mapNotNull {
                 it.jsonObject["encryptUin"]?.jsonPrimitive?.contentOrNull
             }.orEmpty()
+    val userVipMap = mutableMapOf<String, Boolean>()
+    usersArray?.forEach { userEl ->
+        val userObj = userEl.jsonObject
+        val enc = userObj["encryptUin"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        if (enc.isNotBlank()) {
+            val isVip =
+                (userObj["isVip"]?.jsonPrimitive?.intOrNull ?: userObj["is_vip"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
+                    (userObj["vip"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
+                    (userObj["vipType"]?.jsonPrimitive?.intOrNull ?: userObj["vip_type"]?.jsonPrimitive?.intOrNull ?: 0) > 0
+            userVipMap[enc] = isVip
+        }
+    }
 
     return ListenTogetherSyncState(
         showId = showId,
@@ -282,6 +294,7 @@ internal fun parseHeartbeatResponse(
         usersCount = usersCount,
         isRoomValid = true,
         userEncUins = userEncUins,
+        userVipMap = userVipMap,
     )
 }
 
@@ -906,5 +919,48 @@ suspend fun MusicApiService.getListenTogetherSpaceStats(
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiListenTogether", "getListenTogetherSpaceStats failed", e)
             null
+        }
+    }
+
+/**
+ * 查询指定加密 UIN 用户的公开 VIP 权益状态。
+ *
+ * @param encUin 用户加密 UIN
+ * @return 是否具有有效 VIP 权益
+ */
+suspend fun MusicApiService.fetchUserIsVip(encUin: String): Boolean =
+    withContext(Dispatchers.IO) {
+        if (encUin.isBlank()) return@withContext false
+        val commJson = MusicApiService.buildAppCommJson()
+        val payload =
+            """
+            {
+              "comm": $commJson,
+              "profile": {
+                "module": "music.UnifiedHomepage.UnifiedHomepageSrv",
+                "method": "GetHomepageHeader",
+                "param": { "enc_host_uin": "$encUin", "IsQueryTabDetail": 1 }
+              }
+            }
+            """.trimIndent()
+        try {
+            val respStr = postAppGateway(payload)
+            val root = Json.parseToJsonElement(respStr).jsonObject
+            val vipObj =
+                root["profile"]
+                    ?.jsonObject
+                    ?.get("data")
+                    ?.jsonObject
+                    ?.get("Info")
+                    ?.jsonObject
+                    ?.get("VipInfo")
+                    ?.jsonObject
+            val isVip = vipObj?.get("isVip")?.jsonPrimitive?.intOrNull ?: 0
+            val vipType = vipObj?.get("vipType")?.jsonPrimitive?.intOrNull ?: 0
+            val vipLevel = vipObj?.get("vipLevel")?.jsonPrimitive?.intOrNull ?: 0
+            isVip > 0 || vipType > 0 || vipLevel > 0
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            false
         }
     }

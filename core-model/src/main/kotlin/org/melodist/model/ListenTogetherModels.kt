@@ -31,6 +31,7 @@ data class ListenTogetherSyncState(
     val usersCount: Int = 0,
     val isRoomValid: Boolean = true,
     val userEncUins: List<String> = emptyList(),
+    val userVipMap: Map<String, Boolean> = emptyMap(),
 )
 
 /**

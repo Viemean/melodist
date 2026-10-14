@@ -248,7 +248,7 @@ fun SettingsCredentialsDialogs(
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "导入后，播放/下载发起的请求将使用该账号的音质权限，而歌单与每日推荐保持使用原有登录账号，互不干扰污染。",
+                        text = "导入后，播放/下载发起的请求将使用该账号的音质权限，而歌单与每日推荐保持使用原有登录账号，互不干扰污染。\n注意：导入的播放凭证不支持一起听功能，一起听将固定使用当前主登录账号。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
