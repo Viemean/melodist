@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,10 +72,41 @@ fun PlayerCoverCarousel(
     val dragOffsetX = remember { Animatable(0f) }
     var isDragging by remember { mutableStateOf(false) }
 
+    val currentSongState by rememberUpdatedState(currentSong)
     val currentPrevSong by rememberUpdatedState(prevSong)
     val currentNextSong by rememberUpdatedState(nextSong)
     val currentOnPlayNext by rememberUpdatedState(onPlayNext)
     val currentOnPlayPrevious by rememberUpdatedState(onPlayPrevious)
+
+    var centerSlotIndex by remember { mutableIntStateOf(0) }
+    var slotSongs by remember {
+        mutableStateOf(listOf(currentSong, nextSong, prevSong))
+    }
+    var pendingTargetSongMid by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(currentSong, prevSong, nextSong, centerSlotIndex) {
+        val target = pendingTargetSongMid
+        if (target != null) {
+            if (currentSong?.songMid == target) {
+                pendingTargetSongMid = null
+                val prevSlot = (centerSlotIndex - 1).floorMod(3)
+                val nextSlot = (centerSlotIndex + 1).floorMod(3)
+                val updated = slotSongs.toMutableList()
+                updated[centerSlotIndex] = currentSong
+                updated[nextSlot] = nextSong
+                updated[prevSlot] = prevSong
+                slotSongs = updated
+            }
+        } else {
+            val prevSlot = (centerSlotIndex - 1).floorMod(3)
+            val nextSlot = (centerSlotIndex + 1).floorMod(3)
+            val updated = slotSongs.toMutableList()
+            updated[centerSlotIndex] = currentSong
+            updated[nextSlot] = nextSong
+            updated[prevSlot] = prevSong
+            slotSongs = updated
+        }
+    }
 
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
@@ -165,8 +198,11 @@ fun PlayerCoverCarousel(
                                             targetValue = -fullStepPx,
                                             animationSpec = tween(durationMillis = 180, easing = LinearEasing),
                                         )
-                                        currentOnPlayNext()
+                                        val targetSong = currentNextSong
+                                        pendingTargetSongMid = targetSong?.songMid
+                                        centerSlotIndex = (centerSlotIndex + 1).floorMod(3)
                                         dragOffsetX.snapTo(0f)
+                                        currentOnPlayNext()
                                     } else if (shouldPlayPrevious) {
                                         org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
                                             state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
@@ -178,8 +214,11 @@ fun PlayerCoverCarousel(
                                             targetValue = fullStepPx,
                                             animationSpec = tween(durationMillis = 180, easing = LinearEasing),
                                         )
-                                        currentOnPlayPrevious()
+                                        val targetSong = currentPrevSong
+                                        pendingTargetSongMid = targetSong?.songMid
+                                        centerSlotIndex = (centerSlotIndex - 1).floorMod(3)
                                         dragOffsetX.snapTo(0f)
+                                        currentOnPlayPrevious()
                                     } else {
                                         org.melodist.mobile.connect.MobileConnectManager.sendGestureSwipe(
                                             state = org.melodist.core.connect.model.GestureSwipeState.CANCEL,
@@ -214,7 +253,7 @@ fun PlayerCoverCarousel(
                                                 dampingRatio = Spring.DampingRatioNoBouncy,
                                                 stiffness = Spring.StiffnessMediumLow,
                                             ),
-                                    )
+                                        )
                                 }
                             },
                         )
@@ -223,74 +262,84 @@ fun PlayerCoverCarousel(
         ) {
             val offsetVal = dragOffsetX.value
 
-            // 上一首卡片
-            if (currentPrevSong != null) {
-                key(currentPrevSong?.songMid ?: "prev") {
-                    val isVisible = offsetVal > 0.5f
-                    val progress = (offsetVal / fullStepPx).coerceIn(0f, 1f)
-                    val prevX = -fullStepPx + offsetVal
-                    CoverCard(
-                        song = currentPrevSong,
-                        coverWidthDp = coverWidthDp,
-                        translationX = prevX,
-                        scale = 0.92f + 0.08f * progress,
-                        shadowTint = shadowTint,
-                        isDark = isDark,
-                        modifier =
-                            Modifier.graphicsLayer {
-                                alpha = if (isVisible) 1f else 0f
-                            },
-                    )
-                }
-            }
+            val prevSlot = (centerSlotIndex - 1).floorMod(3)
+            val nextSlot = (centerSlotIndex + 1).floorMod(3)
+            val renderOrder = listOf(prevSlot, nextSlot, centerSlotIndex)
 
-            // 下一首卡片
-            if (currentNextSong != null) {
-                key(currentNextSong?.songMid ?: "next") {
-                    val isVisible = offsetVal < -0.5f
-                    val progress = (-offsetVal / fullStepPx).coerceIn(0f, 1f)
-                    val nextX = fullStepPx + offsetVal
-                    CoverCard(
-                        song = currentNextSong,
-                        coverWidthDp = coverWidthDp,
-                        translationX = nextX,
-                        scale = 0.92f + 0.08f * progress,
-                        shadowTint = shadowTint,
-                        isDark = isDark,
-                        modifier =
-                            Modifier.graphicsLayer {
-                                alpha = if (isVisible) 1f else 0f
-                            },
-                    )
-                }
-            }
+            for (slotIndex in renderOrder) {
+                key(slotIndex) {
+                    val relativeStep =
+                        when (slotIndex) {
+                            centerSlotIndex -> 0
+                            nextSlot -> 1
+                            else -> -1
+                        }
 
-            key(currentSong?.songMid ?: "current") {
-                val currentScale = 1f - 0.08f * (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
-                val dragFraction = (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
-                CoverCard(
-                    song = currentSong,
-                    coverWidthDp = coverWidthDp,
-                    translationX = offsetVal,
-                    scale = currentScale,
-                    shadowTint = shadowTint,
-                    isDark = isDark,
-                    overlay =
-                        bottomOverlay?.let { overlay ->
-                            {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxSize()
-                                            .graphicsLayer {
-                                                alpha = (1f - dragFraction * 2.5f).coerceIn(0f, 1f)
-                                            },
-                                ) {
-                                    overlay(dragFraction)
-                                }
+                    val slotSong = slotSongs.getOrNull(slotIndex)
+
+                    if (slotSong != null) {
+                        val baseX = relativeStep * fullStepPx
+                        val cardX = baseX + offsetVal
+
+                        val isCenter = relativeStep == 0
+                        val isPrev = relativeStep == -1
+                        val isNext = relativeStep == 1
+
+                        val scale =
+                            if (isCenter) {
+                                1f - 0.08f * (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
+                            } else {
+                                val progress =
+                                    if (isPrev) {
+                                        (offsetVal / fullStepPx).coerceIn(0f, 1f)
+                                    } else {
+                                        (-offsetVal / fullStepPx).coerceIn(0f, 1f)
+                                    }
+                                0.92f + 0.08f * progress
                             }
-                        },
-                )
+
+                        val cardAlpha =
+                            when {
+                                isCenter -> 1f
+                                isPrev -> if (offsetVal > 0.5f) 1f else 0f
+                                isNext -> if (offsetVal < -0.5f) 1f else 0f
+                                else -> 0f
+                            }
+
+                        val dragFraction = (abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
+                        val overlayComposable: (@Composable BoxScope.() -> Unit)? =
+                            if (isCenter && bottomOverlay != null) {
+                                {
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .graphicsLayer {
+                                                    alpha = (1f - dragFraction * 2.5f).coerceIn(0f, 1f)
+                                                },
+                                    ) {
+                                        bottomOverlay(dragFraction)
+                                    }
+                                }
+                            } else {
+                                null
+                            }
+
+                        CoverCard(
+                            song = slotSong,
+                            coverWidthDp = coverWidthDp,
+                            translationX = cardX,
+                            scale = scale,
+                            shadowTint = shadowTint,
+                            isDark = isDark,
+                            overlay = overlayComposable,
+                            modifier =
+                                Modifier.graphicsLayer {
+                                    alpha = cardAlpha
+                                },
+                        )
+                    }
+                }
             }
         }
     }
@@ -308,7 +357,7 @@ private fun CoverCard(
     modifier: Modifier = Modifier,
 ) {
     val candidates =
-        remember(song) {
+        remember(song?.songMid, song?.coverUrl) {
             MobileCoverCacheResolver.resolveCandidates(song)
         }
 
@@ -391,13 +440,17 @@ private fun CoverCard(
             AlbumArtImage(
                 coverUrl = song?.coverUrl,
                 candidates = candidates,
+                songMid = song?.songMid,
                 contentDescription = song?.name ?: "封面",
                 shape = cardShape,
                 elevation = 0.dp,
                 border = null,
+                crossfade = false,
                 modifier = Modifier.fillMaxSize(),
             )
             overlay?.invoke(this)
         }
     }
 }
+
+private fun Int.floorMod(mod: Int): Int = ((this % mod) + mod) % mod
