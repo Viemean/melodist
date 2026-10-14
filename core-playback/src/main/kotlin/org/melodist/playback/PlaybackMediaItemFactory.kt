@@ -1,10 +1,12 @@
 package org.melodist.playback
 
 import android.net.Uri
+import android.os.Bundle
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import org.melodist.model.AudioQualityTier
+import org.melodist.model.LyricLine
 import org.melodist.model.Song
 import java.io.File
 
@@ -12,9 +14,12 @@ import java.io.File
  * 负责构建 Android Media3 所需的 MediaItem 与 MediaMetadata
  */
 object PlaybackMediaItemFactory {
+    var extraMetadataProvider: ((song: Song, lyrics: List<LyricLine>) -> Bundle?)? = null
+
     fun buildMediaMetadata(
         song: Song,
         remoteDeviceName: String? = null,
+        lyrics: List<LyricLine> = emptyList(),
     ): MediaMetadata {
         val albumDesc =
             if (!remoteDeviceName.isNullOrBlank()) {
@@ -31,6 +36,11 @@ object PlaybackMediaItemFactory {
                 .setArtist(song.singer)
                 .setDisplayTitle(song.name)
                 .setAlbumTitle(albumDesc)
+
+        val extras = extraMetadataProvider?.invoke(song, lyrics)
+        if (extras != null && !extras.isEmpty) {
+            builder.setExtras(extras)
+        }
 
         val coverUrl = song.coverUrl
         if (coverUrl.isNotBlank()) {
@@ -53,13 +63,14 @@ object PlaybackMediaItemFactory {
         uri: Uri?,
         song: Song,
         tier: AudioQualityTier? = null,
+        lyrics: List<LyricLine> = emptyList(),
     ): MediaItem {
         val builder =
             MediaItem
                 .Builder()
                 .setMediaId(song.songMid)
                 .setCustomCacheKey(MelodistCacheManager.getCacheKey(song.songMid, tier))
-                .setMediaMetadata(buildMediaMetadata(song))
+                .setMediaMetadata(buildMediaMetadata(song, lyrics = lyrics))
         if (uri != null) {
             builder.setUri(uri)
         }
@@ -69,6 +80,7 @@ object PlaybackMediaItemFactory {
     fun buildMediaItemForSong(
         song: Song,
         remoteDeviceName: String? = null,
+        lyrics: List<LyricLine> = emptyList(),
     ): MediaItem {
         val uri =
             if (song.coverUrl.isNotBlank()) {
@@ -84,7 +96,7 @@ object PlaybackMediaItemFactory {
             .Builder()
             .setUri(uri)
             .setMediaId(song.songMid)
-            .setMediaMetadata(buildMediaMetadata(song, remoteDeviceName))
+            .setMediaMetadata(buildMediaMetadata(song, remoteDeviceName, lyrics))
             .build()
     }
 }

@@ -155,6 +155,23 @@ class PlaybackService : MediaSessionService() {
                 forwardingPlayer?.notifyLoopModeChanged()
             }
         }
+
+        PlaybackManager.legacyMetadataSyncCallback = { song, lyrics ->
+            syncLegacyMediaMetadata(song, lyrics)
+        }
+
+        serviceScope.launch {
+            combine(
+                PlaybackManager.currentSong,
+                PlaybackManager.lyrics,
+            ) { song, lyrics ->
+                song to lyrics
+            }.distinctUntilChanged().collect { (song, lyrics) ->
+                if (song != null) {
+                    syncLegacyMediaMetadata(song, lyrics)
+                }
+            }
+        }
     }
 
     override fun onStartCommand(
@@ -245,6 +262,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        PlaybackManager.legacyMetadataSyncCallback = null
         PlaybackManager.flushActivePlaybackSession()
         updateWakeLock(false)
         serviceScope.cancel()
@@ -256,6 +274,66 @@ class PlaybackService : MediaSessionService() {
         }
         super.onDestroy()
     }
+
+    private fun syncLegacyMediaMetadata(
+        song: org.melodist.model.Song,
+        lyrics: List<org.melodist.model.LyricLine>,
+    ) {
+        val session = mediaSession ?: return
+        try {
+            val sessionCompat = getSessionCompat(session) ?: return
+            val fwkSession = sessionCompat.mediaSession as? android.media.session.MediaSession ?: return
+            val builder = android.media.MediaMetadata.Builder()
+            builder.putString(android.media.MediaMetadata.METADATA_KEY_MEDIA_ID, song.songMid)
+            builder.putString(android.media.MediaMetadata.METADATA_KEY_TITLE, song.name)
+            builder.putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, song.singer)
+            builder.putString(android.media.MediaMetadata.METADATA_KEY_ALBUM, song.album)
+            val duration = PlaybackManager.durationMs.value
+            if (duration > 0) {
+                builder.putLong(android.media.MediaMetadata.METADATA_KEY_DURATION, duration)
+            }
+            val currentFwk = fwkSession.controller.metadata
+            if (currentFwk != null) {
+                val existingArt =
+                    currentFwk.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+                        ?: currentFwk.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
+                if (existingArt != null) {
+                    builder.putBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART, existingArt)
+                    builder.putBitmap(android.media.MediaMetadata.METADATA_KEY_ART, existingArt)
+                }
+            }
+            val extras = PlaybackMediaItemFactory.extraMetadataProvider?.invoke(song, lyrics)
+            if (extras != null) {
+                for (key in extras.keySet()) {
+                    @Suppress("DEPRECATION")
+                    val value = extras.get(key)
+                    if (value is CharSequence) {
+                        builder.putString(key, value.toString())
+                    } else if (value is Number) {
+                        builder.putLong(key, value.toLong())
+                    }
+                }
+            }
+            fwkSession.setMetadata(builder.build())
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.w("PlaybackService", "Failed to sync legacy MediaMetadata: $e")
+        }
+    }
+
+    private fun getSessionCompat(session: MediaSession): androidx.media3.session.legacy.MediaSessionCompat? =
+        runCatching {
+            val method = session.javaClass.getDeclaredMethod("getSessionCompat")
+            method.isAccessible = true
+            method.invoke(session) as? androidx.media3.session.legacy.MediaSessionCompat
+        }.recoverCatching {
+            val implField = session.javaClass.getDeclaredField("impl")
+            implField.isAccessible = true
+            val impl = implField.get(session)
+            val method = impl.javaClass.getDeclaredMethod("getSessionCompat")
+            method.isAccessible = true
+            method.invoke(impl) as? androidx.media3.session.legacy.MediaSessionCompat
+        }.getOrNull()
 
     private fun updateWakeLock(acquire: Boolean) {
         try {

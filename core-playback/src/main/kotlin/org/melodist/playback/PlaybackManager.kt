@@ -200,7 +200,12 @@ object PlaybackManager {
             scope = scope,
             apiService = apiService,
             currentSongProvider = { _currentSong.value },
-            onLyricsUpdated = { _lyrics.value = it },
+            onLyricsUpdated = {
+                _lyrics.value = it
+                _currentSong.value?.let { current ->
+                    updateCurrentMediaMetadata(current)
+                }
+            },
             onOffsetCalibrated = { _currentLyricOffsetMs.value = it },
             onLyricsLoadedBroadcast = { _lyricsLoadedFlow.tryEmit(it) },
         )
@@ -859,26 +864,32 @@ object PlaybackManager {
     fun buildMediaMetadata(
         song: Song,
         remoteDeviceName: String? = null,
-    ): MediaMetadata = PlaybackMediaItemFactory.buildMediaMetadata(song, remoteDeviceName)
+        lyrics: List<LyricLine> = _lyrics.value,
+    ): MediaMetadata = PlaybackMediaItemFactory.buildMediaMetadata(song, remoteDeviceName, lyrics)
 
     private fun buildMediaItem(
         uri: android.net.Uri,
         song: Song,
         tier: AudioQualityTier? = null,
-    ): MediaItem = PlaybackMediaItemFactory.buildMediaItem(uri, song, tier)
+        lyrics: List<LyricLine> = _lyrics.value,
+    ): MediaItem = PlaybackMediaItemFactory.buildMediaItem(uri, song, tier, lyrics)
 
     fun buildMediaItemForSong(
         song: Song,
         remoteDeviceName: String? = null,
-    ): MediaItem = PlaybackMediaItemFactory.buildMediaItemForSong(song, remoteDeviceName)
+        lyrics: List<LyricLine> = _lyrics.value,
+    ): MediaItem = PlaybackMediaItemFactory.buildMediaItemForSong(song, remoteDeviceName, lyrics)
 
-    private fun updateCurrentMediaMetadata(song: Song) {
+    var legacyMetadataSyncCallback: ((song: Song, lyrics: List<LyricLine>) -> Unit)? = null
+
+    fun updateCurrentMediaMetadata(song: Song) {
         val player = exoPlayer ?: return
         val currentItem = player.currentMediaItem ?: return
         if (player.currentMediaItemIndex >= 0) {
-            val updatedItem = currentItem.buildUpon().setMediaMetadata(buildMediaMetadata(song)).build()
+            val updatedItem = currentItem.buildUpon().setMediaMetadata(buildMediaMetadata(song, lyrics = _lyrics.value)).build()
             player.replaceMediaItem(player.currentMediaItemIndex, updatedItem)
         }
+        legacyMetadataSyncCallback?.invoke(song, _lyrics.value)
     }
 
     /**
