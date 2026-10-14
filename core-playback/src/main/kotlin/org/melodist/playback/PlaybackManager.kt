@@ -33,6 +33,7 @@ import org.melodist.api.getSongVisualMid
 import org.melodist.api.reportPlayStream
 import org.melodist.api.reportRecentHistory
 import org.melodist.data.LyricCacheManager
+import org.melodist.data.download.DownloadManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
 import org.melodist.model.PlaybackSourceContext
@@ -944,7 +945,8 @@ object PlaybackManager {
             org.melodist.data.AppSettingsManager.mediaQuotaProvider = { MelodistCacheManager.activeCacheQuotaBytes }
             org.melodist.data.AppSettingsManager.cachedTrackCountProvider = { MelodistCacheManager.getCachedKeyCount() }
             org.melodist.data.AppSettingsManager.mediaCacheClearAction = { MelodistCacheManager.clearAllCache() }
-            org.melodist.data.download.DownloadManager.cacheExporter = MelodistCacheManager
+            DownloadManager.cacheExporter = MelodistCacheManager
+            LyricCacheManager.init(context)
             LocalLyricAutoMatcher.init(context)
             restorePlaybackState()
             if (UserSession.isLoggedIn) {
@@ -990,7 +992,10 @@ object PlaybackManager {
         val ctx = appContext ?: return
         prefetchJob =
             scope.launch(Dispatchers.IO) {
-                // 1. 预取封面至 Coil 磁盘缓存
+                // 1. 预取下一首歌词至磁盘缓存
+                lyricsCoordinator.prefetchLyrics(nextSong)
+
+                // 2. 预取封面至 Coil 磁盘缓存
                 val coverUrl = nextSong.coverUrl
                 if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://")) {
                     try {
@@ -1077,6 +1082,9 @@ object PlaybackManager {
         if (restored.currentSong != null) {
             _currentSong.value = restored.currentSong
             _currentTier.value = restored.currentSong.currentTier
+            val cached = LyricCacheManager.getLyrics(restored.currentSong.songMid).orEmpty()
+            _lyrics.value = cached
+            loadLyricsForSong(restored.currentSong)
         }
         _currentPositionMs.value = restored.currentPositionMs
         _durationMs.value = restored.durationMs
@@ -1301,6 +1309,8 @@ object PlaybackManager {
 
         val initialLyrics = LyricCacheManager.getLyrics(effectiveSong.songMid).orEmpty()
         _lyrics.value = initialLyrics
+        loadLyricsForSong(effectiveSong)
+        prefetchAdjacentCoversAndMetadata()
 
         if (playbackInterceptor?.onInterceptPlaySong(effectiveSong, forceTier, seekToMs) == true) {
             exoPlayer?.pause()
@@ -2189,13 +2199,17 @@ object PlaybackManager {
      * 后台预加载相邻曲目（优先下一首）的原始封面图与歌曲信息。
      */
     fun prefetchAdjacentCoversAndMetadata() {
+        val queueTargets = queueManager.getAdjacentSongs(countAhead = 2, countBehind = 1)
         val next = getNextSong()
         val prev = getPreviousSong()
-        val targets = listOfNotNull(next, prev).distinctBy { it.songMid }
+        val targets = (queueTargets + listOfNotNull(next, prev)).distinctBy { it.songMid }
         if (targets.isEmpty()) return
 
         scope.launch(Dispatchers.IO) {
             for (target in targets) {
+                launch {
+                    lyricsCoordinator.prefetchLyrics(target)
+                }
                 if (!prefetchingTargetMids.add(target.songMid)) continue
                 try {
                     val isWebDav = target.isWebDav || target.songMid.startsWith("webdav_")

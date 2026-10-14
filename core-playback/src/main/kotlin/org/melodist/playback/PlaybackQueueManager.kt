@@ -580,6 +580,54 @@ class PlaybackQueueManager(
     }
 
     /**
+     * 计算并返回当前播放位置前后相邻的候选曲目集合（默认后 2 首，前 1 首）。
+     *
+     * @param countAhead 向后前瞻曲目数量
+     * @param countBehind 向前回溯曲目数量
+     * @return 去重后的相邻曲目列表
+     */
+    fun getAdjacentSongs(
+        countAhead: Int = 2,
+        countBehind: Int = 1,
+    ): List<Song> {
+        val list = _playlist.value
+        if (list.isEmpty()) return emptyList()
+        val currentIdx = _currentIndex.value
+        if (currentIdx !in list.indices) return emptyList()
+
+        val results = mutableListOf<Song>()
+        val pendingMid = pendingNextSongMid
+        if (pendingMid != null) {
+            list.firstOrNull { it.songMid == pendingMid }?.let { results.add(it) }
+        }
+
+        if (_isRadioMode.value) {
+            for (i in 1..countAhead) {
+                val idx = currentIdx + i
+                if (idx in list.indices) results.add(list[idx])
+            }
+            for (i in 1..countBehind) {
+                val idx = currentIdx - i
+                if (idx in list.indices) results.add(list[idx])
+            }
+        } else {
+            for (i in 1..countAhead) {
+                val nextIdx = (currentIdx + i) % list.size
+                if (nextIdx in list.indices && nextIdx != currentIdx) {
+                    results.add(list[nextIdx])
+                }
+            }
+            for (i in 1..countBehind) {
+                val prevIdx = (currentIdx - i + list.size) % list.size
+                if (prevIdx in list.indices && prevIdx != currentIdx) {
+                    results.add(list[prevIdx])
+                }
+            }
+        }
+        return results.distinctBy { it.songMid }
+    }
+
+    /**
      * 更新播放列表中指定歌曲的元数据信息。
      *
      * @param song 包含最新元数据的歌曲对象

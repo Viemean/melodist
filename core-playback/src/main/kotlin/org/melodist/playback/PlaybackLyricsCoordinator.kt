@@ -153,6 +153,45 @@ class PlaybackLyricsCoordinator(
         }
     }
 
+    suspend fun prefetchLyrics(song: Song) {
+        if (song.songMid.isBlank()) return
+        val cached = LyricCacheManager.getLyrics(song.songMid)
+        if (!cached.isNullOrEmpty()) return
+
+        try {
+            if (song.songMid.startsWith("webdav_")) {
+                val lrcText = WebDavManager.getSongLyrics(song)
+                if (!lrcText.isNullOrBlank()) {
+                    val baseLyrics = LyricParser.parseMergedLyrics(lrcText, null)
+                    if (baseLyrics.isNotEmpty()) {
+                        LyricCacheManager.saveLyrics(song.songMid, baseLyrics)
+                    }
+                }
+            } else if (!song.localFilePath.isNullOrBlank() || song.isLocal) {
+                val lrcText = LocalMusicManager.getSongLyrics(song)
+                if (!lrcText.isNullOrBlank()) {
+                    val baseLyrics = LyricParser.parseMergedLyrics(lrcText, null)
+                    if (baseLyrics.isNotEmpty()) {
+                        LyricCacheManager.saveLyrics(song.songMid, baseLyrics)
+                    }
+                }
+            } else {
+                val onlineLyrics =
+                    apiService.getLyrics(
+                        song.songMid,
+                        song.songId,
+                        songName = song.name,
+                        singer = song.singer,
+                    )
+                if (onlineLyrics.isNotEmpty()) {
+                    LyricCacheManager.saveLyrics(song.songMid, onlineLyrics)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("MelodistPlayback", "Error prefetching lyrics for ${song.name}", e)
+        }
+    }
+
     fun cancel() {
         lyricLoadJob?.cancel()
     }

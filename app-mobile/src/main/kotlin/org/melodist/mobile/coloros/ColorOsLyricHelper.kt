@@ -75,9 +75,9 @@ object ColorOsLyricHelper {
         lyrics: List<LyricLine>,
     ): Bundle {
         val bundle = Bundle()
-        bundle.putString(KEY_OPLUS_MEDIA_CONFIG, VALUE_MEDIA_CONFIG)
         val lrc = formatLyricsToLrc(lyrics)
         if (lrc.isNotBlank()) {
+            bundle.putString(KEY_OPLUS_MEDIA_CONFIG, VALUE_MEDIA_CONFIG)
             bundle.putString(KEY_OPLUS_LYRIC_INFO, buildLyricInfoJson(song, lrc))
         }
         return bundle
