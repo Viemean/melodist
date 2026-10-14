@@ -894,7 +894,7 @@ object PlaybackManager {
     fun updateCurrentMediaMetadata(song: Song) {
         val player = exoPlayer ?: return
         val currentItem = player.currentMediaItem
-        if (currentItem != null && player.currentMediaItemIndex >= 0) {
+        if (currentItem != null && currentItem.mediaId == song.songMid && player.currentMediaItemIndex >= 0) {
             val updatedItem = currentItem.buildUpon().setMediaMetadata(buildMediaMetadata(song, lyrics = _lyrics.value)).build()
             player.replaceMediaItem(player.currentMediaItemIndex, updatedItem)
         }
