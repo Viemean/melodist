@@ -718,7 +718,11 @@ suspend fun MusicApiService.deleteSongComment(
                 val code = targetReq["code"]?.jsonPrimitive?.intOrNull ?: -1
                 val subCode =
                     targetReq["subcode"]?.jsonPrimitive?.intOrNull
-                        ?: targetReq["data"]?.jsonObject?.get("SubCode")?.jsonPrimitive?.intOrNull
+                        ?: targetReq["data"]
+                            ?.jsonObject
+                            ?.get("SubCode")
+                            ?.jsonPrimitive
+                            ?.intOrNull
                         ?: 0
                 if (code == 0 && subCode == 0) {
                     return@withContext Result.success(Unit)

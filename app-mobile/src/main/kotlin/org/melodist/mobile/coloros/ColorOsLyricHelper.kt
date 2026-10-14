@@ -21,6 +21,7 @@ object ColorOsLyricHelper {
      * @param lyrics 歌词行列表
      * @return 符合 LRC 规范的歌词字符串
      */
+    @Suppress("MagicNumber")
     fun formatLyricsToLrc(lyrics: List<LyricLine>): String {
         if (lyrics.isEmpty()) return ""
         val sb = StringBuilder(lyrics.size * 32)

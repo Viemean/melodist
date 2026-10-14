@@ -259,13 +259,15 @@ fun SongActionSheet(
     val flingConnection =
         remember {
             object : NestedScrollConnection {
-                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                    return if (available.y < 0f) {
+                override suspend fun onPostFling(
+                    consumed: Velocity,
+                    available: Velocity,
+                ): Velocity =
+                    if (available.y < 0f) {
                         Velocity(x = 0f, y = available.y)
                     } else {
                         super.onPostFling(consumed, available)
                     }
-                }
             }
         }
 

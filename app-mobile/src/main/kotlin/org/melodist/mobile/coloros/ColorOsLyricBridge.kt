@@ -1,6 +1,5 @@
 package org.melodist.mobile.coloros
 
-import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import org.melodist.playback.PlaybackMediaItemFactory
@@ -14,10 +13,8 @@ object ColorOsLyricBridge {
 
     /**
      * 向 PlaybackMediaItemFactory 注册 ColorOS 扩展元数据提供器。
-     *
-     * @param context 应用上下文
      */
-    fun init(context: Context) {
+    fun init() {
         if (isRegistered) return
         isRegistered = true
 
