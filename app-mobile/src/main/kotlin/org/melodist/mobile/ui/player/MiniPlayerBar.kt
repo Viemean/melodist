@@ -45,7 +45,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -100,6 +102,36 @@ fun MiniPlayerBar(
     val currentOnPlayPrevious by rememberUpdatedState(onPlayPrevious)
     val currentPrevSong by rememberUpdatedState(prevSong ?: PlaybackManager.getPreviousSong())
     val currentNextSong by rememberUpdatedState(nextSong ?: PlaybackManager.getNextSong())
+
+    var centerSlotIndex by remember { mutableIntStateOf(0) }
+    var slotSongs by remember {
+        mutableStateOf(listOf(song, currentNextSong, currentPrevSong))
+    }
+    var pendingTargetSongMid by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(song?.songMid, currentPrevSong?.songMid, currentNextSong?.songMid, centerSlotIndex) {
+        val target = pendingTargetSongMid
+        if (target != null) {
+            if (song?.songMid == target) {
+                pendingTargetSongMid = null
+                val prevSlot = (centerSlotIndex - 1).floorMod(3)
+                val nextSlot = (centerSlotIndex + 1).floorMod(3)
+                val updated = slotSongs.toMutableList()
+                updated[centerSlotIndex] = song
+                updated[nextSlot] = currentNextSong
+                updated[prevSlot] = currentPrevSong
+                slotSongs = updated
+            }
+        } else {
+            val prevSlot = (centerSlotIndex - 1).floorMod(3)
+            val nextSlot = (centerSlotIndex + 1).floorMod(3)
+            val updated = slotSongs.toMutableList()
+            updated[centerSlotIndex] = song
+            updated[nextSlot] = currentNextSong
+            updated[prevSlot] = currentPrevSong
+            slotSongs = updated
+        }
+    }
 
     val playPauseInteractionSource = remember { MutableInteractionSource() }
     val isPlayPausePressed by playPauseInteractionSource.collectIsPressedAsState()
@@ -222,8 +254,11 @@ fun MiniPlayerBar(
                                             targetValue = -fullStepPx,
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
                                         )
-                                        currentOnPlayNext()
+                                        val targetSong = currentNextSong
+                                        pendingTargetSongMid = targetSong?.songMid
+                                        centerSlotIndex = (centerSlotIndex + 1).floorMod(3)
                                         dragOffsetX.snapTo(0f)
+                                        currentOnPlayNext()
                                     } else if (shouldPlayPrevious) {
                                         MobileConnectManager.sendGestureSwipe(
                                             state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
@@ -235,8 +270,11 @@ fun MiniPlayerBar(
                                             targetValue = fullStepPx,
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
                                         )
-                                        currentOnPlayPrevious()
+                                        val targetSong = currentPrevSong
+                                        pendingTargetSongMid = targetSong?.songMid
+                                        centerSlotIndex = (centerSlotIndex - 1).floorMod(3)
                                         dragOffsetX.snapTo(0f)
+                                        currentOnPlayPrevious()
                                     } else {
                                         MobileConnectManager.sendGestureSwipe(
                                             state = org.melodist.core.connect.model.GestureSwipeState.CANCEL,
@@ -325,42 +363,61 @@ fun MiniPlayerBar(
                     val fullStepPx = with(density) { maxWidth.toPx() + 16.dp.toPx() }
                     val offsetVal = dragOffsetX.value
 
-                    // 上一首预览
-                    if (offsetVal > 0f && currentPrevSong != null) {
-                        MiniPlayerSongContent(
-                            song = currentPrevSong,
-                            modifier =
-                                Modifier.graphicsLayer {
-                                    translationX = offsetVal - fullStepPx
-                                    val progress = (offsetVal / fullStepPx).coerceIn(0f, 1f)
-                                    alpha = progress * 0.9f
-                                },
-                        )
-                    }
+                    val prevSlot = (centerSlotIndex - 1).floorMod(3)
+                    val nextSlot = (centerSlotIndex + 1).floorMod(3)
+                    val renderOrder = listOf(prevSlot, nextSlot, centerSlotIndex)
 
-                    // 下一首预览
-                    if (offsetVal < 0f && currentNextSong != null) {
-                        MiniPlayerSongContent(
-                            song = currentNextSong,
-                            modifier =
-                                Modifier.graphicsLayer {
-                                    translationX = offsetVal + fullStepPx
-                                    val progress = (-offsetVal / fullStepPx).coerceIn(0f, 1f)
-                                    alpha = progress * 0.9f
-                                },
-                        )
-                    }
+                    for (slotIndex in renderOrder) {
+                        key(slotIndex) {
+                            val relativeStep =
+                                when (slotIndex) {
+                                    centerSlotIndex -> 0
+                                    nextSlot -> 1
+                                    else -> -1
+                                }
 
-                    // 当前歌曲内容
-                    MiniPlayerSongContent(
-                        song = song,
-                        modifier =
-                            Modifier.graphicsLayer {
-                                translationX = offsetVal
-                                val progress = (kotlin.math.abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
-                                alpha = (1f - progress * 0.45f).coerceIn(0.2f, 1f)
-                            },
-                    )
+                            val slotSong = slotSongs.getOrNull(slotIndex)
+
+                            if (slotSong != null) {
+                                val baseX = relativeStep * fullStepPx
+                                val cardX = baseX + offsetVal
+
+                                val isCenter = relativeStep == 0
+                                val isPrev = relativeStep == -1
+                                val isNext = relativeStep == 1
+
+                                val cardAlpha =
+                                    when {
+                                        isCenter -> {
+                                            val progress = (kotlin.math.abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
+                                            (1f - progress * 0.45f).coerceIn(0.2f, 1f)
+                                        }
+                                        isPrev -> {
+                                            if (offsetVal > 0.5f) {
+                                                val progress = (offsetVal / fullStepPx).coerceIn(0f, 1f)
+                                                progress * 0.9f
+                                            } else 0f
+                                        }
+                                        isNext -> {
+                                            if (offsetVal < -0.5f) {
+                                                val progress = (-offsetVal / fullStepPx).coerceIn(0f, 1f)
+                                                progress * 0.9f
+                                            } else 0f
+                                        }
+                                        else -> 0f
+                                    }
+
+                                MiniPlayerSongContent(
+                                    song = slotSong,
+                                    modifier =
+                                        Modifier.graphicsLayer {
+                                            translationX = cardX
+                                            alpha = cardAlpha
+                                        },
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(10.dp))
@@ -494,11 +551,13 @@ private fun MiniPlayerSongContent(
     ) {
         AlbumArtImage(
             coverUrl = song?.thumbnailCoverUrl,
+            songMid = song?.songMid,
             contentDescription = song?.name,
             shape = RoundedCornerShape(8.dp),
             elevation = 3.dp,
             border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
             placeholderIconSize = 22.dp,
+            crossfade = false,
             modifier = Modifier.size(42.dp),
         )
 
@@ -524,3 +583,5 @@ private fun MiniPlayerSongContent(
         }
     }
 }
+
+private fun Int.floorMod(mod: Int): Int = ((this % mod) + mod) % mod
