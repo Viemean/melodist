@@ -39,6 +39,8 @@ import org.melodist.model.LyricLine
 import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.QualityOption
 import org.melodist.model.Song
+import org.melodist.playback.policy.ListenTogetherTrialPolicy
+import org.melodist.playback.policy.PlaybackPolicyCoordinator
 
 enum class PlaybackLoopMode(
     val label: String,
@@ -200,7 +202,7 @@ object PlaybackManager {
 
     fun checkAndNotifyListenTogetherTrial(song: Song?) {
         val target = song ?: _currentSong.value ?: return
-        if (ListenTogetherManager.isInRoom && !ListenTogetherManager.isBothVip.value && target.isVip) {
+        if (policyCoordinator.isTrialActive(target)) {
             if (lastNotifiedTrialSongMid != target.songMid) {
                 lastNotifiedTrialSongMid = target.songMid
                 val isSelfVip = UserSession.profileFlow.value.isVip
@@ -246,18 +248,32 @@ object PlaybackManager {
     private val _currentTrackSpec = MutableStateFlow<AudioTrackSpec?>(null)
     val currentTrackSpec: StateFlow<AudioTrackSpec?> = _currentTrackSpec.asStateFlow()
 
-    val isListenTogetherTrialActive: StateFlow<Boolean> =
-        combine(
-            ListenTogetherManager.currentRoom,
-            ListenTogetherManager.isBothVip,
-            _currentSong,
-        ) { room, bothVip, song ->
-            room != null && !bothVip && song?.isVip == true
-        }.stateIn(
+    val policyCoordinator by lazy {
+        PlaybackPolicyCoordinator(
             scope = scope,
-            started = SharingStarted.Eagerly,
-            initialValue = false,
+            currentRoomFlow = ListenTogetherManager.currentRoom,
+            isBothVipFlow = ListenTogetherManager.isBothVip,
+            currentSongFlow = _currentSong,
+            policies =
+                listOf(
+                    ListenTogetherTrialPolicy(
+                        isInRoomProvider = { ListenTogetherManager.isInRoom },
+                        isBothVipProvider = { ListenTogetherManager.isBothVip.value },
+                    ),
+                ),
         )
+    }
+
+    val isListenTogetherTrialActive: StateFlow<Boolean>
+        get() = policyCoordinator.isListenTogetherTrialActive
+
+    fun resolveTierBadgeText(
+        song: Song? = null,
+        tier: AudioQualityTier = _currentTier.value,
+    ): String {
+        val s = song ?: _currentSong.value ?: return AudioQualityTier.getBadge(tier)
+        return policyCoordinator.resolveTierBadgeText(s, tier)
+    }
 
     val qualityCoordinator by lazy { AudioQualityCoordinator(scope, apiService) }
     val lyricsCoordinator by lazy {
@@ -1431,15 +1447,7 @@ object PlaybackManager {
         playbackEventListeners.forEach { it.onSongPlay(effectiveSong) }
         _currentPositionMs.value = seekToMs
         _bufferedPositionMs.value = seekToMs
-        val isListenTogetherTrial = ListenTogetherManager.isInRoom && !ListenTogetherManager.isBothVip.value && effectiveSong.isVip
-        _durationMs.value =
-            if (isListenTogetherTrial) {
-                60_000L
-            } else if (effectiveSong.durationSeconds > 0) {
-                effectiveSong.durationSeconds * 1000L
-            } else {
-                0L
-            }
+        _durationMs.value = policyCoordinator.resolveDurationMs(effectiveSong)
         _isTransitioning.value = true
         appContext?.let { startPlaybackService(it) }
 
@@ -1449,8 +1457,9 @@ object PlaybackManager {
             org.melodist.data.download.DownloadManager
                 .getCompletedDownload(effectiveSong.songMid)
                 ?.second
+        val shouldBypassCache = policyCoordinator.shouldBypassCache(effectiveSong)
         val initialCachedTier =
-            if (isListenTogetherTrial) {
+            if (shouldBypassCache) {
                 null
             } else {
                 completedDownloadTier
@@ -1458,7 +1467,7 @@ object PlaybackManager {
                     ?: if (MelodistCacheManager.isSongTierCached(effectiveSong.songMid, targetTierInit)) targetTierInit else null
             }
         val isDirectCachedInit =
-            !isListenTogetherTrial &&
+            !shouldBypassCache &&
                 (
                     initialCachedTier != null ||
                         effectiveSong.isLocal ||
@@ -1467,7 +1476,8 @@ object PlaybackManager {
                 )
         _isCurrentTrackFromCache.value = isDirectCachedInit
         _fileCacheFraction.value = if (isDirectCachedInit) 1f else 0f
-        _currentTier.value = if (isListenTogetherTrial) AudioQualityTier.Standard else (initialCachedTier ?: targetTierInit)
+        val policyTier = policyCoordinator.resolveInitialTier(effectiveSong, targetTierInit)
+        _currentTier.value = policyTier ?: (initialCachedTier ?: targetTierInit)
 
         updateCurrentMediaMetadata(effectiveSong)
         org.melodist.data.RecentPlaybackManager
@@ -1499,7 +1509,7 @@ object PlaybackManager {
 
         qualityCoordinator.resetForSong(song)
         if (!PlaybackSourceResolver.isLocalOrWebDavSong(song)) {
-            if (!isListenTogetherTrial) {
+            if (policyCoordinator.isQualityProbeAllowed(song)) {
                 launchProbeJob(song, delayMs = 3000L)
             }
             launchCoverHealJob(song)
@@ -1510,19 +1520,23 @@ object PlaybackManager {
                 val player = exoPlayer ?: return@launch
                 val ctx = appContext ?: return@launch
                 val rawTargetTier = forceTier ?: _preferredTier.value
-                val targetTier = clampCellularTier(rawTargetTier, song)
+                val clampedTier = clampCellularTier(rawTargetTier, song)
+                val policyTier = policyCoordinator.resolveInitialTier(song, clampedTier)
+                val resolvedTargetTier = policyTier ?: clampedTier
+                val isForceTrial = policyCoordinator.isForceTrial(song)
+                val bypassPrefetch = policyCoordinator.shouldBypassPrefetch(song)
 
                 when (
                     val target =
                         PlaybackMediaLoader.resolveTarget(
                             context = ctx,
                             song = song,
-                            targetTier = if (isListenTogetherTrial) AudioQualityTier.Standard else targetTier,
+                            targetTier = resolvedTargetTier,
                             apiService = apiService,
                             isSongFavorite = { isSongFavorite(it) },
                             metadataBuilder = { buildMediaMetadata(it) },
-                            prefetchedUrlInfo = if (forceTier == null && !isListenTogetherTrial) prefetchedUrlInfo else null,
-                            forceTrial = isListenTogetherTrial,
+                            prefetchedUrlInfo = if (forceTier == null && !bypassPrefetch) prefetchedUrlInfo else null,
+                            forceTrial = isForceTrial,
                         )
                 ) {
                     is PlaybackTargetResult.LocalFile -> {
@@ -2093,9 +2107,10 @@ object PlaybackManager {
         isAutoFallback: Boolean = false,
     ) {
         val current = _currentSong.value ?: return
-        if (isListenTogetherTrialActive.value) {
+        val interceptionReason = policyCoordinator.evaluateSwitchTierInterception(current, tier)
+        if (interceptionReason != null) {
             if (!isAutoFallback) {
-                notifyUser("试听音乐不支持切换音质哦")
+                notifyUser(interceptionReason)
             }
             return
         }
@@ -2211,7 +2226,8 @@ object PlaybackManager {
     }
 
     fun ensureQualityProbed() {
-        if (isListenTogetherTrialActive.value) return
+        val current = _currentSong.value ?: return
+        if (!policyCoordinator.isQualityProbeAllowed(current)) return
         qualityCoordinator.ensureQualityProbed(
             song = _currentSong.value,
             currentSongMidProvider = { _currentSong.value?.songMid },
