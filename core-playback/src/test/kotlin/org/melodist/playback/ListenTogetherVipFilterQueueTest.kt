@@ -118,6 +118,40 @@ class ListenTogetherVipFilterQueueTest {
     }
 
     @Test
+    fun `test getNextSong and getPreviousSong preview align with VIP filtering`() {
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        var isFilterEnabled = true
+        val queueManager =
+            PlaybackQueueManager(
+                scope = scope,
+                apiService = MusicApiService(),
+                onStateChanged = {},
+                onPlaySongRequest = { _, _, _ -> },
+                onStopPlaybackRequest = {},
+                isVipFilterEnabledProvider = { isFilterEnabled },
+            )
+
+        // 歌曲列表: 0(Non-VIP), 1(VIP), 2(VIP), 3(Non-VIP)
+        val songs =
+            listOf(
+                createSong("mid_0", isVip = false),
+                createSong("mid_1", isVip = true),
+                createSong("mid_2", isVip = true),
+                createSong("mid_3", isVip = false),
+            )
+        queueManager.setPlaylist(songs, startIndex = 0)
+        queueManager.setLoopMode(PlaybackLoopMode.ListRepeat)
+
+        // 当前为 0，下一曲应跳过 1(VIP) 和 2(VIP)，预览展示 3(Non-VIP)
+        val next = queueManager.getNextSong(isRemoteActive = false, remoteNextSong = null)
+        assertEquals("mid_3", next?.songMid)
+
+        // 上一曲应跳过尾部可能的 VIP，由于 3 是非 VIP，上一曲预览展示 3
+        val prev = queueManager.getPreviousSong(isRemoteActive = false, remotePrevSong = null)
+        assertEquals("mid_3", prev?.songMid)
+    }
+
+    @Test
     fun `test trial stream active determination`() {
         val isInRoom = true
         val isBothVip = false

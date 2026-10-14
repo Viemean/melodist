@@ -117,6 +117,7 @@ import org.melodist.mobile.ui.theme.isAppInDarkTheme
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.LyricLine
 import org.melodist.model.Song
+import org.melodist.playback.ListenTogetherManager
 import org.melodist.playback.PlaybackLoopMode
 import org.melodist.playback.PlaybackManager
 import kotlin.math.abs
@@ -174,12 +175,15 @@ fun FullPlayerSheet(
         }
     }
 
+    val isBothVip by ListenTogetherManager.isBothVip.collectAsState()
+    val currentRoom by ListenTogetherManager.currentRoom.collectAsState()
+
     val prevSong =
-        remember(playlist, currentIndex, loopMode, song?.songMid, isRemoteActive, remotePrevSong) {
+        remember(playlist, currentIndex, loopMode, song?.songMid, isRemoteActive, remotePrevSong, isBothVip, currentRoom) {
             PlaybackManager.getPreviousSong()
         }
     val nextSong =
-        remember(playlist, currentIndex, loopMode, song?.songMid, isRemoteActive, remoteNextSong) {
+        remember(playlist, currentIndex, loopMode, song?.songMid, isRemoteActive, remoteNextSong, isBothVip, currentRoom) {
             PlaybackManager.getNextSong()
         }
 

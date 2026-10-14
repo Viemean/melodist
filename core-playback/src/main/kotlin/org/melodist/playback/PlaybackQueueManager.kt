@@ -534,11 +534,40 @@ class PlaybackQueueManager(
         }
         val prevIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.peekPrevious() ?: if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                PlaybackLoopMode.Shuffle -> {
+                    val peeked = shuffleQueue.peekPrevious()
+                    val hasNonVip = list.any { !it.isVip }
+                    if (shouldFilterVipSongs() && hasNonVip) {
+                        var targetIdx: Int? = null
+                        val indices = shuffleQueue.shuffledIndices
+                        if (indices.isNotEmpty()) {
+                            val curPointer = shuffleQueue.pointer
+                            for (step in 1 until indices.size) {
+                                val p = (curPointer - step + indices.size) % indices.size
+                                val originalIdx = indices[p]
+                                if (originalIdx in list.indices && !list[originalIdx].isVip) {
+                                    targetIdx = originalIdx
+                                    break
+                                }
+                            }
+                        }
+                        targetIdx ?: run {
+                            val fallback = if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                            findPreviousNonVipIndex(fallback, list)
+                        }
+                    } else if (peeked != null && peeked in list.indices) {
+                        peeked
+                    } else {
+                        val fallback = if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                        findPreviousNonVipIndex(fallback, list)
+                    }
+                }
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
-                ->
-                    if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                -> {
+                    val fallback = if (_currentIndex.value - 1 < 0) list.size - 1 else _currentIndex.value - 1
+                    findPreviousNonVipIndex(fallback, list)
+                }
             }
         return if (prevIndex in list.indices) list[prevIndex] else null
     }
@@ -572,10 +601,33 @@ class PlaybackQueueManager(
         }
         val nextIndex =
             when (_loopMode.value) {
-                PlaybackLoopMode.Shuffle -> shuffleQueue.peekNext() ?: ((_currentIndex.value + 1) % list.size)
+                PlaybackLoopMode.Shuffle -> {
+                    val peeked = shuffleQueue.peekNext()
+                    val hasNonVip = list.any { !it.isVip }
+                    if (shouldFilterVipSongs() && hasNonVip) {
+                        var targetIdx: Int? = null
+                        val indices = shuffleQueue.shuffledIndices
+                        if (indices.isNotEmpty()) {
+                            val curPointer = shuffleQueue.pointer
+                            for (step in 1 until indices.size) {
+                                val p = (curPointer + step) % indices.size
+                                val originalIdx = indices[p]
+                                if (originalIdx in list.indices && !list[originalIdx].isVip) {
+                                    targetIdx = originalIdx
+                                    break
+                                }
+                            }
+                        }
+                        targetIdx ?: findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
+                    } else if (peeked != null && peeked in list.indices) {
+                        peeked
+                    } else {
+                        findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
+                    }
+                }
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
-                -> (_currentIndex.value + 1) % list.size
+                -> findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
             }
         return if (nextIndex in list.indices) list[nextIndex] else null
     }
