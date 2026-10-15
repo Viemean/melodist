@@ -3,7 +3,7 @@
 简单的音乐播放器
 
 - 支持 arm64 和 x86_64 的 Android 9.0+ 和 Android TV 9.0+
-- originOS 版本为伪装包名以支持 originOS 系统原子控制中心版本
+- originos 版本为伪装包名以支持 OriginOS 和ColorOS 媒体控制中心版本
 - 没有可靠性支持
 
 ## 屏幕截图
