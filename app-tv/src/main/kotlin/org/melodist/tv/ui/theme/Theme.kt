@@ -3,6 +3,7 @@ package org.melodist.tv.ui.theme
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -16,6 +17,7 @@ import androidx.tv.material3.darkColorScheme
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import coil3.toBitmap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +99,7 @@ object MonetColorExtractor {
                                 .data(url)
                                 .size(128, 128)
                                 .precision(coil3.size.Precision.INEXACT)
+                                .allowHardware(false)
                                 .build()
                         val result = loader.execute(request)
                         if (result is SuccessResult) {
@@ -162,13 +165,23 @@ object MonetColorExtractor {
     }
 
     private fun extractMonetDarkSurface(bitmap: Bitmap): Color {
-        val width = bitmap.width
-        val height = bitmap.height
+        val readableBitmap =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bitmap.config == Bitmap.Config.HARDWARE) {
+                bitmap.copy(Bitmap.Config.ARGB_8888, false)
+            } else {
+                bitmap
+            } ?: bitmap
+
+        val width = readableBitmap.width
+        val height = readableBitmap.height
         val stepX = (width / 24).coerceAtLeast(1)
         val stepY = (height / 24).coerceAtLeast(1)
 
         val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        readableBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+        if (readableBitmap !== bitmap) {
+            readableBitmap.recycle()
+        }
 
         val hsl = FloatArray(3)
         var sumHueSin = 0.0
