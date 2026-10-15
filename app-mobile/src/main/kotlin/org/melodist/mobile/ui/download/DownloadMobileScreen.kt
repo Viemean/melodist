@@ -15,10 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Downloading
@@ -26,13 +24,9 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -47,16 +41,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.melodist.data.AppSettingsManager
 import org.melodist.data.download.DownloadManager
 import org.melodist.data.download.DownloadStatus
 import org.melodist.data.download.DownloadTask
-import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.QualityTierBadge
 import org.melodist.mobile.ui.components.SongListDeleteType
@@ -180,12 +171,6 @@ fun DownloadMobileScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "在歌曲菜单中点击“下载”，畅享高清原声与双语歌词",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                )
                             }
                         }
                     } else {
@@ -227,7 +212,7 @@ fun DownloadMobileScreen(
 
                                         val totalBytes = completedTasks.sumOf { it.downloadedBytes }
                                         Text(
-                                            text = "占用 ${formatBytes(totalBytes)}",
+                                            text = "占用 ${formatDownloadBytes(totalBytes)}",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                         )
@@ -285,7 +270,7 @@ fun DownloadMobileScreen(
                                     )
                                     if (totalSpeed > 0L) {
                                         Text(
-                                            text = " · ${formatSpeed(totalSpeed)}",
+                                            text = " · ${formatDownloadSpeed(totalSpeed)}",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.primary,
@@ -384,160 +369,4 @@ fun DownloadMobileScreen(
             },
         )
     }
-}
-
-@Composable
-private fun ActiveDownloadTaskCard(
-    task: DownloadTask,
-    onPause: () -> Unit,
-    onResume: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AlbumArtImage(
-                    coverUrl = task.song.thumbnailCoverUrl,
-                    contentDescription = task.song.name,
-                    shape = RoundedCornerShape(8.dp),
-                    placeholderIconSize = 22.dp,
-                    modifier = Modifier.size(44.dp),
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = task.song.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        QualityTierBadge(tier = task.tier)
-                    }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = task.song.singer,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-
-                // 控制按钮
-                when (task.status) {
-                    DownloadStatus.Downloading, DownloadStatus.Pending -> {
-                        IconButton(onClick = onPause) {
-                            Icon(Icons.Rounded.Pause, contentDescription = "暂停", modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    DownloadStatus.Paused, DownloadStatus.Failed -> {
-                        IconButton(onClick = onResume) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "继续", modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    else -> {}
-                }
-
-                IconButton(onClick = onCancel) {
-                    Icon(
-                        Icons.Rounded.Close,
-                        contentDescription = "取消",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 进度条
-            if (task.status == DownloadStatus.Downloading && task.totalBytes <= 0L) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape))
-            } else {
-                LinearProgressIndicator(
-                    progress = { task.progress.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val statusText =
-                    when (task.status) {
-                        DownloadStatus.Pending -> "等待下载..."
-                        DownloadStatus.Downloading -> {
-                            if (task.speedBytesPerSec > 0L) {
-                                "正在下载 · ${formatSpeed(task.speedBytesPerSec)}"
-                            } else {
-                                "正在连接直链..."
-                            }
-                        }
-                        DownloadStatus.Paused -> "已暂停"
-                        DownloadStatus.Failed -> task.errorMessage ?: "下载失败"
-                        DownloadStatus.Completed -> "下载完成"
-                    }
-
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color =
-                        if (task.status == DownloadStatus.Failed) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                )
-
-                if (task.totalBytes > 0L) {
-                    Text(
-                        text = "${formatBytes(task.downloadedBytes)} / ${formatBytes(task.totalBytes)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun formatBytes(bytes: Long): String {
-    if (bytes <= 0L) return "0 B"
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-    return when {
-        gb >= 1.0 -> "%.2f GB".format(gb)
-        mb >= 1.0 -> "%.1f MB".format(mb)
-        kb >= 1.0 -> "%.1f KB".format(kb)
-        else -> "$bytes B"
-    }
-}
-
-private fun formatSpeed(bytesPerSec: Long): String {
-    val kb = bytesPerSec / 1024.0
-    val mb = kb / 1024.0
-    return if (mb >= 1.0) "%.1f MB/s".format(mb) else "%.0f KB/s".format(kb)
 }
