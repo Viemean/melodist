@@ -19,20 +19,25 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -75,6 +80,7 @@ fun DownloadMobileScreen(
 
     var taskToDelete by remember { mutableStateOf<DownloadTask?>(null) }
     var taskToShowDetail by remember { mutableStateOf<DownloadTask?>(null) }
+    var showCancelAllDialog by remember { mutableStateOf(false) }
 
     // 监听全局 Toast 事件
     LaunchedEffect(Unit) {
@@ -257,28 +263,126 @@ fun DownloadMobileScreen(
                             }
                         }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding =
-                                PaddingValues(
-                                    top = 6.dp,
-                                    bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                ),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(activeTasks, key = { it.id }) { task ->
-                                ActiveDownloadTaskCard(
-                                    task = task,
-                                    onPause = { DownloadManager.pauseDownload(task.id) },
-                                    onResume = { DownloadManager.resumeDownload(task.id) },
-                                    onCancel = { DownloadManager.cancelDownload(task.id) },
-                                )
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            val totalSpeed = activeTasks.sumOf { it.speedBytesPerSec }
+                            val isAnyDownloading = activeTasks.any { it.status == DownloadStatus.Downloading || it.status == DownloadStatus.Pending }
+                            val isAnyPaused = activeTasks.any { it.status == DownloadStatus.Paused || it.status == DownloadStatus.Failed }
+
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "${activeTasks.size} 个任务",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    if (totalSpeed > 0L) {
+                                        Text(
+                                            text = " · ${formatSpeed(totalSpeed)}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (isAnyPaused) {
+                                        FilledTonalButton(
+                                            onClick = { DownloadManager.resumeAll() },
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                        ) {
+                                            Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("全部开始", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                    if (isAnyDownloading) {
+                                        OutlinedButton(
+                                            onClick = { DownloadManager.pauseAll() },
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                        ) {
+                                            Icon(Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("全部暂停", style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                    OutlinedButton(
+                                        onClick = { showCancelAllDialog = true },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.DeleteOutline,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            "全部删除",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                }
+                            }
+
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding =
+                                    PaddingValues(
+                                        top = 2.dp,
+                                        bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(activeTasks, key = { it.id }) { task ->
+                                    ActiveDownloadTaskCard(
+                                        task = task,
+                                        onPause = { DownloadManager.pauseDownload(task.id) },
+                                        onResume = { DownloadManager.resumeDownload(task.id) },
+                                        onCancel = { DownloadManager.cancelDownload(task.id) },
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showCancelAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelAllDialog = false },
+            title = { Text("清空下载任务") },
+            text = { Text("确定要取消并删除所有正在下载和排队中的任务吗？未完成的临时文件将被清理。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        DownloadManager.cancelAll()
+                        showCancelAllDialog = false
+                    },
+                ) {
+                    Text("确定删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelAllDialog = false }) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
 
@@ -339,7 +443,7 @@ private fun ActiveDownloadTaskCard(
 
                 // 控制按钮
                 when (task.status) {
-                    DownloadStatus.Downloading -> {
+                    DownloadStatus.Downloading, DownloadStatus.Pending -> {
                         IconButton(onClick = onPause) {
                             Icon(Icons.Rounded.Pause, contentDescription = "暂停", modifier = Modifier.size(20.dp))
                         }

@@ -112,4 +112,27 @@ class DownloadManagerCacheTest {
         assertEquals("LRC文件", org.melodist.data.LyricSaveMode.LrcFile.label)
         assertEquals("同时保存", org.melodist.data.LyricSaveMode.Both.label)
     }
+
+    @Test
+    fun `DownloadStatus has expected enum entries for pause and resume control`() {
+        val statuses = DownloadStatus.entries.map { it.name }
+        assertTrue(statuses.contains("Pending"))
+        assertTrue(statuses.contains("Downloading"))
+        assertTrue(statuses.contains("Paused"))
+        assertTrue(statuses.contains("Completed"))
+        assertTrue(statuses.contains("Failed"))
+    }
+
+    @Test
+    fun `pauseAll transitions downloading and pending tasks to paused without throwing`() {
+        DownloadManager.pauseAll()
+        val active = DownloadManager.activeTasks.value
+        assertTrue(active.none { it.status == DownloadStatus.Downloading || it.status == DownloadStatus.Pending })
+    }
+
+    @Test
+    fun `cancelAll clears all active tasks and leaves empty list`() {
+        DownloadManager.cancelAll()
+        assertTrue(DownloadManager.activeTasks.value.isEmpty())
+    }
 }
