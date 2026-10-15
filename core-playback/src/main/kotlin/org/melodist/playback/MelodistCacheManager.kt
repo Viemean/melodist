@@ -317,7 +317,7 @@ object MelodistCacheManager : MediaCacheExporter {
                     isFullyCached = false,
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             FileCacheProgress()
         }
     }

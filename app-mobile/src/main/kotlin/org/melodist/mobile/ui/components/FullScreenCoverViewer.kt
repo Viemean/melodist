@@ -518,7 +518,8 @@ private suspend fun saveImageToGallery(
             resolver.update(uri, values, null, null)
         }
         true
-    } catch (e: Throwable) {
+    } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
         android.util.Log.e(TAG, "Failed to save image to gallery: $filePrefix", e)
         false
     }

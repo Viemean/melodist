@@ -148,7 +148,7 @@ private fun decodeBase64(source: String?): String {
                 Base64.getMimeDecoder().decode(clean)
             }
         String(bytes, Charsets.UTF_8)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         ""
     }
 }

@@ -52,7 +52,9 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val fl = inputBuffer.short.toFloat()
             val fr = inputBuffer.short.toFloat()
             val c = if (inputChannelCount >= 3) inputBuffer.short.toFloat() else 0f
-            val lfe = if (inputChannelCount >= 4) inputBuffer.short.toFloat() else 0f
+            if (inputChannelCount >= 4) {
+                inputBuffer.short
+            }
             val bl = if (inputChannelCount >= 5) inputBuffer.short.toFloat() else 0f
             val br = if (inputChannelCount >= 6) inputBuffer.short.toFloat() else 0f
             val sl = if (inputChannelCount >= 7) inputBuffer.short.toFloat() else 0f

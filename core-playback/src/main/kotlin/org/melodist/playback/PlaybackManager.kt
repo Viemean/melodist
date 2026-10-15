@@ -1003,7 +1003,7 @@ object PlaybackManager {
             } else {
                 try {
                     context.applicationContext.startService(intent)
-                } catch (e: IllegalStateException) {
+                } catch (_: IllegalStateException) {
                     intent.putExtra(PlaybackService.EXTRA_START_FOREGROUND, true)
                     androidx.core.content.ContextCompat
                         .startForegroundService(context.applicationContext, intent)

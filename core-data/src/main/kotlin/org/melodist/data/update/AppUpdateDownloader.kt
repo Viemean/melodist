@@ -180,7 +180,7 @@ object AppUpdateDownloader {
                 }
             context.startActivity(installIntent)
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }

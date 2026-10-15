@@ -395,7 +395,7 @@ class LoginApiService(
                     }
                 }
                 false
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 false
             }
         }

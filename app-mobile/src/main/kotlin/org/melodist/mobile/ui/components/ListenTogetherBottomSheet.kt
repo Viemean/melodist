@@ -484,6 +484,7 @@ fun parseListenTogetherUrl(rawText: String): Triple<String, String, Long> {
             }
         }
     } catch (_: Exception) {
+        // 解析失败保持默认值
     }
 
     return Triple(showId, encUin, songId)

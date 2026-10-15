@@ -25,7 +25,7 @@ object PlaybackSourceResolver {
                 ) {
                     return true
                 }
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 Log.w("PlaybackSourceResolver", "Operation failed", e)
             }
         }
@@ -34,7 +34,7 @@ object PlaybackSourceResolver {
             if (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) {
                 return true
             }
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             Log.w("PlaybackSourceResolver", "Operation failed", e)
         }
         return false

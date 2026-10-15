@@ -49,7 +49,7 @@ suspend fun MusicApiService.search(
             val songList = songObj?.get("list")?.jsonArray ?: return@withContext emptyList()
 
             songList.mapNotNull { MusicApiService.parseSongFromElement(it) }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
@@ -121,7 +121,7 @@ suspend fun MusicApiService.searchAlbums(
                     null
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
@@ -183,7 +183,7 @@ suspend fun MusicApiService.searchPlaylists(
                     null
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }

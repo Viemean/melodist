@@ -237,7 +237,7 @@ fun PlayerQueueBottomSheet(
                                             } else {
                                                 Toast.makeText(context, "暂无相似推荐歌曲", Toast.LENGTH_SHORT).show()
                                             }
-                                        } catch (e: Exception) {
+                                        } catch (_: Exception) {
                                             Toast.makeText(context, "获取相似推荐失败", Toast.LENGTH_SHORT).show()
                                         } finally {
                                             isRecommendingSimilar = false
