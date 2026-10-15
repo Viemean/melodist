@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -23,9 +26,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,17 +43,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import org.melodist.data.AppSettings
 import org.melodist.data.AppSettingsManager
 import org.melodist.data.CacheUsageDetail
+import org.melodist.data.LyricSaveMode
 import org.melodist.data.download.DownloadManager
 import org.melodist.mobile.ui.components.SettingsClickableRow
 import org.melodist.mobile.ui.components.SettingsDivider
 import org.melodist.mobile.ui.components.SettingsGroupCard
 import org.melodist.mobile.ui.components.SettingsGroupTitle
+import org.melodist.mobile.ui.components.SettingsSwitchRow
 import java.io.File
 
 @Composable
 fun SettingsStorageSection(
+    settings: AppSettings = AppSettingsManager.settings.collectAsState().value,
     cacheUsage: CacheUsageDetail,
     modifier: Modifier = Modifier,
 ) {
@@ -56,6 +65,7 @@ fun SettingsStorageSection(
     val scope = rememberCoroutineScope()
     var isCleaningCache by remember { mutableStateOf(false) }
     var showDownloadDirDialog by remember { mutableStateOf(false) }
+    var showLyricSaveModeDialog by remember { mutableStateOf(false) }
 
     Column(modifier = modifier) {
         SettingsGroupTitle(title = "下载与存储")
@@ -65,6 +75,25 @@ fun SettingsStorageSection(
                 title = "歌曲下载目录",
                 subtitle = AppSettingsManager.getEffectiveDownloadDirectory().absolutePath,
                 onClick = { showDownloadDirDialog = true },
+            )
+
+            SettingsDivider()
+
+            SettingsClickableRow(
+                icon = Icons.Rounded.Subtitles,
+                title = "歌词保存方式",
+                subtitle = settings.lyricSaveMode.label,
+                onClick = { showLyricSaveModeDialog = true },
+            )
+
+            SettingsDivider()
+
+            SettingsSwitchRow(
+                icon = Icons.Rounded.Translate,
+                title = "保存歌词翻译",
+                subtitle = "开启后内嵌和 LRC 会保存翻译",
+                checked = settings.saveLyricTranslation,
+                onCheckedChange = { AppSettingsManager.setSaveLyricTranslation(it) },
             )
 
             SettingsDivider()
@@ -226,6 +255,48 @@ fun SettingsStorageSection(
             dismissButton = {
                 TextButton(onClick = { showDownloadDirDialog = false }) {
                     Text("取消")
+                }
+            },
+        )
+    }
+
+    if (showLyricSaveModeDialog) {
+        AlertDialog(
+            onDismissRequest = { showLyricSaveModeDialog = false },
+            title = { Text("歌词保存方式") },
+            text = {
+                Column {
+                    LyricSaveMode.entries.forEach { mode ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        AppSettingsManager.setLyricSaveMode(mode)
+                                        showLyricSaveModeDialog = false
+                                    }
+                                    .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(
+                                selected = settings.lyricSaveMode == mode,
+                                onClick = {
+                                    AppSettingsManager.setLyricSaveMode(mode)
+                                    showLyricSaveModeDialog = false
+                                },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = mode.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLyricSaveModeDialog = false }) {
+                    Text("完成")
                 }
             },
         )

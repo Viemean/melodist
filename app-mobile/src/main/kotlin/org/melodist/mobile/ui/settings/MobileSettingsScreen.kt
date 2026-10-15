@@ -119,7 +119,10 @@ fun MobileSettingsScreen(
 
                 // 3. 下载与存储缓存
                 item {
-                    SettingsStorageSection(cacheUsage = cacheUsage)
+                    SettingsStorageSection(
+                        settings = settings,
+                        cacheUsage = cacheUsage,
+                    )
                 }
 
                 // 4. 关于应用
