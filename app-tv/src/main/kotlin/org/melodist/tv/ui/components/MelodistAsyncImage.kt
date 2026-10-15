@@ -1,12 +1,27 @@
 package org.melodist.tv.ui.components
 
-import androidx.compose.runtime.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.melodist.api.MusicApiService
 import org.melodist.api.getSongVisualMid
 import org.melodist.model.CoverUrlResolver
@@ -29,7 +44,9 @@ fun MelodistAsyncImage(
     preferRawCover: Boolean = false,
     errorContent: (@Composable () -> Unit)? = null,
 ) {
+    val context = LocalContext.current
     var dynamicVisualMid by remember(songMid) { mutableStateOf("") }
+    var lastSuccessPainter by remember { mutableStateOf<Painter?>(null) }
 
     LaunchedEffect(songMid, coverUrl, albumMid, visualMid) {
         if (coverUrl.isBlank() &&
@@ -112,19 +129,47 @@ fun MelodistAsyncImage(
                 m
             }
 
-        AsyncImage(
-            model = currentUrl,
-            contentDescription = contentDescription,
+        val imageRequest =
+            remember(currentUrl) {
+                ImageRequest.Builder(context)
+                    .data(currentUrl)
+                    .crossfade(260)
+                    .precision(coil3.size.Precision.INEXACT)
+                    .build()
+            }
+
+        Box(
             modifier = finalModifier,
-            contentScale = contentScale,
-            onError = {
-                if (candidateIndex + 1 < candidates.size) {
-                    candidateIndex++
-                } else {
-                    hasFailedAll = true
-                }
-            },
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            val previous = lastSuccessPainter
+            if (previous != null) {
+                Image(
+                    painter = previous,
+                    contentDescription = null,
+                    contentScale = contentScale,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = contentDescription,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = contentScale,
+                onState = { state ->
+                    if (state is AsyncImagePainter.State.Success) {
+                        lastSuccessPainter = state.painter
+                    } else if (state is AsyncImagePainter.State.Error) {
+                        if (candidateIndex + 1 < candidates.size) {
+                            candidateIndex++
+                        } else {
+                            hasFailedAll = true
+                        }
+                    }
+                },
+            )
+        }
     } else if (errorContent != null) {
         val fallbackModifier =
             remember(modifier, shape) {

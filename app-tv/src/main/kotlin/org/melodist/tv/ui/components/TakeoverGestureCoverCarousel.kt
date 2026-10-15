@@ -14,7 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,9 +95,41 @@ fun TakeoverGestureCoverCarousel(
 
     val animFraction = remember { Animatable(0f) }
 
+    var centerSlotIndex by remember { mutableIntStateOf(0) }
+    var slotSongs by remember {
+        mutableStateOf(listOf(actualCurrentSong, nextSong, prevSong))
+    }
+    var pendingTargetSongMid by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(actualCurrentSong?.songMid, prevSong?.songMid, nextSong?.songMid, centerSlotIndex) {
+        val target = pendingTargetSongMid
+        if (target != null) {
+            if (actualCurrentSong?.songMid == target) {
+                pendingTargetSongMid = null
+                val prevSlot = (centerSlotIndex - 1).floorMod(3)
+                val nextSlot = (centerSlotIndex + 1).floorMod(3)
+                val updated = slotSongs.toMutableList()
+                updated[centerSlotIndex] = actualCurrentSong
+                updated[nextSlot] = nextSong
+                updated[prevSlot] = prevSong
+                slotSongs = updated
+            }
+        } else {
+            val prevSlot = (centerSlotIndex - 1).floorMod(3)
+            val nextSlot = (centerSlotIndex + 1).floorMod(3)
+            val updated = slotSongs.toMutableList()
+            updated[centerSlotIndex] = actualCurrentSong
+            updated[nextSlot] = nextSong
+            updated[prevSlot] = prevSong
+            slotSongs = updated
+        }
+    }
+
     // 歌曲切歌完成后重置动画偏移
     LaunchedEffect(actualCurrentSong?.songMid) {
-        animFraction.snapTo(0f)
+        if (animFraction.value != 0f) {
+            animFraction.snapTo(0f)
+        }
     }
 
     // 响应手势流驱动
@@ -122,19 +158,18 @@ fun TakeoverGestureCoverCarousel(
                     targetValue = target,
                     animationSpec = tween(durationMillis = dur, easing = LinearEasing),
                 )
-                // 若结算后 600ms 歌曲未发生切换，自动复位弹回
-                delay(600L)
-                if (animFraction.value != 0f) {
-                    animFraction.animateTo(
-                        targetValue = 0f,
-                        animationSpec =
-                            spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessLow,
-                            ),
-                    )
-                    TakeoverGestureState.reset()
+                if (target <= -0.9f) {
+                    val targetSong = nextSong
+                    pendingTargetSongMid = targetSong?.songMid
+                    centerSlotIndex = (centerSlotIndex + 1).floorMod(3)
+                    animFraction.snapTo(0f)
+                } else if (target >= 0.9f) {
+                    val targetSong = prevSong
+                    pendingTargetSongMid = targetSong?.songMid
+                    centerSlotIndex = (centerSlotIndex - 1).floorMod(3)
+                    animFraction.snapTo(0f)
                 }
+                TakeoverGestureState.reset()
             }
             GestureSwipeState.CANCEL -> {
                 animFraction.animateTo(
@@ -177,101 +212,101 @@ fun TakeoverGestureCoverCarousel(
                 )
             }
         } else {
-            // 下一首卡片 (fraction < 0 时向左推入)
-            if (nextSong != null) {
-                MelodistElevatedCover(
-                    coverUrl = nextSong.coverUrl,
-                    albumMid = nextSong.albumMid,
-                    visualMid = nextSong.visualMid,
-                    songMid = nextSong.songMid,
-                    artistMid =
-                        nextSong.singerList
-                            .firstOrNull()
-                            ?.mid
-                            .orEmpty(),
-                    shape = shape,
-                    elevation = elevation,
-                    preferRawCover = true,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val f = animFraction.value
-                                if (f < -0.001f) {
-                                    val absFrac = -f
-                                    translationX = (1f + f) * widthPx
-                                    scaleX = (0.88f + 0.12f * absFrac).coerceIn(0.88f, 1f)
-                                    scaleY = scaleX
-                                    alpha = (0.60f + 0.40f * absFrac).coerceIn(0.60f, 1f)
-                                } else {
-                                    alpha = 0f
-                                    translationX = widthPx * 2
-                                }
-                            },
-                )
-            }
+            val prevSlot = (centerSlotIndex - 1).floorMod(3)
+            val nextSlot = (centerSlotIndex + 1).floorMod(3)
+            val renderOrder = listOf(prevSlot, nextSlot, centerSlotIndex)
 
-            // 上一首卡片 (fraction > 0 时向右推入)
-            if (prevSong != null) {
-                MelodistElevatedCover(
-                    coverUrl = prevSong.coverUrl,
-                    albumMid = prevSong.albumMid,
-                    visualMid = prevSong.visualMid,
-                    songMid = prevSong.songMid,
-                    artistMid =
-                        prevSong.singerList
-                            .firstOrNull()
-                            ?.mid
-                            .orEmpty(),
-                    shape = shape,
-                    elevation = elevation,
-                    preferRawCover = true,
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val f = animFraction.value
-                                if (f > 0.001f) {
-                                    translationX = (-1f + f) * widthPx
-                                    scaleX = (0.88f + 0.12f * f).coerceIn(0.88f, 1f)
-                                    scaleY = scaleX
-                                    alpha = (0.60f + 0.40f * f).coerceIn(0.60f, 1f)
-                                } else {
-                                    alpha = 0f
-                                    translationX = -widthPx * 2
-                                }
-                            },
-                )
-            }
+            for (slotIndex in renderOrder) {
+                key(slotIndex) {
+                    val relativeStep =
+                        when (slotIndex) {
+                            centerSlotIndex -> 0
+                            nextSlot -> 1
+                            else -> -1
+                        }
 
-            // 当前歌曲卡片
-            MelodistElevatedCover(
-                coverUrl = actualCoverUrl,
-                albumMid = actualCurrentSong?.albumMid.orEmpty(),
-                visualMid = actualCurrentSong?.visualMid.orEmpty(),
-                songMid = actualCurrentSong?.songMid.orEmpty(),
-                artistMid =
-                    actualCurrentSong
-                        ?.singerList
-                        ?.firstOrNull()
-                        ?.mid
-                        .orEmpty(),
-                shape = shape,
-                elevation = elevation,
-                preferRawCover = true,
-                onClick = onClick,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            val f = animFraction.value
-                            val absF = abs(f)
-                            translationX = f * widthPx
-                            scaleX = (1f - 0.12f * absF).coerceIn(0.88f, 1f)
-                            scaleY = scaleX
-                            alpha = (1f - 0.35f * absF).coerceIn(0.65f, 1f)
-                        },
-            )
+                    val slotSong = slotSongs.getOrNull(slotIndex)
+
+                    if (slotSong != null) {
+                        val f = animFraction.value
+                        val isCenter = relativeStep == 0
+                        val isPrev = relativeStep == -1
+                        val isNext = relativeStep == 1
+
+                        val cardTranslationX =
+                            when {
+                                isCenter -> f * widthPx
+                                isNext -> (1f + f) * widthPx
+                                else -> (-1f + f) * widthPx
+                            }
+
+                        val cardScale =
+                            when {
+                                isCenter -> {
+                                    val absF = abs(f)
+                                    (1f - 0.12f * absF).coerceIn(0.88f, 1f)
+                                }
+                                isNext -> {
+                                    if (f < -0.001f) {
+                                        val absFrac = -f
+                                        (0.88f + 0.12f * absFrac).coerceIn(0.88f, 1f)
+                                    } else 0.88f
+                                }
+                                else -> {
+                                    if (f > 0.001f) {
+                                        (0.88f + 0.12f * f).coerceIn(0.88f, 1f)
+                                    } else 0.88f
+                                }
+                            }
+
+                        val cardAlpha =
+                            when {
+                                isCenter -> {
+                                    val absF = abs(f)
+                                    (1f - 0.35f * absF).coerceIn(0.65f, 1f)
+                                }
+                                isNext -> {
+                                    if (f < -0.001f) {
+                                        val absFrac = -f
+                                        (0.60f + 0.40f * absFrac).coerceIn(0.60f, 1f)
+                                    } else 0f
+                                }
+                                else -> {
+                                    if (f > 0.001f) {
+                                        (0.60f + 0.40f * f).coerceIn(0.60f, 1f)
+                                    } else 0f
+                                }
+                            }
+
+                        MelodistElevatedCover(
+                            coverUrl = slotSong.coverUrl,
+                            albumMid = slotSong.albumMid,
+                            visualMid = slotSong.visualMid,
+                            songMid = slotSong.songMid,
+                            artistMid =
+                                slotSong.singerList
+                                    .firstOrNull()
+                                    ?.mid
+                                    .orEmpty(),
+                            shape = shape,
+                            elevation = elevation,
+                            preferRawCover = true,
+                            onClick = if (isCenter) onClick else null,
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        translationX = cardTranslationX
+                                        scaleX = cardScale
+                                        scaleY = cardScale
+                                        alpha = cardAlpha
+                                    },
+                        )
+                    }
+                }
+            }
         }
     }
 }
+
+private fun Int.floorMod(mod: Int): Int = ((this % mod) + mod) % mod
