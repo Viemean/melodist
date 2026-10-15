@@ -5,7 +5,7 @@ import org.melodist.model.Song
 
 /**
  * 播放器核心对外暴露的不可变聚合状态快照。
- * 供移动端、平板与 TV 端 UI 统一订阅，消除散落的多次独立 flow 收集。
+ * 供移动端、平板与 TV 端 UI 订阅。
  */
 data class PlaybackSnapshot(
     val currentSong: Song? = null,

@@ -306,7 +306,7 @@ object WebDavManager {
                     var coverPath = rawCache.coverPath
                     var rawCoverPath = rawCache.rawCoverPath
 
-                    // 封面处理：扫描阶段仅压缩 500px WebP 供列表流畅滚动（原画大图由播放/查看大图时按需加载），覆盖旧低分辨率图
+                    // 封面处理：扫描阶段压缩 500px WebP 缩略图，覆盖旧图
                     val coversFolder = getSafeCoversDir()
 
                     fun saveWebDavThumbnail(bytes: ByteArray) {

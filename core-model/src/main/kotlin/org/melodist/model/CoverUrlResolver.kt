@@ -7,7 +7,7 @@ import java.io.File
  */
 enum class CoverScenario {
     /**
-     * 列表 / 抽屉缩略图：固定为 500x500，低显存消耗，保证高帧率滑动
+     * 列表 / 抽屉缩略图：固定为 500x500 分辨率
      */
     THUMBNAIL,
 
@@ -29,7 +29,6 @@ enum class CoverScenario {
 
 /**
  * 全局统一封面清晰度与路径解析引擎。
- * 消除散落于各处的正则替换与硬编码。
  */
 object CoverUrlResolver {
     private val REGEX_RESOLUTION = Regex("R[0-9]+x[0-9]+")
@@ -170,7 +169,7 @@ object CoverUrlResolver {
     }
 
     /**
-     * TV 端 QQ 音乐 CDN 超高清强升候选
+     * TV 端 QQ 音乐 CDN 高分辨率候选列表
      */
     fun upgradeTvCoverUrl(
         url: String,

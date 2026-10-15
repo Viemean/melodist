@@ -1990,7 +1990,7 @@ object PlaybackManager {
     }
 
     /**
-     * 接管模式下触发切歌时的本地乐观曲目推进，避免等待网络回传期间显示旧曲目
+     * 接管模式下触发切歌时的本地乐观曲目推进
      */
     fun optimisticSwitchRemoteTrack(
         targetSong: Song,

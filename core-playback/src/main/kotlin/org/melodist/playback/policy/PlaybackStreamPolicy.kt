@@ -47,7 +47,7 @@ interface PlaybackStreamPolicy {
 
     /**
      * 是否应绕过本地或已下载的高规格缓存。
-     * 防止限制播放场景命中完整歌曲的高品质离线缓存。
+     * 限制播放场景下绕过完整离线缓存。
      */
     fun shouldBypassCache(song: Song): Boolean = false
 

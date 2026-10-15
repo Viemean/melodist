@@ -87,7 +87,7 @@ fun RotatingTrackCard(
         }
     }
 
-    // 点睛强调色：提取封面色相，提升明度呈现高亮活力质感
+    // 提取封面色相并调整明度作为强调色
     val accentColor =
         remember(dynamicCoverColor) {
             val base = dynamicCoverColor ?: Color(0xFFB4F8FF)
@@ -177,7 +177,7 @@ fun RotatingTrackCard(
                     .fillMaxSize()
                     .background(animatedCardBg),
         ) {
-            // 上半部：专辑封面展示（画幅增大至 80%，更加饱满充盈）
+            // 上半部：专辑封面展示（画幅比例 80%）
             Box(
                 modifier =
                     Modifier

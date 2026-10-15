@@ -48,7 +48,7 @@ private val DarkColorPalette =
  */
 object MonetColorExtractor {
     private val colorCache = android.util.LruCache<String, Color>(128)
-    val DefaultSurfaceColor = Color(0xFF142032) // 默认暗色 (明度 ~20%)
+    val DefaultSurfaceColor = Color(0xFF142032) // 默认暗色
 
     fun getCachedColor(url: String?): Color? {
         if (url.isNullOrBlank()) return null

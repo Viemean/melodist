@@ -1084,7 +1084,7 @@ fun PlaylistTvScreen(
                 onNavigateToSettings = onNavigateToSettings,
             )
 
-            // 模式 2：沉浸双语逐字歌词流
+            // 模式 2：双语逐字歌词流
             PlaylistTvLyricsOverlay(
                 visible = (screenMode == PlaylistScreenMode.Player),
                 lyrics = lyrics,

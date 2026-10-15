@@ -373,7 +373,7 @@ fun AcrTvScreen(
                                     },
                                 )
 
-                                // 2. 静音按钮（温和 Monet 质感，绝不使用刺眼红底，显示图标与“静音中”，点击过渡隐藏）
+                                // 2. 静音按钮（显示图标与“静音中”，点击过渡隐藏）
                                 AcrTvButton(
                                     text = "静音中",
                                     icon = Icons.AutoMirrored.Filled.VolumeOff,

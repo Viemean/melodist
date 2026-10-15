@@ -635,7 +635,7 @@ fun MediaDetailTvScaffold(
                 }
             }
 
-            // 模式 2：沉浸双语逐字歌词流
+            // 模式 2：双语逐字歌词流
             AnimatedVisibility(
                 visible = (screenMode == MediaDetailScreenMode.Player),
                 modifier = Modifier.fillMaxSize(),

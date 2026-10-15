@@ -36,11 +36,11 @@ import org.melodist.api.getSongVisualMid
 
 /**
  * 统一风格的专辑封面展示组件。
- * 具备精致圆角、微光立体描边与柔和落地阴影；
+ * 包含圆角边框与阴影效果；
  * 支持多清晰度候选列表 (candidates) 与自动降级重试；
  * 支持针对无专辑封面单曲自动异步解析视觉 MID (Visual MID)；
  * 配置 FilterQuality.Medium 抗锯齿滤波；
- * 默认关闭 crossfade 避免列表滑动时并发动画引起 Choreographer 丢帧，仅当 elevation > 0 时添加动态阴影。
+ * 默认关闭 crossfade，仅当 elevation > 0 时配置阴影参数。
  */
 @Composable
 fun AlbumArtImage(

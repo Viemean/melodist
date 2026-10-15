@@ -11,7 +11,7 @@ import kotlin.math.tanh
 /**
  * 环绕声/多声道 (5.1 / 7.1) 下混抗削顶音频处理器
  * 基于 ITU-R BS.775 矩阵将多通道 PCM 16-bit 线性下混至双通道立体声，
- * 通过增益标定与双曲正切限幅防止整数加权溢出。
+ * 通过增益标定与双曲正切限幅处理输出幅度。
  */
 class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {

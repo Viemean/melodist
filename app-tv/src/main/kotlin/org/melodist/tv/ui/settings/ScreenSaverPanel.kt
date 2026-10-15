@@ -749,7 +749,7 @@ internal object ScreenSaverColorExtractor {
                 // 过滤低饱和度中性灰像素
                 if (s < 0.18f) continue
 
-                // 权重倾向于鲜艳饱满且明度适中的核心彩色像素
+                // 按饱和度与适中明度计算像素权重
                 val weight = (s * s) * (1.0f - abs(v - 0.60f) * 0.7f).coerceIn(0.1f, 1.0f)
                 val rad = Math.toRadians(h.toDouble())
                 sumHueSin += sin(rad) * weight

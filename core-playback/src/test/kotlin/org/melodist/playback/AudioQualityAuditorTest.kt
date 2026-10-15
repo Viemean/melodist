@@ -331,7 +331,7 @@ class AudioQualityAuditorTest {
         val binRes = (sampleRate / 2f) / bins
         val spectrum = FloatArray(bins)
 
-        // 模拟流行人声母带：中频人声饱满（2k~6k 约 -18dB），高频齿音和镲片延伸至 20kHz 约 -35dB，22.05kHz 抗混叠滤波滚降
+        // 模拟人声母带频谱：中频（2k~6k 约 -18dB），高频（20kHz 约 -35dB），22.05kHz 滤波滚降
         for (i in 0 until bins) {
             val f = i * binRes
             if (f < 20000) {

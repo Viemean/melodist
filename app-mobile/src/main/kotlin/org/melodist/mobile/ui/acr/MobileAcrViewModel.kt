@@ -87,7 +87,7 @@ class MobileAcrViewModel(
             viewModelScope.launch {
                 val startTime = System.currentTimeMillis()
                 val sessionUniqueId = startTime
-                // 优化后的探测阶梯：前段更紧凑敏捷，后段兼顾特征增量与频次安全
+                // 探测时间窗口梯度列表
                 val probeMilestones = listOf(3000L, 4200L, 5600L, 7200L, 9000L, 11200L, 13800L, 16600L, 19500L)
                 var nextProbeIndex = 0
                 val maxDurationMs = 20000L

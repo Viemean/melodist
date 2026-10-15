@@ -63,7 +63,7 @@ class TimedLruCache<K : Any, V : Any>(
 
 /**
  * 歌手与专辑详情及首页列表短时缓存管理器
- * 默认缓存 30 秒，上限 20 条，避免反复进出页面造成频繁网络请求与白屏
+ * 默认缓存 30 秒，容量上限 20 条
  */
 object ArtistAlbumCacheManager {
     const val DEFAULT_TTL_MILLIS = 30_000L

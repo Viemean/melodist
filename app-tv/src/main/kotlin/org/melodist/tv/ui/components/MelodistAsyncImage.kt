@@ -81,7 +81,7 @@ fun MelodistAsyncImage(
                 }
                 list.add(normalized)
             } else {
-                // QQ 音乐 CDN 超高清 1200x1200 与 800x800 优先强升
+                // QQ 音乐 CDN 1200x1200 与 800x800 分辨率优先
                 if (coverUrl.isNotBlank()) {
                     val upgraded1200 = CoverUrlResolver.upgradeTvCoverUrl(coverUrl, 1200)
                     val upgraded800 = CoverUrlResolver.upgradeTvCoverUrl(coverUrl, 800)

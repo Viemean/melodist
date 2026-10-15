@@ -296,7 +296,7 @@ fun SongItemRow(
 
 /**
  * 构建带有子串高亮样式的 AnnotatedString。
- * 当 query 为空或未匹配时直接返回普通 AnnotatedString，避免额外分配。
+ * 当 query 为空或未匹配时返回原始 AnnotatedString。
  */
 fun buildHighlightedAnnotatedString(
     text: String,

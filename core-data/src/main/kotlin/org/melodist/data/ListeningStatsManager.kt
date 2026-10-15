@@ -311,7 +311,7 @@ object ListeningStatsManager {
                     val uncommittedSec = uncommittedDeltas.sumOf { it.playSec }
                     val uncommittedCnt = uncommittedDeltas.size
 
-                    // 避免云端未及时汇总导致数字倒退：保证时长与首数单调不减少
+                    // 取当前累积值与已有统计值的较大值，维持单调递增
                     val previousSec = _currentStats.value?.takeIf { it.period == ListeningReportPeriod.Day && it.dateKey == todayStr }?.listenTimeSec ?: 0L
                     val finalSec = maxOf(rawReport.listenTimeSec + uncommittedSec, previousSec)
                     val previousCnt = _currentStats.value?.takeIf { it.period == ListeningReportPeriod.Day && it.dateKey == todayStr }?.listenCnt ?: 0

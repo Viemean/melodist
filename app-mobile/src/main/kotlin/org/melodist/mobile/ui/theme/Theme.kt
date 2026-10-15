@@ -218,7 +218,7 @@ private fun createCustomDarkColorScheme(seedColor: Color): ColorScheme {
 }
 
 private fun createCustomLightColorScheme(seedColor: Color): ColorScheme {
-    // 若原色在浅色背景下过亮，适当降低明度以保证对比度
+    // 若原色在浅色背景下过亮，降低明度
     val effectivePrimary =
         if (seedColor.luminance() > 0.65f) {
             seedColor.adjustHsl(saturationFactor = 0.95f, lightness = 0.40f)
