@@ -41,6 +41,7 @@ import org.melodist.data.WebDavManager
 import org.melodist.data.download.DownloadManager
 import org.melodist.mobile.ui.components.AddToPlaylistBottomSheet
 import org.melodist.mobile.ui.components.SongListDeleteType
+import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
@@ -74,12 +75,12 @@ fun SongListBatchDialogs(
     if (showBatchDownloadDialog) {
         val validDownloadSongs = selectedSongs.filter { it.songMid.isNotBlank() && !it.isLocal && !it.isWebDav }
         val defaultTier = AppSettingsManager.settings.value.preferredQualityTier
-        val tierLabel = DownloadManager.getCleanTierLabel(defaultTier)
+        val tierLabel = AudioQualityTier.getBadge(defaultTier)
         AlertDialog(
             onDismissRequest = onDismissBatchDownload,
             title = { Text("批量下载确认") },
             text = {
-                Text("确定将选中的 ${validDownloadSongs.size} 首最高 $tierLabel 音质（默认音质级别）加入下载队列吗？")
+                Text("确定将选中的 ${validDownloadSongs.size} 首音乐加入下载队列，当前默认音质级别为 $tierLabel，若无对应音质级别会自动降级下载")
             },
             confirmButton = {
                 TextButton(
