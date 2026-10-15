@@ -2,11 +2,7 @@ package org.melodist.data.download
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.media.MediaScannerConnection
 import android.util.Log
-import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,23 +17,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.melodist.api.MusicApiService
-import org.melodist.api.getLyrics
 import org.melodist.api.getPlayUrl
 import org.melodist.data.AppSettingsManager
-import org.melodist.data.LyricSaveMode
 import org.melodist.model.AudioQualityTier
-import org.melodist.model.CoverUrlResolver
 import org.melodist.model.Song
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 
 enum class DownloadStatus {
     Pending,
@@ -78,9 +70,6 @@ data class DownloadTask(
 
 object DownloadManager {
     private const val TAG = "DownloadManager"
-    private const val PREF_NAME = "melodist_downloads"
-    private const val KEY_COMPLETED = "completed_downloads_json"
-    private const val KEY_ACTIVE_TASKS = "active_downloads_json"
     private const val MAX_CONCURRENT_DOWNLOADS = 5
 
     private var appContext: Context? = null
@@ -93,17 +82,12 @@ object DownloadManager {
             .readTimeout(30, TimeUnit.SECONDS)
             .followRedirects(true)
             .build()
-    private val json =
-        Json {
-            ignoreUnknownKeys = true
-            prettyPrint = false
-        }
 
     var cacheExporter: MediaCacheExporter? = null
 
     // 活跃任务列表与已完成历史
     private val activeJobs = ConcurrentHashMap<String, Job>()
-    private val activeCalls = ConcurrentHashMap<String, okhttp3.Call>()
+    private val activeCalls = ConcurrentHashMap<String, Call>()
     private val _activeTasks = MutableStateFlow<List<DownloadTask>>(emptyList())
     val activeTasks: StateFlow<List<DownloadTask>> = _activeTasks.asStateFlow()
 
@@ -114,17 +98,52 @@ object DownloadManager {
     val toastEvent: SharedFlow<String> = _toastEvent.asSharedFlow()
 
     /**
-     * 根据歌曲唯一标识查询本地已完成的有效下载音频文件与对应音质。
-     *
-     * @param songMid 歌曲唯一标识符
-     * @return 包含本地目标 File 与音质档位的二元组；未下载或文件被移除时返回 null
+     * 检查当前应用是否具备写入外部公共存储目录的系统权限。
      */
-    fun getCompletedDownload(songMid: String): Pair<java.io.File, AudioQualityTier>? {
+    fun hasStoragePermission(context: Context): Boolean =
+        DownloadStorageStore.hasStoragePermission(context)
+
+    fun requestStoragePermission(context: Context) {
+        DownloadStorageStore.requestStoragePermission(context)
+    }
+
+    /**
+     * 获取音质档位的英文标准化标签。
+     */
+    fun getCleanTierLabel(tier: AudioQualityTier): String =
+        DownloadStorageStore.getCleanTierLabel(tier)
+
+    /**
+     * 根据歌曲元数据与音质档位生成下载文件的标准基础文件名。
+     */
+    fun getStandardBaseName(
+        song: Song,
+        tier: AudioQualityTier,
+    ): String = DownloadStorageStore.getStandardBaseName(song, tier)
+
+    /**
+     * 检查目标下载目录中是否已存在该歌曲指定音质的完整物理音频文件。
+     */
+    fun findExistingFile(
+        song: Song,
+        tier: AudioQualityTier,
+    ): File? = DownloadStorageStore.findExistingFile(song, tier)
+
+    /**
+     * 供测试或内部使用的封面清洗与压缩方法。
+     */
+    fun sanitizeCoverArt(rawBytes: ByteArray): ByteArray =
+        DownloadMetadataEmbedder.sanitizeCoverArt(rawBytes)
+
+    /**
+     * 根据歌曲唯一标识查询本地已完成的有效下载音频文件与对应音质。
+     */
+    fun getCompletedDownload(songMid: String): Pair<File, AudioQualityTier>? {
         if (songMid.isBlank()) return null
         val task = _completedTasks.value.find { it.song.songMid == songMid } ?: return null
         val path = task.filePath
         if (path.isNotBlank()) {
-            val file = java.io.File(path)
+            val file = File(path)
             if (file.exists() && file.isFile && file.length() > 0L) {
                 return Pair(file, task.tier)
             }
@@ -133,261 +152,28 @@ object DownloadManager {
     }
 
     /**
-     * 初始化离线下载管理器，加载持久化已完成任务记录。
-     *
-     * @param context 应用程序上下文
+     * 初始化离线下载管理器，加载持久化任务记录。
      */
     fun init(context: Context) {
         val app = context.applicationContext
         appContext = app
         if (prefs == null) {
-            prefs = app.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-            loadCompletedTasks()
-            loadActiveTasks()
-        }
-    }
-
-    /**
-     * 检查当前应用是否具备写入外部公共存储目录的系统权限。
-     *
-     * @param context 应用程序上下文
-     * @return 具备权限返回 true，否则返回 false
-     */
-    fun hasStoragePermission(context: Context): Boolean =
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            android.os.Environment.isExternalStorageManager()
-        } else {
-            androidx.core.content.ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        }
-
-    fun requestStoragePermission(context: Context) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            try {
-                val intent =
-                    android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = android.net.Uri.parse("package:${context.packageName}")
-                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                context.startActivity(intent)
-            } catch (_: Exception) {
-                val intent =
-                    android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
-                        flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                context.startActivity(intent)
-            }
-        } else {
-            if (context is android.app.Activity) {
-                androidx.core.app.ActivityCompat.requestPermissions(
-                    context,
-                    arrayOf(android.Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                    1001,
-                )
-            }
-        }
-    }
-
-    private fun loadCompletedTasks() {
-        val raw = prefs?.getString(KEY_COMPLETED, null)
-        if (!raw.isNullOrBlank()) {
-            try {
-                val list = json.decodeFromString<List<DownloadTask>>(raw)
-                val validList = list.filter { File(it.filePath).exists() }
-                _completedTasks.value = deduplicateCompletedTasks(validList)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to load completed downloads", e)
-            }
-        }
-    }
-
-    private fun loadActiveTasks() {
-        val raw = prefs?.getString(KEY_ACTIVE_TASKS, null)
-        if (!raw.isNullOrBlank()) {
-            try {
-                val list = json.decodeFromString<List<DownloadTask>>(raw)
-                _activeTasks.value =
-                    list.map { task ->
-                        if (task.status == DownloadStatus.Downloading) {
-                            task.copy(status = DownloadStatus.Paused, speedBytesPerSec = 0L)
-                        } else {
-                            task.copy(speedBytesPerSec = 0L)
-                        }
-                    }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to load active downloads", e)
-            }
+            prefs = app.getSharedPreferences(DownloadStorageStore.PREF_NAME, Context.MODE_PRIVATE)
+            _completedTasks.value = DownloadStorageStore.loadCompletedTasks(prefs, app)
+            _activeTasks.value = DownloadStorageStore.loadActiveTasks(prefs)
         }
     }
 
     private fun saveActiveTasks() {
-        try {
-            val list =
-                _activeTasks.value.map {
-                    if (it.speedBytesPerSec != 0L) it.copy(speedBytesPerSec = 0L) else it
-                }
-            val raw = json.encodeToString(list)
-            prefs?.edit()?.putString(KEY_ACTIVE_TASKS, raw)?.apply()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to save active downloads", e)
-        }
-    }
-
-    /**
-     * 对历史下载记录进行单版本去重，保留最新副本并清理冗余物理文件。
-     *
-     * @param tasks 当前有效物理文件任务列表
-     * @return 每首歌曲仅保留一份最新副本的任务列表
-     */
-    private fun deduplicateCompletedTasks(tasks: List<DownloadTask>): List<DownloadTask> {
-        val seenMids = mutableSetOf<String>()
-        val kept = mutableListOf<DownloadTask>()
-        val obsoletePaths = mutableListOf<String>()
-
-        for (task in tasks) {
-            val mid = task.song.songMid
-            if (mid.isNotBlank() && seenMids.add(mid)) {
-                kept.add(task)
-            } else {
-                if (task.filePath.isNotBlank()) {
-                    val f = File(task.filePath)
-                    if (f.exists()) {
-                        f.delete()
-                        val lrc = File(task.filePath.substringBeforeLast(".") + ".lrc")
-                        if (lrc.exists()) lrc.delete()
-                        obsoletePaths.add(task.filePath)
-                    }
-                }
-            }
-        }
-
-        if (obsoletePaths.isNotEmpty()) {
-            appContext?.let { ctx ->
-                MediaScannerConnection.scanFile(ctx, obsoletePaths.toTypedArray(), null, null)
-            }
-        }
-
-        if (kept.size != tasks.size) {
-            try {
-                val raw = json.encodeToString(kept)
-                prefs?.edit()?.putString(KEY_COMPLETED, raw)?.apply()
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to persist deduplicated downloads", e)
-            }
-        }
-        return kept
-    }
-
-    /**
-     * 清理指定歌曲除当前新副本之外的历史旧版本下载文件与记录。
-     *
-     * @param songMid 歌曲唯一标识符
-     * @param currentFilePath 当前新副本物理文件路径
-     * @return 剔除该歌曲旧记录后的已完成任务列表
-     */
-    private fun prunePreviousCopies(
-        songMid: String,
-        currentFilePath: String,
-    ): List<DownloadTask> {
-        val obsoleteTasks = _completedTasks.value.filter { it.song.songMid == songMid }
-        if (obsoleteTasks.isEmpty()) return _completedTasks.value
-
-        val obsoletePaths = mutableListOf<String>()
-        for (task in obsoleteTasks) {
-            if (task.filePath.isNotBlank() && task.filePath != currentFilePath) {
-                val file = File(task.filePath)
-                if (file.exists()) {
-                    file.delete()
-                    val lrc = File(task.filePath.substringBeforeLast(".") + ".lrc")
-                    if (lrc.exists()) lrc.delete()
-                    obsoletePaths.add(task.filePath)
-                }
-            }
-        }
-
-        if (obsoletePaths.isNotEmpty()) {
-            appContext?.let { ctx ->
-                MediaScannerConnection.scanFile(ctx, obsoletePaths.toTypedArray(), null, null)
-            }
-        }
-
-        return _completedTasks.value.filter { it.song.songMid != songMid }
+        DownloadStorageStore.saveActiveTasks(prefs, _activeTasks.value)
     }
 
     private fun saveCompletedTasks() {
-        try {
-            val raw = json.encodeToString(_completedTasks.value)
-            prefs?.edit()?.putString(KEY_COMPLETED, raw)?.apply()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to save completed downloads", e)
-        }
-    }
-
-    /**
-     * 获取音质档位的英文标准化标签（如 Hi-Res, Master, SQ）。
-     *
-     * @param tier 音质档位枚举
-     * @return 英文标准缩写名称
-     */
-    fun getCleanTierLabel(tier: AudioQualityTier): String =
-        when (tier) {
-            AudioQualityTier.HiRes -> "Hi-Res"
-            AudioQualityTier.Master -> "Master"
-            AudioQualityTier.SQ -> "SQ"
-            AudioQualityTier.HQ -> "HQ"
-            AudioQualityTier.Standard -> "Standard"
-            AudioQualityTier.Atmos -> "Atmos"
-            AudioQualityTier.Dolby -> "Dolby"
-            AudioQualityTier.Premium -> "Premium"
-        }
-
-    /**
-     * 根据歌曲元数据与音质档位生成下载文件的标准基础文件名（格式为 `歌手 - 歌名 - 音质`，不含扩展名）。
-     *
-     * @param song 歌曲实体
-     * @param tier 音质档位枚举
-     * @return 过滤非法字符后的安全文件名基础字符串
-     */
-    fun getStandardBaseName(
-        song: Song,
-        tier: AudioQualityTier,
-    ): String {
-        val cleanTitle = song.name.replace(Regex("[/\\\\:*?\"<>|]"), "_").trim()
-        val cleanSinger = song.singer.replace(Regex("[/\\\\:*?\"<>|]"), "_").trim()
-        val tierLabel = getCleanTierLabel(tier)
-        return "$cleanSinger - $cleanTitle - $tierLabel"
-    }
-
-    /**
-     * 检查目标下载目录中是否已存在该歌曲指定音质的完整物理音频文件。
-     *
-     * @param song 歌曲实体
-     * @param tier 音质档位枚举
-     * @return 已存在的完整音频 File 对象；不存在返回 null
-     */
-    fun findExistingFile(
-        song: Song,
-        tier: AudioQualityTier,
-    ): File? {
-        val dir = AppSettingsManager.getEffectiveDownloadDirectory()
-        val baseName = getStandardBaseName(song, tier)
-        val possibleExts = listOf("flac", "mp3", "m4a", "wav")
-        for (ext in possibleExts) {
-            val candidate = File(dir, "$baseName.$ext")
-            if (candidate.exists() && candidate.isFile && candidate.length() > 2048L) {
-                return candidate
-            }
-        }
-        return null
+        DownloadStorageStore.saveCompletedTasks(prefs, _completedTasks.value)
     }
 
     /**
      * 提交歌曲离线下载请求，加入等待队列并自动触发并发调度。
-     *
-     * @param song 目标下载歌曲实体
-     * @param preferredTier 指定期望下载音质；若为 null 则采用全局首选音质配置
      */
     fun downloadSong(
         song: Song,
@@ -405,7 +191,6 @@ object DownloadManager {
         val existing = findExistingFile(song, targetTier)
         if (existing != null) {
             _toastEvent.tryEmit("文件已存在：${existing.name}")
-            // 若历史列表中没有，自动补全到已完成列表并清理旧副本
             if (_completedTasks.value.none { it.id == taskId }) {
                 val completedTask =
                     DownloadTask(
@@ -418,7 +203,13 @@ object DownloadManager {
                         totalBytes = existing.length(),
                         filePath = existing.absolutePath,
                     )
-                val remaining = prunePreviousCopies(song.songMid, existing.absolutePath)
+                val remaining =
+                    DownloadStorageStore.prunePreviousCopies(
+                        song.songMid,
+                        existing.absolutePath,
+                        _completedTasks.value,
+                        appContext,
+                    )
                 _completedTasks.value = listOf(completedTask) + remaining
                 saveCompletedTasks()
             }
@@ -500,7 +291,7 @@ object DownloadManager {
                 throw CancellationException("Download cancelled or paused before url fetch")
             }
 
-            // 2. 若无缓存或缓存导出未通过完整性校验，执行常规网络直链获取
+            // 2. 常规网络直链获取
             val urlInfo = apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = preferredTier)
             val downloadUrl = urlInfo.url
             if (downloadUrl.isNullOrBlank()) {
@@ -516,7 +307,7 @@ object DownloadManager {
                 throw CancellationException("Download cancelled or paused after url fetch")
             }
 
-            // 3. 若实际音质不同于请求音质（如降级），再次检查实际音质是否在缓存中完全就绪
+            // 3. 降级音质缓存复用二次检测
             if (actualTier != preferredTier && exporter != null && exporter.isTierFullyCached(song.songMid, actualTier)) {
                 val exportedFile = exporter.exportCompleteCache(song.songMid, actualTier, targetDir, finalBaseName)
                 if (exportedFile != null && exportedFile.exists() && exportedFile.length() > 2048L) {
@@ -535,7 +326,6 @@ object DownloadManager {
 
             val finalFile = File(targetDir, "$finalBaseName.$ext")
 
-            // 再次检查目标文件
             if (finalFile.exists() && finalFile.length() > 2048L) {
                 onDownloadSuccess(task.id, song, actualTier, finalFile)
                 return
@@ -733,8 +523,16 @@ object DownloadManager {
             )
         }
 
-        // 将元数据（歌曲名、歌手名、专辑名、最高清原图、双语歌词）直接内嵌写入音频文件
-        embedMetadata(task.id, song, tier, file, apiService)
+        // 将元数据写入音频文件
+        DownloadMetadataEmbedder.embedMetadata(
+            taskId = task.id,
+            song = song,
+            tier = tier,
+            file = file,
+            apiService = apiService,
+            httpClient = httpClient,
+            activeCalls = activeCalls,
+        )
 
         if (file.extension.equals("flac", ignoreCase = true)) {
             FlacTailSanitizer.sanitize(file)
@@ -745,147 +543,9 @@ object DownloadManager {
         if (postMetadataTask == null || postMetadataTask.status != DownloadStatus.Downloading) return
 
         // 通知系统 MediaStore 刷新
-        appContext?.let { ctx ->
-            MediaScannerConnection.scanFile(ctx, arrayOf(file.absolutePath), null, null)
-        }
+        DownloadStorageStore.scanFiles(appContext, arrayOf(file.absolutePath))
 
         onDownloadSuccess(task.id, song, tier, file)
-    }
-
-    private const val MAX_RAW_COVER_BYTES = (2.5 * 1024 * 1024).toLong() // 2.5 MB
-    private const val COVER_COMPRESSION_QUALITY = 88
-
-    fun sanitizeCoverArt(rawBytes: ByteArray): ByteArray {
-        if (rawBytes.size <= MAX_RAW_COVER_BYTES) {
-            return rawBytes
-        }
-        return try {
-            val bitmap = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size) ?: return rawBytes
-            try {
-                val bos = ByteArrayOutputStream(rawBytes.size / 4)
-                val success = bitmap.compress(Bitmap.CompressFormat.JPEG, COVER_COMPRESSION_QUALITY, bos)
-                if (success) {
-                    val compressed = bos.toByteArray()
-                    if (compressed.isNotEmpty() && compressed.size < rawBytes.size) {
-                        Log.i(TAG, "Compressed oversized cover from ${rawBytes.size} bytes to ${compressed.size} bytes (${bitmap.width}x${bitmap.height})")
-                        return compressed
-                    }
-                }
-                rawBytes
-            } finally {
-                bitmap.recycle()
-            }
-        } catch (t: Throwable) {
-            try {
-                Log.w(TAG, "Failed to compress oversized cover art, keeping raw bytes", t)
-            } catch (e: Throwable) {
-                if (e is CancellationException) throw e
-                Log.w("DownloadStatus", "Operation failed", e)
-            }
-            rawBytes
-        }
-    }
-
-    private suspend fun embedMetadata(
-        taskId: String,
-        song: Song,
-        tier: AudioQualityTier,
-        file: File,
-        apiService: MusicApiService,
-    ) {
-        var coverBytes: ByteArray? = null
-        var lyricsMerged: String? = null
-
-        val isStandardOrHq = tier == AudioQualityTier.Standard || tier == AudioQualityTier.HQ
-        val candidateUrls =
-            if (isStandardOrHq) {
-                listOf(
-                    CoverUrlResolver.replaceDimension(song.coverUrl, 1200),
-                    CoverUrlResolver.replaceDimension(song.coverUrl, 800),
-                    song.coverUrl,
-                )
-            } else {
-                song.rawCoverCandidates.ifEmpty {
-                    listOf(
-                        CoverUrlResolver.getRawUrlOnly(song.coverUrl) ?: "",
-                        CoverUrlResolver.replaceDimension(song.coverUrl, 1200),
-                        song.coverUrl,
-                    )
-                }
-            }.filter { it.isNotBlank() && !it.startsWith("file://") }.distinct()
-
-        for (candidateUrl in candidateUrls) {
-            if (!coroutineContext.isActive) break
-            try {
-                val coverReq = Request.Builder().url(candidateUrl).build()
-                val coverCall = httpClient.newCall(coverReq)
-                activeCalls[taskId] = coverCall
-                val coverResp = coverCall.execute()
-                if (coverResp.isSuccessful) {
-                    val bodyBytes = coverResp.body.bytes()
-                    if (bodyBytes.isNotEmpty()) {
-                        coverBytes = sanitizeCoverArt(bodyBytes)
-                        break
-                    }
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.w(TAG, "Failed to fetch candidate cover from $candidateUrl", e)
-            } finally {
-                activeCalls.remove(taskId)
-            }
-        }
-
-        val lyricSettings = AppSettingsManager.settings.value
-        val saveMode = lyricSettings.lyricSaveMode
-        val includeTranslation = lyricSettings.saveLyricTranslation
-
-        try {
-            val cachedLyrics =
-                org.melodist.data.LyricCacheManager
-                    .getLyrics(song.songMid)
-            val lyricLines = cachedLyrics ?: apiService.getLyrics(song.songMid, song.songId)
-            if (lyricLines.isNotEmpty()) {
-                val sb = StringBuilder()
-                for (line in lyricLines) {
-                    val timeStr = formatLrcTime(line.timestampMs)
-                    sb.append("[$timeStr]${line.text}\n")
-                    if (includeTranslation && line.hasTranslation && line.transText.isNotBlank()) {
-                        sb.append("[$timeStr]${line.transText}\n")
-                    }
-                }
-                lyricsMerged = sb.toString().trim()
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Log.w(TAG, "Error fetching lyrics for download", e)
-        }
-
-        if (!lyricsMerged.isNullOrBlank() && (saveMode == LyricSaveMode.LrcFile || saveMode == LyricSaveMode.Both)) {
-            try {
-                val lrcFile = File(file.parentFile, "${file.nameWithoutExtension}.lrc")
-                lrcFile.writeText(lyricsMerged, Charsets.UTF_8)
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Log.w(TAG, "Failed to write companion lrc file for ${file.name}", e)
-            }
-        }
-
-        try {
-            val metadataPayload =
-                AudioMetadataWriter.MetadataPayload(
-                    title = song.name,
-                    artist = song.singer,
-                    album = song.album.ifBlank { song.name },
-                    lyrics = if (saveMode == LyricSaveMode.Embedded || saveMode == LyricSaveMode.Both) lyricsMerged else null,
-                    coverBytes = coverBytes,
-                    coverMime = "image/jpeg",
-                )
-            AudioMetadataWriter.writeMetadata(file, metadataPayload)
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Log.w(TAG, "Failed to embed metadata, preserving raw audio: ${e.message}")
-        }
     }
 
     private fun onDownloadSuccess(
@@ -908,7 +568,13 @@ object DownloadManager {
 
         _activeTasks.value = _activeTasks.value.filter { it.id != taskId }
         saveActiveTasks()
-        val remaining = prunePreviousCopies(song.songMid, file.absolutePath)
+        val remaining =
+            DownloadStorageStore.prunePreviousCopies(
+                song.songMid,
+                file.absolutePath,
+                _completedTasks.value,
+                appContext,
+            )
         _completedTasks.value = listOf(completedTask) + remaining
         saveCompletedTasks()
 
@@ -931,8 +597,6 @@ object DownloadManager {
 
     /**
      * 暂停正在执行或排队中的下载任务。
-     *
-     * @param taskId 下载任务唯一 ID
      */
     fun pauseDownload(taskId: String) {
         try {
@@ -949,8 +613,6 @@ object DownloadManager {
 
     /**
      * 恢复暂停或失败的下载任务，重置错误状态并重新排队。
-     *
-     * @param taskId 下载任务唯一 ID
      */
     fun resumeDownload(taskId: String) {
         val task = _activeTasks.value.find { it.id == taskId } ?: return
@@ -962,8 +624,6 @@ object DownloadManager {
 
     /**
      * 取消下载任务并从活跃任务列表中移除，同步清理临时未完成文件。
-     *
-     * @param taskId 下载任务唯一 ID
      */
     fun cancelDownload(taskId: String) {
         try {
@@ -976,20 +636,8 @@ object DownloadManager {
         _activeTasks.value = _activeTasks.value.filter { it.id != taskId }
         saveActiveTasks()
         if (task != null) {
-            try {
-                val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
-                val allTiers = AudioQualityTier.entries
-                val possibleExts = listOf("flac", "mp3", "m4a", "wav")
-                for (t in allTiers) {
-                    val baseName = getStandardBaseName(task.song, t)
-                    for (ext in possibleExts) {
-                        val tempFile = File(targetDir, "$baseName.$ext.downloading")
-                        if (tempFile.exists()) tempFile.delete()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to clean temp file on cancel: $taskId", e)
-            }
+            val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
+            DownloadStorageStore.cleanTaskTempFiles(task.song, targetDir)
         }
         scheduleNextDownloads()
     }
@@ -1054,31 +702,14 @@ object DownloadManager {
         _activeTasks.value = emptyList()
         saveActiveTasks()
 
-        try {
-            val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
-            val allTiers = AudioQualityTier.entries
-            val possibleExts = listOf("flac", "mp3", "m4a", "wav")
-            for (task in tasksToClean) {
-                for (t in allTiers) {
-                    val baseName = getStandardBaseName(task.song, t)
-                    for (ext in possibleExts) {
-                        val tempFile = File(targetDir, "$baseName.$ext.downloading")
-                        if (tempFile.exists()) tempFile.delete()
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to clean temp files on cancelAll", e)
-        }
+        val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
+        DownloadStorageStore.cleanAllTempFiles(tasksToClean, targetDir)
 
         _toastEvent.tryEmit("已清空所有下载任务")
     }
 
     /**
      * 删除已完成的下载历史记录，可选择是否物理删除磁盘文件。
-     *
-     * @param taskId 下载任务唯一 ID
-     * @param deleteFile 是否同步物理删除目标音频文件，默认 true
      */
     fun deleteDownloaded(
         taskId: String,
@@ -1097,9 +728,6 @@ object DownloadManager {
 
     /**
      * 根据音频文件路径清理已完成下载记录。
-     *
-     * @param filePath 音频文件绝对路径
-     * @param deleteFile 是否同步物理删除目标音频文件，默认 true
      */
     fun deleteDownloadedByPath(
         filePath: String,
@@ -1120,9 +748,6 @@ object DownloadManager {
 
     /**
      * 根据歌曲唯一标识清理已完成下载记录。
-     *
-     * @param songMid 歌曲唯一标识符
-     * @param deleteFile 是否同步物理删除目标音频文件，默认 true
      */
     fun deleteDownloadedBySongMid(
         songMid: String,
@@ -1143,13 +768,5 @@ object DownloadManager {
             _completedTasks.value = _completedTasks.value.filter { it.song.songMid != songMid }
             saveCompletedTasks()
         }
-    }
-
-    private fun formatLrcTime(timeMs: Long): String {
-        val totalSec = timeMs / 1000
-        val min = totalSec / 60
-        val sec = totalSec % 60
-        val ms = (timeMs % 1000) / 10
-        return "%02d:%02d.%02d".format(min, sec, ms)
     }
 }
