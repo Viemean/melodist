@@ -15,7 +15,7 @@ subprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
     configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
-        version.set("1.5.0")
+        version.set("1.8.0")
         android.set(true)
         ignoreFailures.set(true)
         filter {
