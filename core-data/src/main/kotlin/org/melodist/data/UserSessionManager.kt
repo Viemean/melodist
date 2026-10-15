@@ -14,6 +14,9 @@ object UserSessionManager {
     private val scope = CoroutineScope(Dispatchers.IO)
     private var isObserving = false
 
+    @Volatile
+    private var isExplicitLogout = false
+
     fun init(context: Context) {
         val appContext = context.applicationContext
         PlaybackCredentialsPersistence.init(appContext)
@@ -24,8 +27,7 @@ object UserSessionManager {
                 UserSession.fromJson(jsonStr)
             }
         } catch (e: Exception) {
-            Log.w("UserSessionManager", "Failed to restore user session, resetting", e)
-            UserSession.clear()
+            Log.w("UserSessionManager", "Failed to restore user session", e)
         }
 
         if (!isObserving) {
@@ -35,8 +37,9 @@ object UserSessionManager {
                     try {
                         val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                         if (UserSession.isLoggedIn) {
+                            isExplicitLogout = false
                             prefs.edit().putString(KEY_PROFILE, UserSession.toJson()).commit()
-                        } else if (profile.uin.isBlank() && profile.cookies.isEmpty()) {
+                        } else if (isExplicitLogout) {
                             prefs.edit().remove(KEY_PROFILE).commit()
                         }
                     } catch (e: Exception) {
@@ -60,9 +63,10 @@ object UserSessionManager {
     }
 
     fun clear(context: Context) {
+        isExplicitLogout = true
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            prefs.edit().remove(KEY_PROFILE).apply()
+            prefs.edit().remove(KEY_PROFILE).commit()
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Log.w("UserSessionManager", "Operation failed", e)

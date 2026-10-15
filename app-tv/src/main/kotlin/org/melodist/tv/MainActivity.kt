@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -124,23 +126,63 @@ sealed interface TvScreenDestination {
 }
 
 class MainActivity : ComponentActivity() {
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var isInitialSessionChecked = false
+    private var lastSessionCheckTime = 0L
+
     private val screenPowerReceiver =
         object : BroadcastReceiver() {
             override fun onReceive(
                 context: Context?,
                 intent: Intent?,
             ) {
-                if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                    // 电视休眠息屏：暂停播放并保存当前进度
-                    PlaybackManager.pause()
-                    PlaybackManager.savePlaybackState()
+                when (intent?.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        // 电视休眠息屏：暂停播放并保存当前进度
+                        PlaybackManager.pause()
+                        PlaybackManager.savePlaybackState()
+                    }
+                    Intent.ACTION_SCREEN_ON -> {
+                        // 电视唤醒点亮：执行会话凭证健康检测
+                        checkAndRefreshUserSession("screen_on")
+                    }
                 }
             }
         }
 
+    private fun checkAndRefreshUserSession(source: String, force: Boolean = false) {
+        if (!UserSession.isLoggedIn) return
+        val now = System.currentTimeMillis()
+        if (!force && isInitialSessionChecked && (now - lastSessionCheckTime < 6 * 3600 * 1000L)) {
+            return
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val ok = MusicApiService().refreshCurrentUserProfile()
+                if (ok) {
+                    isInitialSessionChecked = true
+                    lastSessionCheckTime = System.currentTimeMillis()
+                } else {
+                    if (MusicApiService().forceRefreshMusicKeySafe()) {
+                        if (MusicApiService().refreshCurrentUserProfile()) {
+                            isInitialSessionChecked = true
+                            lastSessionCheckTime = System.currentTimeMillis()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                android.util.Log.w("MelodistTV", "Failed to refresh user profile from $source", e)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
         registerReceiver(screenPowerReceiver, filter)
         DeviceAudioCapability.init(this)
         UserSessionManager.init(this)
@@ -168,20 +210,22 @@ class MainActivity : ComponentActivity() {
         ScreenSaverManager.init()
         TvConnectManager.init(this)
         checkAndRequestStoragePermissions()
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (UserSession.isLoggedIn) {
-                try {
-                    val ok = MusicApiService().refreshCurrentUserProfile()
-                    if (!ok) {
-                        if (MusicApiService().forceRefreshMusicKeySafe()) {
-                            MusicApiService().refreshCurrentUserProfile()
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("MelodistTV", "Failed to refresh user profile on startup", e)
+
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        if (connectivityManager != null) {
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    checkAndRefreshUserSession("network_available")
                 }
             }
+            networkCallback = callback
+            try {
+                connectivityManager.registerDefaultNetworkCallback(callback)
+            } catch (e: Exception) {
+                android.util.Log.w("MelodistTV", "Failed to register network callback", e)
+            }
         }
+        checkAndRefreshUserSession("onCreate")
         setContent {
             MelodistTvTheme {
                 val currentPlayingSong by PlaybackManager.currentSong.collectAsState()
@@ -661,6 +705,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        checkAndRefreshUserSession("onResume")
+    }
+
     override fun onStop() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         val isInteractive = powerManager?.isInteractive ?: true
@@ -673,6 +722,12 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        networkCallback?.let { callback ->
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            try {
+                connectivityManager?.unregisterNetworkCallback(callback)
+            } catch (_: Exception) {}
+        }
         try {
             unregisterReceiver(screenPowerReceiver)
         } catch (e: Exception) {

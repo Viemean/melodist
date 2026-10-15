@@ -511,6 +511,13 @@ class LoginApiService(
                     if (refreshed) return@withLock true
                 }
 
+                val refreshToken = cookies["refresh_token"]
+                val musicId = cookies["musicid"] ?: cookies["uin"] ?: UserSession.profile.uin
+                if (!refreshToken.isNullOrEmpty() && musicId.isNotEmpty()) {
+                    val refreshed = refreshOfficialAppToken(musicId, refreshToken)
+                    if (refreshed) return@withLock true
+                }
+
                 val pskey = cookies["p_skey"] ?: cookies["skey"]
                 if (!pskey.isNullOrEmpty()) {
                     return@withLock exchangeOAuthForMusicKey(cookies)
@@ -656,6 +663,7 @@ class LoginApiService(
 
                 data["psrf_wxopenid"]?.jsonPrimitive?.contentOrNull?.let { cookies["openid"] = it }
                 data["psrf_wx_access_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["access_token"] = it }
+                data["psrf_wxrefresh_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_token"] = it }
 
                 val rawAvatar =
                     data["headimgurl"]?.jsonPrimitive?.contentOrNull
@@ -855,6 +863,70 @@ class LoginApiService(
                 }
             } catch (e: Exception) {
                 ApiLogger.e("LoginApiService", "exchangeOfficialAppLogin exception", e)
+                false
+            }
+        }
+
+    /**
+     * 使用官方 App 扫码登录下发的 refresh_token 刷新 musickey 鉴权凭证。
+     *
+     * @param musicId 用户识别标识（musicid 或 uin）
+     * @param refreshToken 官方登录下发的长效刷新令牌
+     * @return 刷新并写入新凭证成功返回 `true`，失败返回 `false`
+     */
+    suspend fun refreshOfficialAppToken(
+        musicId: String,
+        refreshToken: String,
+    ): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val numericUin = musicId.trimStart('o').toLongOrNull() ?: 0L
+                val payload =
+                    """
+                    {"comm":{"ct":11,"cv":14090008,"v":14090008,"chid":"10003505","tmeAppID":"qqmusic","tmeLoginType":6},"req_0":{"module":"music.login.LoginServer","method":"Login","param":{"musicid":$numericUin,"refresh_token":"$refreshToken"}}}
+                    """.trimIndent()
+
+                val request =
+                    Request
+                        .Builder()
+                        .url("https://u.y.qq.com/cgi-bin/musicu.fcg")
+                        .post(payload.toRequestBody(JSON_TYPE))
+                        .header("User-Agent", "QQMusic 14090008(android 14)")
+                        .build()
+
+                client.newCall(request).execute().use { resp ->
+                    val json = resp.body.string()
+                    val jsonElement = Json.parseToJsonElement(json).jsonObject
+                    val req0 = jsonElement["req_0"]?.jsonObject ?: return@withContext false
+                    if (req0["code"]?.jsonPrimitive?.intOrNull != 0) {
+                        ApiLogger.w("LoginApiService", "refreshOfficialAppToken rejected: $json")
+                        return@withContext false
+                    }
+
+                    val data = req0["data"]?.jsonObject ?: return@withContext false
+                    val musicKey = data["musickey"]?.jsonPrimitive?.contentOrNull ?: return@withContext false
+                    if (musicKey.isEmpty()) return@withContext false
+
+                    val cookies = UserSession.profile.cookies.toMutableMap()
+                    cookies["musickey"] = musicKey
+                    cookies["qm_keyst"] = musicKey
+                    cookies["qqmusic_key"] = musicKey
+                    data["refresh_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_token"] = it }
+                    data["refresh_key"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_key"] = it }
+
+                    UserSession.update(
+                        uin = UserSession.profile.uin,
+                        nick = UserSession.profile.nick,
+                        musicKey = musicKey,
+                        cookies = cookies.toMap(),
+                        avatarUrl = UserSession.profile.avatarUrl,
+                        isVip = UserSession.profile.isVip,
+                    )
+                    true
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                ApiLogger.w("LoginApiService", "refreshOfficialAppToken exception", e)
                 false
             }
         }
