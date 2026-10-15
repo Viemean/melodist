@@ -256,9 +256,15 @@ fun SettingSwitchCard(
 
             val pillBgColor =
                 when {
-                    isFocused && checked -> Color(0xFF0D9488) // 获焦开启：翡翠青绿底
-                    isFocused && !checked -> Color(0xFF2C313A) // 获焦关闭：深石板黑底
-                    !isFocused && checked -> MelodistColors.AccentGreen // 未获焦开启：明绿底
+                    isFocused && checked -> Color(0xFF0D9488)
+
+                    // 获焦开启：翡翠青绿底
+                    isFocused && !checked -> Color(0xFF2C313A)
+
+                    // 获焦关闭：深石板黑底
+                    !isFocused && checked -> MelodistColors.AccentGreen
+
+                    // 未获焦开启：明绿底
                     else -> Color.White.copy(alpha = 0.12f) // 未获焦关闭：暗底
                 }
             val pillTextColor =

@@ -215,7 +215,6 @@ fun PlayerQueueSidebar(
                     ) {
                         itemsIndexed(playlist, key = { index, item -> "${item.songMid}_$index" }) { index, song ->
                             val isCurrentPlaying = song.songMid == currentSong?.songMid
-                            val isFirst = index == 0
 
                             TvQueueSongRow(
                                 index = index + 1,
@@ -360,11 +359,15 @@ private fun TvQueueSongRow(
                                 onPageLeft()
                                 true
                             }
+
                             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                                 onPageRight()
                                 true
                             }
-                            else -> false
+
+                            else -> {
+                                false
+                            }
                         }
                     } else {
                         false

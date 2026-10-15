@@ -48,7 +48,7 @@ class PlaybackUrlProbeTest {
 
         val fallbackCandidates =
             when (preferredTier) {
-                AudioQualityTier.Master ->
+                AudioQualityTier.Master -> {
                     listOf(
                         AudioQualityTier.Atmos,
                         AudioQualityTier.Dolby,
@@ -58,7 +58,9 @@ class PlaybackUrlProbeTest {
                         AudioQualityTier.HQ,
                         AudioQualityTier.Standard,
                     )
-                AudioQualityTier.Atmos ->
+                }
+
+                AudioQualityTier.Atmos -> {
                     listOf(
                         AudioQualityTier.Dolby,
                         AudioQualityTier.Premium,
@@ -67,7 +69,9 @@ class PlaybackUrlProbeTest {
                         AudioQualityTier.HQ,
                         AudioQualityTier.Standard,
                     )
-                AudioQualityTier.Dolby ->
+                }
+
+                AudioQualityTier.Dolby -> {
                     listOf(
                         AudioQualityTier.Premium,
                         AudioQualityTier.HiRes,
@@ -75,29 +79,41 @@ class PlaybackUrlProbeTest {
                         AudioQualityTier.HQ,
                         AudioQualityTier.Standard,
                     )
-                AudioQualityTier.Premium ->
+                }
+
+                AudioQualityTier.Premium -> {
                     listOf(
                         AudioQualityTier.HiRes,
                         AudioQualityTier.SQ,
                         AudioQualityTier.HQ,
                         AudioQualityTier.Standard,
                     )
-                AudioQualityTier.HiRes ->
+                }
+
+                AudioQualityTier.HiRes -> {
                     listOf(
                         AudioQualityTier.SQ,
                         AudioQualityTier.HQ,
                         AudioQualityTier.Standard,
                     )
-                AudioQualityTier.SQ ->
+                }
+
+                AudioQualityTier.SQ -> {
                     listOf(
                         AudioQualityTier.HQ,
                         AudioQualityTier.Standard,
                     )
-                AudioQualityTier.HQ ->
+                }
+
+                AudioQualityTier.HQ -> {
                     listOf(
                         AudioQualityTier.Standard,
                     )
-                AudioQualityTier.Standard -> emptyList()
+                }
+
+                AudioQualityTier.Standard -> {
+                    emptyList()
+                }
             }
 
         var selectedUrl: String? = null

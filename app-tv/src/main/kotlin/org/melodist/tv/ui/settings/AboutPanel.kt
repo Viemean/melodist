@@ -136,9 +136,11 @@ fun AboutPanel(menuRequester: FocusRequester) {
                                     updateFeedback = "发现新版本 ${result.tagName}"
                                     newVersionDialogResult = result
                                 }
+
                                 is UpdateResult.Latest -> {
                                     updateFeedback = "当前已是最新版本 (v${result.currentVersion})"
                                 }
+
                                 is UpdateResult.Error -> {
                                     updateFeedback = "检查更新失败: ${result.message}"
                                 }

@@ -507,7 +507,6 @@ open class QQMusicApiService : Service() {
                 listener: IQQMusicApiEventListener?,
             ): Bundle {
                 val callingUid = android.os.Binder.getCallingUid()
-                val callingPid = android.os.Binder.getCallingPid()
                 val callingPkg = packageManager.getNameForUid(callingUid)
                 Log.d(TAG, "registerEventListener: callingPkg=$callingPkg, events=$events")
                 if (listener != null) {

@@ -446,6 +446,7 @@ fun ArtistDetailScreen(
                             )
                         }
                     }
+
                     ArtistContentTab.Albums -> {
                         if (isLoadingAlbums && albums.isEmpty()) {
                             Column(modifier = Modifier.fillMaxSize()) {

@@ -49,7 +49,6 @@ fun TopNavBar(
     ) {
         NavItems.forEachIndexed { index, title ->
             val isSelected = index == selectedIndex
-            val interactionSource = remember { MutableInteractionSource() }
 
             val itemModifier =
                 Modifier

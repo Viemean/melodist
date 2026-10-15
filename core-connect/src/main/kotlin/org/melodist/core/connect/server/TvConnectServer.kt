@@ -347,12 +347,15 @@ class TvConnectServer(
             ConnectActions.PING -> {
                 sendAction(conn, ConnectActions.PONG)
             }
+
             ConnectActions.REQ_GET_PLAYER_STATE -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.RequestGetPlayerState) }
             }
+
             ConnectActions.REQ_GET_QUEUE_STATE -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.RequestGetQueueState) }
             }
+
             ConnectActions.PAIR_REQUEST -> {
                 val req = msg.decodeData<PairRequestPayload>(json) ?: return
                 val isTrusted =
@@ -390,6 +393,7 @@ class TvConnectServer(
                     }
                 }
             }
+
             ConnectActions.DISCONNECT -> {
                 activeClients.remove(conn)
                 if (_connectedDeviceFlow.value?.id == msg.payload) {
@@ -402,81 +406,98 @@ class TvConnectServer(
                     Log.w("PlaySong", "Operation failed", e)
                 }
             }
+
             ConnectActions.CMD_PLAY_SONG -> {
                 val cmd = msg.decodeData<PlaySongCommand>(json)
                 if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.PlaySong(cmd)) }
                 }
             }
+
             ConnectActions.CMD_ENQUEUE_NEXT -> {
                 val cmd = msg.decodeData<EnqueueNextCommand>(json)
                 if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.EnqueueNext(cmd)) }
                 }
             }
+
             ConnectActions.CMD_PAUSE -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.Pause) }
             }
+
             ConnectActions.CMD_RESUME -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.Resume) }
             }
+
             ConnectActions.CMD_PREVIOUS -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.Previous) }
             }
+
             ConnectActions.CMD_NEXT -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.Next) }
             }
+
             ConnectActions.CMD_SEEK -> {
                 val cmd = msg.decodeData<SeekCommand>(json)
                 if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.Seek(cmd.positionMs)) }
                 }
             }
+
             ConnectActions.CMD_SET_VOLUME -> {
                 val cmd = msg.decodeData<SetVolumeCommand>(json)
                 if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SetVolume(cmd.volume)) }
                 }
             }
+
             ConnectActions.CMD_SWITCH_TIER -> {
                 val cmd = msg.decodeData<org.melodist.core.connect.model.SwitchTierCommand>(json)
                 if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SwitchTier(cmd)) }
                 }
             }
+
             ConnectActions.CMD_TRIGGER_AOD -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.TriggerAod) }
             }
+
             ConnectActions.CMD_CYCLE_LOOP_MODE -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.CycleLoopMode) }
             }
+
             ConnectActions.CMD_OPEN_PLAYER -> {
                 scope.launch { _commandsFlow.emit(TvIncomingCommand.OpenPlayer) }
             }
+
             ConnectActions.CMD_GESTURE_SWIPE -> {
                 val payload = msg.decodeData<org.melodist.core.connect.model.GestureSwipePayload>(json)
                 if (payload != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.GestureSwipe(payload)) }
                 }
             }
+
             ConnectActions.CMD_TOGGLE_FAVORITE -> {
                 val cmd = msg.decodeData<org.melodist.core.connect.model.ToggleFavoriteCommand>(json)
                 if (cmd != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.ToggleFavorite(cmd)) }
                 }
             }
+
             ConnectActions.CMD_SYNC_LYRICS_SCROLL -> {
                 val payload = msg.decodeData<org.melodist.core.connect.model.LyricsScrollPayload>(json)
                 if (payload != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SyncLyricsScroll(payload)) }
                 }
             }
+
             ConnectActions.CMD_SYNC_LYRICS -> {
                 val payload = msg.decodeData<org.melodist.core.connect.model.LyricsSyncPayload>(json)
                 if (payload != null) {
                     scope.launch { _commandsFlow.emit(TvIncomingCommand.SyncLyrics(payload)) }
                 }
             }
+
             ConnectActions.CMD_SYNC_QUEUE_CHUNK -> {
                 val cmd = msg.decodeData<org.melodist.core.connect.model.SyncQueueChunkCommand>(json)
                 if (cmd != null) {

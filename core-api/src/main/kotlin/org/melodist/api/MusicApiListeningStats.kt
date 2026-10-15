@@ -139,6 +139,7 @@ internal fun parseListeningRecordReport(
                 ?.contentOrNull
                 ?.takeIf { it.isNotBlank() } ?: "今日听歌时长"
         }
+
         ListeningReportPeriod.Week -> {
             val ltObj = weekObj?.get("listenTime").asJsonObjectOrNull ?: rootListenTime
             listenTimeSec = ltObj?.get("listenTimeSec").asJsonPrimitiveOrNull?.longOrNull ?: 0L
@@ -152,6 +153,7 @@ internal fun parseListeningRecordReport(
                 ?.contentOrNull
                 ?.takeIf { it.isNotBlank() } ?: "本周日均"
         }
+
         ListeningReportPeriod.Month -> {
             val ltObj = rootListenTime
             listenTimeSec = ltObj?.get("listenTimeSec").asJsonPrimitiveOrNull?.longOrNull ?: 0L
@@ -162,6 +164,7 @@ internal fun parseListeningRecordReport(
             val monthNum = dateKey.takeLast(2).toIntOrNull()
             title = if (monthNum != null) "${monthNum}月听歌首数" else "本月听歌首数"
         }
+
         ListeningReportPeriod.Year -> {
             val ltObj = rootListenTime
             listenTimeSec = ltObj?.get("listenTimeSec").asJsonPrimitiveOrNull?.longOrNull ?: 0L
@@ -192,6 +195,7 @@ internal fun parseListeningRecordReport(
                         ListeningChartPoint(slot = slot, value = value, avgValue = avg, text = text)
                     }?.sortedBy { it.slot.toIntOrNull() ?: 0 } ?: emptyList()
             }
+
             ListeningReportPeriod.Week -> {
                 val chartInfoObj =
                     weekObj
@@ -211,6 +215,7 @@ internal fun parseListeningRecordReport(
                     emptyList()
                 }
             }
+
             ListeningReportPeriod.Month -> {
                 val optResultsObj = barObj?.get("optionResults").asJsonObjectOrNull
                 optResultsObj?.entries?.sortedBy { it.key }?.mapNotNull { (monthKey, arrElem) ->
@@ -222,6 +227,7 @@ internal fun parseListeningRecordReport(
                     ListeningChartPoint(slot = monthKey, value = value, text = label, avatarUrl = avatar)
                 } ?: emptyList()
             }
+
             ListeningReportPeriod.Year -> {
                 val optResultsObj = barObj?.get("optionResults").asJsonObjectOrNull
                 optResultsObj?.entries?.sortedBy { it.key }?.mapNotNull { (yearKey, arrElem) ->

@@ -91,8 +91,14 @@ fun AcrPillBar(
                         if (up != null) {
                             up.consume()
                             when (uiState) {
-                                is MobileAcrUiState.Success -> onExpand()
-                                is MobileAcrUiState.Listening -> onCancel()
+                                is MobileAcrUiState.Success -> {
+                                    onExpand()
+                                }
+
+                                is MobileAcrUiState.Listening -> {
+                                    onCancel()
+                                }
+
                                 else -> {}
                             }
                         }
@@ -119,6 +125,7 @@ fun AcrPillBar(
                         onCancel = onCancel,
                     )
                 }
+
                 PillMode.Success -> {
                     val song = (uiState as? MobileAcrUiState.Success)?.song
                     if (song != null) {
@@ -139,7 +146,10 @@ fun AcrPillBar(
                         }
                     }
                 }
-                PillMode.Empty -> Box(Modifier.fillMaxSize())
+
+                PillMode.Empty -> {
+                    Box(Modifier.fillMaxSize())
+                }
             }
         }
     }

@@ -107,10 +107,14 @@ object RawCoverHelper {
                 name.startsWith("cover_") && !name.startsWith("cover_raw_") -> {
                     name.removePrefix("cover_").substringBeforeLast(".")
                 }
+
                 name.startsWith("webdav_") && !name.startsWith("webdav_raw_") -> {
                     name.removePrefix("webdav_").substringBeforeLast(".")
                 }
-                else -> return null
+
+                else -> {
+                    return null
+                }
             }
 
         val prefix = if (name.startsWith("webdav_")) "webdav_raw_" else "cover_raw_"

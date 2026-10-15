@@ -562,6 +562,7 @@ class PlaybackQueueManager(
                         findPreviousNonVipIndex(fallback, list)
                     }
                 }
+
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
                 -> {
@@ -625,9 +626,12 @@ class PlaybackQueueManager(
                         findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
                     }
                 }
+
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
-                -> findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
+                -> {
+                    findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
+                }
             }
         return if (nextIndex in list.indices) list[nextIndex] else null
     }
@@ -764,9 +768,12 @@ class PlaybackQueueManager(
                         findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
                     }
                 }
+
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
-                -> findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
+                -> {
+                    findNextNonVipIndex((_currentIndex.value + 1) % list.size, list)
+                }
             }
         if (nextIndex in list.indices) {
             _currentIndex.value = nextIndex
@@ -810,6 +817,7 @@ class PlaybackQueueManager(
                         findPreviousNonVipIndex(fallback, list)
                     }
                 }
+
                 PlaybackLoopMode.SingleRepeat,
                 PlaybackLoopMode.ListRepeat,
                 -> {

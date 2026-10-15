@@ -495,6 +495,7 @@ fun SearchTvScreen(
                                                     fKeyRequester.requestFocus()
                                                     true
                                                 }
+
                                                 // 按 → 快速向下翻页
                                                 Key.DirectionRight -> {
                                                     val step = 7
@@ -507,7 +508,10 @@ fun SearchTvScreen(
                                                     }
                                                     true
                                                 }
-                                                else -> false
+
+                                                else -> {
+                                                    false
+                                                }
                                             }
                                         } else {
                                             false

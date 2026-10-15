@@ -527,6 +527,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                             )
                                         }
                                     }
+
                                     3 -> {
                                         put("seekTime", offsetMs)
                                         put("songOffset", offsetMs)
@@ -542,6 +543,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                             )
                                         }
                                     }
+
                                     7 -> {
                                         put("seekTime", offsetMs)
                                         put("songOffset", offsetMs)
@@ -557,6 +559,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                             )
                                         }
                                     }
+
                                     4 -> {
                                         put("songOffset", 0)
                                         put(
@@ -569,6 +572,7 @@ suspend fun MusicApiService.sendListenTogetherSongOper(
                                             },
                                         )
                                     }
+
                                     1 -> {
                                         put("seekTime", offsetMs)
                                         put("songOffset", offsetMs)

@@ -321,6 +321,7 @@ fun PlaylistTvTrackList(
                                                     false
                                                 }
                                             }
+
                                             Key.DirectionLeft -> {
                                                 if (index >= 8) {
                                                     val targetIndex = (index - 8).coerceAtLeast(0)
@@ -333,7 +334,10 @@ fun PlaylistTvTrackList(
                                                     false
                                                 }
                                             }
-                                            else -> false
+
+                                            else -> {
+                                                false
+                                            }
                                         }
                                     } else {
                                         false

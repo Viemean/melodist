@@ -148,12 +148,14 @@ fun AcrResultCard(
                                         cardOffsetX.snapTo(cardOffsetX.value + dragAmount.x)
                                     }
                                 }
+
                                 false -> {
                                     if (totalDragY >= 0f) {
                                         // 下滑拉出全屏播放器
                                         topSheetDragController?.onDrag?.invoke(dragAmount.y)
                                     }
                                 }
+
                                 null -> {}
                             }
                         },
@@ -163,7 +165,6 @@ fun AcrResultCard(
                             val velocityX = velocity.x
                             val velocityY = velocity.y
                             val dismissThresholdX = with(density) { 48.dp.toPx() }
-                            val dismissThresholdY = with(density) { 36.dp.toPx() }
 
                             when (isHorizontalDrag) {
                                 true -> {
@@ -190,6 +191,7 @@ fun AcrResultCard(
                                         }
                                     }
                                 }
+
                                 false -> {
                                     // 仅向下滑动时驱动 topSheet 展开判定；取消卡片本身上滑强制收起
                                     if (totalDragY > 0f) {
@@ -198,6 +200,7 @@ fun AcrResultCard(
                                         topSheetDragController?.onDragCancel?.invoke(onCollapse)
                                     }
                                 }
+
                                 null -> {
                                     // 未锁定方向时仅支持左右快扫塞回
                                     if (abs(velocityX) > 450f) {

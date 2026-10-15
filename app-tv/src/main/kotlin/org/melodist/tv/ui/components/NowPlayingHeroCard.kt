@@ -104,6 +104,7 @@ fun NowPlayingHeroCard(
                                     playPauseRequester.requestFocus()
                                     true
                                 }
+
                                 KeyEvent.KEYCODE_DPAD_UP -> {
                                     if (upFocusRequester != null) {
                                         try {
@@ -116,6 +117,7 @@ fun NowPlayingHeroCard(
                                         false
                                     }
                                 }
+
                                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                                     if (downFocusRequester != null) {
                                         try {
@@ -128,7 +130,10 @@ fun NowPlayingHeroCard(
                                         false
                                     }
                                 }
-                                else -> false
+
+                                else -> {
+                                    false
+                                }
                             }
                         } else {
                             false
@@ -250,6 +255,7 @@ fun NowPlayingHeroCard(
                                                             false
                                                         }
                                                     }
+
                                                     KeyEvent.KEYCODE_DPAD_UP -> {
                                                         if (upFocusRequester != null) {
                                                             try {
@@ -262,7 +268,10 @@ fun NowPlayingHeroCard(
                                                             false
                                                         }
                                                     }
-                                                    else -> false
+
+                                                    else -> {
+                                                        false
+                                                    }
                                                 }
                                             } else {
                                                 false
@@ -300,6 +309,7 @@ fun NowPlayingHeroCard(
                                                                 false
                                                             }
                                                         }
+
                                                         KeyEvent.KEYCODE_DPAD_UP -> {
                                                             if (upFocusRequester != null) {
                                                                 try {
@@ -312,7 +322,10 @@ fun NowPlayingHeroCard(
                                                                 false
                                                             }
                                                         }
-                                                        else -> false
+
+                                                        else -> {
+                                                            false
+                                                        }
                                                     }
                                                 } else {
                                                     false

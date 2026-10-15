@@ -398,6 +398,7 @@ private fun formatDateLabel(
                 date
             }
         }
+
         ListeningReportPeriod.Month -> {
             if (date.length >= 6) {
                 "${date.substring(0, 4)}年${date.substring(4, 6)}月"
@@ -405,9 +406,11 @@ private fun formatDateLabel(
                 date
             }
         }
+
         ListeningReportPeriod.Year -> {
             "${date.take(4)}年"
         }
+
         ListeningReportPeriod.Week -> {
             if (date.length == 8) {
                 "${date.substring(4, 6)}月${date.substring(6, 8)}日当周"

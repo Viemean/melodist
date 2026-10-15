@@ -244,12 +244,14 @@ fun SearchScreen(
                             songResults = list
                             hasMoreSongs = list.size >= 30
                         }
+
                         SearchTab.Playlist -> {
                             playlistPage = 1
                             val list = apiService.searchPlaylists(trimmed, page = 1, pageSize = 30)
                             playlistResults = list
                             hasMorePlaylists = list.size >= 30
                         }
+
                         SearchTab.Album -> {
                             albumPage = 1
                             val list = apiService.searchAlbums(trimmed, page = 1, pageSize = 30)
@@ -718,6 +720,7 @@ fun SearchScreen(
                                 )
                             }
                         }
+
                         SearchTab.Playlist -> {
                             if (playlistResults.isEmpty()) {
                                 Box(
@@ -815,6 +818,7 @@ fun SearchScreen(
                                 }
                             }
                         }
+
                         SearchTab.Album -> {
                             if (albumResults.isEmpty()) {
                                 Box(

@@ -212,12 +212,14 @@ fun MiniPlayerBar(
                                         dragOffsetX.snapTo(newOffset)
                                     }
                                 }
+
                                 MiniPlayerDragDirection.VERTICAL -> {
                                     if (dragAmount.y < 0f || accumulatedY < 0f) {
                                         change.consume()
                                         onDragUp?.invoke(dragAmount.y)
                                     }
                                 }
+
                                 MiniPlayerDragDirection.NONE -> {}
                             }
                         },
@@ -392,19 +394,28 @@ fun MiniPlayerBar(
                                             val progress = (kotlin.math.abs(offsetVal) / fullStepPx).coerceIn(0f, 1f)
                                             (1f - progress * 0.45f).coerceIn(0.2f, 1f)
                                         }
+
                                         isPrev -> {
                                             if (offsetVal > 0.5f) {
                                                 val progress = (offsetVal / fullStepPx).coerceIn(0f, 1f)
                                                 progress * 0.9f
-                                            } else 0f
+                                            } else {
+                                                0f
+                                            }
                                         }
+
                                         isNext -> {
                                             if (offsetVal < -0.5f) {
                                                 val progress = (-offsetVal / fullStepPx).coerceIn(0f, 1f)
                                                 progress * 0.9f
-                                            } else 0f
+                                            } else {
+                                                0f
+                                            }
                                         }
-                                        else -> 0f
+
+                                        else -> {
+                                            0f
+                                        }
                                     }
 
                                 MiniPlayerSongContent(

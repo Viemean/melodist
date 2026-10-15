@@ -34,8 +34,14 @@ object AudioMetadataWriter {
         val ext = audioFile.extension.lowercase()
         return try {
             when (ext) {
-                "flac" -> writeFlacMetadata(audioFile, payload)
-                "mp3" -> writeMp3Metadata(audioFile, payload)
+                "flac" -> {
+                    writeFlacMetadata(audioFile, payload)
+                }
+
+                "mp3" -> {
+                    writeMp3Metadata(audioFile, payload)
+                }
+
                 else -> {
                     // 其他格式（如 m4a / ogg / wav），若为 mp3 内容也尝试 mp3 写入，否则仅保留原样
                     if (isMp3Stream(audioFile)) {
@@ -128,10 +134,15 @@ object AudioMetadataWriter {
                     }
 
                     when (blockType) {
-                        0 -> streamInfoBlock = data // STREAMINFO
+                        0 -> {
+                            streamInfoBlock = data
+                        }
+
+                        // STREAMINFO
                         4, 6 -> {
                             // 旧的 VORBIS_COMMENT 或 PICTURE，丢弃替换为最新
                         }
+
                         else -> {
                             // 保留其他元数据块（如 SEEKTABLE）
                             val fullBlock = ByteArray(4 + length)

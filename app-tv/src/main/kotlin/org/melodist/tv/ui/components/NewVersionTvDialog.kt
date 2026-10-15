@@ -217,6 +217,7 @@ fun NewVersionTvDialog(
                             }
                         }
                     }
+
                     is UpdateDownloadState.Completed -> {
                         Text(
                             text = "安装包已下载完毕，按确认键直接调起系统安装器。",
@@ -224,6 +225,7 @@ fun NewVersionTvDialog(
                             color = MelodistColors.AccentGreen,
                         )
                     }
+
                     is UpdateDownloadState.Error -> {
                         Text(
                             text = "下载失败: ${state.message}",
@@ -231,6 +233,7 @@ fun NewVersionTvDialog(
                             color = Color(0xFFEF4444),
                         )
                     }
+
                     is UpdateDownloadState.Idle -> {}
                 }
 
@@ -309,6 +312,7 @@ fun NewVersionTvDialog(
                                 )
                             }
                         }
+
                         is UpdateDownloadState.Downloading -> {
                             Button(
                                 onClick = {},
@@ -333,6 +337,7 @@ fun NewVersionTvDialog(
                                 )
                             }
                         }
+
                         is UpdateDownloadState.Error -> {
                             Button(
                                 onClick = {
@@ -371,6 +376,7 @@ fun NewVersionTvDialog(
                                 )
                             }
                         }
+
                         is UpdateDownloadState.Idle -> {
                             Button(
                                 onClick = {

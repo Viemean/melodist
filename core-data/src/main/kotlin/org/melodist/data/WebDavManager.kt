@@ -815,7 +815,6 @@ object WebDavManager {
             var existingRaw = getSongRawCoverPath(server.id, relativeHref)
             val folder = getSafeCoversDir()
             val hash = (server.id + relativeHref).hashCode().toString().replace("-", "n")
-            val targetWebp = File(folder, "webdav_$hash.webp")
             var finalCoverUrl = existingCover
             var finalRawCoverUrl = existingRaw
             var finalTier: org.melodist.model.AudioQualityTier? = null

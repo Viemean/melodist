@@ -342,6 +342,7 @@ object TvConnectManager {
                     }
                     broadcastQueueNow()
                 }
+
                 is TvIncomingCommand.SyncQueueChunk -> {
                     val cmd = command.command
                     if (currentQueueSyncId != cmd.syncId) {
@@ -361,32 +362,41 @@ object TvConnectManager {
                         }
                     }
                 }
+
                 is TvIncomingCommand.EnqueueNext -> {
                     PlaybackManager.insertNextPlay(command.command.song)
                     broadcastQueueNow()
                 }
+
                 is TvIncomingCommand.SwitchTier -> {
                     PlaybackManager.switchTier(command.command.tier)
                     broadcastPlayerStateNow()
                 }
+
                 is TvIncomingCommand.Pause -> {
                     PlaybackManager.pause()
                 }
+
                 is TvIncomingCommand.Resume -> {
                     PlaybackManager.play()
                 }
+
                 is TvIncomingCommand.Previous -> {
                     PlaybackManager.playPrevious()
                 }
+
                 is TvIncomingCommand.Next -> {
                     PlaybackManager.playNext()
                 }
+
                 is TvIncomingCommand.Seek -> {
                     PlaybackManager.seekTo(command.positionMs)
                 }
+
                 is TvIncomingCommand.SetVolume -> {
                     PlaybackManager.setVolume(command.volume)
                 }
+
                 is TvIncomingCommand.TriggerAod -> {
                     if (org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
                         org.melodist.tv.screensaver.ScreenSaverManager
@@ -396,18 +406,22 @@ object TvConnectManager {
                             .triggerScreenSaver()
                     }
                 }
+
                 is TvIncomingCommand.CycleLoopMode -> {
                     PlaybackManager.cycleLoopMode()
                     broadcastPlayerStateNow()
                 }
+
                 is TvIncomingCommand.OpenPlayer -> {
                     _navigateToPlayerEvent.tryEmit(Unit)
                 }
+
                 is TvIncomingCommand.GestureSwipe -> {
                     if (!org.melodist.tv.screensaver.ScreenSaverManager.isScreenSaverActive.value) {
                         TakeoverGestureState.updateGesture(command.payload)
                     }
                 }
+
                 is TvIncomingCommand.ToggleFavorite -> {
                     val cmd = command.command
                     val mid = cmd.songMid.ifBlank { cmd.song?.songMid.orEmpty() }
@@ -416,15 +430,19 @@ object TvConnectManager {
                         broadcastPlayerStateNow()
                     }
                 }
+
                 is TvIncomingCommand.SyncLyricsScroll -> {
                     TakeoverLyricsState.update(command.payload)
                 }
+
                 is TvIncomingCommand.RequestGetPlayerState -> {
                     broadcastPlayerStateNow()
                 }
+
                 is TvIncomingCommand.RequestGetQueueState -> {
                     broadcastQueueNow()
                 }
+
                 is TvIncomingCommand.SyncLyrics -> {
                     val payload = command.payload
                     PlaybackManager.setExternalLyrics(payload.songMid, payload.lyrics)

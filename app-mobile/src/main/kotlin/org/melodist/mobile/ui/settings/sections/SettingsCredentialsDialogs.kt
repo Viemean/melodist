@@ -306,12 +306,15 @@ fun SettingsCredentialsDialogs(
                             is PlaybackCredentialsManager.ImportValidationResult.Expired -> {
                                 importErrorMessage = "该凭证对应会员已过期，无法导入"
                             }
+
                             is PlaybackCredentialsManager.ImportValidationResult.NonVip -> {
                                 importErrorMessage = "该凭证账号非有效会员账号，无法导入"
                             }
+
                             is PlaybackCredentialsManager.ImportValidationResult.DowngradeWarning -> {
                                 pendingDowngradeResult = inspectResult
                             }
+
                             is PlaybackCredentialsManager.ImportValidationResult.Success -> {
                                 PlaybackCredentialsManager.setCredentials(inspectResult.credentials)
                                 showImportDialog = false

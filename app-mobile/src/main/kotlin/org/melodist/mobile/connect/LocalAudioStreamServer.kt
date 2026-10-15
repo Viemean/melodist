@@ -135,6 +135,7 @@ class LocalAudioStreamServer(
                         }
                         serveFileWithRange(file, rangeHeader, output, isHead)
                     }
+
                     fullPath.startsWith("/cover/local") -> {
                         val pathParam = extractQueryParam(fullPath, "path")
                         if (pathParam.isNullOrBlank()) {
@@ -149,6 +150,7 @@ class LocalAudioStreamServer(
                         }
                         serveCoverImage(file, output, isHead)
                     }
+
                     fullPath.startsWith("/stream/webdav") -> {
                         val serverParam = extractQueryParam(fullPath, "server")
                         val hrefParam = extractQueryParam(fullPath, "href")
@@ -160,6 +162,7 @@ class LocalAudioStreamServer(
                         val decodedHref = Uri.decode(hrefParam)
                         serveWebDavStream(decodedServer, decodedHref, rangeHeader, output)
                     }
+
                     fullPath.startsWith("/stream/proxy") -> {
                         val urlParam = extractQueryParam(fullPath, "url")
                         if (urlParam.isNullOrBlank()) {
@@ -169,6 +172,7 @@ class LocalAudioStreamServer(
                         val decodedUrl = Uri.decode(urlParam)
                         serveHttpProxy(decodedUrl, rangeHeader, output)
                     }
+
                     else -> {
                         sendNotFound(output)
                     }

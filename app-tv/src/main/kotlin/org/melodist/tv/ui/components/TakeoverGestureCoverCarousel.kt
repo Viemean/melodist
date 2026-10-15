@@ -151,6 +151,7 @@ fun TakeoverGestureCoverCarousel(
                     TakeoverGestureState.reset()
                 }
             }
+
             GestureSwipeState.SETTLING -> {
                 val target = gesturePayload.targetFraction
                 val dur = gesturePayload.durationMs.toInt().coerceIn(120, 350)
@@ -171,6 +172,7 @@ fun TakeoverGestureCoverCarousel(
                 }
                 TakeoverGestureState.reset()
             }
+
             GestureSwipeState.CANCEL -> {
                 animFraction.animateTo(
                     targetValue = 0f,
@@ -181,6 +183,7 @@ fun TakeoverGestureCoverCarousel(
                         ),
                 )
             }
+
             GestureSwipeState.IDLE -> {
                 if (animFraction.value != 0f) {
                     animFraction.snapTo(0f)
@@ -230,7 +233,6 @@ fun TakeoverGestureCoverCarousel(
                     if (slotSong != null) {
                         val f = animFraction.value
                         val isCenter = relativeStep == 0
-                        val isPrev = relativeStep == -1
                         val isNext = relativeStep == 1
 
                         val cardTranslationX =
@@ -246,16 +248,22 @@ fun TakeoverGestureCoverCarousel(
                                     val absF = abs(f)
                                     (1f - 0.12f * absF).coerceIn(0.88f, 1f)
                                 }
+
                                 isNext -> {
                                     if (f < -0.001f) {
                                         val absFrac = -f
                                         (0.88f + 0.12f * absFrac).coerceIn(0.88f, 1f)
-                                    } else 0.88f
+                                    } else {
+                                        0.88f
+                                    }
                                 }
+
                                 else -> {
                                     if (f > 0.001f) {
                                         (0.88f + 0.12f * f).coerceIn(0.88f, 1f)
-                                    } else 0.88f
+                                    } else {
+                                        0.88f
+                                    }
                                 }
                             }
 
@@ -265,16 +273,22 @@ fun TakeoverGestureCoverCarousel(
                                     val absF = abs(f)
                                     (1f - 0.35f * absF).coerceIn(0.65f, 1f)
                                 }
+
                                 isNext -> {
                                     if (f < -0.001f) {
                                         val absFrac = -f
                                         (0.60f + 0.40f * absFrac).coerceIn(0.60f, 1f)
-                                    } else 0f
+                                    } else {
+                                        0f
+                                    }
                                 }
+
                                 else -> {
                                     if (f > 0.001f) {
                                         (0.60f + 0.40f * f).coerceIn(0.60f, 1f)
-                                    } else 0f
+                                    } else {
+                                        0f
+                                    }
                                 }
                             }
 

@@ -485,40 +485,49 @@ class MobileConnectClient(
                     _connectionState.value = MobileConnectionState.Error(resp.message.ifBlank { "Pairing rejected" })
                 }
             }
+
             ConnectActions.EVENT_PLAY_STATE -> {
                 val state = msg.decodeData<PlayerStateEvent>(json)
                 if (state != null) {
                     _playerState.value = state
                 }
             }
+
             ConnectActions.EVENT_QUEUE_STATE -> {
                 val queue = msg.decodeData<QueueStateEvent>(json)
                 if (queue != null) {
                     _queueState.value = queue
                 }
             }
+
             ConnectActions.EVENT_SYNC_LYRICS -> {
                 val payload = msg.decodeData<org.melodist.core.connect.model.LyricsSyncPayload>(json)
                 if (payload != null) {
                     _lyricsSyncFlow.tryEmit(payload)
                 }
             }
+
             ConnectActions.CMD_NEXT -> {
                 _commandsFlow.tryEmit(MobileIncomingCommand.Next)
             }
+
             ConnectActions.CMD_PREVIOUS -> {
                 _commandsFlow.tryEmit(MobileIncomingCommand.Previous)
             }
+
             ConnectActions.CMD_PLAY_SONG -> {
                 val song = msg.decodeData<Song>(json)
                 _commandsFlow.tryEmit(MobileIncomingCommand.PlaySong(song))
             }
+
             ConnectActions.CMD_CYCLE_LOOP_MODE -> {
                 _commandsFlow.tryEmit(MobileIncomingCommand.CycleLoopMode)
             }
+
             ConnectActions.CMD_PAUSE -> {
                 _commandsFlow.tryEmit(MobileIncomingCommand.Pause)
             }
+
             ConnectActions.CMD_RESUME -> {
                 _commandsFlow.tryEmit(MobileIncomingCommand.Resume)
             }

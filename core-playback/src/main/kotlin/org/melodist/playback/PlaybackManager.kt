@@ -629,15 +629,18 @@ object PlaybackManager {
                             }
                         }
                     }
+
                     Player.STATE_ENDED -> {
                         _isSwitchingQuality.value = false
                         handleSongEnded()
                     }
+
                     Player.STATE_BUFFERING -> {
                         if (!_isSwitchingQuality.value) {
                             _isLoading.value = true
                         }
                     }
+
                     Player.STATE_IDLE -> {
                         _isSwitchingQuality.value = false
                     }
@@ -720,8 +723,14 @@ object PlaybackManager {
                                 val bitrate = format.bitrate
                                 val bitDepth =
                                     when (format.pcmEncoding) {
-                                        C.ENCODING_PCM_24BIT -> 24
-                                        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 32
+                                        C.ENCODING_PCM_24BIT -> {
+                                            24
+                                        }
+
+                                        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> {
+                                            32
+                                        }
+
                                         else -> {
                                             val currentTier = _currentTier.value
                                             val probedDepth = probedQualityOptions.value.find { it.tier == currentTier }?.bitDepth ?: 0
@@ -932,6 +941,7 @@ object PlaybackManager {
                             apiService.reportRecentHistory(id = id, type = RecentHistoryType.Album)
                         }
                     }
+
                     is PlaybackSourceContext.Playlist -> {
                         val id = context.id
                         if (id.isNotBlank() && !id.startsWith("local_") && !id.startsWith("webdav_")) {
@@ -1578,6 +1588,7 @@ object PlaybackManager {
                             }
                         }
                     }
+
                     is PlaybackTargetResult.LocalStream -> {
                         _currentTier.value = target.actualTier
                         _isCurrentTrackFromCache.value = false
@@ -1592,6 +1603,7 @@ object PlaybackManager {
                         savePlaybackState()
                         loadLyricsForSong(song)
                     }
+
                     is PlaybackTargetResult.WebDavLocalCache -> {
                         _currentTier.value = target.actualTier
                         _isCurrentTrackFromCache.value = true
@@ -1608,6 +1620,7 @@ object PlaybackManager {
                         loadLyricsForSong(song)
                         triggerWebDavMetadataAndCoverHeal(song)
                     }
+
                     is PlaybackTargetResult.WebDavStream -> {
                         _currentTier.value = target.actualTier
                         _isCurrentTrackFromCache.value = false
@@ -1623,6 +1636,7 @@ object PlaybackManager {
                         loadLyricsForSong(song)
                         triggerWebDavMetadataAndCoverHeal(song)
                     }
+
                     is PlaybackTargetResult.Online -> {
                         _currentTier.value = target.actualTier
                         _isCurrentTrackFromCache.value = target.isDirectCached
@@ -1639,6 +1653,7 @@ object PlaybackManager {
                         savePlaybackState()
                         loadLyricsForSong(song)
                     }
+
                     is PlaybackTargetResult.Failure -> {
                         handlePlaybackFailure(target.message, target.allowRetry)
                     }
@@ -2429,7 +2444,10 @@ object PlaybackManager {
                 exoPlayer?.play()
                 _isTransitioning.value = false
             }
-            else -> playNext()
+
+            else -> {
+                playNext()
+            }
         }
     }
 

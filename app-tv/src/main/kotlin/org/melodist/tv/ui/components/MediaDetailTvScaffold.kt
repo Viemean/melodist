@@ -585,6 +585,7 @@ fun MediaDetailTvScaffold(
                                                                         false
                                                                     }
                                                                 }
+
                                                                 Key.DirectionLeft -> {
                                                                     if (index >= 8) {
                                                                         val targetIndex = (index - 8).coerceAtLeast(0)
@@ -597,7 +598,10 @@ fun MediaDetailTvScaffold(
                                                                         false
                                                                     }
                                                                 }
-                                                                else -> false
+
+                                                                else -> {
+                                                                    false
+                                                                }
                                                             }
                                                         } else {
                                                             false

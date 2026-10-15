@@ -128,13 +128,22 @@ internal object MqttProtocol {
 
         while (buf.position() < propsEnd && buf.hasRemaining()) {
             when (buf.get()) {
-                SERVER_REFERENCE -> serverRef = readUtf8String(buf)
-                REASON_STRING -> readUtf8String(buf)
+                SERVER_REFERENCE -> {
+                    serverRef = readUtf8String(buf)
+                }
+
+                REASON_STRING -> {
+                    readUtf8String(buf)
+                }
+
                 USER_PROPERTY -> {
                     readUtf8String(buf)
                     readUtf8String(buf)
                 }
-                else -> break
+
+                else -> {
+                    break
+                }
             }
         }
 
@@ -157,7 +166,10 @@ internal object MqttProtocol {
                     val value = readUtf8String(buf)
                     userProps[key] = value
                 }
-                else -> break
+
+                else -> {
+                    break
+                }
             }
         }
         val payload = ByteArray(buf.remaining())

@@ -117,7 +117,7 @@ object ListenTogetherManager {
     init {
         scope.launch {
             PlaybackManager.playlist.collect { newPlaylist ->
-                val room = _currentRoom.value ?: return@collect
+                if (_currentRoom.value == null) return@collect
                 if (isSyncingFromRemote) return@collect
                 if (newPlaylist.isEmpty()) return@collect
 
@@ -156,7 +156,7 @@ object ListenTogetherManager {
                 }
 
                 override fun onSongPlay(song: Song) {
-                    val room = _currentRoom.value ?: return
+                    if (_currentRoom.value == null) return
                     if (song.songId == lastObservedSongId) {
                         return
                     }

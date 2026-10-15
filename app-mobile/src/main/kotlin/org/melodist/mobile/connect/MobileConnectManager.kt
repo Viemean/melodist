@@ -278,30 +278,37 @@ object MobileConnectManager {
                                                         isSyncingFromTv = false
                                                     }
                                                 }
+
                                                 diffMs > 800L -> {
                                                     // 手机显著落后 800ms ~ 3500ms：1.08x 较快平稳追赶
                                                     PlaybackManager.setPlaybackSpeed(1.08f)
                                                 }
+
                                                 diffMs > 350L -> {
                                                     // 手机中度落后 350ms ~ 800ms：1.05x 平稳追赶
                                                     PlaybackManager.setPlaybackSpeed(1.05f)
                                                 }
+
                                                 diffMs > 90L -> {
                                                     // 手机轻度落后 90ms ~ 350ms：通过 1.025x 播放速度追赶
                                                     PlaybackManager.setPlaybackSpeed(1.025f)
                                                 }
+
                                                 diffMs < -800L -> {
                                                     // 手机显著超前 800ms ~ 3500ms：0.92x 较快平稳等待
                                                     PlaybackManager.setPlaybackSpeed(0.92f)
                                                 }
+
                                                 diffMs < -350L -> {
                                                     // 手机中度超前 350ms ~ 800ms：0.95x 等待
                                                     PlaybackManager.setPlaybackSpeed(0.95f)
                                                 }
+
                                                 diffMs < -90L -> {
                                                     // 手机轻度超前 90ms ~ 350ms：通过 0.975x 播放速度对齐
                                                     PlaybackManager.setPlaybackSpeed(0.975f)
                                                 }
+
                                                 else -> {
                                                     // 时差在 90ms 死区容差内（过滤局域网 Wi-Fi 抖动），保持 1.0x 标准倍速，消除重采样毛刺
                                                     PlaybackManager.resetPlaybackSpeed()
@@ -390,19 +397,24 @@ object MobileConnectManager {
                     is org.melodist.core.connect.client.MobileIncomingCommand.Next -> {
                         tvNext()
                     }
+
                     is org.melodist.core.connect.client.MobileIncomingCommand.Previous -> {
                         tvPrev()
                     }
+
                     is org.melodist.core.connect.client.MobileIncomingCommand.PlaySong -> {
                         val targetSong = cmd.song ?: return@collect
                         playOnTv(targetSong)
                     }
+
                     is org.melodist.core.connect.client.MobileIncomingCommand.CycleLoopMode -> {
                         PlaybackManager.cycleLoopMode()
                     }
+
                     is org.melodist.core.connect.client.MobileIncomingCommand.Pause -> {
                         PlaybackManager.pause()
                     }
+
                     is org.melodist.core.connect.client.MobileIncomingCommand.Resume -> {
                         PlaybackManager.play()
                     }

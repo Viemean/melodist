@@ -332,16 +332,21 @@ fun getQualityTierSpec(
             isSelected && currentTrackSpec != null && currentTrackSpec.bitrateKbps > 0 -> {
                 currentTrackSpec.bitrateKbps
             }
+
             probedOption?.bitrate?.isNotBlank() == true && probedOption.bitrate.endsWith("kbps") -> {
                 probedOption.bitrate
                     .removeSuffix("kbps")
                     .trim()
                     .toIntOrNull() ?: 0
             }
+
             sizeBytes > 0L && songDurationSec > 0 -> {
                 ((sizeBytes * 8.0) / songDurationSec / 1000.0).toInt()
             }
-            else -> 0
+
+            else -> {
+                0
+            }
         }
     val bitrate = if (bitrateKbps > 0) "$bitrateKbps kbps" else ""
 

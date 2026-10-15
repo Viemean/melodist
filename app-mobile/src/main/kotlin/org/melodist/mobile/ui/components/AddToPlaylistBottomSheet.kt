@@ -176,6 +176,7 @@ fun AddToPlaylistBottomSheet(
                                                     onDismissRequest()
                                                     onSuccess?.invoke()
                                                 }
+
                                                 AddSongResult.AlreadyExists -> {
                                                     val msg =
                                                         if (onlineSongs.size == 1) {
@@ -187,6 +188,7 @@ fun AddToPlaylistBottomSheet(
                                                     onDismissRequest()
                                                     onSuccess?.invoke()
                                                 }
+
                                                 AddSongResult.Failed -> {
                                                     Toast.makeText(context, "添加到歌单失败", Toast.LENGTH_SHORT).show()
                                                 }
@@ -253,12 +255,14 @@ fun AddToPlaylistBottomSheet(
                             onSuccess?.invoke()
                             true
                         }
+
                         AddSongResult.AlreadyExists -> {
                             Toast.makeText(context, "歌单中已存在所选歌曲", Toast.LENGTH_SHORT).show()
                             onDismissRequest()
                             onSuccess?.invoke()
                             true
                         }
+
                         AddSongResult.Failed -> {
                             Toast.makeText(context, "歌单创建成功，但添加歌曲失败", Toast.LENGTH_SHORT).show()
                             false

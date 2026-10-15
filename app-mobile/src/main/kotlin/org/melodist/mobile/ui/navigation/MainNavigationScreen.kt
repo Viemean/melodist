@@ -331,6 +331,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                         durationText = durationText,
                     )
             }
+
             is MobileAcrUiState.Failed -> {
                 isAcrControllerActive = false
                 showAcrResultCard = false
@@ -338,6 +339,7 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                 delay(2000L)
                 acrViewModel.reset()
             }
+
             else -> {}
         }
     }
@@ -406,8 +408,14 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                     depth = baseDepth + screenStack.size,
                 )
             }
-            isSearching -> AppScreen.Search
-            else -> AppScreen.Home
+
+            isSearching -> {
+                AppScreen.Search
+            }
+
+            else -> {
+                AppScreen.Home
+            }
         }
 
     val previousScreen: AppScreen? =
@@ -419,11 +427,18 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                     depth = baseDepth + screenStack.size - 1,
                 )
             }
+
             screenStack.size == 1 -> {
                 if (isSearching) AppScreen.Search else AppScreen.Home
             }
-            isSearching -> AppScreen.Home
-            else -> null
+
+            isSearching -> {
+                AppScreen.Home
+            }
+
+            else -> {
+                null
+            }
         }
 
     CompositionLocalProvider(LocalAppNavigation provides navController) {
@@ -1008,23 +1023,29 @@ private fun RenderAppScreen(
                                 .weight(1f),
                     ) { page ->
                         when (HomeFilter.entries[page]) {
-                            HomeFilter.Discover ->
+                            HomeFilter.Discover -> {
                                 DiscoverScreen(
                                     contentPadding = innerPadding,
                                     onRequireLogin = onOpenLogin,
                                     onOpenPlayer = onOpenPlayer,
                                 )
-                            HomeFilter.Library ->
+                            }
+
+                            HomeFilter.Library -> {
                                 LibraryScreen(
                                     contentPadding = innerPadding,
                                     onRequireLogin = onOpenLogin,
                                     onOpenPlaylist = { playlist -> navController.navigateToPlaylist(playlist) },
                                 )
-                            HomeFilter.Recent ->
+                            }
+
+                            HomeFilter.Recent -> {
                                 RecentPlaybackScreen(
                                     contentPadding = innerPadding,
                                 )
-                            HomeFilter.Stats ->
+                            }
+
+                            HomeFilter.Stats -> {
                                 ListeningStatsScreen(
                                     contentPadding = innerPadding,
                                     onPlayPlaylist = { songs, startIndex ->
@@ -1033,26 +1054,36 @@ private fun RenderAppScreen(
                                         }
                                     },
                                 )
-                            HomeFilter.Download ->
+                            }
+
+                            HomeFilter.Download -> {
                                 DownloadMobileScreen(
                                     contentPadding = innerPadding,
                                 )
-                            HomeFilter.WebDav ->
+                            }
+
+                            HomeFilter.WebDav -> {
                                 WebDavMobileScreen(
                                     contentPadding = innerPadding,
                                 )
-                            HomeFilter.Local ->
+                            }
+
+                            HomeFilter.Local -> {
                                 LocalMusicMobileScreen(
                                     contentPadding = innerPadding,
                                 )
-                            HomeFilter.Remote ->
+                            }
+
+                            HomeFilter.Remote -> {
                                 RemoteControlMobileScreen(
                                     contentPadding = innerPadding,
                                 )
+                            }
                         }
                     }
                 }
             }
+
             is AppScreen.Search -> {
                 SearchScreen(
                     contentPadding = innerPadding,
@@ -1064,6 +1095,7 @@ private fun RenderAppScreen(
                             .statusBarsPadding(),
                 )
             }
+
             is AppScreen.Detail -> {
                 when (val currentScreen = screen.destination) {
                     is ScreenDestination.PlaylistDetail -> {
@@ -1073,6 +1105,7 @@ private fun RenderAppScreen(
                             onBack = { navController.navigateBack() },
                         )
                     }
+
                     is ScreenDestination.ArtistDetail -> {
                         ArtistDetailScreen(
                             artistMid = currentScreen.artistMid,
@@ -1081,6 +1114,7 @@ private fun RenderAppScreen(
                             onBack = { navController.navigateBack() },
                         )
                     }
+
                     is ScreenDestination.AlbumDetail -> {
                         AlbumDetailScreen(
                             albumMid = currentScreen.albumMid,
@@ -1089,6 +1123,7 @@ private fun RenderAppScreen(
                             onBack = { navController.navigateBack() },
                         )
                     }
+
                     is ScreenDestination.FavoriteAlbums -> {
                         FavoriteAlbumsScreen(
                             contentPadding = innerPadding,
@@ -1098,6 +1133,7 @@ private fun RenderAppScreen(
                             },
                         )
                     }
+
                     is ScreenDestination.RecentAlbums -> {
                         RecentAlbumsScreen(
                             contentPadding = innerPadding,
@@ -1107,6 +1143,7 @@ private fun RenderAppScreen(
                             },
                         )
                     }
+
                     is ScreenDestination.RecentPlaylists -> {
                         RecentPlaylistsScreen(
                             contentPadding = innerPadding,

@@ -308,6 +308,7 @@ fun PlaylistTvScreen(
                                     withContext(Dispatchers.Main) { hasMore = false }
                                 }
                             }
+
                             "playlists", "playlist_detail" -> {
                                 val cur = userPlaylists.getOrNull(selectedPlaylistIndex)
                                 val targetDirId = if (dirId > 0L) dirId else cur?.dirId ?: 0L
@@ -349,7 +350,10 @@ fun PlaylistTvScreen(
                                     more = false
                                 }
                             }
-                            else -> more = false
+
+                            else -> {
+                                more = false
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -378,6 +382,7 @@ fun PlaylistTvScreen(
                             hasMore = false
                         }
                     }
+
                     "radar" -> {
                         val moreSongs = apiService.getGuessRecommendSongs(count = 20)
                         val existingMids = playlistSongs.map { it.songMid }.toSet()
@@ -388,6 +393,7 @@ fun PlaylistTvScreen(
                             hasMore = false
                         }
                     }
+
                     "playlists", "playlist_detail" -> {
                         val cur = userPlaylists.getOrNull(selectedPlaylistIndex)
                         val targetDirId = if (dirId > 0L) dirId else cur?.dirId ?: 0L
@@ -499,6 +505,7 @@ fun PlaylistTvScreen(
                         }
                     }
                 }
+
                 "daily" -> {
                     val cachedData = DailyRecommendCacheManager.recommendFlow.value
                     val currentUin = if (UserSession.isLoggedIn) UserSession.profile.uin else ""
@@ -513,12 +520,14 @@ fun PlaylistTvScreen(
                     hasMore = false
                     saveToCache(songs, songs.size, false)
                 }
+
                 "radar" -> {
                     val radarSongs = apiService.getGuessRecommendSongs(count = 30)
                     playlistSongs = radarSongs
                     totalCount = radarSongs.size
                     hasMore = true
                 }
+
                 "million" -> {
                     val cachedData = org.melodist.data.MillionRecommendManager.resultFlow.value
                     val songs =
@@ -534,6 +543,7 @@ fun PlaylistTvScreen(
                     hasMore = false
                     saveToCache(songs, songs.size, false)
                 }
+
                 "recent" -> {
                     val recents = org.melodist.data.RecentPlaybackManager.recentSongsFlow.value
                     playlistSongs = recents
@@ -558,6 +568,7 @@ fun PlaylistTvScreen(
                         }
                     }
                 }
+
                 "playlists", "playlist_detail" -> {
                     val activePlaylist =
                         if (dirId > 0L || tid > 0L) {
@@ -624,6 +635,7 @@ fun PlaylistTvScreen(
                         hasMore = false
                     }
                 }
+
                 "collections", "album_detail" -> {
                     if (albumMid.isNotBlank()) {
                         val aSongs = apiService.getAlbumSongs(albumMid)
@@ -648,6 +660,7 @@ fun PlaylistTvScreen(
                         }
                     }
                 }
+
                 else -> {
                     if (songs.isNotEmpty()) {
                         playlistSongs = songs
@@ -696,6 +709,7 @@ fun PlaylistTvScreen(
                     "未登录账号 · 前往设置扫码可同步 QQ 音乐云端资产"
                 }
             }
+
             "daily" -> {
                 if (UserSession.isLoggedIn) {
                     if (isLoading) {
@@ -710,6 +724,7 @@ fun PlaylistTvScreen(
                     "未登录账号 · 前往设置扫码可获取个性化推荐"
                 }
             }
+
             "radar" -> {
                 if (UserSession.isLoggedIn) {
                     if (isLoading) {
@@ -721,6 +736,7 @@ fun PlaylistTvScreen(
                     "未登录账号 · 前往设置扫码可获取雷达推荐"
                 }
             }
+
             "million" -> {
                 if (UserSession.isLoggedIn) {
                     if (isLoading) {
@@ -732,6 +748,7 @@ fun PlaylistTvScreen(
                     "未登录账号 · 前往设置扫码可获取百万推荐"
                 }
             }
+
             "recent" -> {
                 if (isLoading) {
                     "正在同步最近播放记录..."
@@ -741,6 +758,7 @@ fun PlaylistTvScreen(
                     "暂无最近播放记录"
                 }
             }
+
             "playlists" -> {
                 if (UserSession.isLoggedIn) {
                     if (isLoading) {
@@ -754,6 +772,7 @@ fun PlaylistTvScreen(
                     "未登录账号 · 前往设置扫码可同步自建歌单"
                 }
             }
+
             "collections" -> {
                 if (UserSession.isLoggedIn) {
                     if (isLoading) {
@@ -767,7 +786,10 @@ fun PlaylistTvScreen(
                     "未登录账号 · 前往设置扫码可同步收藏专辑"
                 }
             }
-            else -> subtitle
+
+            else -> {
+                subtitle
+            }
         }
 
     val isReturning = isReturningFromPlayer || isReturningFromSubScreen

@@ -154,9 +154,18 @@ object AudioMetadataParser {
                                 val key = commentStr.substring(0, eqIdx).trim().uppercase()
                                 val value = commentStr.substring(eqIdx + 1).trim()
                                 when (key) {
-                                    "TITLE" -> if (title.isNullOrBlank()) title = value
-                                    "ARTIST" -> if (artist.isNullOrBlank()) artist = value
-                                    "ALBUM" -> if (album.isNullOrBlank()) album = value
+                                    "TITLE" -> {
+                                        if (title.isNullOrBlank()) title = value
+                                    }
+
+                                    "ARTIST" -> {
+                                        if (artist.isNullOrBlank()) artist = value
+                                    }
+
+                                    "ALBUM" -> {
+                                        if (album.isNullOrBlank()) album = value
+                                    }
+
                                     "LYRICS", "UNSYNCEDLYRICS", "SYNCEDLYRICS" -> {
                                         if (lyrics.isNullOrBlank()) lyrics = value
                                     }
@@ -254,14 +263,17 @@ object AudioMetadataParser {
                         val text = decodeId3Text(bytes, pos, frameDataLimit - pos)
                         if (!text.isNullOrBlank() && title.isNullOrBlank()) title = text
                     }
+
                     "TPE1" -> {
                         val text = decodeId3Text(bytes, pos, frameDataLimit - pos)
                         if (!text.isNullOrBlank() && artist.isNullOrBlank()) artist = text
                     }
+
                     "TALB" -> {
                         val text = decodeId3Text(bytes, pos, frameDataLimit - pos)
                         if (!text.isNullOrBlank() && album.isNullOrBlank()) album = text
                     }
+
                     "USLT" -> {
                         // USLT: encoding(1) + language(3) + desc\0 + lyrics
                         if (frameDataLimit - pos > 4) {
@@ -281,6 +293,7 @@ object AudioMetadataParser {
                             }
                         }
                     }
+
                     "APIC" -> {
                         // APIC: encoding(1) + mime\0 + picType(1) + desc\0 + picData
                         var cursor = pos + 1

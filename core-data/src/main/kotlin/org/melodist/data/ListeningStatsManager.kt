@@ -177,6 +177,7 @@ object ListeningStatsManager {
                 val todayStr = now.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 date < todayStr
             }
+
             ListeningReportPeriod.Week -> {
                 val currentMonday =
                     now.with(
@@ -186,10 +187,12 @@ object ListeningStatsManager {
                 val currentMondayStr = currentMonday.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
                 date < currentMondayStr
             }
+
             ListeningReportPeriod.Month -> {
                 val currentMonthStr = now.format(DateTimeFormatter.ofPattern("yyyyMM"))
                 date < currentMonthStr
             }
+
             ListeningReportPeriod.Year -> {
                 val currentYearStr = now.year.toString()
                 date < currentYearStr

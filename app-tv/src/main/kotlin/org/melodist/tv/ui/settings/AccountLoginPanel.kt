@@ -207,9 +207,11 @@ fun AccountLoginPanel(
                             QrStatus.Waiting -> {
                                 statusText = "请使用手机 QQ 扫描二维码"
                             }
+
                             QrStatus.Confirming -> {
                                 statusText = "已扫码，请在手机端确认授权"
                             }
+
                             QrStatus.Success -> {
                                 statusText = "授权成功，正在同步登录态..."
                                 try {
@@ -221,22 +223,26 @@ fun AccountLoginPanel(
                                 isPolling = false
                                 break
                             }
+
                             QrStatus.Expired -> {
                                 statusText = "二维码已过期，正在自动刷新..."
                                 refreshQr()
                                 break
                             }
+
                             QrStatus.Canceled -> {
                                 statusText = "用户取消授权"
                                 isPolling = false
                                 break
                             }
+
                             QrStatus.Error -> {
                                 statusText = poll.message
                             }
                         }
                     }
                 }
+
                 LoginChannel.WeChat -> {
                     val qrInfo = loginService.fetchWeChatQrCode()
                     val bitmap = BitmapFactory.decodeByteArray(qrInfo.imageBytes, 0, qrInfo.imageBytes.size)
@@ -252,9 +258,11 @@ fun AccountLoginPanel(
                             QrStatus.Waiting -> {
                                 statusText = "请使用微信扫描二维码"
                             }
+
                             QrStatus.Confirming -> {
                                 statusText = "已扫码，请在手机端确认授权"
                             }
+
                             QrStatus.Success -> {
                                 statusText = "授权成功，正在同步登录态..."
                                 try {
@@ -266,22 +274,26 @@ fun AccountLoginPanel(
                                 isPolling = false
                                 break
                             }
+
                             QrStatus.Expired -> {
                                 statusText = "二维码已过期，正在自动刷新..."
                                 refreshQr()
                                 break
                             }
+
                             QrStatus.Canceled -> {
                                 statusText = "用户取消授权"
                                 isPolling = false
                                 break
                             }
+
                             QrStatus.Error -> {
                                 statusText = poll.message
                             }
                         }
                     }
                 }
+
                 LoginChannel.QQMusic -> {
                     val qrInfo = loginService.fetchOfficialAppQrCode()
                     val bitmap = BitmapFactory.decodeByteArray(qrInfo.imageBytes, 0, qrInfo.imageBytes.size)
@@ -297,9 +309,11 @@ fun AccountLoginPanel(
                             QrStatus.Waiting -> {
                                 statusText = "请使用 QQ 音乐扫描二维码"
                             }
+
                             QrStatus.Confirming -> {
                                 statusText = "已扫码，请在手机端确认授权"
                             }
+
                             QrStatus.Success -> {
                                 statusText = "授权成功，正在同步登录态..."
                                 try {
@@ -311,16 +325,19 @@ fun AccountLoginPanel(
                                 isPolling = false
                                 break
                             }
+
                             QrStatus.Expired -> {
                                 statusText = "二维码已过期，正在自动刷新..."
                                 refreshQr()
                                 break
                             }
+
                             QrStatus.Canceled -> {
                                 statusText = "用户取消授权"
                                 isPolling = false
                                 break
                             }
+
                             QrStatus.Error -> {
                                 statusText = poll.message
                             }

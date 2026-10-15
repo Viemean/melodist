@@ -61,6 +61,7 @@ fun AudioAuditCard(
                     "正在分析音频频谱...",
                 )
             }
+
             auditResult?.verdict == AudioQualityVerdict.FAKE_LOSSLESS || auditResult?.verdict == AudioQualityVerdict.UPSAMPLED_HIRES -> {
                 Triple(
                     AmberWarningText,
@@ -68,6 +69,7 @@ fun AudioAuditCard(
                     if (auditResult.verdict == AudioQualityVerdict.UPSAMPLED_HIRES) "疑似升频" else "疑似假无损",
                 )
             }
+
             auditResult?.verdict == AudioQualityVerdict.AUTHENTIC -> {
                 Triple(
                     GreenSuccessText,
@@ -76,6 +78,7 @@ fun AudioAuditCard(
                         ?: (if (currentTier == AudioQualityTier.HiRes || currentTier == AudioQualityTier.Master) "真高解析度" else "真无损"),
                 )
             }
+
             auditResult?.verdict == AudioQualityVerdict.BANDWIDTH_LIMITED -> {
                 Triple(
                     BlueInfoText,
@@ -83,6 +86,7 @@ fun AudioAuditCard(
                     "频宽受限",
                 )
             }
+
             isLossyTier || auditResult?.verdict == AudioQualityVerdict.LOSSY -> {
                 Triple(
                     BlueInfoText,
@@ -90,6 +94,7 @@ fun AudioAuditCard(
                     "标准有损",
                 )
             }
+
             else -> {
                 Triple(
                     MaterialTheme.colorScheme.onSurfaceVariant,

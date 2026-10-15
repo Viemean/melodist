@@ -542,11 +542,15 @@ private fun PlayerProgressBar(
                                 onSeekBy(-15000L)
                                 true
                             }
+
                             AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
                                 onSeekBy(15000L)
                                 true
                             }
-                            else -> false
+
+                            else -> {
+                                false
+                            }
                         }
                     } else {
                         false

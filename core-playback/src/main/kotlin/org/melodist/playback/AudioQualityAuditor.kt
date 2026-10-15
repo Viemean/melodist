@@ -373,7 +373,10 @@ object AudioQualityAuditor {
             // 若为 2.5MB 探针切片，在文件第 2~3 秒安全采样（避开前奏静音，同时保证 192k/24-bit 极端码率不触碰 EOF）；本地文件按全曲比例采样
             val candidateSecs =
                 when {
-                    isProbeSlice -> listOf(2L, 3L)
+                    isProbeSlice -> {
+                        listOf(2L, 3L)
+                    }
+
                     isLocal -> {
                         if (durationSec > 30L) {
                             listOf((durationSec * 0.3).toLong(), (durationSec * 0.5).toLong(), (durationSec * 0.7).toLong())
@@ -383,7 +386,10 @@ object AudioQualityAuditor {
                             listOf(1L)
                         }
                     }
-                    else -> listOf(20L)
+
+                    else -> {
+                        listOf(20L)
+                    }
                 }
 
             val sliceResults = mutableListOf<AudioAuditResult>()
@@ -630,6 +636,7 @@ object AudioQualityAuditor {
                     i += ch
                 }
             }
+
             AudioFormat.ENCODING_PCM_32BIT -> {
                 val intBuf = byteBuffer.asIntBuffer()
                 val totalInts = intBuf.remaining()
@@ -645,9 +652,9 @@ object AudioQualityAuditor {
                     i += ch
                 }
             }
+
             AudioFormat.ENCODING_PCM_24BIT_PACKED -> {
                 val bytesPerFrame = ch * 3
-                val totalBytes = byteBuffer.remaining()
                 var offset = byteBuffer.position()
                 val limit = byteBuffer.limit()
 
@@ -665,6 +672,7 @@ object AudioQualityAuditor {
                 }
                 byteBuffer.position(offset)
             }
+
             else -> {
                 val shortBuf = byteBuffer.asShortBuffer()
                 val totalShorts = shortBuf.remaining()

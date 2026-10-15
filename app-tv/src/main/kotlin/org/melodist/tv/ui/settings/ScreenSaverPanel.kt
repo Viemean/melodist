@@ -386,9 +386,18 @@ fun ScreenSaverOverlay(
                     ScreenSaverBrightness.Standard.alpha
                 }
             }
-            ScreenSaverBrightness.Soft -> ScreenSaverBrightness.Soft.alpha
-            ScreenSaverBrightness.Standard -> ScreenSaverBrightness.Standard.alpha
-            ScreenSaverBrightness.Bright -> ScreenSaverBrightness.Bright.alpha
+
+            ScreenSaverBrightness.Soft -> {
+                ScreenSaverBrightness.Soft.alpha
+            }
+
+            ScreenSaverBrightness.Standard -> {
+                ScreenSaverBrightness.Standard.alpha
+            }
+
+            ScreenSaverBrightness.Bright -> {
+                ScreenSaverBrightness.Bright.alpha
+            }
         }
     val animatedBrightnessAlpha by animateFloatAsState(
         targetValue = targetBrightnessAlpha,

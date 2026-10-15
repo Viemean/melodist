@@ -140,11 +140,26 @@ class LoginApiService(
                         exchangeQqCookies(redirectUrl, qrsig, nick)
                         PollResult(QrStatus.Success, "登录成功")
                     }
-                    66 -> PollResult(QrStatus.Waiting, "等待手机 QQ 扫码...")
-                    67 -> PollResult(QrStatus.Confirming, "已扫码，请在手机上确认授权...")
-                    65 -> PollResult(QrStatus.Expired, "二维码已失效")
-                    68 -> PollResult(QrStatus.Canceled, "已取消登录")
-                    else -> PollResult(QrStatus.Error, message)
+
+                    66 -> {
+                        PollResult(QrStatus.Waiting, "等待手机 QQ 扫码...")
+                    }
+
+                    67 -> {
+                        PollResult(QrStatus.Confirming, "已扫码，请在手机上确认授权...")
+                    }
+
+                    65 -> {
+                        PollResult(QrStatus.Expired, "二维码已失效")
+                    }
+
+                    68 -> {
+                        PollResult(QrStatus.Canceled, "已取消登录")
+                    }
+
+                    else -> {
+                        PollResult(QrStatus.Error, message)
+                    }
                 }
             }
         }
@@ -613,11 +628,26 @@ class LoginApiService(
                             PollResult(QrStatus.Error, "微信授权凭据换取失败")
                         }
                     }
-                    408 -> PollResult(QrStatus.Waiting, "等待手机微信扫码...")
-                    404 -> PollResult(QrStatus.Confirming, "已扫码，请在手机上确认授权...")
-                    402 -> PollResult(QrStatus.Expired, "二维码已失效")
-                    403 -> PollResult(QrStatus.Canceled, "已取消登录")
-                    else -> PollResult(QrStatus.Error, "微信状态码: $code")
+
+                    408 -> {
+                        PollResult(QrStatus.Waiting, "等待手机微信扫码...")
+                    }
+
+                    404 -> {
+                        PollResult(QrStatus.Confirming, "已扫码，请在手机上确认授权...")
+                    }
+
+                    402 -> {
+                        PollResult(QrStatus.Expired, "二维码已失效")
+                    }
+
+                    403 -> {
+                        PollResult(QrStatus.Canceled, "已取消登录")
+                    }
+
+                    else -> {
+                        PollResult(QrStatus.Error, "微信状态码: $code")
+                    }
                 }
             }
         }
@@ -994,6 +1024,7 @@ class LoginApiService(
                                     webSocket.close(1000, "redirect")
                                     connect(msg.serverReference)
                                 }
+
                                 msg.type == 0x20.toByte() -> {
                                     val subPacket =
                                         MqttProtocol.buildSubscribePacket(
@@ -1007,9 +1038,11 @@ class LoginApiService(
                                         )
                                     webSocket.send(subPacket.toByteString())
                                 }
+
                                 msg.type == (0x90).toByte() -> {
                                     resultRef.set(PollResult(QrStatus.Waiting, "请使用手机 QQ 音乐扫码"))
                                 }
+
                                 msg.payload != null -> {
                                     handleEvent(msg.userProperties["type"].orEmpty(), msg.payload)
                                 }
@@ -1039,6 +1072,7 @@ class LoginApiService(
                 "scanned" -> {
                     resultRef.set(PollResult(QrStatus.Confirming, "已扫码，请在手机端确认授权"))
                 }
+
                 "cookies" -> {
                     try {
                         val json = Json.parseToJsonElement(payloadStr).jsonObject
@@ -1076,14 +1110,17 @@ class LoginApiService(
                         close()
                     }
                 }
+
                 "canceled" -> {
                     resultRef.set(PollResult(QrStatus.Canceled, "用户取消授权"))
                     close()
                 }
+
                 "timeout" -> {
                     resultRef.set(PollResult(QrStatus.Expired, "二维码已过期，点击刷新"))
                     close()
                 }
+
                 "loginFailed" -> {
                     resultRef.set(PollResult(QrStatus.Error, "授权失败"))
                     close()

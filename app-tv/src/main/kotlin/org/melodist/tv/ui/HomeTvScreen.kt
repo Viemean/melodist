@@ -123,13 +123,16 @@ fun HomeTvScreen(
                         navTabRequesters.getOrNull(target.index)?.requestFocus()
                             ?: navTabRequesters.firstOrNull()?.requestFocus()
                     }
+
                     is HomeFocusTarget.HeroCard -> {
                         heroButtonsRequester.requestFocus()
                     }
+
                     is HomeFocusTarget.CoreCard -> {
                         coreCardRequesters.getOrNull(target.index)?.requestFocus()
                             ?: coreCardRequesters.firstOrNull()?.requestFocus()
                     }
+
                     is HomeFocusTarget.FeedCard -> {
                         feedCardRequesters.getOrNull(target.index)?.requestFocus()
                             ?: feedCardRequesters.firstOrNull()?.requestFocus()

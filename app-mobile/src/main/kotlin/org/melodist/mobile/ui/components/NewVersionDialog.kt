@@ -127,6 +127,7 @@ fun NewVersionDialog(
                             )
                         }
                     }
+
                     is UpdateDownloadState.Completed -> {
                         Text(
                             text = "安装包已就绪，点击安装即可开始更新。",
@@ -134,6 +135,7 @@ fun NewVersionDialog(
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
+
                     is UpdateDownloadState.Error -> {
                         Text(
                             text = "下载失败: ${state.message}",
@@ -141,6 +143,7 @@ fun NewVersionDialog(
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
+
                     is UpdateDownloadState.Idle -> {}
                 }
             }
@@ -156,6 +159,7 @@ fun NewVersionDialog(
                         Text("立即安装")
                     }
                 }
+
                 is UpdateDownloadState.Downloading -> {
                     Button(
                         onClick = {},
@@ -164,6 +168,7 @@ fun NewVersionDialog(
                         Text("下载中...")
                     }
                 }
+
                 is UpdateDownloadState.Error -> {
                     Button(
                         onClick = {
@@ -176,6 +181,7 @@ fun NewVersionDialog(
                         Text("重试下载")
                     }
                 }
+
                 is UpdateDownloadState.Idle -> {
                     Button(
                         onClick = {

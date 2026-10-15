@@ -20,23 +20,31 @@ object SongSorter {
         order: SongSortOrder,
     ): List<Song> =
         when (order) {
-            SongSortOrder.DEFAULT -> songs
-            SongSortOrder.NAME ->
+            SongSortOrder.DEFAULT -> {
+                songs
+            }
+
+            SongSortOrder.NAME -> {
                 songs.sortedWith { a, b ->
                     val cmp = collator.compare(a.name.trim(), b.name.trim())
                     if (cmp != 0) cmp else collator.compare(a.singer.trim(), b.singer.trim())
                 }
-            SongSortOrder.ARTIST ->
+            }
+
+            SongSortOrder.ARTIST -> {
                 songs.sortedWith { a, b ->
                     val cmp = collator.compare(a.singer.trim(), b.singer.trim())
                     if (cmp != 0) cmp else collator.compare(a.name.trim(), b.name.trim())
                 }
-            SongSortOrder.DATE_ADDED ->
+            }
+
+            SongSortOrder.DATE_ADDED -> {
                 songs.sortedWith { a, b ->
                     // 最新添加在最前（时间戳倒序），时间相同时以歌名字典序保持稳定
                     val timeCmp = b.dateAdded.compareTo(a.dateAdded)
                     if (timeCmp != 0) timeCmp else collator.compare(a.name.trim(), b.name.trim())
                 }
+            }
         }
 
     /**

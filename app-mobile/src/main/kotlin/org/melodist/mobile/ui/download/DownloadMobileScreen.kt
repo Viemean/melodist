@@ -176,7 +176,6 @@ fun DownloadMobileScreen(
                     } else {
                         val songs =
                             completedTasks.map { task ->
-                                val localFile = File(task.filePath)
                                 task.song.copy(
                                     localFilePath = task.filePath,
                                     currentTier = task.tier,

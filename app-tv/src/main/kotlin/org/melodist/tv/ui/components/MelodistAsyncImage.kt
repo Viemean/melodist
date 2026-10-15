@@ -131,7 +131,8 @@ fun MelodistAsyncImage(
 
         val imageRequest =
             remember(currentUrl) {
-                ImageRequest.Builder(context)
+                ImageRequest
+                    .Builder(context)
                     .data(currentUrl)
                     .crossfade(260)
                     .precision(coil3.size.Precision.INEXACT)

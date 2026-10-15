@@ -111,6 +111,7 @@ object CoverUrlResolver {
                 CoverScenario.THUMBNAIL -> {
                     list.add(url)
                 }
+
                 CoverScenario.PLAYER, CoverScenario.FULLSCREEN_RAW -> {
                     if (!matchingRaw.isNullOrBlank()) {
                         list.add(matchingRaw)
@@ -119,6 +120,7 @@ object CoverUrlResolver {
                         list.add(url)
                     }
                 }
+
                 CoverScenario.DETAIL -> {
                     list.add(url)
                 }
@@ -141,11 +143,13 @@ object CoverUrlResolver {
                 list.add(url500)
                 list.add(url800)
             }
+
             CoverScenario.DETAIL -> {
                 list.add(url1200)
                 list.add(url800)
                 list.add(url500)
             }
+
             CoverScenario.PLAYER -> {
                 if (isCellular) {
                     list.add(url800)
@@ -156,6 +160,7 @@ object CoverUrlResolver {
                     list.add(url500)
                 }
             }
+
             CoverScenario.FULLSCREEN_RAW -> {
                 if (!rawUrl.isNullOrBlank()) {
                     list.add(rawUrl)
@@ -196,10 +201,14 @@ object CoverUrlResolver {
                     name.startsWith("cover_") && !name.startsWith("cover_raw_") -> {
                         name.removePrefix("cover_").substringBeforeLast(".") to "cover_raw_"
                     }
+
                     name.startsWith("webdav_") && !name.startsWith("webdav_raw_") -> {
                         name.removePrefix("webdav_").substringBeforeLast(".") to "webdav_raw_"
                     }
-                    else -> return null
+
+                    else -> {
+                        return null
+                    }
                 }
             val extensions = listOf("jpg", "png", "webp", "jpeg")
             for (ext in extensions) {

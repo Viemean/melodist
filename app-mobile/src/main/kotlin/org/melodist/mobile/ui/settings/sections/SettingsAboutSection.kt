@@ -155,6 +155,7 @@ fun SettingsAboutSection(
                                         updateStatusText = "发现新版本 ${result.tagName}"
                                         newVersionDialogResult = result
                                     }
+
                                     is UpdateResult.Latest -> {
                                         updateStatusText = "已是最新版本"
                                         Toast
@@ -164,6 +165,7 @@ fun SettingsAboutSection(
                                                 Toast.LENGTH_SHORT,
                                             ).show()
                                     }
+
                                     is UpdateResult.Error -> {
                                         updateStatusText = "检查失败"
                                         Toast

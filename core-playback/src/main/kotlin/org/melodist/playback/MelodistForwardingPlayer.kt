@@ -33,7 +33,6 @@ class MelodistForwardingPlayer(
      * 向双端互联控制器分发本地播放状态变更通知。
      */
     fun notifyRemoteStateChanged() {
-        val song = PlaybackManager.currentSong.value
         val isPlaying = PlaybackManager.isPlaying.value
         val mediaItem = currentMediaItem
         val metadata = mediaMetadata
@@ -165,8 +164,11 @@ class MelodistForwardingPlayer(
         when (command) {
             COMMAND_SET_REPEAT_MODE,
             COMMAND_SET_SHUFFLE_MODE,
-            -> true
-            else ->
+            -> {
+                true
+            }
+
+            else -> {
                 if (isRemoteVirtual) {
                     when (command) {
                         COMMAND_PLAY_PAUSE,
@@ -178,6 +180,7 @@ class MelodistForwardingPlayer(
                         COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
                         COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
                         -> true
+
                         else -> super.isCommandAvailable(command)
                     }
                 } else {
@@ -187,9 +190,11 @@ class MelodistForwardingPlayer(
                         COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
                         COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
                         -> PlaybackManager.playlist.value.isNotEmpty()
+
                         else -> super.isCommandAvailable(command)
                     }
                 }
+            }
         }
 
     override fun play() {

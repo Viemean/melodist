@@ -100,8 +100,7 @@ object DownloadManager {
     /**
      * 检查当前应用是否具备写入外部公共存储目录的系统权限。
      */
-    fun hasStoragePermission(context: Context): Boolean =
-        DownloadStorageStore.hasStoragePermission(context)
+    fun hasStoragePermission(context: Context): Boolean = DownloadStorageStore.hasStoragePermission(context)
 
     fun requestStoragePermission(context: Context) {
         DownloadStorageStore.requestStoragePermission(context)
@@ -110,8 +109,7 @@ object DownloadManager {
     /**
      * 获取音质档位的英文标准化标签。
      */
-    fun getCleanTierLabel(tier: AudioQualityTier): String =
-        DownloadStorageStore.getCleanTierLabel(tier)
+    fun getCleanTierLabel(tier: AudioQualityTier): String = DownloadStorageStore.getCleanTierLabel(tier)
 
     /**
      * 根据歌曲元数据与音质档位生成下载文件的标准基础文件名。
@@ -132,8 +130,7 @@ object DownloadManager {
     /**
      * 供测试或内部使用的封面清洗与压缩方法。
      */
-    fun sanitizeCoverArt(rawBytes: ByteArray): ByteArray =
-        DownloadMetadataEmbedder.sanitizeCoverArt(rawBytes)
+    fun sanitizeCoverArt(rawBytes: ByteArray): ByteArray = DownloadMetadataEmbedder.sanitizeCoverArt(rawBytes)
 
     /**
      * 根据歌曲唯一标识查询本地已完成的有效下载音频文件与对应音质。
@@ -449,10 +446,12 @@ object DownloadManager {
             val isCancelled =
                 e is CancellationException ||
                     e is java.io.InterruptedIOException ||
-                    (e is java.io.IOException && (
-                        e.message?.contains("Canceled", ignoreCase = true) == true ||
-                            e.message?.contains("Socket closed", ignoreCase = true) == true
-                    )) ||
+                    (
+                        e is java.io.IOException && (
+                            e.message?.contains("Canceled", ignoreCase = true) == true ||
+                                e.message?.contains("Socket closed", ignoreCase = true) == true
+                        )
+                    ) ||
                     !coroutineContext.isActive
 
             if (isCancelled) {
@@ -477,10 +476,17 @@ object DownloadManager {
                                 e.message?.contains("Permission denied") == true ||
                                 e.message?.contains("EACCES") == true ||
                                 e.message?.contains("EPERM") == true
-                        ) ->
+                        ) -> {
                         "未授予存储权限(EPERM)，请开启“所有文件访问权限”"
-                    e.message.isNullOrBlank() -> "未知错误"
-                    else -> e.message ?: "下载失败"
+                    }
+
+                    e.message.isNullOrBlank() -> {
+                        "未知错误"
+                    }
+
+                    else -> {
+                        e.message ?: "下载失败"
+                    }
                 }
             updateActiveTask(task.id, persist = true) {
                 it.copy(
@@ -601,7 +607,8 @@ object DownloadManager {
     fun pauseDownload(taskId: String) {
         try {
             activeCalls[taskId]?.cancel()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         activeCalls.remove(taskId)
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
@@ -615,7 +622,7 @@ object DownloadManager {
      * 恢复暂停或失败的下载任务，重置错误状态并重新排队。
      */
     fun resumeDownload(taskId: String) {
-        val task = _activeTasks.value.find { it.id == taskId } ?: return
+        if (_activeTasks.value.none { it.id == taskId }) return
         updateActiveTask(taskId, persist = true) {
             it.copy(status = DownloadStatus.Pending, errorMessage = null, speedBytesPerSec = 0L)
         }
@@ -628,7 +635,8 @@ object DownloadManager {
     fun cancelDownload(taskId: String) {
         try {
             activeCalls[taskId]?.cancel()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         activeCalls.remove(taskId)
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
@@ -649,7 +657,8 @@ object DownloadManager {
         for ((_, call) in activeCalls) {
             try {
                 call.cancel()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         activeCalls.clear()
         for ((_, job) in activeJobs) {
@@ -690,7 +699,8 @@ object DownloadManager {
         for ((_, call) in activeCalls) {
             try {
                 call.cancel()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         activeCalls.clear()
         for ((_, job) in activeJobs) {

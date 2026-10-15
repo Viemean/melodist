@@ -475,6 +475,7 @@ fun HomeCoreTracksRow(
                                     onPlayRadar(emptyList())
                                 }
                             }
+
                             else -> {
                                 onCardClick(item.id)
                             }

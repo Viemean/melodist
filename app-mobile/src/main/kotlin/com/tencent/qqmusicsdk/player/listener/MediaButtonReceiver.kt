@@ -21,11 +21,15 @@ class MediaButtonReceiver : BroadcastReceiver() {
             if (keyEvent != null && keyEvent.action == KeyEvent.ACTION_DOWN) {
                 when (keyEvent.keyCode) {
                     KeyEvent.KEYCODE_MEDIA_PLAY -> PlaybackManager.play()
+
                     KeyEvent.KEYCODE_MEDIA_PAUSE -> PlaybackManager.pause()
+
                     KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                     KeyEvent.KEYCODE_HEADSETHOOK,
                     -> PlaybackManager.togglePlayPause()
+
                     KeyEvent.KEYCODE_MEDIA_NEXT -> PlaybackManager.playNext()
+
                     KeyEvent.KEYCODE_MEDIA_PREVIOUS -> PlaybackManager.playPrevious()
                 }
             }

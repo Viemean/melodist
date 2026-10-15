@@ -169,15 +169,30 @@ object AudioHeaderSniffer {
 
                         val formattedBitrate =
                             when {
-                                option.tier == AudioQualityTier.Standard -> "128 kbps"
-                                option.tier == AudioQualityTier.HQ -> "320 kbps"
-                                needsSizeCorrection && spec.calculatedBitrateKbps > 0 -> "${spec.calculatedBitrateKbps} kbps"
+                                option.tier == AudioQualityTier.Standard -> {
+                                    "128 kbps"
+                                }
+
+                                option.tier == AudioQualityTier.HQ -> {
+                                    "320 kbps"
+                                }
+
+                                needsSizeCorrection && spec.calculatedBitrateKbps > 0 -> {
+                                    "${spec.calculatedBitrateKbps} kbps"
+                                }
+
                                 finalSize > 0L && songDurationSec > 0 -> {
                                     val calculated = ((finalSize * 8.0) / songDurationSec / 1000.0).roundToInt()
                                     if (calculated > 0) "$calculated kbps" else option.bitrate
                                 }
-                                spec.calculatedBitrateKbps > 0 -> "${spec.calculatedBitrateKbps} kbps"
-                                else -> option.bitrate
+
+                                spec.calculatedBitrateKbps > 0 -> {
+                                    "${spec.calculatedBitrateKbps} kbps"
+                                }
+
+                                else -> {
+                                    option.bitrate
+                                }
                             }
 
                         option.copy(

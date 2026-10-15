@@ -48,8 +48,12 @@ class AudioQualityAuditorTest {
         for (i in 0 until bins) {
             val f = i * binRes
             when {
-                f in 10800.0..11500.0 -> spectrum[i] = -42f // 11kHz 陷波
-                f < 16000 -> spectrum[i] = -20f // 正常活跃乐声
+                f in 10800.0..11500.0 -> spectrum[i] = -42f
+
+                // 11kHz 陷波
+                f < 16000 -> spectrum[i] = -20f
+
+                // 正常活跃乐声
                 else -> spectrum[i] = -75f // 16kHz 永久死寂低通
             }
         }

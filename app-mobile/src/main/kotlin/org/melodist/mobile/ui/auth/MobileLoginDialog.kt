@@ -289,9 +289,11 @@ fun MobileLoginDialog(
                                             QrStatus.Waiting -> {
                                                 statusText = "请使用 ${selectedChannel.appName} 扫码"
                                             }
+
                                             QrStatus.Confirming -> {
                                                 statusText = "已扫码，请在手机端确认授权"
                                             }
+
                                             QrStatus.Success -> {
                                                 statusText = "登录成功"
                                                 try {
@@ -304,22 +306,26 @@ fun MobileLoginDialog(
                                                 onLoginSuccess()
                                                 break
                                             }
+
                                             QrStatus.Expired -> {
                                                 statusText = "二维码已过期，点击刷新"
                                                 isPolling = false
                                                 break
                                             }
+
                                             QrStatus.Canceled -> {
                                                 statusText = "已取消授权"
                                                 isPolling = false
                                                 break
                                             }
+
                                             QrStatus.Error -> {
                                                 statusText = poll.message
                                             }
                                         }
                                     }
                                 }
+
                                 MobileLoginChannel.WeChat -> {
                                     val qrInfo = loginService.fetchWeChatQrCode()
                                     val bitmap = BitmapFactory.decodeByteArray(qrInfo.imageBytes, 0, qrInfo.imageBytes.size)
@@ -335,9 +341,11 @@ fun MobileLoginDialog(
                                             QrStatus.Waiting -> {
                                                 statusText = "请使用 ${selectedChannel.appName} 扫码"
                                             }
+
                                             QrStatus.Confirming -> {
                                                 statusText = "已扫码，请在手机端确认授权"
                                             }
+
                                             QrStatus.Success -> {
                                                 statusText = "登录成功"
                                                 try {
@@ -350,22 +358,26 @@ fun MobileLoginDialog(
                                                 onLoginSuccess()
                                                 break
                                             }
+
                                             QrStatus.Expired -> {
                                                 statusText = "二维码已过期，点击刷新"
                                                 isPolling = false
                                                 break
                                             }
+
                                             QrStatus.Canceled -> {
                                                 statusText = "已取消授权"
                                                 isPolling = false
                                                 break
                                             }
+
                                             QrStatus.Error -> {
                                                 statusText = poll.message
                                             }
                                         }
                                     }
                                 }
+
                                 MobileLoginChannel.QQMusic -> {
                                     val qrInfo = loginService.fetchOfficialAppQrCode()
                                     val bitmap = BitmapFactory.decodeByteArray(qrInfo.imageBytes, 0, qrInfo.imageBytes.size)
@@ -381,9 +393,11 @@ fun MobileLoginDialog(
                                             QrStatus.Waiting -> {
                                                 statusText = "请使用 ${selectedChannel.appName} 扫码"
                                             }
+
                                             QrStatus.Confirming -> {
                                                 statusText = "已扫码，请在手机端确认授权"
                                             }
+
                                             QrStatus.Success -> {
                                                 statusText = "登录成功"
                                                 try {
@@ -396,16 +410,19 @@ fun MobileLoginDialog(
                                                 onLoginSuccess()
                                                 break
                                             }
+
                                             QrStatus.Expired -> {
                                                 statusText = "二维码已过期，点击刷新"
                                                 isPolling = false
                                                 break
                                             }
+
                                             QrStatus.Canceled -> {
                                                 statusText = "已取消授权"
                                                 isPolling = false
                                                 break
                                             }
+
                                             QrStatus.Error -> {
                                                 statusText = poll.message
                                             }

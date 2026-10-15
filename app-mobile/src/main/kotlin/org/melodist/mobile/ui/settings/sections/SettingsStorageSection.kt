@@ -2,6 +2,7 @@ package org.melodist.mobile.ui.settings.sections
 
 import android.os.Environment
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Storage
@@ -274,8 +274,7 @@ fun SettingsStorageSection(
                                     .clickable {
                                         AppSettingsManager.setLyricSaveMode(mode)
                                         showLyricSaveModeDialog = false
-                                    }
-                                    .padding(vertical = 8.dp),
+                                    }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(

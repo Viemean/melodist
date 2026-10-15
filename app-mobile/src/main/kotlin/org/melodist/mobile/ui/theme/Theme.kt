@@ -243,11 +243,26 @@ fun getPresetColorScheme(
     customColorHex: String = "#5CAFC4",
 ): ColorScheme =
     when (theme) {
-        AppColorTheme.Default -> if (isDark) DefaultDarkColorScheme else DefaultLightColorScheme
-        AppColorTheme.Violet -> if (isDark) VioletDarkColorScheme else VioletLightColorScheme
-        AppColorTheme.Emerald -> if (isDark) EmeraldDarkColorScheme else EmeraldLightColorScheme
-        AppColorTheme.Amber -> if (isDark) AmberDarkColorScheme else AmberLightColorScheme
-        AppColorTheme.Rose -> if (isDark) RoseDarkColorScheme else RoseLightColorScheme
+        AppColorTheme.Default -> {
+            if (isDark) DefaultDarkColorScheme else DefaultLightColorScheme
+        }
+
+        AppColorTheme.Violet -> {
+            if (isDark) VioletDarkColorScheme else VioletLightColorScheme
+        }
+
+        AppColorTheme.Emerald -> {
+            if (isDark) EmeraldDarkColorScheme else EmeraldLightColorScheme
+        }
+
+        AppColorTheme.Amber -> {
+            if (isDark) AmberDarkColorScheme else AmberLightColorScheme
+        }
+
+        AppColorTheme.Rose -> {
+            if (isDark) RoseDarkColorScheme else RoseLightColorScheme
+        }
+
         AppColorTheme.Custom -> {
             val seed = parseHexColor(customColorHex)
             if (isDark) createCustomDarkColorScheme(seed) else createCustomLightColorScheme(seed)
@@ -293,7 +308,10 @@ fun MelodistMobileTheme(
                 val context = LocalContext.current
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
-            else -> getPresetColorScheme(colorTheme, darkTheme, customColorHex)
+
+            else -> {
+                getPresetColorScheme(colorTheme, darkTheme, customColorHex)
+            }
         }
 
     val isAmoled = darkTheme && amoledDark

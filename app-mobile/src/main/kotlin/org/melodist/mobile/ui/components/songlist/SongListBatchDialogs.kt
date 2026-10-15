@@ -152,26 +152,31 @@ fun SongListBatchDialogs(
                                             }
                                         }
                                     }
+
                                     SongListDeleteType.LocalFile -> {
                                         LocalMusicManager.deleteSongs(selectedSongs, context)
                                         onDeleteSelected?.invoke(selectedSongs)
                                         Toast.makeText(context, "已删除本地文件", Toast.LENGTH_SHORT).show()
                                     }
+
                                     SongListDeleteType.WebDavFile -> {
                                         WebDavManager.removeSongsFromCache(selectedSongs)
                                         onDeleteSelected?.invoke(selectedSongs)
                                         Toast.makeText(context, "已从曲库移除", Toast.LENGTH_SHORT).show()
                                     }
+
                                     SongListDeleteType.RecentHistory -> {
                                         RecentPlaybackManager.removeSongs(selectedSongs)
                                         onDeleteSelected?.invoke(selectedSongs)
                                         Toast.makeText(context, "已删除历史记录", Toast.LENGTH_SHORT).show()
                                     }
+
                                     SongListDeleteType.PlayerQueue -> {
                                         PlaybackManager.removeFromPlaylist(selectedSongs)
                                         onDeleteSelected?.invoke(selectedSongs)
                                         Toast.makeText(context, "已从播放队列移除", Toast.LENGTH_SHORT).show()
                                     }
+
                                     SongListDeleteType.None -> {}
                                 }
                             } finally {

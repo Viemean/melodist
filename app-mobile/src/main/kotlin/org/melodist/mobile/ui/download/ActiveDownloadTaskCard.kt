@@ -97,11 +97,13 @@ internal fun ActiveDownloadTaskCard(
                             Icon(Icons.Rounded.Pause, contentDescription = "暂停", modifier = Modifier.size(20.dp))
                         }
                     }
+
                     DownloadStatus.Paused, DownloadStatus.Failed -> {
                         IconButton(onClick = onResume) {
                             Icon(Icons.Rounded.PlayArrow, contentDescription = "继续", modifier = Modifier.size(20.dp))
                         }
                     }
+
                     else -> {}
                 }
 
@@ -136,7 +138,10 @@ internal fun ActiveDownloadTaskCard(
             ) {
                 val statusText =
                     when (task.status) {
-                        DownloadStatus.Pending -> "等待下载..."
+                        DownloadStatus.Pending -> {
+                            "等待下载..."
+                        }
+
                         DownloadStatus.Downloading -> {
                             if (task.speedBytesPerSec > 0L) {
                                 "正在下载 · ${formatDownloadSpeed(task.speedBytesPerSec)}"
@@ -144,9 +149,18 @@ internal fun ActiveDownloadTaskCard(
                                 "正在连接直链..."
                             }
                         }
-                        DownloadStatus.Paused -> "已暂停"
-                        DownloadStatus.Failed -> task.errorMessage ?: "下载失败"
-                        DownloadStatus.Completed -> "下载完成"
+
+                        DownloadStatus.Paused -> {
+                            "已暂停"
+                        }
+
+                        DownloadStatus.Failed -> {
+                            task.errorMessage ?: "下载失败"
+                        }
+
+                        DownloadStatus.Completed -> {
+                            "下载完成"
+                        }
                     }
 
                 Text(

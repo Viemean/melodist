@@ -253,7 +253,7 @@ fun PlayerCoverCarousel(
                                                 dampingRatio = Spring.DampingRatioNoBouncy,
                                                 stiffness = Spring.StiffnessMediumLow,
                                             ),
-                                        )
+                                    )
                                 }
                             },
                         )

@@ -425,6 +425,7 @@ fun SongCommentsBottomSheet(
                             )
                         }
                     }
+
                     isError -> {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -448,6 +449,7 @@ fun SongCommentsBottomSheet(
                             }
                         }
                     }
+
                     hotComments.isEmpty() && normalComments.isEmpty() -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -460,6 +462,7 @@ fun SongCommentsBottomSheet(
                             )
                         }
                     }
+
                     else -> {
                         val showScrollToTop by remember {
                             derivedStateOf {

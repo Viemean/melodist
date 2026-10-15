@@ -101,13 +101,19 @@ internal object DownloadStorageStore {
         return null
     }
 
-    fun scanFiles(context: Context?, paths: Array<String>) {
+    fun scanFiles(
+        context: Context?,
+        paths: Array<String>,
+    ) {
         if (context != null && paths.isNotEmpty()) {
             MediaScannerConnection.scanFile(context, paths, null, null)
         }
     }
 
-    fun loadCompletedTasks(prefs: SharedPreferences?, context: Context?): List<DownloadTask> {
+    fun loadCompletedTasks(
+        prefs: SharedPreferences?,
+        context: Context?,
+    ): List<DownloadTask> {
         val raw = prefs?.getString(KEY_COMPLETED, null)
         if (!raw.isNullOrBlank()) {
             try {
@@ -121,7 +127,10 @@ internal object DownloadStorageStore {
         return emptyList()
     }
 
-    fun saveCompletedTasks(prefs: SharedPreferences?, tasks: List<DownloadTask>) {
+    fun saveCompletedTasks(
+        prefs: SharedPreferences?,
+        tasks: List<DownloadTask>,
+    ) {
         try {
             val raw = json.encodeToString(tasks)
             prefs?.edit()?.putString(KEY_COMPLETED, raw)?.apply()
@@ -149,7 +158,10 @@ internal object DownloadStorageStore {
         return emptyList()
     }
 
-    fun saveActiveTasks(prefs: SharedPreferences?, tasks: List<DownloadTask>) {
+    fun saveActiveTasks(
+        prefs: SharedPreferences?,
+        tasks: List<DownloadTask>,
+    ) {
         try {
             val list =
                 tasks.map {
@@ -227,7 +239,10 @@ internal object DownloadStorageStore {
         return currentList.filter { it.song.songMid != songMid }
     }
 
-    fun cleanTaskTempFiles(song: Song, targetDir: File) {
+    fun cleanTaskTempFiles(
+        song: Song,
+        targetDir: File,
+    ) {
         try {
             val allTiers = AudioQualityTier.entries
             val possibleExts = listOf("flac", "mp3", "m4a", "wav")
@@ -243,7 +258,10 @@ internal object DownloadStorageStore {
         }
     }
 
-    fun cleanAllTempFiles(tasks: List<DownloadTask>, targetDir: File) {
+    fun cleanAllTempFiles(
+        tasks: List<DownloadTask>,
+        targetDir: File,
+    ) {
         for (task in tasks) {
             cleanTaskTempFiles(task.song, targetDir)
         }

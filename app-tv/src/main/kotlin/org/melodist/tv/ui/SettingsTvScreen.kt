@@ -152,18 +152,23 @@ fun SettingsTvScreen(
                                     menuRequester = currentMenuRequester,
                                 )
                             }
+
                             SettingsCategory.AudioQuality -> {
                                 AudioQualityPanel(menuRequester = currentMenuRequester)
                             }
+
                             SettingsCategory.Lyrics -> {
                                 LyricsPanel(menuRequester = currentMenuRequester)
                             }
+
                             SettingsCategory.ScreenSaver -> {
                                 ScreenSaverPanel(menuRequester = currentMenuRequester)
                             }
+
                             SettingsCategory.Storage -> {
                                 StoragePanel(menuRequester = currentMenuRequester)
                             }
+
                             SettingsCategory.About -> {
                                 AboutPanel(menuRequester = currentMenuRequester)
                             }
