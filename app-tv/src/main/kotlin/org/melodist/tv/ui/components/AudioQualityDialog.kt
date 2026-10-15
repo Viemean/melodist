@@ -31,7 +31,6 @@ import org.melodist.tv.ui.theme.toMonetContainer
 
 private val StereoTiers =
     listOf(
-        AudioQualityTier.Master,
         AudioQualityTier.HiRes,
         AudioQualityTier.SQ,
         AudioQualityTier.HQ,
@@ -41,6 +40,7 @@ private val StereoTiers =
 private val SpatialTiers =
     listOf(
         AudioQualityTier.Atmos,
+        AudioQualityTier.Master,
         AudioQualityTier.Dolby,
         AudioQualityTier.Premium,
     )
@@ -71,7 +71,7 @@ fun AudioQualityDialog(
         Box(
             modifier =
                 Modifier
-                    .width(660.dp)
+                    .width(518.dp)
                     .wrapContentHeight()
                     .clip(MelodistShapes.DialogCorner)
                     .background(dialogBackgroundColor)
@@ -90,10 +90,10 @@ fun AudioQualityDialog(
                         color = Color.White.copy(alpha = 0.90f),
                     )
 
-                    LazyRow(
+                    Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        items(SpatialTiers) { tier ->
+                        SpatialTiers.forEach { tier ->
                             val (isDevSupport, reason) = DeviceAudioCapability.checkDeviceSupport(tier)
                             val isStreamAvail =
                                 if (availableTiers.isNotEmpty()) {
@@ -125,10 +125,10 @@ fun AudioQualityDialog(
                         color = Color.White.copy(alpha = 0.90f),
                     )
 
-                    LazyRow(
+                    Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        items(StereoTiers) { tier ->
+                        StereoTiers.forEach { tier ->
                             val (isDevSupport, reason) = DeviceAudioCapability.checkDeviceSupport(tier)
                             val isStreamAvail =
                                 if (availableTiers.isNotEmpty()) {
