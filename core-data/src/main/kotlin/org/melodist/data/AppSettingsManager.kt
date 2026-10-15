@@ -128,6 +128,14 @@ enum class AppColorTheme(
     Custom("自定义", 0L),
 }
 
+enum class LyricSaveMode(
+    val label: String,
+) {
+    Embedded("内嵌歌词"),
+    LrcFile("LRC文件"),
+    Both("同时保存"),
+}
+
 data class AppSettings(
     // 1. 音频与音质
     val preferredQualityTier: AudioQualityTier = AudioQualityTier.SQ,
@@ -148,6 +156,8 @@ data class AppSettings(
     val enableScreenSaverDuringPlayback: Boolean = true,
     // 4. 下载与存储
     val downloadDirectory: String = "",
+    val lyricSaveMode: LyricSaveMode = LyricSaveMode.Embedded,
+    val saveLyricTranslation: Boolean = true,
     // 5. 外观与主题
     val themeMode: ThemeMode = ThemeMode.System,
     val dynamicColor: Boolean = true,
@@ -195,6 +205,8 @@ object AppSettingsManager {
     private const val KEY_SCREENSAVER_PIXEL_SHIFT = "screensaver_pixel_shift"
     private const val KEY_SCREENSAVER_DURING_PLAYBACK = "screensaver_during_playback"
     private const val KEY_DOWNLOAD_DIRECTORY = "download_directory"
+    private const val KEY_LYRIC_SAVE_MODE = "lyric_save_mode"
+    private const val KEY_SAVE_LYRIC_TRANSLATION = "save_lyric_translation"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_DYNAMIC_COLOR = "dynamic_color"
     private const val KEY_COLOR_THEME = "color_theme"
@@ -281,6 +293,9 @@ object AppSettingsManager {
         val pixelShift = p.getBoolean(KEY_SCREENSAVER_PIXEL_SHIFT, true)
         val duringPlayback = p.getBoolean(KEY_SCREENSAVER_DURING_PLAYBACK, true)
         val downloadDir = p.getString(KEY_DOWNLOAD_DIRECTORY, "") ?: ""
+        val lyricSaveModeName = p.getString(KEY_LYRIC_SAVE_MODE, LyricSaveMode.Embedded.name) ?: LyricSaveMode.Embedded.name
+        val lyricSaveMode = runCatching { LyricSaveMode.valueOf(lyricSaveModeName) }.getOrDefault(LyricSaveMode.Embedded)
+        val saveLyricTranslation = p.getBoolean(KEY_SAVE_LYRIC_TRANSLATION, true)
         val themeModeName = p.getString(KEY_THEME_MODE, ThemeMode.System.name) ?: ThemeMode.System.name
         val themeMode = runCatching { ThemeMode.valueOf(themeModeName) }.getOrDefault(ThemeMode.System)
         val dynamicColor = p.getBoolean(KEY_DYNAMIC_COLOR, true)
@@ -306,6 +321,8 @@ object AppSettingsManager {
                 enablePixelShift = pixelShift,
                 enableScreenSaverDuringPlayback = duringPlayback,
                 downloadDirectory = downloadDir,
+                lyricSaveMode = lyricSaveMode,
+                saveLyricTranslation = saveLyricTranslation,
                 themeMode = themeMode,
                 dynamicColor = dynamicColor,
                 colorTheme = colorTheme,
@@ -341,6 +358,20 @@ object AppSettingsManager {
         _settings.value = _settings.value.copy(downloadDirectory = normalized)
         prefs?.edit()?.putString(KEY_DOWNLOAD_DIRECTORY, normalized)?.apply()
     }
+
+    fun setLyricSaveMode(mode: LyricSaveMode) {
+        _settings.value = _settings.value.copy(lyricSaveMode = mode)
+        prefs?.edit()?.putString(KEY_LYRIC_SAVE_MODE, mode.name)?.apply()
+    }
+
+    fun updateLyricSaveMode(mode: LyricSaveMode) = setLyricSaveMode(mode)
+
+    fun setSaveLyricTranslation(enable: Boolean) {
+        _settings.value = _settings.value.copy(saveLyricTranslation = enable)
+        prefs?.edit()?.putBoolean(KEY_SAVE_LYRIC_TRANSLATION, enable)?.apply()
+    }
+
+    fun updateSaveLyricTranslation(enable: Boolean) = setSaveLyricTranslation(enable)
 
     fun setPreferredQualityTier(tier: AudioQualityTier) {
         _settings.value = _settings.value.copy(preferredQualityTier = tier)

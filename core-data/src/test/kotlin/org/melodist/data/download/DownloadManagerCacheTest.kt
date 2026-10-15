@@ -105,4 +105,11 @@ class DownloadManagerCacheTest {
         // If decoding fails, it should safely return raw bytes without throwing exception
         assertEquals(largeInvalidBytes.size, result.size)
     }
+
+    @Test
+    fun `LyricSaveMode enum has expected labels and values`() {
+        assertEquals("内嵌歌词", org.melodist.data.LyricSaveMode.Embedded.label)
+        assertEquals("LRC文件", org.melodist.data.LyricSaveMode.LrcFile.label)
+        assertEquals("同时保存", org.melodist.data.LyricSaveMode.Both.label)
+    }
 }

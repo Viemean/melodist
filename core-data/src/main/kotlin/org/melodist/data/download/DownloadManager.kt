@@ -26,6 +26,7 @@ import org.melodist.api.MusicApiService
 import org.melodist.api.getLyrics
 import org.melodist.api.getPlayUrl
 import org.melodist.data.AppSettingsManager
+import org.melodist.data.LyricSaveMode
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.CoverUrlResolver
 import org.melodist.model.Song
@@ -684,6 +685,10 @@ object DownloadManager {
             }
         }
 
+        val lyricSettings = AppSettingsManager.settings.value
+        val saveMode = lyricSettings.lyricSaveMode
+        val includeTranslation = lyricSettings.saveLyricTranslation
+
         try {
             val cachedLyrics =
                 org.melodist.data.LyricCacheManager
@@ -694,7 +699,7 @@ object DownloadManager {
                 for (line in lyricLines) {
                     val timeStr = formatLrcTime(line.timestampMs)
                     sb.append("[$timeStr]${line.text}\n")
-                    if (line.hasTranslation) {
+                    if (includeTranslation && line.hasTranslation && line.transText.isNotBlank()) {
                         sb.append("[$timeStr]${line.transText}\n")
                     }
                 }
@@ -705,13 +710,23 @@ object DownloadManager {
             Log.w(TAG, "Error fetching lyrics for download", e)
         }
 
+        if (!lyricsMerged.isNullOrBlank() && (saveMode == LyricSaveMode.LrcFile || saveMode == LyricSaveMode.Both)) {
+            try {
+                val lrcFile = File(file.parentFile, "${file.nameWithoutExtension}.lrc")
+                lrcFile.writeText(lyricsMerged, Charsets.UTF_8)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w(TAG, "Failed to write companion lrc file for ${file.name}", e)
+            }
+        }
+
         try {
             val metadataPayload =
                 AudioMetadataWriter.MetadataPayload(
                     title = song.name,
                     artist = song.singer,
                     album = song.album.ifBlank { song.name },
-                    lyrics = lyricsMerged,
+                    lyrics = if (saveMode == LyricSaveMode.Embedded || saveMode == LyricSaveMode.Both) lyricsMerged else null,
                     coverBytes = coverBytes,
                     coverMime = "image/jpeg",
                 )
@@ -811,6 +826,8 @@ object DownloadManager {
         if (task != null && deleteFile && task.filePath.isNotBlank()) {
             val f = File(task.filePath)
             if (f.exists()) f.delete()
+            val lrc = File(task.filePath.substringBeforeLast(".") + ".lrc")
+            if (lrc.exists()) lrc.delete()
         }
         _completedTasks.value = _completedTasks.value.filter { it.id != taskId }
         saveCompletedTasks()
@@ -831,6 +848,8 @@ object DownloadManager {
             if (deleteFile && filePath.isNotBlank()) {
                 val f = File(filePath)
                 if (f.exists()) f.delete()
+                val lrc = File(filePath.substringBeforeLast(".") + ".lrc")
+                if (lrc.exists()) lrc.delete()
             }
             _completedTasks.value = _completedTasks.value.filter { it.filePath != filePath }
             saveCompletedTasks()
@@ -854,6 +873,8 @@ object DownloadManager {
                     if (task.filePath.isNotBlank()) {
                         val f = File(task.filePath)
                         if (f.exists()) f.delete()
+                        val lrc = File(task.filePath.substringBeforeLast(".") + ".lrc")
+                        if (lrc.exists()) lrc.delete()
                     }
                 }
             }
