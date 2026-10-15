@@ -32,8 +32,8 @@ android {
         applicationId = "org.melodist.mobile"
         minSdk = 28
         targetSdk = 37
-        versionCode = 165
-        versionName = "1.6.5"
+        versionCode = 166
+        versionName = "1.6.6"
         buildConfigField("String", "MELODIST_VERSION_NAME", "\"$versionName\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
@@ -52,7 +52,7 @@ android {
         create("originOs") {
             dimension = "channel"
             applicationId = "com.tencent.qqmusic"
-            versionName = "20.1.6.5"
+            versionName = "20.1.6.6"
         }
     }
 
