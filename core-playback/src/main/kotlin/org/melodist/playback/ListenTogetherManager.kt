@@ -225,8 +225,14 @@ object ListenTogetherManager {
         lastLocalActionTime = System.currentTimeMillis()
         ApiLogger.i("ListenTogetherManager", "handleLocalAction cmd=$cmd songId=$targetSongId index=$targetIndex offset=$targetOffset")
         when (cmd) {
-            2 -> expectedPlayStatus = 1
-            3 -> expectedPlayStatus = 0
+            2 -> {
+                expectedPlayStatus = 1
+            }
+
+            3 -> {
+                expectedPlayStatus = 0
+            }
+
             4 -> {
                 expectedSongId = targetSongId
                 expectedPlayStatus = 1

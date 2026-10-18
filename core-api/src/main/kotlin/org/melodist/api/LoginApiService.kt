@@ -42,8 +42,7 @@ class LoginApiService(
 
     suspend fun pollQqQrStatus(qrsig: String): PollResult = pollQqQrStatusImpl(qrsig)
 
-    suspend fun exchangeOAuthForMusicKey(cookies: MutableMap<String, String>): Boolean =
-        exchangeOAuthForMusicKeyImpl(cookies)
+    suspend fun exchangeOAuthForMusicKey(cookies: MutableMap<String, String>): Boolean = exchangeOAuthForMusicKeyImpl(cookies)
 
     suspend fun refreshQQLoginToken(
         openid: String,
@@ -56,8 +55,7 @@ class LoginApiService(
 
     suspend fun fetchOfficialAppQrCode(): QrCodeInfo = fetchOfficialAppQrCodeImpl()
 
-    fun pollOfficialAppQrStatus(identifier: String): PollResult =
-        pollOfficialAppQrStatusImpl(identifier)
+    fun pollOfficialAppQrStatus(identifier: String): PollResult = pollOfficialAppQrStatusImpl(identifier)
 
     fun cancelOfficialAppSession(identifier: String) {
         cancelOfficialAppSessionImpl(identifier)
@@ -82,8 +80,7 @@ class LoginApiService(
             accessToken = accessToken,
         )
 
-    suspend fun refreshPlaybackCredentials(creds: PlaybackCredentials): PlaybackCredentials? =
-        refreshPlaybackCredentialsImpl(creds)
+    suspend fun refreshPlaybackCredentials(creds: PlaybackCredentials): PlaybackCredentials? = refreshPlaybackCredentialsImpl(creds)
 
     /**
      * 校验当前会话中的 `qm_keyst` 凭据有效性；已失效或指定强制刷新时，加锁并发安全地执行登录凭据续签。

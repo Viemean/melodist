@@ -434,9 +434,11 @@ open class QQMusicApiService : Service() {
                                                 .getScannedSongs()
                                         (downloaded + scanned).distinctBy { it.songMid.ifBlank { it.songId.toString() } }
                                     }
+
                                     folderType == 101 || folderId == "fav_folder_101" -> {
                                         org.melodist.data.UserLibraryCacheManager.favoriteSongsFlow.value
                                     }
+
                                     else -> {
                                         emptyList()
                                     }
