@@ -4,11 +4,15 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Switch
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -44,6 +48,7 @@ fun SettingsCredentialsDialogs(
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf("") }
+    var exportAllowRefresh by remember { mutableStateOf(false) }
     var exportedTokenResult by remember { mutableStateOf<String?>(null) }
     var importTokenText by remember { mutableStateOf("") }
     var importPassword by remember { mutableStateOf("") }
@@ -60,6 +65,7 @@ fun SettingsCredentialsDialogs(
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     val isCredsInvalid = PlaybackCredentialsManager.isCredentialInvalid(playbackCreds)
+                    val canRefresh = PlaybackCredentialsManager.canRefreshCredentials(playbackCreds)
                     Text(
                         text =
                             if (playbackCreds != null) {
@@ -68,7 +74,8 @@ fun SettingsCredentialsDialogs(
                                         playbackCreds.uin
                                     }} (UIN: ${playbackCreds.uin})\n该凭证可能已被云端吊销或已过期，请重新导入有效凭证。"
                                 } else {
-                                    "当前状态: 已启用独立播放凭证\n账号: ${playbackCreds.nick.ifBlank {
+                                    val refreshInfo = if (canRefresh) " [支持自动续签]" else " [只读票据]"
+                                    "当前状态: 已启用独立播放凭证$refreshInfo\n账号: ${playbackCreds.nick.ifBlank {
                                         playbackCreds.uin
                                     }} (UIN: ${playbackCreds.uin})\n播放与下载将使用该账号权限，歌单与推荐保持使用主账号。"
                                 }
@@ -90,6 +97,7 @@ fun SettingsCredentialsDialogs(
                         onClick = {
                             onDismissCredsDialog()
                             exportPassword = ""
+                            exportAllowRefresh = false
                             exportedTokenResult = null
                             showExportDialog = true
                         },
@@ -167,6 +175,38 @@ fun SettingsCredentialsDialogs(
                             singleLine = true,
                         )
 
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { exportAllowRefresh = !exportAllowRefresh }
+                                    .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "允许凭证自动续签",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text =
+                                        if (exportAllowRefresh) {
+                                            "导出包含刷新令牌，导入端可在票据到期后自动续签"
+                                        } else {
+                                            "仅导出只读播放票据，到期后需重新导出"
+                                        },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = exportAllowRefresh,
+                                onCheckedChange = { exportAllowRefresh = it },
+                            )
+                        }
+
                         if (exportedTokenResult != null) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
@@ -203,6 +243,7 @@ fun SettingsCredentialsDialogs(
                                     PlaybackCredentialsManager.exportToken(
                                         profile = userProfile,
                                         password = exportPassword.ifBlank { null },
+                                        allowRefresh = exportAllowRefresh,
                                     )
                                 exportedTokenResult = token
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
