@@ -243,6 +243,17 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
             val hasVipSource = resultList.any { it.tier > AudioQualityTier.HQ && it.sizeBytes > 0 }
             val hasVipUrl = resultList.any { it.tier > AudioQualityTier.HQ && it.isAvailable }
             if (PlaybackCredentialsManager.hasCustomCredentials && hasVipSource && !hasVipUrl) {
+                if (canRetryWithRenew && PlaybackCredentialsManager.canRefreshCredentials()) {
+                    val current = PlaybackCredentialsManager.currentCredentials
+                    if (current != null) {
+                        ApiLogger.i("MusicApiPlayback", "probeSongQualities: Custom credentials support refresh, attempting auto-renewal...")
+                        val refreshed = LoginApiService().refreshPlaybackCredentials(current)
+                        if (refreshed != null) {
+                            PlaybackCredentialsManager.setCredentials(refreshed)
+                            return@withContext probeSongQualitiesInternal(songMid, mediaMid, canRetryWithRenew = false)
+                        }
+                    }
+                }
                 ApiLogger.w("MusicApiPlayback", "probeSongQualities: Custom credentials failed to obtain VIP track URL, marking as revoked.")
                 PlaybackCredentialsManager.markCredentialsRevoked()
             }
@@ -443,6 +454,17 @@ private suspend fun MusicApiService.getPlayUrlInternal(
             val hasVipSource = sizeMap.any { it.key > AudioQualityTier.HQ && it.value > 0L }
             val hasVipUrl = availableMap.keys.any { it > AudioQualityTier.HQ }
             if (PlaybackCredentialsManager.hasCustomCredentials && hasVipSource && !hasVipUrl) {
+                if (canRetryWithRenew && PlaybackCredentialsManager.canRefreshCredentials()) {
+                    val current = PlaybackCredentialsManager.currentCredentials
+                    if (current != null) {
+                        ApiLogger.i("MusicApiPlayback", "getPlayUrl: Custom credentials support refresh, attempting auto-renewal...")
+                        val refreshed = LoginApiService().refreshPlaybackCredentials(current)
+                        if (refreshed != null) {
+                            PlaybackCredentialsManager.setCredentials(refreshed)
+                            return@withContext getPlayUrlInternal(songMid, mediaMid, preferredTier, canRetryWithRenew = false)
+                        }
+                    }
+                }
                 ApiLogger.w("MusicApiPlayback", "getPlayUrl: Custom credentials failed to obtain VIP track URL, marking as revoked.")
                 PlaybackCredentialsManager.markCredentialsRevoked()
             }

@@ -59,6 +59,62 @@ class PlaybackCredentialsManagerTest {
     }
 
     @Test
+    fun `test export and import token with allowRefresh flag`() {
+        val profile =
+            UserProfile(
+                uin = "123456789",
+                nick = "可续签账号",
+                musicKey = "W_X_TEST_MUSIC_KEY",
+                isVip = true,
+                cookies =
+                    mapOf(
+                        "qm_keyst" to "KEY_VALUE",
+                        "refresh_token" to "REFRESH_TOKEN_VALUE",
+                        "refresh_key" to "REFRESH_KEY_VALUE",
+                        "unrelated_tracking_cookie" to "IGNORE_ME",
+                    ),
+            )
+
+        // 1. allowRefresh = false 时，refresh_token 应该被过滤
+        val tokenWithoutRefresh = PlaybackCredentialsManager.exportToken(profile, allowRefresh = false)
+        val importedNoRefresh = PlaybackCredentialsManager.importToken(tokenWithoutRefresh)
+        assertFalse(importedNoRefresh.allowRefresh)
+        assertFalse(importedNoRefresh.cookies.containsKey("refresh_token"))
+        assertFalse(importedNoRefresh.cookies.containsKey("refresh_key"))
+        assertFalse(PlaybackCredentialsManager.canRefreshCredentials(importedNoRefresh))
+
+        // 2. allowRefresh = true 时，refresh_token 和 refresh_key 应该被保留
+        val tokenWithRefresh = PlaybackCredentialsManager.exportToken(profile, allowRefresh = true)
+        val importedWithRefresh = PlaybackCredentialsManager.importToken(tokenWithRefresh)
+        assertTrue(importedWithRefresh.allowRefresh)
+        assertTrue(importedWithRefresh.cookies.containsKey("refresh_token"))
+        assertTrue(importedWithRefresh.cookies.containsKey("refresh_key"))
+        assertFalse(importedWithRefresh.cookies.containsKey("unrelated_tracking_cookie"))
+        assertTrue(PlaybackCredentialsManager.canRefreshCredentials(importedWithRefresh))
+
+        // 3. QQ 互联凭据测试 (openid + access_token)
+        val qqProfile =
+            UserProfile(
+                uin = "234567890",
+                nick = "QQ互联用户",
+                musicKey = "QQ_MUSIC_KEY",
+                isVip = true,
+                cookies =
+                    mapOf(
+                        "qm_keyst" to "KEY_VAL",
+                        "psrf_qqopenid" to "OPENID_VAL",
+                        "psrf_qqaccess_token" to "ACCESS_TOKEN_VAL",
+                    ),
+            )
+        val qqTokenWithRefresh = PlaybackCredentialsManager.exportToken(qqProfile, allowRefresh = true)
+        val importedQq = PlaybackCredentialsManager.importToken(qqTokenWithRefresh)
+        assertTrue(importedQq.allowRefresh)
+        assertTrue(importedQq.cookies.containsKey("psrf_qqopenid"))
+        assertTrue(importedQq.cookies.containsKey("psrf_qqaccess_token"))
+        assertTrue(PlaybackCredentialsManager.canRefreshCredentials(importedQq))
+    }
+
+    @Test
     fun `test export and import token with password`() {
         val profile =
             UserProfile(

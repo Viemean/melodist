@@ -40,6 +40,7 @@ data class PlaybackCredentials(
     val nick: String = "",
     val updateTime: Long = System.currentTimeMillis(),
     val isRevoked: Boolean = false,
+    val allowRefresh: Boolean = false,
 ) {
     val vipTier: PlaybackVipTier
         get() =
@@ -89,6 +90,19 @@ object PlaybackCredentialsManager {
             "wxuin",
             "wxopenid",
             "pt2gguin",
+        )
+
+    // 允许续签时的长效与会话凭证白名单
+    private val REFRESH_COOKIE_KEYS =
+        setOf(
+            "refresh_token",
+            "refresh_key",
+            "psrf_qqopenid",
+            "psrf_qqaccess_token",
+            "psrf_qqunionid",
+            "openid",
+            "access_token",
+            "tmeLoginType",
         )
 
     /**
@@ -192,6 +206,18 @@ object PlaybackCredentialsManager {
     }
 
     /**
+     * 判断当前独立播放凭据是否支持网关自动续签。
+     */
+    fun canRefreshCredentials(creds: PlaybackCredentials? = currentCredentials): Boolean {
+        val c = creds ?: return false
+        val hasOfficialToken = !c.cookies["refresh_token"].isNullOrBlank()
+        val hasQqToken =
+            (!c.cookies["psrf_qqopenid"].isNullOrBlank() || !c.cookies["openid"].isNullOrBlank()) &&
+                (!c.cookies["psrf_qqaccess_token"].isNullOrBlank() || !c.cookies["access_token"].isNullOrBlank())
+        return c.allowRefresh || hasOfficialToken || hasQqToken
+    }
+
+    /**
      * 将当前激活的播放凭据标记为已被服务端吊销/撤回。
      */
     fun markCredentialsRevoked() {
@@ -228,6 +254,7 @@ object PlaybackCredentialsManager {
         val sv: Boolean = false,
         val exp: String = "",
         val et: Long = 0L,
+        val ar: Boolean = false,
     )
 
     private val jsonHelper =
@@ -269,8 +296,12 @@ object PlaybackCredentialsManager {
     fun exportToken(
         profile: UserProfile,
         password: String? = null,
+        allowRefresh: Boolean = false,
     ): String {
-        val cleanCookies = profile.cookies.filterKeys { it in ESSENTIAL_COOKIE_KEYS }
+        val cleanCookies =
+            profile.cookies.filterKeys {
+                it in ESSENTIAL_COOKIE_KEYS || (allowRefresh && it in REFRESH_COOKIE_KEYS)
+            }
         val expStr = profile.vipExpireAt.ifBlank { profile.svipExpireAt.ifBlank { profile.hugeVipExpireAt } }
         val expTs = parseExpireTimestamp(expStr) ?: 0L
         val payload =
@@ -285,6 +316,7 @@ object PlaybackCredentialsManager {
                 sv = profile.isSvip,
                 exp = expStr,
                 et = expTs,
+                ar = allowRefresh,
             )
         val jsonStr = jsonHelper.encodeToString(payload)
         val rawBytes = jsonStr.toByteArray(Charsets.UTF_8)
@@ -433,6 +465,7 @@ object PlaybackCredentialsManager {
             expireTimestamp = compact.et,
             nick = compact.n,
             updateTime = if (compact.t > 0L) compact.t else System.currentTimeMillis(),
+            allowRefresh = compact.ar,
         )
     }
 
