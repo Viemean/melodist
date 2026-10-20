@@ -7,6 +7,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.ZoneId
@@ -64,6 +66,10 @@ suspend fun MusicApiService.reportPlayStream(
         val authst = getEffectiveAuthst()
         if (uin.isBlank()) return@withContext false
 
+        val cookies = UserSession.profile.cookies
+        val openid = cookies["psrf_qqopenid"] ?: cookies["openid"] ?: ""
+        val accessToken = cookies["psrf_qqaccess_token"] ?: cookies["access_token"] ?: ""
+
         val xml =
             buildPlayStreamXml(
                 songId = songId,
@@ -72,6 +78,8 @@ suspend fun MusicApiService.reportPlayStream(
                 deviceInfo = deviceInfo,
                 uin = uin,
                 authst = authst,
+                openid = openid,
+                accessToken = accessToken,
                 optime = optime,
             )
 
@@ -109,7 +117,10 @@ internal fun buildPlayStreamXml(
     deviceInfo: DeviceReportInfo,
     uin: String,
     authst: String,
+    openid: String = "",
+    accessToken: String = "",
     optime: Long = System.currentTimeMillis() / 1000,
+    v4ip: String = resolveLocalIpv4Address(),
 ): String {
     val timeKey = computeTimeKey(optime, playTimeSec, uin)
     val playTimeMs = playTimeSec * 1000L
@@ -121,7 +132,6 @@ internal fun buildPlayStreamXml(
     val vkey = deriveHex32(deviceInfo.openUdid, optime)
     val tid = deriveNumeric19(deviceInfo.openUdid)
     val taid = deriveHex88(deviceInfo.openUdid)
-    val v4ip = "192.168.1.100"
 
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
         "<root>" +
@@ -144,9 +154,9 @@ internal fun buildPlayStreamXml(
         "<v4ip>$v4ip</v4ip>" +
         "<qq>$uin</qq>" +
         "<authst>$authst</authst>" +
-        "<psrf_qqopenid></psrf_qqopenid>" +
+        "<psrf_qqopenid>$openid</psrf_qqopenid>" +
         "<psrf_access_token_expiresAt>0</psrf_access_token_expiresAt>" +
-        "<psrf_qqaccess_token></psrf_qqaccess_token>" +
+        "<psrf_qqaccess_token>$accessToken</psrf_qqaccess_token>" +
         "<hotfix>100000000</hotfix>" +
         "<traceid>$traceid</traceid>" +
         "<cid>228</cid>" +
@@ -217,4 +227,23 @@ private fun deriveHex88(openUdid: String): String {
     val part2 = md5Hex("${openUdid}_p2")
     val part3 = md5Hex("${openUdid}_p3").take(24)
     return "$part1$part2$part3"
+}
+
+internal fun resolveLocalIpv4Address(): String {
+    try {
+        val interfaces = NetworkInterface.getNetworkInterfaces() ?: return "192.168.1.100"
+        for (iface in interfaces) {
+            if (!iface.isUp || iface.isLoopback) continue
+            for (addr in iface.inetAddresses) {
+                if (!addr.isLoopbackAddress && addr is Inet4Address) {
+                    val host = addr.hostAddress
+                    if (!host.isNullOrBlank() && host != "127.0.0.1") {
+                        return host
+                    }
+                }
+            }
+        }
+    } catch (_: Exception) {
+    }
+    return "192.168.1.100"
 }

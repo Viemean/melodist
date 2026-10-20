@@ -35,6 +35,8 @@ class MusicApiPlayStreamTest {
                 deviceInfo = deviceInfo,
                 uin = "12345678",
                 authst = "W_X_TEST_KEY",
+                openid = "mock_open_id_123",
+                accessToken = "mock_access_token_456",
                 optime = 1760246338L,
             )
 
@@ -46,11 +48,23 @@ class MusicApiPlayStreamTest {
         assertTrue(xml.contains("<devicelevel>34</devicelevel>"))
         assertTrue(xml.contains("<qq>12345678</qq>"))
         assertTrue(xml.contains("<tmeLoginType>1</tmeLoginType>")) // W_X key -> 1
+        assertTrue(xml.contains("<psrf_qqopenid>mock_open_id_123</psrf_qqopenid>"))
+        assertTrue(xml.contains("<psrf_qqaccess_token>mock_access_token_456</psrf_qqaccess_token>"))
+        assertTrue(xml.contains("<v4ip>"))
         assertTrue(xml.contains("""songid="186016""""))
         assertTrue(xml.contains("""time="60""""))
         assertTrue(xml.contains("""audiotime="269""""))
         assertTrue(xml.contains("""play_duration_mi="60000""""))
         assertTrue(xml.endsWith("</root>"))
+    }
+
+    @Test
+    fun `resolveLocalIpv4Address returns non-empty valid ipv4 address`() {
+        val ip = resolveLocalIpv4Address()
+        assertTrue(ip.isNotBlank())
+        val parts = ip.split(".")
+        assertEquals(4, parts.size)
+        assertTrue(parts.all { it.toIntOrNull() in 0..255 })
     }
 
     @Test

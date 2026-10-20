@@ -68,11 +68,16 @@ object DeviceReportHelper {
         val rawModel = Build.MODEL.takeIf { !it.isNullOrBlank() } ?: "Melodist"
         val isModelNonCompliant = isNonCompliantModel(rawModel)
         val isIdNonCompliant = isNonCompliantAndroidId(rawAndroidId)
+        val isNonCompliant = isModelNonCompliant || isIdNonCompliant
 
-        val seed = rawAndroidId?.takeIf { it.isNotBlank() } ?: rawModel
-        val profile = if (isModelNonCompliant || isIdNonCompliant) resolveCompliantProfile(seed) else null
-        val model = if (isModelNonCompliant) (profile?.model ?: COMPLIANT_DEVICE_PROFILES.first().model) else rawModel
-        val androidId = if (isIdNonCompliant) (profile?.androidId ?: COMPLIANT_DEVICE_PROFILES.first().androidId) else rawAndroidId!!
+        val (model, androidId) =
+            if (isNonCompliant) {
+                val seed = rawAndroidId?.takeIf { it.isNotBlank() } ?: rawModel
+                val profile = resolveCompliantProfile(seed)
+                profile.model to profile.androidId
+            } else {
+                rawModel to rawAndroidId!!
+            }
         val openUdid = computeSha1(androidId)
         val osVer = Build.VERSION.RELEASE.takeIf { !it.isNullOrBlank() } ?: "14"
         val sdkInt = Build.VERSION.SDK_INT
@@ -97,7 +102,14 @@ object DeviceReportHelper {
 
     private fun isNonCompliantAndroidId(rawAndroidId: String?): Boolean {
         if (rawAndroidId.isNullOrBlank() || rawAndroidId.length != 16) return true
-        if (rawAndroidId == "9774d56d682e549c" || rawAndroidId == "0000000000000000") return true
+        if (rawAndroidId == "9774d56d682e549c" ||
+            rawAndroidId == "0000000000000000" ||
+            rawAndroidId.equals("d9a53a1bfc03fa68", ignoreCase = true)
+        ) {
+            return true
+        }
+        val first = rawAndroidId[0]
+        if (first !in '1'..'9' && first !in 'a'..'f' && first !in 'A'..'F') return true
         return !rawAndroidId.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
     }
 
