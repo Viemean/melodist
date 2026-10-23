@@ -72,7 +72,7 @@ fun AudioQualityDialog(
         Box(
             modifier =
                 Modifier
-                    .width(518.dp)
+                    .width(638.dp)
                     .wrapContentHeight()
                     .clip(MelodistShapes.DialogCorner)
                     .background(dialogBackgroundColor)

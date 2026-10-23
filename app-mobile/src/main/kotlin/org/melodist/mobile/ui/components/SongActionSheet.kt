@@ -509,7 +509,7 @@ fun SongActionSheet(
                             if (targetMid.isNotBlank()) {
                                 onDismissRequest()
                                 onNavigate?.invoke()
-                                navController.navigateToArtist(targetMid, targetName, clearStack = isFromPlayer)
+                                navController.navigateToArtist(targetMid, targetName)
                             } else {
                                 Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
                                 onDismissRequest()
@@ -528,7 +528,7 @@ fun SongActionSheet(
                         if (song.albumMid.isNotBlank()) {
                             onDismissRequest()
                             onNavigate?.invoke()
-                            navController.navigateToAlbum(song.albumMid, song.album, clearStack = isFromPlayer)
+                            navController.navigateToAlbum(song.albumMid, song.album)
                         } else {
                             Toast.makeText(context, "暂无专辑详情数据", Toast.LENGTH_SHORT).show()
                             onDismissRequest()
@@ -658,7 +658,7 @@ fun SongActionSheet(
             onDismissRequest()
             if (artist.mid.isNotBlank()) {
                 onNavigate?.invoke()
-                navController.navigateToArtist(artist.mid, artist.name, clearStack = isFromPlayer)
+                navController.navigateToArtist(artist.mid, artist.name)
             } else {
                 Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
             }
