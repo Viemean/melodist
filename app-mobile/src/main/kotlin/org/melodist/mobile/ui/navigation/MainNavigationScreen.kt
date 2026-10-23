@@ -62,14 +62,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import kotlin.math.roundToInt
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -246,11 +252,6 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
         )
     val coroutineScope = rememberCoroutineScope()
     val chipScrollState = rememberScrollState()
-
-    LaunchedEffect(pagerState.currentPage) {
-        val targetScroll = (pagerState.currentPage * 75).coerceAtLeast(0)
-        chipScrollState.animateScrollTo(targetScroll)
-    }
 
     var showLoginDialog by remember { mutableStateOf(false) }
     var isFullPlayerExpanded by remember { mutableStateOf(false) }
@@ -748,6 +749,31 @@ private fun RenderAppScreen(
                 val configuration = LocalConfiguration.current
                 val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                 var isTabVisible by rememberSaveable { mutableStateOf(true) }
+                val chipCenters = remember { mutableStateMapOf<Int, Float>() }
+                var chipViewportWidthPx by remember { mutableIntStateOf(0) }
+
+                LaunchedEffect(pagerState, chipViewportWidthPx, chipCenters.size) {
+                    snapshotFlow {
+                        pagerState.currentPage + pagerState.currentPageOffsetFraction
+                    }.collect { pageProgress ->
+                        if (chipCenters.isEmpty() || chipViewportWidthPx <= 0) return@collect
+
+                        val pageCount = HomeFilter.entries.size
+                        val baseIndex = pageProgress.toInt().coerceIn(0, pageCount - 1)
+                        val fraction = pageProgress - baseIndex
+                        val nextIndex = (baseIndex + 1).coerceIn(0, pageCount - 1)
+
+                        val currentCenter = chipCenters[baseIndex] ?: return@collect
+                        val nextCenter = chipCenters[nextIndex] ?: currentCenter
+                        val interpolatedCenter = currentCenter + (nextCenter - currentCenter) * fraction
+
+                        val targetScroll = (interpolatedCenter - chipViewportWidthPx / 2f).coerceIn(
+                            0f,
+                            chipScrollState.maxValue.toFloat(),
+                        )
+                        chipScrollState.scrollTo(targetScroll.roundToInt())
+                    }
+                }
 
                 LaunchedEffect(isLandscape) {
                     if (!isLandscape) {
@@ -989,6 +1015,7 @@ private fun RenderAppScreen(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
+                                        .onSizeChanged { chipViewportWidthPx = it.width }
                                         .horizontalScroll(chipScrollState)
                                         .padding(horizontal = 16.dp, vertical = 4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1008,6 +1035,11 @@ private fun RenderAppScreen(
                                                 selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                                 selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                             ),
+                                        modifier =
+                                            Modifier.onGloballyPositioned { coordinates ->
+                                                val pos = coordinates.positionInParent()
+                                                chipCenters[index] = pos.x + coordinates.size.width / 2f
+                                            },
                                     )
                                 }
                             }
