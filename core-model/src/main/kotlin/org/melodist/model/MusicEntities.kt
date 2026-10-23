@@ -90,6 +90,7 @@ data class QualityOption(
     val playUrl: String? = null,
     val sampleRateHz: Int = 0,
     val bitDepth: Int = 0,
+    val channels: Int = 2,
 )
 
 @Serializable

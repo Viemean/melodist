@@ -70,8 +70,10 @@ internal object DownloadStorageStore {
             AudioQualityTier.SQ -> "SQ"
             AudioQualityTier.HQ -> "HQ"
             AudioQualityTier.Standard -> "Standard"
-            AudioQualityTier.Atmos -> "Atmos"
             AudioQualityTier.Dolby -> "Dolby"
+            AudioQualityTier.DtsX -> "DTS_X"
+            AudioQualityTier.Atmos71 -> "Atmos71"
+            AudioQualityTier.Atmos -> "Atmos"
             AudioQualityTier.Premium -> "Premium"
         }
 

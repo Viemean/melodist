@@ -62,9 +62,11 @@ object PlaybackSourceResolver {
 
     fun getAudioQualityRank(tier: AudioQualityTier): Int =
         when (tier) {
-            AudioQualityTier.Master -> 8
-            AudioQualityTier.Atmos -> 7
-            AudioQualityTier.Dolby -> 6
+            AudioQualityTier.Master -> 10
+            AudioQualityTier.Dolby -> 9
+            AudioQualityTier.DtsX -> 8
+            AudioQualityTier.Atmos71 -> 7
+            AudioQualityTier.Atmos -> 6
             AudioQualityTier.Premium -> 5
             AudioQualityTier.HiRes -> 4
             AudioQualityTier.SQ -> 3
@@ -121,9 +123,11 @@ object PlaybackSourceResolver {
 
     fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? =
         when (current) {
-            AudioQualityTier.Master -> AudioQualityTier.Atmos
-            AudioQualityTier.Atmos -> AudioQualityTier.Dolby
-            AudioQualityTier.Dolby -> AudioQualityTier.Premium
+            AudioQualityTier.Master -> AudioQualityTier.Dolby
+            AudioQualityTier.Dolby -> AudioQualityTier.DtsX
+            AudioQualityTier.DtsX -> AudioQualityTier.Atmos71
+            AudioQualityTier.Atmos71 -> AudioQualityTier.Atmos
+            AudioQualityTier.Atmos -> AudioQualityTier.Premium
             AudioQualityTier.Premium -> AudioQualityTier.HiRes
             AudioQualityTier.HiRes -> AudioQualityTier.SQ
             AudioQualityTier.SQ -> AudioQualityTier.HQ

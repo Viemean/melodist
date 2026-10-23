@@ -5,8 +5,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class AudioQualityTier {
     Master,
-    Atmos,
     Dolby,
+    DtsX,
+    Atmos71,
+    Atmos,
     Premium,
     HiRes,
     SQ,
@@ -27,8 +29,10 @@ enum class AudioQualityTier {
 
         fun getSpatialRank(tier: AudioQualityTier): Int =
             when (tier) {
+                Dolby -> 3
+                DtsX -> 3
+                Atmos71 -> 2
                 Atmos -> 2
-                Dolby -> 2
                 Premium -> 1
                 else -> 0
             }
@@ -36,7 +40,7 @@ enum class AudioQualityTier {
         /**
          * 双轨制跨音质收敛判定：
          * - 立体声轨道：Master > HiRes > SQ > HQ > Standard
-         * - 全景声轨道：Atmos / Dolby > Premium
+         * - 全景声轨道：Dolby / DtsX > Atmos / Atmos71 > Premium
          * 跨轨道互不淘汰。
          */
         fun shouldPrune(
@@ -63,9 +67,11 @@ enum class AudioQualityTier {
         fun getBadge(tier: AudioQualityTier): String =
             when (tier) {
                 Master -> "母带"
-                Premium -> "臻品"
-                Atmos -> "全景声"
                 Dolby -> "杜比"
+                DtsX -> "DTS:X"
+                Atmos71 -> "全景声 7.1"
+                Atmos -> "全景声"
+                Premium -> "臻品"
                 HiRes -> "Hi-Res"
                 SQ -> "SQ"
                 HQ -> "HQ"
@@ -76,9 +82,11 @@ enum class AudioQualityTier {
             if (name.isNullOrBlank()) return null
             return when (name.trim().uppercase()) {
                 "MASTER" -> Master
-                "PREMIUM" -> Premium
-                "ATMOS", "ATMOS71", "ATMOS51", "5.1", "7.1" -> Atmos
                 "DOLBY" -> Dolby
+                "DTS", "DTS_X", "DTSX", "DTS-X" -> DtsX
+                "ATMOS71", "7.1" -> Atmos71
+                "ATMOS", "ATMOS51", "5.1" -> Atmos
+                "PREMIUM" -> Premium
                 "HIRES", "HI-RES" -> HiRes
                 "SQ" -> SQ
                 "HQ" -> HQ
@@ -98,15 +106,20 @@ enum class AudioQualityTier {
             bitrate: Int = 0,
         ): AudioQualityTier {
             val mime = mimeType?.lowercase().orEmpty()
-            val isDolbyAtmos = mime.contains("eac3-joc") || mime.contains("atmos")
+            val isDolbyAtmos = mime.contains("eac3-joc") || mime.contains("atmos") || mime.contains("ac4") || mime.contains("ac-4")
 
             if (isDolbyAtmos) {
                 return Dolby
             }
+            if (mime.contains("dts") || mime.contains("dtsx")) {
+                return DtsX
+            }
+            if (channelCount >= 8) {
+                return Atmos71
+            }
             if (channelCount >= 5 ||
                 mime.contains("ac3") ||
-                mime.contains("eac3") ||
-                mime.contains("dts")
+                mime.contains("eac3")
             ) {
                 return Atmos
             }
@@ -137,4 +150,4 @@ enum class AudioQualityTier {
 }
 
 val AudioQualityTier.requiresSvip: Boolean
-    get() = this in setOf(AudioQualityTier.Master, AudioQualityTier.Atmos, AudioQualityTier.Dolby, AudioQualityTier.Premium)
+    get() = this in setOf(AudioQualityTier.Master, AudioQualityTier.Dolby, AudioQualityTier.DtsX, AudioQualityTier.Atmos71, AudioQualityTier.Atmos, AudioQualityTier.Premium)
