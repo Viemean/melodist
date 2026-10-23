@@ -60,6 +60,20 @@ object PlaybackSourceResolver {
             song.isLocal
     }
 
+    /**
+     * 判断歌曲是否为纯本地导入或 WebDAV 音乐（无线上音源可用）
+     * 仅当歌曲为纯本地或 WebDAV 时才限制切换音质，已下载的在线歌曲不在此列
+     */
+    fun isPureLocalOrWebDav(song: Song?): Boolean {
+        if (song == null) return false
+        if (song.songMid.isBlank()) return true
+        return song.songMid.startsWith("webdav_") ||
+            song.songMid.startsWith("local_") ||
+            song.songMid.startsWith("pc_local_") ||
+            song.isWebDav ||
+            song.isLocal
+    }
+
     fun getAudioQualityRank(tier: AudioQualityTier): Int =
         when (tier) {
             AudioQualityTier.Master -> 9

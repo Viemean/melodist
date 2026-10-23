@@ -165,11 +165,20 @@ fun SongActionSheet(
     }
 
     LaunchedEffect(showDownloadQualityDialog, song.songMid) {
-        if (showDownloadQualityDialog && probedQualityOptions.isEmpty()) {
+        if (showDownloadQualityDialog) {
+            val isPureLocal = org.melodist.playback.PlaybackSourceResolver.isPureLocalOrWebDav(song)
+            if (isPureLocal) {
+                return@LaunchedEffect
+            }
+
             val playingSong = PlaybackManager.currentSong.value
             val globalProbed = PlaybackManager.probedQualityOptions.value
-            if (playingSong?.songMid == song.songMid && globalProbed.isNotEmpty()) {
+            if (playingSong?.songMid == song.songMid && globalProbed.size > 1) {
                 probedQualityOptions = globalProbed
+                return@LaunchedEffect
+            }
+
+            if (probedQualityOptions.size > 1) {
                 return@LaunchedEffect
             }
 
@@ -699,6 +708,7 @@ fun SongActionSheet(
             probedQualityOptions = probedQualityOptions,
             songDurationSec = song.durationSeconds,
             isProbing = isProbing,
+            targetSong = song,
             onSelectTier = { selectedTier ->
                 showDownloadQualityDialog = false
                 if (!DownloadManager.hasStoragePermission(context)) {

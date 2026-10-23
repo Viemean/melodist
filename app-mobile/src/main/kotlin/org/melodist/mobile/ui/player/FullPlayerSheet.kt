@@ -1018,7 +1018,7 @@ fun FullPlayerSheet(
                             onOpenQualitySheet = {
                                 if (isListenTogetherTrial) {
                                     PlaybackManager.notifyUser("试听音乐不支持切换音质哦")
-                                } else if (!PlaybackManager.isLocalOrWebDavSong(song)) {
+                                } else if (!PlaybackManager.isPureLocalOrWebDavSong(song)) {
                                     PlaybackManager.ensureQualityProbed()
                                     showQualitySheet = true
                                 }

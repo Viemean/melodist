@@ -65,8 +65,8 @@ class AudioQualityCoordinator(
             blacklistedSongMid = song.songMid
             blacklistedTiers.clear()
         }
-        val isLocalOrWebDav = PlaybackSourceResolver.isLocalOrWebDavSong(song)
-        if (isLocalOrWebDav) {
+        val isPureLocal = PlaybackSourceResolver.isPureLocalOrWebDav(song)
+        if (isPureLocal) {
             val actualTier = song.currentTier
             _availableTiers.value = setOf(actualTier)
             val localPath = song.localFilePath

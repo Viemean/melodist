@@ -70,7 +70,7 @@ fun AudioQualityBottomSheet(
     val isCellular = remember { PlaybackManager.isCellularNetwork() }
     val currentSong by PlaybackManager.currentSong.collectAsState()
     val effectiveSong = targetSong ?: currentSong
-    val isLocalOrWebDav = remember(effectiveSong) { PlaybackManager.isLocalOrWebDavSong(effectiveSong) }
+    val isLocalOrWebDav = remember(effectiveSong) { PlaybackManager.isPureLocalOrWebDavSong(effectiveSong) }
 
     var enrichedOptions by remember(probedQualityOptions) { mutableStateOf<List<QualityOption>>(probedQualityOptions) }
     var isSniffing by remember(probedQualityOptions) { mutableStateOf(false) }
@@ -101,7 +101,7 @@ fun AudioQualityBottomSheet(
                 val rawCombined =
                     if (probedAvailable.isNotEmpty()) {
                         probedAvailable
-                    } else if (availableTiers.isNotEmpty()) {
+                    } else if (availableTiers.size > 1) {
                         availableTiers
                     } else {
                         setOf(currentTier, AudioQualityTier.SQ, AudioQualityTier.HQ, AudioQualityTier.Standard)

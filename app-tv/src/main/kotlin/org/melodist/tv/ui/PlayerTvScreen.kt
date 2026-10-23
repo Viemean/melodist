@@ -202,7 +202,7 @@ fun PlayerTvScreen(
                         animationSpec = tween(durationMillis = 300),
                     ) + fadeOut(animationSpec = tween(durationMillis = 300)),
             ) {
-                val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activeSong) && !isTrial
+                val canChangeQuality = !PlaybackManager.isPureLocalOrWebDavSong(activeSong) && !isTrial
                 BottomPlayerBar(
                     modifier = Modifier.fillMaxWidth(),
                     surfaceColor = surfaceColor,

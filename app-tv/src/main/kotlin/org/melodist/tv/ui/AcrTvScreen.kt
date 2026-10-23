@@ -612,7 +612,7 @@ fun AcrTvScreen(
                     animationSpec = tween(durationMillis = 300),
                 ) + fadeOut(animationSpec = tween(durationMillis = 300)),
         ) {
-            val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activeSong)
+            val canChangeQuality = !PlaybackManager.isPureLocalOrWebDavSong(activeSong)
             BottomPlayerBar(
                 modifier = Modifier.fillMaxWidth(),
                 surfaceColor = surfaceColor,

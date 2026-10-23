@@ -33,6 +33,29 @@ class PlaybackSourceResolverTest {
     }
 
     @Test
+    fun `isPureLocalOrWebDav distinguishes pure local files from downloaded online songs`() {
+        assertFalse(PlaybackSourceResolver.isPureLocalOrWebDav(null))
+
+        val onlineSong = Song(songId = 1, songMid = "003mQIjO4e38e6", name = "Test Online")
+        assertFalse(PlaybackSourceResolver.isPureLocalOrWebDav(onlineSong))
+
+        val downloadedSong =
+            Song(
+                songId = 2,
+                songMid = "003mQIjO4e38e6",
+                name = "Test Downloaded Online Song",
+                localFilePath = "/storage/emulated/0/Music/download.mp3",
+            )
+        assertFalse(PlaybackSourceResolver.isPureLocalOrWebDav(downloadedSong))
+
+        val localPrefixSong = Song(songId = 3, songMid = "local_123", name = "Local Imported Song")
+        assertTrue(PlaybackSourceResolver.isPureLocalOrWebDav(localPrefixSong))
+
+        val webDavSong = Song(songId = 4, songMid = "webdav_456", name = "WebDav Song")
+        assertTrue(PlaybackSourceResolver.isPureLocalOrWebDav(webDavSong))
+    }
+
+    @Test
     fun `getAudioQualityRank assigns correct hierarchical order`() {
         val masterRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Master)
         val dolbyRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Dolby)

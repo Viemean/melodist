@@ -698,7 +698,7 @@ fun MediaDetailTvScaffold(
                         activePlayingSong?.durationSeconds?.toLong()?.times(1000L) ?: 240000L
                     }
 
-                val canChangeQuality = !PlaybackManager.isLocalOrWebDavSong(activePlayingSong)
+                val canChangeQuality = !PlaybackManager.isPureLocalOrWebDavSong(activePlayingSong)
                 BottomPlayerBar(
                     modifier = Modifier.fillMaxWidth(),
                     surfaceColor = surfaceColor,

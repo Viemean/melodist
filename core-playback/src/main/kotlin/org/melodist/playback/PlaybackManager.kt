@@ -1518,7 +1518,7 @@ object PlaybackManager {
         }
 
         qualityCoordinator.resetForSong(song)
-        if (!PlaybackSourceResolver.isLocalOrWebDavSong(song)) {
+        if (!PlaybackSourceResolver.isPureLocalOrWebDav(song)) {
             if (policyCoordinator.isQualityProbeAllowed(song)) {
                 launchProbeJob(song, delayMs = 3000L)
             }
@@ -2080,6 +2080,14 @@ object PlaybackManager {
             return true
         }
         return PlaybackSourceResolver.isLocalOrWebDavSong(song)
+    }
+
+    fun isPureLocalOrWebDavSong(song: Song?): Boolean {
+        if (song == null) return false
+        if (lastCustomStreamArgs != null && _currentSong.value?.songMid == song.songMid) {
+            return true
+        }
+        return PlaybackSourceResolver.isPureLocalOrWebDav(song)
     }
 
     fun getAudioQualityRank(tier: AudioQualityTier): Int = PlaybackSourceResolver.getAudioQualityRank(tier)
