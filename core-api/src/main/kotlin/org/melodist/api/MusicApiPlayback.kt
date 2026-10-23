@@ -30,13 +30,14 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
         val uin = PlaybackCredentialsManager.getActiveUin()
         val authst = PlaybackCredentialsManager.getActiveAuthst()
         val cookieHeader = PlaybackCredentialsManager.getActiveCookieHeader()
-
         val requests =
             listOf(
                 Triple("req_master", AudioQualityTier.Master, Pair("AI00", ".flac")),
-                Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
+                Triple("req_dolby", AudioQualityTier.Dolby, Pair("D004", ".mp4")),
+                Triple("req_dtsx", AudioQualityTier.DtsX, Pair("DT03", ".mp4")),
+                Triple("req_atmos71", AudioQualityTier.Atmos71, Pair("Q003", ".ogg")),
                 Triple("req_atmos", AudioQualityTier.Atmos, Pair("Q001", ".flac")),
-                Triple("req_dolby", AudioQualityTier.Dolby, Pair("Q000", ".flac")),
+                Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
                 Triple("req_hires", AudioQualityTier.HiRes, Pair("RS01", ".flac")),
                 Triple("req_sq", AudioQualityTier.SQ, Pair("F000", ".flac")),
                 Triple("req_320", AudioQualityTier.HQ, Pair("M800", ".mp3")),
@@ -82,6 +83,8 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                 sizeMap[AudioQualityTier.Master] = masterSize
                 sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Atmos] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
+                sizeMap[AudioQualityTier.Atmos71] = sizeNew?.getOrNull(3)?.jsonPrimitive?.longOrNull ?: 0L
+                sizeMap[AudioQualityTier.DtsX] = sizeNew?.getOrNull(9)?.jsonPrimitive?.longOrNull ?: 0L
 
                 dolbySize = fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Dolby] = dolbySize
@@ -140,6 +143,10 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                 val isAvailable =
                     if (tier == AudioQualityTier.Dolby) {
                         dolbySize > 0L && hasValidUrl
+                    } else if (tier == AudioQualityTier.DtsX) {
+                        (sizeMap[AudioQualityTier.DtsX] ?: 0L) > 0L && hasValidUrl
+                    } else if (tier == AudioQualityTier.Atmos71) {
+                        (sizeMap[AudioQualityTier.Atmos71] ?: 0L) > 0L && hasValidUrl
                     } else if (fileObj != null) {
                         if (tier == AudioQualityTier.HiRes) {
                             (fileSize > 0L || hiresSample > 48000 || hiresBitdepth > 16) && hasValidUrl
@@ -352,9 +359,11 @@ private suspend fun MusicApiService.getPlayUrlInternal(
         val requests =
             listOf(
                 Triple("req_master", AudioQualityTier.Master, Pair("AI00", ".flac")),
-                Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
+                Triple("req_dolby", AudioQualityTier.Dolby, Pair("D004", ".mp4")),
+                Triple("req_dtsx", AudioQualityTier.DtsX, Pair("DT03", ".mp4")),
+                Triple("req_atmos71", AudioQualityTier.Atmos71, Pair("Q003", ".ogg")),
                 Triple("req_atmos", AudioQualityTier.Atmos, Pair("Q001", ".flac")),
-                Triple("req_dolby", AudioQualityTier.Dolby, Pair("Q000", ".flac")),
+                Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
                 Triple("req_hires", AudioQualityTier.HiRes, Pair("RS01", ".flac")),
                 Triple("req_sq", AudioQualityTier.SQ, Pair("F000", ".flac")),
                 Triple("req_hq", AudioQualityTier.HQ, Pair("M800", ".mp3")),
@@ -398,6 +407,8 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                 sizeMap[AudioQualityTier.Master] = masterSize
                 sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Atmos] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
+                sizeMap[AudioQualityTier.Atmos71] = sizeNew?.getOrNull(3)?.jsonPrimitive?.longOrNull ?: 0L
+                sizeMap[AudioQualityTier.DtsX] = sizeNew?.getOrNull(9)?.jsonPrimitive?.longOrNull ?: 0L
                 dolbySize = fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Dolby] = dolbySize
                 val hiresRaw =
@@ -437,14 +448,20 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                 val isAvailable =
                     if (tier == AudioQualityTier.Dolby) {
                         dolbySize > 0L && hasValidUrl
+                    } else if (tier == AudioQualityTier.DtsX) {
+                        (sizeMap[AudioQualityTier.DtsX] ?: 0L) > 0L && hasValidUrl
+                    } else if (tier == AudioQualityTier.Atmos71) {
+                        (sizeMap[AudioQualityTier.Atmos71] ?: 0L) > 0L && hasValidUrl
                     } else if (fileObj != null) {
                         fileSize > 0L && hasValidUrl
                     } else {
                         hasValidUrl
                     }
                 if (isAvailable && purl != null) {
-                    // 过滤 Android 系统解码器 (c2.android.vorbis.decoder) 无法解码的 12 声道 Q003 Vorbis 流
-                    if (purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) {
+                    // 仅当用户未主动选择 Atmos71 时过滤 12 声道 Q003 Vorbis 流
+                    if ((purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) &&
+                        preferredTier != AudioQualityTier.Atmos71
+                    ) {
                         continue
                     }
                     availableMap[tier] = sip + purl
@@ -486,8 +503,46 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                 when (preferredTier) {
                     AudioQualityTier.Master -> {
                         listOf(
+                            AudioQualityTier.Dolby,
+                            AudioQualityTier.DtsX,
+                            AudioQualityTier.Atmos,
+                            AudioQualityTier.Premium,
+                            AudioQualityTier.HiRes,
+                            AudioQualityTier.SQ,
+                            AudioQualityTier.HQ,
+                            AudioQualityTier.Standard,
+                        )
+                    }
+
+                    AudioQualityTier.Dolby -> {
+                        listOf(
+                            AudioQualityTier.DtsX,
+                            AudioQualityTier.Atmos,
+                            AudioQualityTier.Premium,
+                            AudioQualityTier.HiRes,
+                            AudioQualityTier.SQ,
+                            AudioQualityTier.HQ,
+                            AudioQualityTier.Standard,
+                        )
+                    }
+
+                    AudioQualityTier.DtsX -> {
+                        listOf(
+                            AudioQualityTier.Dolby,
+                            AudioQualityTier.Atmos,
+                            AudioQualityTier.Premium,
+                            AudioQualityTier.HiRes,
+                            AudioQualityTier.SQ,
+                            AudioQualityTier.HQ,
+                            AudioQualityTier.Standard,
+                        )
+                    }
+
+                    AudioQualityTier.Atmos71 -> {
+                        listOf(
                             AudioQualityTier.Atmos,
                             AudioQualityTier.Dolby,
+                            AudioQualityTier.DtsX,
                             AudioQualityTier.Premium,
                             AudioQualityTier.HiRes,
                             AudioQualityTier.SQ,
@@ -499,16 +554,7 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                     AudioQualityTier.Atmos -> {
                         listOf(
                             AudioQualityTier.Dolby,
-                            AudioQualityTier.Premium,
-                            AudioQualityTier.HiRes,
-                            AudioQualityTier.SQ,
-                            AudioQualityTier.HQ,
-                            AudioQualityTier.Standard,
-                        )
-                    }
-
-                    AudioQualityTier.Dolby -> {
-                        listOf(
+                            AudioQualityTier.DtsX,
                             AudioQualityTier.Premium,
                             AudioQualityTier.HiRes,
                             AudioQualityTier.SQ,
@@ -562,8 +608,9 @@ private suspend fun MusicApiService.getPlayUrlInternal(
             val ultimateFallback =
                 listOf(
                     AudioQualityTier.Master,
-                    AudioQualityTier.Atmos,
                     AudioQualityTier.Dolby,
+                    AudioQualityTier.DtsX,
+                    AudioQualityTier.Atmos,
                     AudioQualityTier.Premium,
                     AudioQualityTier.HiRes,
                     AudioQualityTier.SQ,

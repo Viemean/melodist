@@ -9,8 +9,12 @@ class PlaybackUrlProbeTest {
     @Test
     fun `audioQualityTier getBadge returns correct UI labels`() {
         assertEquals("母带", AudioQualityTier.getBadge(AudioQualityTier.Master))
-        assertEquals("Hi-Res", AudioQualityTier.getBadge(AudioQualityTier.HiRes))
+        assertEquals("杜比", AudioQualityTier.getBadge(AudioQualityTier.Dolby))
+        assertEquals("DTS:X", AudioQualityTier.getBadge(AudioQualityTier.DtsX))
+        assertEquals("全景声 7.1", AudioQualityTier.getBadge(AudioQualityTier.Atmos71))
         assertEquals("全景声", AudioQualityTier.getBadge(AudioQualityTier.Atmos))
+        assertEquals("臻品", AudioQualityTier.getBadge(AudioQualityTier.Premium))
+        assertEquals("Hi-Res", AudioQualityTier.getBadge(AudioQualityTier.HiRes))
         assertEquals("SQ", AudioQualityTier.getBadge(AudioQualityTier.SQ))
         assertEquals("HQ", AudioQualityTier.getBadge(AudioQualityTier.HQ))
         assertEquals("标准", AudioQualityTier.getBadge(AudioQualityTier.Standard))
@@ -50,8 +54,33 @@ class PlaybackUrlProbeTest {
             when (preferredTier) {
                 AudioQualityTier.Master -> {
                     listOf(
-                        AudioQualityTier.Atmos,
                         AudioQualityTier.Dolby,
+                        AudioQualityTier.DtsX,
+                        AudioQualityTier.Atmos,
+                        AudioQualityTier.Premium,
+                        AudioQualityTier.HiRes,
+                        AudioQualityTier.SQ,
+                        AudioQualityTier.HQ,
+                        AudioQualityTier.Standard,
+                    )
+                }
+
+                AudioQualityTier.Dolby -> {
+                    listOf(
+                        AudioQualityTier.DtsX,
+                        AudioQualityTier.Atmos,
+                        AudioQualityTier.Premium,
+                        AudioQualityTier.HiRes,
+                        AudioQualityTier.SQ,
+                        AudioQualityTier.HQ,
+                        AudioQualityTier.Standard,
+                    )
+                }
+
+                AudioQualityTier.DtsX -> {
+                    listOf(
+                        AudioQualityTier.Dolby,
+                        AudioQualityTier.Atmos,
                         AudioQualityTier.Premium,
                         AudioQualityTier.HiRes,
                         AudioQualityTier.SQ,
@@ -63,16 +92,7 @@ class PlaybackUrlProbeTest {
                 AudioQualityTier.Atmos -> {
                     listOf(
                         AudioQualityTier.Dolby,
-                        AudioQualityTier.Premium,
-                        AudioQualityTier.HiRes,
-                        AudioQualityTier.SQ,
-                        AudioQualityTier.HQ,
-                        AudioQualityTier.Standard,
-                    )
-                }
-
-                AudioQualityTier.Dolby -> {
-                    listOf(
+                        AudioQualityTier.DtsX,
                         AudioQualityTier.Premium,
                         AudioQualityTier.HiRes,
                         AudioQualityTier.SQ,

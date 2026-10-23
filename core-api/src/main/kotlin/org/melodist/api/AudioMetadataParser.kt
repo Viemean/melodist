@@ -72,6 +72,29 @@ object AudioMetadataParser {
             return id3Result
         }
 
+        // 3. MP4 (ISOBMFF, ftyp / stsd)
+        val isMp4 = (bytes.size >= 8 &&
+            bytes[4] == 'f'.code.toByte() &&
+            bytes[5] == 't'.code.toByte() &&
+            bytes[6] == 'y'.code.toByte() &&
+            bytes[7] == 'p'.code.toByte()) ||
+            indexOfBytes(bytes, byteArrayOf('s'.code.toByte(), 't'.code.toByte(), 's'.code.toByte(), 'd'.code.toByte())) != -1
+        if (isMp4) {
+            val mp4Result = parseMp4(bytes)
+            if (mp4Result.sampleRate != null) return mp4Result
+        }
+
+        // 4. OGG (Vorbis)
+        if (bytes.size >= 4 &&
+            bytes[0] == 'O'.code.toByte() &&
+            bytes[1] == 'g'.code.toByte() &&
+            bytes[2] == 'g'.code.toByte() &&
+            bytes[3] == 'S'.code.toByte()
+        ) {
+            val oggResult = parseOgg(bytes)
+            if (oggResult.sampleRate != null) return oggResult
+        }
+
         val embeddedLyric = extractRawFallbackLyrics(bytes)
         if (!embeddedLyric.isNullOrBlank()) {
             return ParsedAudioMetadata(lyrics = embeddedLyric)
@@ -481,5 +504,86 @@ object AudioMetadataParser {
         }
 
         return null
+    }
+
+    private fun parseMp4(bytes: ByteArray): ParsedAudioMetadata {
+        val stsdTag = byteArrayOf('s'.code.toByte(), 't'.code.toByte(), 's'.code.toByte(), 'd'.code.toByte())
+        val stsdIdx = indexOfBytes(bytes, stsdTag)
+        if (stsdIdx == -1 || stsdIdx + 44 > bytes.size) {
+            return ParsedAudioMetadata()
+        }
+
+        val payloadStart = stsdIdx + 12
+        if (payloadStart + 4 > bytes.size) return ParsedAudioMetadata()
+        val entryCount = readInt32(bytes, payloadStart)
+        if (entryCount < 1) return ParsedAudioMetadata()
+
+        val entryStart = payloadStart + 4
+        if (entryStart + 36 > bytes.size) return ParsedAudioMetadata()
+
+        val formatFourCC = String(bytes, entryStart + 4, 4, Charsets.US_ASCII).lowercase()
+        var channels = readInt16(bytes, entryStart + 24)
+        var bitDepth = readInt16(bytes, entryStart + 26)
+        var sampleRate = readInt16(bytes, entryStart + 32)
+
+        if (formatFourCC == "ac-4") {
+            channels = 6
+            if (sampleRate == 0) sampleRate = 48000
+            if (bitDepth == 0) bitDepth = 16
+        } else if (formatFourCC == "dtsx") {
+            if (channels == 0) channels = 6
+            if (sampleRate == 0) sampleRate = 48000
+            if (bitDepth == 0) bitDepth = 16
+        }
+
+        return ParsedAudioMetadata(
+            sampleRate = if (sampleRate > 0) sampleRate else null,
+            bitsPerSample = if (bitDepth > 0) bitDepth else null,
+            channels = if (channels > 0) channels else null,
+        )
+    }
+
+    private fun parseOgg(bytes: ByteArray): ParsedAudioMetadata {
+        val vorbisTag = byteArrayOf(1, 'v'.code.toByte(), 'o'.code.toByte(), 'r'.code.toByte(), 'b'.code.toByte(), 'i'.code.toByte(), 's'.code.toByte())
+        val vIdx = indexOfBytes(bytes, vorbisTag)
+        if (vIdx == -1 || vIdx + 16 > bytes.size) {
+            return ParsedAudioMetadata()
+        }
+        val channels = bytes[vIdx + 11].toInt() and 0xFF
+        val sampleRate = readInt32LE(bytes, vIdx + 12)
+        return ParsedAudioMetadata(
+            sampleRate = if (sampleRate > 0) sampleRate else null,
+            bitsPerSample = 16,
+            channels = if (channels > 0) channels else null,
+        )
+    }
+
+    private fun indexOfBytes(source: ByteArray, target: ByteArray): Int {
+        if (target.isEmpty() || source.size < target.size) return -1
+        val max = source.size - target.size
+        for (i in 0..max) {
+            var found = true
+            for (j in target.indices) {
+                if (source[i + j] != target[j]) {
+                    found = false
+                    break
+                }
+            }
+            if (found) return i
+        }
+        return -1
+    }
+
+    private fun readInt16(bytes: ByteArray, offset: Int): Int {
+        if (offset + 2 > bytes.size) return 0
+        return ((bytes[offset].toInt() and 0xFF) shl 8) or (bytes[offset + 1].toInt() and 0xFF)
+    }
+
+    private fun readInt32(bytes: ByteArray, offset: Int): Int {
+        if (offset + 4 > bytes.size) return 0
+        return ((bytes[offset].toInt() and 0xFF) shl 24) or
+            ((bytes[offset + 1].toInt() and 0xFF) shl 16) or
+            ((bytes[offset + 2].toInt() and 0xFF) shl 8) or
+            (bytes[offset + 3].toInt() and 0xFF)
     }
 }

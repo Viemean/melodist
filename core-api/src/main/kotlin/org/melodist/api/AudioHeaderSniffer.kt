@@ -155,6 +155,7 @@ object AudioHeaderSniffer {
 
                         val finalBitDepth = if (spec.bitDepth > 0) spec.bitDepth else option.bitDepth
                         val finalSampleRate = if (spec.sampleRateHz > 0) spec.sampleRateHz else option.sampleRateHz
+                        val finalChannels = if (spec.channels > 0) spec.channels else option.channels
 
                         val needsSizeCorrection =
                             (option.tier == AudioQualityTier.HiRes && (option.sizeBytes <= 0L || (songDurationSec > 0 && option.sizeBytes <= 35_000_000L))) ||
@@ -198,6 +199,7 @@ object AudioHeaderSniffer {
                         option.copy(
                             sampleRateHz = finalSampleRate,
                             bitDepth = finalBitDepth,
+                            channels = finalChannels,
                             sizeBytes = finalSize,
                             bitrate = formattedBitrate,
                         )
