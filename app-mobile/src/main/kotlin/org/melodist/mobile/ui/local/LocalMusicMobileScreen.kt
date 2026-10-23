@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +52,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.melodist.data.LocalFileItem
@@ -107,6 +111,26 @@ fun LocalMusicMobileScreen(
     var sortOrder by remember { mutableStateOf(LocalMusicManager.getSortOrder()) }
     var viewMode by remember {
         mutableStateOf(if (scannedSongs.isNotEmpty()) LocalMusicViewMode.Library else LocalMusicViewMode.Directory)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewMode) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) {
+                    LocalDirectoryCoverLoader.clear()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        if (viewMode != LocalMusicViewMode.Directory) {
+            LocalDirectoryCoverLoader.clear()
+        }
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            LocalDirectoryCoverLoader.clear()
+        }
     }
 
     val storageDrives =
@@ -422,11 +446,13 @@ fun LocalMusicMobileScreen(
                                 } else {
                                     "%.1f MB".format(item.size / (1024f * 1024f))
                                 }
+                            val existingSong = if (!item.isDirectory) LocalMusicManager.findSongByPath(item.path) else null
                             StorageItemModel(
                                 id = item.path,
                                 name = item.name,
                                 isDirectory = item.isDirectory,
                                 detailText = detail,
+                                coverUrl = existingSong?.coverUrl?.ifBlank { null },
                                 raw = item,
                             )
                         }

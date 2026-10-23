@@ -1,5 +1,6 @@
 package org.melodist.mobile.ui.storage
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -26,11 +27,9 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -39,10 +38,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import org.melodist.mobile.ui.local.LocalDirectoryCoverLoader
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +59,7 @@ data class StorageItemModel(
     val name: String,
     val isDirectory: Boolean,
     val detailText: String = "",
+    val coverUrl: String? = null,
     val raw: Any? = null,
 )
 
@@ -68,14 +76,28 @@ fun StoragePathBreadcrumbs(
 ) {
     val segments =
         remember(currentPath) {
-            val clean = currentPath.trim()
-            val parts = clean.split("/").filter { it.isNotBlank() }
+            val clean = currentPath.trim().trimEnd('/')
             val list = mutableListOf<Pair<String, String>>()
-            list.add("根目录" to "/")
-            var acc = ""
-            parts.forEach { part ->
-                acc = "$acc/$part"
-                list.add(part to acc)
+            val emulatedRoot = "/storage/emulated/0"
+
+            if (clean == emulatedRoot || clean.startsWith("$emulatedRoot/")) {
+                list.add("本地存储" to emulatedRoot)
+                val relative = clean.removePrefix(emulatedRoot).removePrefix("/")
+                if (relative.isNotBlank()) {
+                    var acc = emulatedRoot
+                    relative.split("/").filter { it.isNotBlank() }.forEach { part ->
+                        acc = "$acc/$part"
+                        list.add(part to acc)
+                    }
+                }
+            } else {
+                val parts = clean.split("/").filter { it.isNotBlank() }
+                list.add("根目录" to "/")
+                var acc = ""
+                parts.forEach { part ->
+                    acc = "$acc/$part"
+                    list.add(part to acc)
+                }
             }
             list
         }
@@ -311,35 +333,26 @@ fun StorageDirectoryListView(
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        if (item.isDirectory) {
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceContainerHigh
-                                        },
-                                    ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector =
-                                    if (item.isDirectory) {
-                                        Icons.Rounded.Folder
-                                    } else {
-                                        Icons.Rounded.AudioFile
-                                    },
-                                contentDescription = null,
-                                tint =
-                                    if (item.isDirectory) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                modifier = Modifier.size(24.dp),
+                        if (item.isDirectory) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(42.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Folder,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                        } else {
+                            StorageAudioCoverItem(
+                                path = item.id,
+                                coverUrl = item.coverUrl,
                             )
                         }
 
@@ -363,21 +376,68 @@ fun StorageDirectoryListView(
                                 )
                             }
                         }
-
-                        if (!item.isDirectory) {
-                            Icon(
-                                imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "播放",
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
                     }
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 70.dp, end = 16.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                    )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StorageAudioCoverItem(
+    path: String,
+    coverUrl: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (!coverUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = coverUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier =
+                modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+        )
+    } else {
+        var bitmap by remember(path) {
+            mutableStateOf(LocalDirectoryCoverLoader.getCached(path))
+        }
+
+        LaunchedEffect(path) {
+            if (!LocalDirectoryCoverLoader.isCached(path)) {
+                bitmap = LocalDirectoryCoverLoader.loadEmbeddedCover(path)
+            } else {
+                bitmap = LocalDirectoryCoverLoader.getCached(path)
+            }
+        }
+
+        val currentBitmap = bitmap
+        if (currentBitmap != null && !currentBitmap.isRecycled) {
+            Image(
+                bitmap = currentBitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier =
+                    modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+            )
+        } else {
+            Box(
+                modifier =
+                    modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.AudioFile,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
             }
         }
     }
