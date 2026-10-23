@@ -31,6 +31,7 @@ import org.melodist.tv.ui.theme.toMonetContainer
 
 private val StereoTiers =
     listOf(
+        AudioQualityTier.Master,
         AudioQualityTier.HiRes,
         AudioQualityTier.SQ,
         AudioQualityTier.HQ,
@@ -39,9 +40,9 @@ private val StereoTiers =
 
 private val SpatialTiers =
     listOf(
-        AudioQualityTier.Atmos,
-        AudioQualityTier.Master,
         AudioQualityTier.Dolby,
+        AudioQualityTier.DtsX,
+        AudioQualityTier.Atmos,
         AudioQualityTier.Premium,
     )
 
@@ -158,13 +159,14 @@ fun AudioQualityDialog(
 private fun getOfficialTierColor(tier: AudioQualityTier): Color =
     when (tier) {
         AudioQualityTier.Master -> Color(0xFFFFD580)
+        AudioQualityTier.Dolby -> Color(0xFFFFCF40)
+        AudioQualityTier.DtsX -> Color(0xFF64B5F6)
+        AudioQualityTier.Atmos -> Color(0xFF5CE1E6)
         AudioQualityTier.Premium -> Color(0xFFFFB84D)
         AudioQualityTier.HiRes -> Color(0xFFFFCF40)
         AudioQualityTier.SQ -> Color(0xFF22E59E)
         AudioQualityTier.HQ -> Color(0xFF68B5FF)
         AudioQualityTier.Standard -> Color(0xFFF1F5F9)
-        AudioQualityTier.Dolby -> Color(0xFFFFCF40)
-        AudioQualityTier.Atmos -> Color(0xFF5CE1E6)
     }
 
 @Composable

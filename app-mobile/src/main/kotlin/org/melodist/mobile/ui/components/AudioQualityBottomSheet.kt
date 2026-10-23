@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +25,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -95,7 +98,7 @@ fun AudioQualityBottomSheet(
                 listOf(currentTier)
             } else {
                 val probedAvailable = enrichedOptions.filter { it.isAvailable }.map { it.tier }.toSet()
-                val combined =
+                val rawCombined =
                     if (probedAvailable.isNotEmpty()) {
                         probedAvailable
                     } else if (availableTiers.isNotEmpty()) {
@@ -104,11 +107,14 @@ fun AudioQualityBottomSheet(
                         setOf(currentTier, AudioQualityTier.SQ, AudioQualityTier.HQ, AudioQualityTier.Standard)
                     }
 
+                val combined = rawCombined.toSet()
+
                 fun getWeight(tier: AudioQualityTier): Int =
                     when (tier) {
                         AudioQualityTier.Master -> 100
-                        AudioQualityTier.Atmos -> 90
-                        AudioQualityTier.Dolby -> 80
+                        AudioQualityTier.Dolby -> 95
+                        AudioQualityTier.DtsX -> 90
+                        AudioQualityTier.Atmos -> 80
                         AudioQualityTier.Premium -> 70
                         AudioQualityTier.HiRes -> 60
                         AudioQualityTier.SQ -> 50
@@ -189,7 +195,7 @@ fun AudioQualityBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             displayTiers.forEach { tier ->
-                val isSelected = tier == effectiveSelectedTier
+                val isRowSelected = tier == effectiveSelectedTier
                 val probedOption = enrichedOptions.find { it.tier == tier }
                 val isRestricted =
                     enforceCellularRestriction &&
@@ -215,7 +221,7 @@ fun AudioQualityBottomSheet(
                                     onSelectTier(tier)
                                 }
                                 onDismissRequest()
-                            }.background(if (isSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
+                            }.background(if (isRowSelected) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,7 +232,7 @@ fun AudioQualityBottomSheet(
                                 text = getQualityBadgeLabel(tier),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                color = if (isRowSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             )
                             if (isRestricted) {
                                 Spacer(modifier = Modifier.size(6.dp))
@@ -246,7 +252,7 @@ fun AudioQualityBottomSheet(
                                     } else {
                                         getQualityTierSpec(
                                             tier = tier,
-                                            isSelected = isSelected,
+                                            isSelected = isRowSelected,
                                             currentTrackSpec = currentTrackSpec,
                                             probedOption = probedOption,
                                             songDurationSec = songDurationSec,
@@ -257,7 +263,7 @@ fun AudioQualityBottomSheet(
                             )
                         }
                     }
-                    if (isSelected) {
+                    if (isRowSelected) {
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = "已选择",
@@ -276,13 +282,14 @@ fun AudioQualityBottomSheet(
 fun getQualityBadgeLabel(tier: AudioQualityTier): String =
     when (tier) {
         AudioQualityTier.Master -> "母带"
+        AudioQualityTier.Dolby -> "杜比"
+        AudioQualityTier.DtsX -> "DTS:X"
+        AudioQualityTier.Atmos -> "全景声"
+        AudioQualityTier.Premium -> "臻品"
         AudioQualityTier.HiRes -> "Hi-Res"
         AudioQualityTier.SQ -> "SQ"
         AudioQualityTier.HQ -> "HQ"
         AudioQualityTier.Standard -> "标准"
-        AudioQualityTier.Atmos -> "全景声"
-        AudioQualityTier.Dolby -> "杜比"
-        AudioQualityTier.Premium -> "臻品"
     }
 
 fun getQualityTierSpec(

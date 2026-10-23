@@ -35,7 +35,6 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                 Triple("req_master", AudioQualityTier.Master, Pair("AI00", ".flac")),
                 Triple("req_dolby", AudioQualityTier.Dolby, Pair("D004", ".mp4")),
                 Triple("req_dtsx", AudioQualityTier.DtsX, Pair("DT03", ".mp4")),
-                Triple("req_atmos71", AudioQualityTier.Atmos71, Pair("Q003", ".ogg")),
                 Triple("req_atmos", AudioQualityTier.Atmos, Pair("Q001", ".flac")),
                 Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
                 Triple("req_hires", AudioQualityTier.HiRes, Pair("RS01", ".flac")),
@@ -83,7 +82,6 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                 sizeMap[AudioQualityTier.Master] = masterSize
                 sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Atmos] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
-                sizeMap[AudioQualityTier.Atmos71] = sizeNew?.getOrNull(3)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.DtsX] = sizeNew?.getOrNull(9)?.jsonPrimitive?.longOrNull ?: 0L
 
                 dolbySize = fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L
@@ -145,8 +143,6 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                         dolbySize > 0L && hasValidUrl
                     } else if (tier == AudioQualityTier.DtsX) {
                         (sizeMap[AudioQualityTier.DtsX] ?: 0L) > 0L && hasValidUrl
-                    } else if (tier == AudioQualityTier.Atmos71) {
-                        (sizeMap[AudioQualityTier.Atmos71] ?: 0L) > 0L && hasValidUrl
                     } else if (fileObj != null) {
                         if (tier == AudioQualityTier.HiRes) {
                             (fileSize > 0L || hiresSample > 48000 || hiresBitdepth > 16) && hasValidUrl
@@ -361,7 +357,6 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                 Triple("req_master", AudioQualityTier.Master, Pair("AI00", ".flac")),
                 Triple("req_dolby", AudioQualityTier.Dolby, Pair("D004", ".mp4")),
                 Triple("req_dtsx", AudioQualityTier.DtsX, Pair("DT03", ".mp4")),
-                Triple("req_atmos71", AudioQualityTier.Atmos71, Pair("Q003", ".ogg")),
                 Triple("req_atmos", AudioQualityTier.Atmos, Pair("Q001", ".flac")),
                 Triple("req_premium", AudioQualityTier.Premium, Pair("Q000", ".flac")),
                 Triple("req_hires", AudioQualityTier.HiRes, Pair("RS01", ".flac")),
@@ -407,7 +402,6 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                 sizeMap[AudioQualityTier.Master] = masterSize
                 sizeMap[AudioQualityTier.Premium] = sizeNew?.getOrNull(1)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Atmos] = sizeNew?.getOrNull(2)?.jsonPrimitive?.longOrNull ?: 0L
-                sizeMap[AudioQualityTier.Atmos71] = sizeNew?.getOrNull(3)?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.DtsX] = sizeNew?.getOrNull(9)?.jsonPrimitive?.longOrNull ?: 0L
                 dolbySize = fileObj["size_dolby"]?.jsonPrimitive?.longOrNull ?: 0L
                 sizeMap[AudioQualityTier.Dolby] = dolbySize
@@ -450,18 +444,14 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                         dolbySize > 0L && hasValidUrl
                     } else if (tier == AudioQualityTier.DtsX) {
                         (sizeMap[AudioQualityTier.DtsX] ?: 0L) > 0L && hasValidUrl
-                    } else if (tier == AudioQualityTier.Atmos71) {
-                        (sizeMap[AudioQualityTier.Atmos71] ?: 0L) > 0L && hasValidUrl
                     } else if (fileObj != null) {
                         fileSize > 0L && hasValidUrl
                     } else {
                         hasValidUrl
                     }
                 if (isAvailable && purl != null) {
-                    // 仅当用户未主动选择 Atmos71 时过滤 12 声道 Q003 Vorbis 流
-                    if ((purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) &&
-                        preferredTier != AudioQualityTier.Atmos71
-                    ) {
+                    // 彻底过滤 12 声道 Q003 Vorbis 流
+                    if (purl.contains("Q003", ignoreCase = true) || purl.endsWith(".ogg", ignoreCase = true)) {
                         continue
                     }
                     availableMap[tier] = sip + purl
@@ -530,19 +520,6 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                         listOf(
                             AudioQualityTier.Dolby,
                             AudioQualityTier.Atmos,
-                            AudioQualityTier.Premium,
-                            AudioQualityTier.HiRes,
-                            AudioQualityTier.SQ,
-                            AudioQualityTier.HQ,
-                            AudioQualityTier.Standard,
-                        )
-                    }
-
-                    AudioQualityTier.Atmos71 -> {
-                        listOf(
-                            AudioQualityTier.Atmos,
-                            AudioQualityTier.Dolby,
-                            AudioQualityTier.DtsX,
                             AudioQualityTier.Premium,
                             AudioQualityTier.HiRes,
                             AudioQualityTier.SQ,

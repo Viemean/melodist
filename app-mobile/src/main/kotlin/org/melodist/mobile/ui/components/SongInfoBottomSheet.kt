@@ -196,7 +196,9 @@ fun SongInfoBottomSheet(
                 when {
                     isCurrentlyPlaying && !currentTrackSpec?.format.isNullOrBlank() -> currentTrackSpec?.format?.uppercase() ?: ""
                     matchedProbed != null && matchedProbed.format.isNotBlank() -> matchedProbed.format.uppercase()
+                    effectiveTier == AudioQualityTier.Dolby || effectiveTier == AudioQualityTier.DtsX -> "MP4"
                     effectiveTier == AudioQualityTier.HiRes || effectiveTier == AudioQualityTier.Master -> "FLAC"
+                    effectiveTier == AudioQualityTier.Atmos || effectiveTier == AudioQualityTier.Premium -> "FLAC"
                     effectiveTier == AudioQualityTier.SQ -> "FLAC"
                     effectiveTier == AudioQualityTier.HQ -> "MP3"
                     else -> "AAC / MP3"

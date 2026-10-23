@@ -167,11 +167,12 @@ fun SettingsSwitchRow(
 fun getQualityTierDetailedLabel(tier: AudioQualityTier): String =
     when (tier) {
         AudioQualityTier.Master -> "母带处理 (Master)"
+        AudioQualityTier.Dolby -> "杜比全景声 (Dolby Atmos)"
+        AudioQualityTier.DtsX -> "DTS:X 环绕声 (DTS:X)"
+        AudioQualityTier.Atmos -> "臻品全景声 (5.1 环绕声)"
+        AudioQualityTier.Premium -> "臻品空间音效 (Premium)"
         AudioQualityTier.HiRes -> "高解析 Hi-Res (24bit/96kHz)"
         AudioQualityTier.SQ -> "无损音质 SQ (FLAC)"
         AudioQualityTier.HQ -> "高质量 HQ (320kbps)"
         AudioQualityTier.Standard -> "标准音质 (128kbps)"
-        AudioQualityTier.Atmos -> "臻品全景声 (5.1 环绕声)"
-        AudioQualityTier.Dolby -> "杜比全景声 (Dolby Atmos)"
-        AudioQualityTier.Premium -> "臻品空间音效 (Premium)"
     }

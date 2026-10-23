@@ -35,17 +35,19 @@ class PlaybackSourceResolverTest {
     @Test
     fun `getAudioQualityRank assigns correct hierarchical order`() {
         val masterRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Master)
-        val atmosRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Atmos)
         val dolbyRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Dolby)
+        val dtsXRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.DtsX)
+        val atmosRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Atmos)
         val premiumRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Premium)
         val hiResRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.HiRes)
         val sqRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.SQ)
         val hqRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.HQ)
         val standardRank = PlaybackSourceResolver.getAudioQualityRank(AudioQualityTier.Standard)
 
-        assertTrue(masterRank > atmosRank)
-        assertTrue(atmosRank > dolbyRank)
-        assertTrue(dolbyRank > premiumRank)
+        assertTrue(masterRank > dolbyRank)
+        assertTrue(dolbyRank > dtsXRank)
+        assertTrue(dtsXRank > atmosRank)
+        assertTrue(atmosRank > premiumRank)
         assertTrue(premiumRank > hiResRank)
         assertTrue(hiResRank > sqRank)
         assertTrue(sqRank > hqRank)
@@ -54,9 +56,10 @@ class PlaybackSourceResolverTest {
 
     @Test
     fun `getFallbackTier degrades quality step by step`() {
-        assertEquals(AudioQualityTier.Atmos, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Master))
-        assertEquals(AudioQualityTier.Dolby, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Atmos))
-        assertEquals(AudioQualityTier.Premium, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Dolby))
+        assertEquals(AudioQualityTier.Dolby, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Master))
+        assertEquals(AudioQualityTier.DtsX, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Dolby))
+        assertEquals(AudioQualityTier.Atmos, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.DtsX))
+        assertEquals(AudioQualityTier.Premium, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Atmos))
         assertEquals(AudioQualityTier.HiRes, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Premium))
         assertEquals(AudioQualityTier.SQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.HiRes))
         assertEquals(AudioQualityTier.HQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.SQ))

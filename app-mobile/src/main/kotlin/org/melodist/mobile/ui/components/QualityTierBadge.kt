@@ -23,8 +23,9 @@ fun QualityTierBadge(
             AudioQualityTier.Master -> Triple("Master", MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.onTertiary)
             AudioQualityTier.SQ -> Triple("SQ", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
             AudioQualityTier.HQ -> Triple("HQ", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-            AudioQualityTier.Atmos -> Triple("全景声", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
             AudioQualityTier.Dolby -> Triple("杜比", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+            AudioQualityTier.DtsX -> Triple("DTS:X", MaterialTheme.colorScheme.tertiary, MaterialTheme.colorScheme.onTertiary)
+            AudioQualityTier.Atmos -> Triple("全景声", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
             AudioQualityTier.Premium -> Triple("臻品", MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.onSecondary)
             AudioQualityTier.Standard -> Triple("标准", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
         }

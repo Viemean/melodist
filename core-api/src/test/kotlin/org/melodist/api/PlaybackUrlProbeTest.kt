@@ -11,7 +11,6 @@ class PlaybackUrlProbeTest {
         assertEquals("母带", AudioQualityTier.getBadge(AudioQualityTier.Master))
         assertEquals("杜比", AudioQualityTier.getBadge(AudioQualityTier.Dolby))
         assertEquals("DTS:X", AudioQualityTier.getBadge(AudioQualityTier.DtsX))
-        assertEquals("全景声 7.1", AudioQualityTier.getBadge(AudioQualityTier.Atmos71))
         assertEquals("全景声", AudioQualityTier.getBadge(AudioQualityTier.Atmos))
         assertEquals("臻品", AudioQualityTier.getBadge(AudioQualityTier.Premium))
         assertEquals("Hi-Res", AudioQualityTier.getBadge(AudioQualityTier.HiRes))

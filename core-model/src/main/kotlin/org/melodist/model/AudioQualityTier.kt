@@ -7,7 +7,6 @@ enum class AudioQualityTier {
     Master,
     Dolby,
     DtsX,
-    Atmos71,
     Atmos,
     Premium,
     HiRes,
@@ -31,7 +30,6 @@ enum class AudioQualityTier {
             when (tier) {
                 Dolby -> 3
                 DtsX -> 3
-                Atmos71 -> 2
                 Atmos -> 2
                 Premium -> 1
                 else -> 0
@@ -40,7 +38,7 @@ enum class AudioQualityTier {
         /**
          * 双轨制跨音质收敛判定：
          * - 立体声轨道：Master > HiRes > SQ > HQ > Standard
-         * - 全景声轨道：Dolby / DtsX > Atmos / Atmos71 > Premium
+         * - 全景声轨道：Dolby / DtsX > Atmos > Premium
          * 跨轨道互不淘汰。
          */
         fun shouldPrune(
@@ -69,7 +67,6 @@ enum class AudioQualityTier {
                 Master -> "母带"
                 Dolby -> "杜比"
                 DtsX -> "DTS:X"
-                Atmos71 -> "全景声 7.1"
                 Atmos -> "全景声"
                 Premium -> "臻品"
                 HiRes -> "Hi-Res"
@@ -84,8 +81,7 @@ enum class AudioQualityTier {
                 "MASTER" -> Master
                 "DOLBY" -> Dolby
                 "DTS", "DTS_X", "DTSX", "DTS-X" -> DtsX
-                "ATMOS71", "7.1" -> Atmos71
-                "ATMOS", "ATMOS51", "5.1" -> Atmos
+                "ATMOS", "ATMOS51", "ATMOS71", "5.1", "7.1" -> Atmos
                 "PREMIUM" -> Premium
                 "HIRES", "HI-RES" -> HiRes
                 "SQ" -> SQ
@@ -113,9 +109,6 @@ enum class AudioQualityTier {
             }
             if (mime.contains("dts") || mime.contains("dtsx")) {
                 return DtsX
-            }
-            if (channelCount >= 8) {
-                return Atmos71
             }
             if (channelCount >= 5 ||
                 mime.contains("ac3") ||
@@ -150,4 +143,4 @@ enum class AudioQualityTier {
 }
 
 val AudioQualityTier.requiresSvip: Boolean
-    get() = this in setOf(AudioQualityTier.Master, AudioQualityTier.Dolby, AudioQualityTier.DtsX, AudioQualityTier.Atmos71, AudioQualityTier.Atmos, AudioQualityTier.Premium)
+    get() = this in setOf(AudioQualityTier.Master, AudioQualityTier.Dolby, AudioQualityTier.DtsX, AudioQualityTier.Atmos, AudioQualityTier.Premium)
