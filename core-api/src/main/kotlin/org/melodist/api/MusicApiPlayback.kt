@@ -42,12 +42,13 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                 Triple("req_320", AudioQualityTier.HQ, Pair("M800", ".mp3")),
                 Triple("req_128", AudioQualityTier.Standard, Pair("M500", ".mp3")),
             )
+        val activeRequests = requests.filter { QualityTierFilter.isTierSupported(it.second) }
 
         val sb = StringBuilder(1536)
         sb.append("""{"comm":{"uin":"$uin","format":"json","ct":28,"cv":1,"authst":"$authst"}""")
         sb.append(""", "songinfo":{"module":"music.pf_song_detail_svr","method":"get_song_detail_yqq","param":{"song_mid":"$songMid"}}""")
 
-        for (req in requests) {
+        for (req in activeRequests) {
             val key = req.first
             val prefix = req.third.first
             val ext = req.third.second
@@ -109,7 +110,7 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
             }
 
             val resultList = mutableListOf<QualityOption>()
-            for (req in requests) {
+            for (req in activeRequests) {
                 val key = req.first
                 val tier = req.second
                 val prefix = req.third.first
@@ -364,13 +365,14 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                 Triple("req_hq", AudioQualityTier.HQ, Pair("M800", ".mp3")),
                 Triple("req_std", AudioQualityTier.Standard, Pair("M500", ".mp3")),
             )
+        val activeRequests = requests.filter { QualityTierFilter.isTierSupported(it.second) }
 
         val sb = StringBuilder(1536)
         sb.append("""{"comm":{"uin":"$uin","format":"json","ct":28,"cv":1,"authst":"$authst"}""")
         sb.append(
             """, "songinfo":{"module":"music.pf_song_detail_svr","method":"get_song_detail_yqq","param":{"song_mid":"$songMid"}}""",
         )
-        for (req in requests) {
+        for (req in activeRequests) {
             val key = req.first
             val prefix = req.third.first
             val ext = req.third.second
@@ -427,7 +429,7 @@ private suspend fun MusicApiService.getPlayUrlInternal(
             }
 
             val availableMap = mutableMapOf<AudioQualityTier, String>()
-            for (req in requests) {
+            for (req in activeRequests) {
                 val key = req.first
                 val tier = req.second
                 val prefix = req.third.first

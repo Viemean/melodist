@@ -263,4 +263,16 @@ class PlaybackUrlProbeTest {
         assertEquals("867kbps", premiumBitrate)
         assertNotEquals(dolbySize, premiumSize)
     }
+
+    @Test
+    fun `QualityTierFilter filters out unsupported tiers`() {
+        QualityTierFilter.isTierSupported = { tier ->
+            tier != AudioQualityTier.Dolby && tier != AudioQualityTier.DtsX
+        }
+        assertFalse(QualityTierFilter.isTierSupported(AudioQualityTier.Dolby))
+        assertFalse(QualityTierFilter.isTierSupported(AudioQualityTier.DtsX))
+        assertTrue(QualityTierFilter.isTierSupported(AudioQualityTier.Master))
+        assertTrue(QualityTierFilter.isTierSupported(AudioQualityTier.SQ))
+        QualityTierFilter.isTierSupported = { true }
+    }
 }

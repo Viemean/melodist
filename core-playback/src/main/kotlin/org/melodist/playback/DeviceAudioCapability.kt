@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.media.MediaCodecList
 import android.os.Build
+import org.melodist.api.QualityTierFilter
 import org.melodist.model.AudioQualityTier
 
 object DeviceAudioCapability {
@@ -11,7 +12,10 @@ object DeviceAudioCapability {
     private var isInitialized = false
 
     @Volatile
-    private var supportsDolbyAtmos = false
+    private var supportsDolby = false
+
+    @Volatile
+    private var supportsDts = false
 
     @Volatile
     private var supportsSurround51 = false
@@ -44,30 +48,53 @@ object DeviceAudioCapability {
                 supportsSurround71 = maxChannelCount >= 8
             }
 
-            // 探测 MediaCodec 是否支持 E-AC3 / AC-4 / Dolby Atmos
+            // 探测系统 MediaCodec 是否支持 AC-4 / E-AC-3 / DTS 硬件音频解码器
             val codecList = MediaCodecList(MediaCodecList.ALL_CODECS)
             val codecInfos = codecList.codecInfos
             for (info in codecInfos) {
                 if (info.isEncoder) continue
                 for (mime in info.supportedTypes) {
-                    if (mime.equals("audio/eac3", ignoreCase = true) ||
-                        mime.equals("audio/eac3-joc", ignoreCase = true) ||
-                        mime.equals("audio/ac4", ignoreCase = true)
-                    ) {
-                        supportsDolbyAtmos = true
+                    val m = mime.lowercase()
+                    if (m == "audio/eac3" || m == "audio/eac3-joc" || m == "audio/ac4" || m == "audio/ac3") {
+                        supportsDolby = true
+                    }
+                    if (m == "audio/vnd.dts" || m == "audio/vnd.dts.hd" || m == "audio/vnd.dts.uhd") {
+                        supportsDts = true
                     }
                 }
             }
         } catch (_: Exception) {
-            supportsDolbyAtmos = false
+            supportsDolby = false
+            supportsDts = false
             supportsSurround51 = false
             supportsSurround71 = false
         }
+
+        // 同步通知网关层过滤不支持的音质探测请求
+        QualityTierFilter.isTierSupported = { isTierSupported(it) }
     }
 
+    fun isDolbySupported(): Boolean = supportsDolby
+
+    fun isDtsSupported(): Boolean = supportsDts
+
+    fun isTierSupported(tier: AudioQualityTier): Boolean =
+        when (tier) {
+            AudioQualityTier.Dolby -> supportsDolby
+            AudioQualityTier.DtsX -> supportsDts
+            else -> true
+        }
+
     /**
-     * 判定当前 TV 设备硬件与声卡是否支持该音质/声道规格
+     * 判定当前设备硬件与声卡是否支持该音质/声道规格
      * 返回: Pair(是否支持, 不支持原因/说明)
      */
-    fun checkDeviceSupport(tier: AudioQualityTier): Pair<Boolean, String?> = Pair(true, null)
+    fun checkDeviceSupport(tier: AudioQualityTier): Pair<Boolean, String?> =
+        when (tier) {
+            AudioQualityTier.Dolby ->
+                if (supportsDolby) Pair(true, null) else Pair(false, "设备缺少杜比音频硬件解码支持")
+            AudioQualityTier.DtsX ->
+                if (supportsDts) Pair(true, null) else Pair(false, "设备缺少 DTS 音频硬件解码支持")
+            else -> Pair(true, null)
+        }
 }

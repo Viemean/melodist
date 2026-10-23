@@ -83,18 +83,20 @@ fun AudioQualityDialog(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 // 全景声
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "全景声",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White.copy(alpha = 0.90f),
-                    )
+                val supportedSpatialTiers = SpatialTiers.filter { DeviceAudioCapability.isTierSupported(it) }
+                if (supportedSpatialTiers.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "全景声",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.90f),
+                        )
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        SpatialTiers.forEach { tier ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            supportedSpatialTiers.forEach { tier ->
                             val (isDevSupport, reason) = DeviceAudioCapability.checkDeviceSupport(tier)
                             val isStreamAvail =
                                 if (availableTiers.isNotEmpty()) {
@@ -116,6 +118,7 @@ fun AudioQualityDialog(
                         }
                     }
                 }
+            }
 
                 // 立体声
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
