@@ -57,8 +57,14 @@ class PlaybackAudioTrackResolver(
 
                 val bitDepth =
                     when (format.pcmEncoding) {
-                        C.ENCODING_PCM_24BIT -> 24
-                        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 32
+                        C.ENCODING_PCM_24BIT -> {
+                            24
+                        }
+
+                        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> {
+                            32
+                        }
+
                         else -> {
                             val probedDepth = probedOptions.find { it.tier == currentTier }?.bitDepth ?: 0
                             when {

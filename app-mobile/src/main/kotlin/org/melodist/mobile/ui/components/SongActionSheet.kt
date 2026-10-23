@@ -166,7 +166,9 @@ fun SongActionSheet(
 
     LaunchedEffect(showDownloadQualityDialog, song.songMid) {
         if (showDownloadQualityDialog) {
-            val isPureLocal = org.melodist.playback.PlaybackSourceResolver.isPureLocalOrWebDav(song)
+            val isPureLocal =
+                org.melodist.playback.PlaybackSourceResolver
+                    .isPureLocalOrWebDav(song)
             if (isPureLocal) {
                 return@LaunchedEffect
             }

@@ -107,7 +107,12 @@ fun AudioQualityBottomSheet(
                         setOf(currentTier, AudioQualityTier.SQ, AudioQualityTier.HQ, AudioQualityTier.Standard)
                     }
 
-                val combined = rawCombined.filter { org.melodist.playback.DeviceAudioCapability.isTierSupported(it) }.toSet()
+                val combined =
+                    rawCombined
+                        .filter {
+                            org.melodist.playback.DeviceAudioCapability
+                                .isTierSupported(it)
+                        }.toSet()
 
                 fun getWeight(tier: AudioQualityTier): Int =
                     when (tier) {

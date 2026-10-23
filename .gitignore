@@ -1,31 +1,35 @@
+# Gradle & Build Cache
+.gradle/
+/build/
+*/build/
+.cxx/
+/dist/
+.tmp/
+
+# IDE & OS
 *.iml
-.gradle
-/local.properties
-/.idea
+/.idea/
 .DS_Store
-/build
-*/build
-.cxx
+/local.properties
+
+# Android Artifacts & Keys
 *.apk
 *.aab
 *.jks*
 *.keystore*
 *.bak
-.tmp/
-scripts/
-/push.sh
-/run-avd-tv
-/deploy_tv.sh
-/deploy_mobile.sh
-/deploy_originos.sh
-app-mobile/PROJECT_PLAN.md
-docs/*.md
+
+# Code Generation & Release Variants
+*.raw.kt
+app-tv/src/release/
+app-mobile/src/release/
+
+# Project Tools & Binaries
 bin/
 */bin/
 **/bin/
-/dist/
-build_release.sh
-*.raw.kt
 tools/
-app-tv/src/release/
-app-mobile/src/release/
+scripts/
+
+# Documentation
+docs/*.md

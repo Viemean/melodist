@@ -91,10 +91,16 @@ object DeviceAudioCapability {
      */
     fun checkDeviceSupport(tier: AudioQualityTier): Pair<Boolean, String?> =
         when (tier) {
-            AudioQualityTier.Dolby ->
+            AudioQualityTier.Dolby -> {
                 if (supportsDolby) Pair(true, null) else Pair(false, "设备缺少杜比音频硬件解码支持")
-            AudioQualityTier.DtsX ->
+            }
+
+            AudioQualityTier.DtsX -> {
                 if (supportsDts) Pair(true, null) else Pair(false, "设备缺少 DTS 音频硬件解码支持")
-            else -> Pair(true, null)
+            }
+
+            else -> {
+                Pair(true, null)
+            }
         }
 }

@@ -73,12 +73,15 @@ object AudioMetadataParser {
         }
 
         // 3. MP4 (ISOBMFF, ftyp / stsd)
-        val isMp4 = (bytes.size >= 8 &&
-            bytes[4] == 'f'.code.toByte() &&
-            bytes[5] == 't'.code.toByte() &&
-            bytes[6] == 'y'.code.toByte() &&
-            bytes[7] == 'p'.code.toByte()) ||
-            indexOfBytes(bytes, byteArrayOf('s'.code.toByte(), 't'.code.toByte(), 's'.code.toByte(), 'd'.code.toByte())) != -1
+        val isMp4 =
+            (
+                bytes.size >= 8 &&
+                    bytes[4] == 'f'.code.toByte() &&
+                    bytes[5] == 't'.code.toByte() &&
+                    bytes[6] == 'y'.code.toByte() &&
+                    bytes[7] == 'p'.code.toByte()
+            ) ||
+                indexOfBytes(bytes, byteArrayOf('s'.code.toByte(), 't'.code.toByte(), 's'.code.toByte(), 'd'.code.toByte())) != -1
         if (isMp4) {
             val mp4Result = parseMp4(bytes)
             if (mp4Result.sampleRate != null) return mp4Result
@@ -558,7 +561,10 @@ object AudioMetadataParser {
         )
     }
 
-    private fun indexOfBytes(source: ByteArray, target: ByteArray): Int {
+    private fun indexOfBytes(
+        source: ByteArray,
+        target: ByteArray,
+    ): Int {
         if (target.isEmpty() || source.size < target.size) return -1
         val max = source.size - target.size
         for (i in 0..max) {
@@ -574,12 +580,18 @@ object AudioMetadataParser {
         return -1
     }
 
-    private fun readInt16(bytes: ByteArray, offset: Int): Int {
+    private fun readInt16(
+        bytes: ByteArray,
+        offset: Int,
+    ): Int {
         if (offset + 2 > bytes.size) return 0
         return ((bytes[offset].toInt() and 0xFF) shl 8) or (bytes[offset + 1].toInt() and 0xFF)
     }
 
-    private fun readInt32(bytes: ByteArray, offset: Int): Int {
+    private fun readInt32(
+        bytes: ByteArray,
+        offset: Int,
+    ): Int {
         if (offset + 4 > bytes.size) return 0
         return ((bytes[offset].toInt() and 0xFF) shl 24) or
             ((bytes[offset + 1].toInt() and 0xFF) shl 16) or

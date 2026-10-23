@@ -72,10 +72,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
-import kotlin.math.roundToInt
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -83,6 +79,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -130,6 +129,7 @@ import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.roundToInt
 
 enum class HomeFilter(
     val title: String,
@@ -767,10 +767,11 @@ private fun RenderAppScreen(
                         val nextCenter = chipCenters[nextIndex] ?: currentCenter
                         val interpolatedCenter = currentCenter + (nextCenter - currentCenter) * fraction
 
-                        val targetScroll = (interpolatedCenter - chipViewportWidthPx / 2f).coerceIn(
-                            0f,
-                            chipScrollState.maxValue.toFloat(),
-                        )
+                        val targetScroll =
+                            (interpolatedCenter - chipViewportWidthPx / 2f).coerceIn(
+                                0f,
+                                chipScrollState.maxValue.toFloat(),
+                            )
                         chipScrollState.scrollTo(targetScroll.roundToInt())
                     }
                 }

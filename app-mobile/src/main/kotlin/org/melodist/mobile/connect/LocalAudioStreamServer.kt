@@ -1,6 +1,5 @@
 package org.melodist.mobile.connect
 
-import android.content.Context
 import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.CancellationException
@@ -23,7 +22,6 @@ import java.net.ServerSocket
 import java.net.Socket
 
 class LocalAudioStreamServer(
-    private val context: Context,
     private val port: Int = 8766,
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())

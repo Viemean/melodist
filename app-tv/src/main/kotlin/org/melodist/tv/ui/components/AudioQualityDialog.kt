@@ -97,28 +97,28 @@ fun AudioQualityDialog(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             supportedSpatialTiers.forEach { tier ->
-                            val (isDevSupport, reason) = DeviceAudioCapability.checkDeviceSupport(tier)
-                            val isStreamAvail =
-                                if (availableTiers.isNotEmpty()) {
-                                    tier in availableTiers || tier == selectedTier
-                                } else {
-                                    tier == selectedTier || tier == AudioQualityTier.Standard
-                                }
-                            TierOptionItem(
-                                tier = tier,
-                                isSelected = tier == selectedTier,
-                                isDeviceSupported = isDevSupport,
-                                isStreamAvailable = isStreamAvail,
-                                unsupportedReason = reason,
-                                onSelect = {
-                                    onSelectTier(tier)
-                                    onDismiss()
-                                },
-                            )
+                                val (isDevSupport, reason) = DeviceAudioCapability.checkDeviceSupport(tier)
+                                val isStreamAvail =
+                                    if (availableTiers.isNotEmpty()) {
+                                        tier in availableTiers || tier == selectedTier
+                                    } else {
+                                        tier == selectedTier || tier == AudioQualityTier.Standard
+                                    }
+                                TierOptionItem(
+                                    tier = tier,
+                                    isSelected = tier == selectedTier,
+                                    isDeviceSupported = isDevSupport,
+                                    isStreamAvailable = isStreamAvail,
+                                    unsupportedReason = reason,
+                                    onSelect = {
+                                        onSelectTier(tier)
+                                        onDismiss()
+                                    },
+                                )
+                            }
                         }
                     }
                 }
-            }
 
                 // 立体声
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

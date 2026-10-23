@@ -103,7 +103,7 @@ object MobileConnectManager {
         val nsd = ConnectNsdHelper(app)
         nsdHelper = nsd
 
-        val server = LocalAudioStreamServer(app)
+        val server = LocalAudioStreamServer()
         streamServer = server
         server.start()
 

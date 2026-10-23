@@ -929,7 +929,6 @@ object PlaybackManager {
         // 仅更新配置，在下一次起播时生效
     }
 
-
     private fun startProgressLoop() = progressTracker.start()
 
     /**
@@ -1391,8 +1390,6 @@ object PlaybackManager {
                 )
             }
     }
-
-
 
     /**
      * 反转当前回放状态（正在播放则暂停，已暂停则恢复播放）。
@@ -1903,7 +1900,6 @@ object PlaybackManager {
             onAutoUpgrade = { switchTier(it) },
         )
     }
-
 
     /**
      * 播放队列中的下一首曲目。
