@@ -229,7 +229,7 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
 
         // 3. 本地与 WebDAV 歌词文件名匹配
         SettingSwitchCard(
-            title = "本地与 WebDAV 音乐切片匹配歌词",
+            title = "本地与WebDAV音乐匹配歌词",
             checked = settings.enableAutoMatchLyrics,
             menuRequester = menuRequester,
             onToggle = {

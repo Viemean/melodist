@@ -86,7 +86,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
                 .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        SettingPanelHeader(title = "OLED 屏保与显示保护")
+        SettingPanelHeader(title = "屏幕保护")
 
         // 1. 自动进入屏保闲置时长
         Column(
@@ -94,7 +94,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "自动进入屏保等待时间",
+                text = "自动进入屏保时间",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
@@ -246,7 +246,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
 
         // 3. OLED 防烧屏像素微移开关
         SettingSwitchCard(
-            title = "OLED 防烧屏像素微移",
+            title = "OLED 像素微移",
             checked = settings.enablePixelShift,
             menuRequester = menuRequester,
             onToggle = {

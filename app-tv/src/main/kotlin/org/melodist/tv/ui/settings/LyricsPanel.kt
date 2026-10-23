@@ -51,7 +51,7 @@ fun LyricsPanel(menuRequester: FocusRequester) {
 
         // 1. 默认双语逐行翻译
         SettingSwitchCard(
-            title = "默认显示双语逐行翻译",
+            title = "显示双语翻译",
             checked = settings.showBilingualLyrics,
             menuRequester = menuRequester,
             onToggle = {
@@ -65,7 +65,7 @@ fun LyricsPanel(menuRequester: FocusRequester) {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
-                text = "歌词显示字号大小",
+                text = "歌词字号大小",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
