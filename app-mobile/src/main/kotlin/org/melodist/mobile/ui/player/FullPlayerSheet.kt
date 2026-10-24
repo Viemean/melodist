@@ -1107,6 +1107,7 @@ fun FullPlayerSheet(
                 probedQualityOptions = probedQualityOptions,
                 songDurationSec = song?.durationSeconds ?: 0,
                 isProbing = isProbingQuality,
+                bypassHardwareCapabilityCheck = isRemoteActive,
                 onSelectTier = { tier -> PlaybackManager.switchTier(tier) },
                 onDismissRequest = { showQualitySheet = false },
             )

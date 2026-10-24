@@ -183,8 +183,8 @@ fun RemoteConnectDialogs(
     // 4. TV 端音质切换弹窗
     if (showTvQualitySheet) {
         val curSong = tvPlayerState?.currentSong
-        val curTier = curSong?.currentTier ?: AudioQualityTier.SQ
-        val availTiers = curSong?.availableTiers?.toSet() ?: emptySet()
+        val curTier = tvPlayerState?.currentTier ?: curSong?.currentTier ?: AudioQualityTier.SQ
+        val availTiers = (tvPlayerState?.availableTiers?.takeIf { it.isNotEmpty() } ?: curSong?.availableTiers?.toSet()).orEmpty()
         AudioQualityBottomSheet(
             currentTier = curTier,
             availableTiers = availTiers,
@@ -193,6 +193,7 @@ fun RemoteConnectDialogs(
             isProbing = isTvProbingQuality,
             targetSong = curSong,
             enforceCellularRestriction = false,
+            bypassHardwareCapabilityCheck = true,
             onSelectTier = { selectedTier ->
                 MobileConnectManager.tvSwitchTier(selectedTier)
                 onDismissTvQualitySheet()

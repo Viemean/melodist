@@ -62,6 +62,7 @@ fun AudioQualityBottomSheet(
     enforceCellularRestriction: Boolean = true,
     showSubtitle: Boolean = true,
     targetSong: org.melodist.model.Song? = null,
+    bypassHardwareCapabilityCheck: Boolean = false,
     onSelectTier: (AudioQualityTier) -> Unit,
     onDismissRequest: () -> Unit,
 ) {
@@ -93,25 +94,31 @@ fun AudioQualityBottomSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val supportedTiers =
-        remember(availableTiers, enrichedOptions, currentTier, isLocalOrWebDav) {
+        remember(availableTiers, enrichedOptions, currentTier, isLocalOrWebDav, bypassHardwareCapabilityCheck) {
             if (isLocalOrWebDav) {
                 listOf(currentTier)
             } else {
                 val probedAvailable = enrichedOptions.filter { it.isAvailable }.map { it.tier }.toSet()
                 val rawCombined =
                     if (probedAvailable.isNotEmpty()) {
-                        probedAvailable
+                        if (bypassHardwareCapabilityCheck) {
+                            probedAvailable + availableTiers + currentTier
+                        } else {
+                            probedAvailable
+                        }
                     } else if (availableTiers.size > 1) {
-                        availableTiers
+                        availableTiers + currentTier
                     } else {
                         setOf(currentTier, AudioQualityTier.SQ, AudioQualityTier.HQ, AudioQualityTier.Standard)
                     }
 
                 val combined =
                     rawCombined
-                        .filter {
-                            org.melodist.playback.DeviceAudioCapability
-                                .isTierSupported(it)
+                        .filter { tier ->
+                            bypassHardwareCapabilityCheck ||
+                                tier == currentTier ||
+                                org.melodist.playback.DeviceAudioCapability
+                                    .isTierSupported(tier)
                         }.toSet()
 
                 fun getWeight(tier: AudioQualityTier): Int =
@@ -150,11 +157,12 @@ fun AudioQualityBottomSheet(
         }
 
     val displayTiers =
-        remember(supportedTiers, enrichedOptions) {
+        remember(supportedTiers, enrichedOptions, availableTiers, currentTier, bypassHardwareCapabilityCheck) {
             if (enrichedOptions.isNotEmpty()) {
                 supportedTiers.filter { tier ->
                     val probed = enrichedOptions.find { it.tier == tier }
-                    probed != null && probed.isAvailable
+                    (probed != null && probed.isAvailable) ||
+                        (bypassHardwareCapabilityCheck && (tier == currentTier || availableTiers.contains(tier)))
                 }
             } else {
                 supportedTiers
