@@ -122,7 +122,7 @@ object MobileCoverCacheResolver {
             return
         }
 
-        val action = {
+        val action: () -> Unit = {
             val request =
                 ImageRequest
                     .Builder(context)

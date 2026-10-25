@@ -155,7 +155,7 @@ fun MediaDetailTvScaffold(
     var lastBackHandledTime by remember { mutableLongStateOf(0L) }
 
     val scaffoldCoroutineScope = rememberCoroutineScope()
-    val returnToPlayAll: () -> Boolean = {
+    val returnToPlayAll: () -> Unit = {
         val now = System.currentTimeMillis()
         lastBackHandledTime = now
         isPlayAllFocused = true
@@ -167,7 +167,6 @@ fun MediaDetailTvScaffold(
                 Log.w("MediaDetailScreenMode", "Operation failed", e)
             }
         }
-        true
     }
 
     LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
