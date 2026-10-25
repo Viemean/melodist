@@ -26,11 +26,14 @@ data class WebDavSongCache(
                 if (f.exists() && f.length() > 0L) {
                     if (coverPath.startsWith("/")) "file://$coverPath" else coverPath
                 } else {
-                    val webpFile = java.io.File(f.parentFile, "webdav_$hash.webp")
-                    if (webpFile.exists() && webpFile.length() > 0L) {
-                        "file://${webpFile.absolutePath}"
-                    } else {
-                        ""
+                    val mod = lastModified ?: 0L
+                    val parent = f.parentFile
+                    val webpWithMod = if (mod > 0L && parent != null) java.io.File(parent, "webdav_${hash}_$mod.webp") else null
+                    val webpFile = if (parent != null) java.io.File(parent, "webdav_$hash.webp") else null
+                    when {
+                        webpWithMod != null && webpWithMod.exists() && webpWithMod.length() > 0L -> "file://${webpWithMod.absolutePath}"
+                        webpFile != null && webpFile.exists() && webpFile.length() > 0L -> "file://${webpFile.absolutePath}"
+                        else -> ""
                     }
                 }
             } else {
@@ -49,10 +52,17 @@ data class WebDavSongCache(
                 if (validCoverUrl.isNotBlank()) {
                     val p = validCoverUrl.removePrefix("file://")
                     val parent = java.io.File(p).parentFile
+                    val mod = lastModified ?: 0L
+                    val candModJpg = if (mod > 0L) java.io.File(parent, "webdav_raw_${hash}_$mod.jpg") else null
+                    val candModPng = if (mod > 0L) java.io.File(parent, "webdav_raw_${hash}_$mod.png") else null
+                    val candModWebp = if (mod > 0L) java.io.File(parent, "webdav_raw_${hash}_$mod.webp") else null
                     val candJpg = java.io.File(parent, "webdav_raw_$hash.jpg")
                     val candPng = java.io.File(parent, "webdav_raw_$hash.png")
                     val candWebp = java.io.File(parent, "webdav_raw_$hash.webp")
                     when {
+                        candModJpg != null && candModJpg.exists() && candModJpg.length() > 512L -> "file://${candModJpg.absolutePath}"
+                        candModPng != null && candModPng.exists() && candModPng.length() > 512L -> "file://${candModPng.absolutePath}"
+                        candModWebp != null && candModWebp.exists() && candModWebp.length() > 512L -> "file://${candModWebp.absolutePath}"
                         candJpg.exists() && candJpg.length() > 512L -> "file://${candJpg.absolutePath}"
                         candPng.exists() && candPng.length() > 512L -> "file://${candPng.absolutePath}"
                         candWebp.exists() && candWebp.length() > 512L -> "file://${candWebp.absolutePath}"

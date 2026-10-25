@@ -308,14 +308,28 @@ object WebDavManager {
 
                     // 封面处理：扫描阶段压缩 500px WebP 缩略图，覆盖旧图
                     val coversFolder = getSafeCoversDir()
+                    val mod = rawCache.lastModified ?: 0L
+                    val baseCoverKey = if (mod > 0L) "${hash}_$mod" else hash
 
                     fun saveWebDavThumbnail(bytes: ByteArray) {
+                        try {
+                            val oldCover = rawCache.coverPath
+                            if (!oldCover.isNullOrBlank()) {
+                                val oldFile = File(oldCover)
+                                if (oldFile.exists() && oldFile.parentFile == coversFolder) {
+                                    oldFile.delete()
+                                }
+                            }
+                            File(coversFolder, "webdav_$hash.webp").takeIf { it.exists() }?.delete()
+                        } catch (_: Exception) {}
+
                         val path =
                             org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
                                 bytes = bytes,
                                 folder = coversFolder,
-                                baseHash = hash,
+                                baseHash = baseCoverKey,
                                 prefix = "webdav_",
+                                overwrite = true,
                             )
                         if (path != null) {
                             coverPath = path
@@ -529,11 +543,12 @@ object WebDavManager {
                         val f = File(cp)
                         cp.isNotBlank() && f.exists() && f.length() > 0L && !CoverCompressor.isLowResolution(f)
                     } ?: false
-                if (existing != null && existing.duration > 0 && isCoverValid) {
-                    // 已具有完整元数据，保留
+                val isModified = song.lastModified != null && existing?.lastModified != null && song.lastModified != existing.lastModified
+                if (!isModified && existing != null && existing.duration > 0 && isCoverValid) {
+                    // 已具有完整元数据且未修改，保留
                     existingMap[song.href] = existing
                 } else {
-                    val base = existing ?: song
+                    val base = if (isModified) song else (existing ?: song)
                     songsToProcess.add(base)
                 }
             }
@@ -661,6 +676,16 @@ object WebDavManager {
         val serverFolder = getSafeCoversDir()
         if (serverFolder.exists()) {
             val prefix = "webdav_${targetServer.id}_"
+            targetServer.cachedSongs.forEach { song ->
+                song.coverPath?.let { p ->
+                    val f = File(p)
+                    if (f.exists()) f.delete()
+                }
+                song.rawCoverPath?.let { p ->
+                    val f = File(p)
+                    if (f.exists()) f.delete()
+                }
+            }
             serverFolder.listFiles()?.filter { it.name.startsWith(prefix) }?.forEach { it.delete() }
         }
 

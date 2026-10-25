@@ -122,11 +122,12 @@ object AudioMetadataPipeline {
         folder: File,
         baseHash: String,
         prefix: String = "cover_",
+        overwrite: Boolean = false,
     ): String? {
         if (bytes.size < 512) return null
         folder.mkdirs()
         val targetWebp = File(folder, "$prefix$baseHash.webp")
-        if (!targetWebp.exists() || targetWebp.length() == 0L || CoverCompressor.isLowResolution(targetWebp)) {
+        if (overwrite || !targetWebp.exists() || targetWebp.length() == 0L || CoverCompressor.isLowResolution(targetWebp)) {
             CoverCompressor.compressToWebp(bytes, targetWebp)
         }
         return if (targetWebp.exists() && targetWebp.length() > 0L) {
