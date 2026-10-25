@@ -15,9 +15,9 @@ import coil3.request.ImageRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import org.melodist.api.ApiLogger
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
@@ -163,10 +163,16 @@ class MainActivity : ComponentActivity() {
             return false
         }
 
-        val isAudioMime = type.startsWith("audio/") || type == "application/ogg" || type == "application/x-ogg" || type == "application/flac" || type == "application/x-flac"
+        val isAudioMime =
+            type.startsWith("audio/") || type == "application/ogg" || type == "application/x-ogg" || type == "application/flac" || type == "application/x-flac"
         val isAudioScheme = scheme == "content" || scheme == "file"
         val pathLower = uri.path.orEmpty().lowercase()
-        val isAudioExt = pathLower.endsWith(".mp3") || pathLower.endsWith(".flac") || pathLower.endsWith(".wav") || pathLower.endsWith(".m4a") || pathLower.endsWith(".aac") || pathLower.endsWith(".ogg") || pathLower.endsWith(".opus")
+        val isAudioExt =
+            pathLower.endsWith(
+                ".mp3",
+            ) || pathLower.endsWith(".flac") || pathLower.endsWith(".wav") || pathLower.endsWith(".m4a") || pathLower.endsWith(".aac") ||
+                pathLower.endsWith(".ogg") ||
+                pathLower.endsWith(".opus")
 
         if (!isAudioMime && !isAudioExt && !isAudioScheme) return false
 
@@ -196,7 +202,9 @@ class MainActivity : ComponentActivity() {
                 }
                 val finalDisplayName = displayName?.ifBlank { null } ?: uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { null } ?: "外部音频"
 
-                val (inferredTitle, inferredArtist) = org.melodist.data.pipeline.AudioMetadataPipeline.inferTitleArtist(finalDisplayName)
+                val (inferredTitle, inferredArtist) =
+                    org.melodist.data.pipeline.AudioMetadataPipeline
+                        .inferTitleArtist(finalDisplayName)
                 var title = inferredTitle
                 var artist = inferredArtist
                 var album = "外部音频"
@@ -208,12 +216,13 @@ class MainActivity : ComponentActivity() {
                 val retriever = android.media.MediaMetadataRetriever()
                 try {
                     retriever.setDataSource(this@MainActivity, uri)
-                    val meta = org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
-                        retriever = retriever,
-                        fallbackTitle = title,
-                        fallbackArtist = artist,
-                        fallbackAlbum = album,
-                    )
+                    val meta =
+                        org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
+                            retriever = retriever,
+                            fallbackTitle = title,
+                            fallbackArtist = artist,
+                            fallbackAlbum = album,
+                        )
                     title = meta.title
                     artist = meta.artist
                     album = meta.album
@@ -223,14 +232,20 @@ class MainActivity : ComponentActivity() {
 
                     val picBytes = meta.pictureBytes
                     if (picBytes != null && picBytes.size >= 512) {
-                        val hash = uri.toString().hashCode().toString().replace("-", "n")
+                        val hash =
+                            uri
+                                .toString()
+                                .hashCode()
+                                .toString()
+                                .replace("-", "n")
                         val coverFolder = java.io.File(cacheDir, "covers")
-                        val savedCoverPath = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
-                            bytes = picBytes,
-                            folder = coverFolder,
-                            baseHash = hash,
-                            prefix = "external_",
-                        )
+                        val savedCoverPath =
+                            org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
+                                bytes = picBytes,
+                                folder = coverFolder,
+                                baseHash = hash,
+                                prefix = "external_",
+                            )
                         if (!savedCoverPath.isNullOrBlank()) {
                             resolvedCoverUrl = "file://$savedCoverPath"
                         }
@@ -245,32 +260,34 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val ext = finalDisplayName.substringAfterLast('.', "flac")
-                val inferredTier = if (sampleRate != null && sampleRate > 0) {
-                    org.melodist.model.AudioQualityTier.inferFromAudioFormat(
-                        sampleRate = sampleRate,
-                        mimeType = "audio/$ext",
-                        bitrate = bitrate ?: 0,
-                    )
-                } else {
-                    org.melodist.model.AudioQualityTier.Standard
-                }
+                val inferredTier =
+                    if (sampleRate != null && sampleRate > 0) {
+                        org.melodist.model.AudioQualityTier.inferFromAudioFormat(
+                            sampleRate = sampleRate,
+                            mimeType = "audio/$ext",
+                            bitrate = bitrate ?: 0,
+                        )
+                    } else {
+                        org.melodist.model.AudioQualityTier.Standard
+                    }
 
                 val uriStr = uri.toString()
                 val hash = kotlin.math.abs(uriStr.hashCode())
-                val song = org.melodist.model.Song(
-                    songId = hash.toLong(),
-                    songMid = "local_ext_$hash",
-                    name = title,
-                    singer = artist,
-                    album = album,
-                    durationSeconds = durationSec,
-                    currentTier = inferredTier,
-                    coverUrl = resolvedCoverUrl,
-                    rawCoverUrl = resolvedCoverUrl,
-                    localFilePath = uriStr,
-                    mediaMid = uriStr,
-                    dateAdded = System.currentTimeMillis() / 1000L,
-                )
+                val song =
+                    org.melodist.model.Song(
+                        songId = hash.toLong(),
+                        songMid = "local_ext_$hash",
+                        name = title,
+                        singer = artist,
+                        album = album,
+                        durationSeconds = durationSec,
+                        currentTier = inferredTier,
+                        coverUrl = resolvedCoverUrl,
+                        rawCoverUrl = resolvedCoverUrl,
+                        localFilePath = uriStr,
+                        mediaMid = uriStr,
+                        dateAdded = System.currentTimeMillis() / 1000L,
+                    )
 
                 withContext(Dispatchers.Main) {
                     PlaybackManager.setPlaylist(

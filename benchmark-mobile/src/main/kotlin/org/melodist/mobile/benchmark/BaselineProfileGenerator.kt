@@ -9,14 +9,14 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class BaselineProfileGenerator {
-
     @get:Rule
     val baselineProfileRule = BaselineProfileRule()
 
     @Test
     fun generateBaselineProfile() {
-        val targetPackageName = InstrumentationRegistry.getArguments().getString("targetPackage")
-            ?: BuildConfig.TARGET_PACKAGE
+        val targetPackageName =
+            InstrumentationRegistry.getArguments().getString("targetPackage")
+                ?: BuildConfig.TARGET_PACKAGE
 
         baselineProfileRule.collect(
             packageName = targetPackageName,

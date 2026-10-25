@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "org.melodist.tv"
-        minSdk = 28
+        minSdk = 26
         targetSdk = 37
         versionCode = 170
         versionName = "1.7.0"
@@ -80,6 +80,9 @@ android {
     }
 
     packaging {
+        dex {
+            useLegacyPackaging = false
+        }
         jniLibs {
             useLegacyPackaging = false
         }

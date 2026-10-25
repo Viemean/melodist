@@ -89,7 +89,8 @@ object RawCoverHelper {
      * 探测其同级目录下是否存在无损原画大图
      */
     fun findMatchingRawCoverUrl(thumbnailUrl: String): String? =
-        org.melodist.model.CoverUrlResolver.findLocalRawCover(thumbnailUrl)
+        org.melodist.model.CoverUrlResolver
+            .findLocalRawCover(thumbnailUrl)
 
     /**
      * 针对本地音频文件，尝试从内嵌元数据直接提取高清原图

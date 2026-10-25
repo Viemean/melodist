@@ -97,7 +97,6 @@ fun CategoryMenuItem(
     }
 }
 
-
 @Composable
 fun SettingPanelHeader(
     title: String,

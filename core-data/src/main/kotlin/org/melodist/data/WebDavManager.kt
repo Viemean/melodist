@@ -321,7 +321,8 @@ object WebDavManager {
                                 }
                             }
                             File(coversFolder, "webdav_$hash.webp").takeIf { it.exists() }?.delete()
-                        } catch (_: Exception) {}
+                        } catch (_: Exception) {
+                        }
 
                         val path =
                             org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(

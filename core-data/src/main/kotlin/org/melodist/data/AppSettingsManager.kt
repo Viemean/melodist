@@ -28,7 +28,6 @@ enum class LyricFontSize(
     ;
 
     val spValue: Int get() = titleSp
-
 }
 
 data class CacheUsageDetail(

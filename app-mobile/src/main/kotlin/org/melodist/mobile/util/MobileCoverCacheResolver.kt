@@ -97,7 +97,6 @@ object MobileCoverCacheResolver {
         }
     }
 
-
     /**
      * 当在 WiFi 环境下播放该音乐时，若原图尚未写入磁盘缓存，自动在后台加载并升级原图缓存
      */

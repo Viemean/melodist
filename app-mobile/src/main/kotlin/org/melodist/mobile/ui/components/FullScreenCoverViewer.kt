@@ -546,4 +546,3 @@ private fun getDiskCachedCoverSize(
         null
     }
 }
-

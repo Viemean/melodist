@@ -44,7 +44,6 @@ enum class PlaylistScreenMode {
     Player,
 }
 
-
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun PlaylistTvScreen(

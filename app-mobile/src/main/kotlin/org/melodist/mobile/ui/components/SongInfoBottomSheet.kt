@@ -489,5 +489,4 @@ private fun copyToClipboard(
     Toast.makeText(context, "已复制 $label", Toast.LENGTH_SHORT).show()
 }
 
-
 private fun Double.format(digits: Int) = "%.${digits}f".format(this)

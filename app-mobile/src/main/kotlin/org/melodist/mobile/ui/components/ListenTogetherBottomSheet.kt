@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -455,7 +454,6 @@ private fun copyToClipboard(
     val clip = ClipData.newPlainText("ListenTogetherLink", text)
     clipboard.setPrimaryClip(clip)
 }
-
 
 /**
  * 一起听好友空间统计数据项。

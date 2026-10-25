@@ -373,7 +373,9 @@ class WebDavService {
                             ),
                         )
                     } else {
-                        if (org.melodist.model.AudioFileFilter.isAudioFile(displayName)) {
+                        if (org.melodist.model.AudioFileFilter
+                                .isAudioFile(displayName)
+                        ) {
                             items.add(
                                 WebDavItem(
                                     name = displayName,

@@ -257,7 +257,7 @@ class ResilientFlacExtractorTest {
             advancePeekPosition(length, false)
         }
 
-        override fun <E : Throwable?> setRetryPosition(
+        override fun <E : Throwable> setRetryPosition(
             position: Long,
             e: E,
         ) {
