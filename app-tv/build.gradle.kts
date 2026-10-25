@@ -13,8 +13,8 @@ android {
         applicationId = "org.melodist.tv"
         minSdk = 26
         targetSdk = 37
-        versionCode = 170
-        versionName = "1.7.0"
+        versionCode = 171
+        versionName = "1.7.1"
 
         buildConfigField("String", "GRADLE_VERSION", "\"${gradle.gradleVersion}\"")
         buildConfigField("String", "AGP_VERSION", "\"${libs.versions.agp.get()}\"")
