@@ -211,21 +211,28 @@ fun CommonSongList(
     }
 
     val handleSongClick =
-        remember(songs, filterQuery, onSongClick, paginationSource) {
+        remember(songs, sortOrder, filterQuery, onSongClick, paginationSource) {
             { song: Song, displayIndex: Int ->
+                val targetSongs =
+                    if (sortOrder == SongSortOrder.DEFAULT) {
+                        songs
+                    } else {
+                        SongSorter.sort(songs, sortOrder)
+                    }
+
+                val songKey = getSongItemKey(song)
                 val fullIndex =
-                    if (filterQuery.isBlank()) {
+                    if (filterQuery.isBlank() && sortOrder == SongSortOrder.DEFAULT) {
                         displayIndex
                     } else {
-                        val songKey = getSongItemKey(song)
-                        val idx = songs.indexOfFirst { target -> getSongItemKey(target) == songKey }
+                        val idx = targetSongs.indexOfFirst { target -> getSongItemKey(target) == songKey }
                         if (idx >= 0) idx else displayIndex
                     }
 
                 if (onSongClick != null) {
-                    onSongClick(songs, fullIndex)
+                    onSongClick(targetSongs, fullIndex)
                 } else {
-                    PlaybackManager.setPlaylist(songs, startIndex = fullIndex, paginationSource = paginationSource)
+                    PlaybackManager.setPlaylist(targetSongs, startIndex = fullIndex, paginationSource = paginationSource)
                 }
             }
         }
