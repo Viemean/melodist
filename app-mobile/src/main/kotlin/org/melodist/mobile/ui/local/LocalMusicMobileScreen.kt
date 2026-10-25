@@ -185,7 +185,7 @@ fun LocalMusicMobileScreen(
         scanJob =
             scope.launch {
                 try {
-                    LocalMusicManager.scanDirectory(targetFolder) { title, cur, total ->
+                    LocalMusicManager.scanDirectory(targetFolder, forceRefresh = true) { title, cur, total ->
                         scanStatus = if (total > 0) "[$cur/$total] $title" else "[$cur] $title"
                     }
                     refreshScannedSongs()
@@ -208,7 +208,7 @@ fun LocalMusicMobileScreen(
             scope.launch {
                 try {
                     val songs =
-                        LocalMusicManager.scanSystemMediaStore(context) { title, cur, total ->
+                        LocalMusicManager.scanSystemMediaStore(context, forceRefresh = true) { title, cur, total ->
                             scanStatus = if (total > 0) "[$cur/$total] $title" else "[$cur] $title"
                         }
                     refreshScannedSongs()

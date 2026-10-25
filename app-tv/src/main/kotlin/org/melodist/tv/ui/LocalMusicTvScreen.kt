@@ -106,7 +106,7 @@ fun LocalMusicTvScreen(
         scope.launch {
             try {
                 val songs =
-                    LocalMusicManager.scanDirectory(targetFolder) { title, cur, total ->
+                    LocalMusicManager.scanDirectory(targetFolder, forceRefresh = true) { title, cur, total ->
                         scanStatus = if (total > 0) "正在解析: $title ($cur/$total)" else title
                     }
                 scannedSongs = songs
