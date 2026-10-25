@@ -3,8 +3,8 @@ package org.melodist.mobile.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.net.Uri
 import android.widget.Toast
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -456,39 +456,6 @@ private fun copyToClipboard(
     clipboard.setPrimaryClip(clip)
 }
 
-/**
- * 静态解析一起听分享链接或原始房间号。
- *
- * @return Triple(showId, encUin, songId)
- */
-fun parseListenTogetherUrl(rawText: String): Triple<String, String, Long> {
-    if (rawText.isBlank()) return Triple("", "", 0L)
-
-    var showId = ""
-    var encUin = ""
-    var songId = 0L
-
-    try {
-        if (rawText.contains("http://") || rawText.contains("https://")) {
-            val uri = Uri.parse(rawText)
-            showId = uri.getQueryParameter("showid").orEmpty()
-            encUin = uri.getQueryParameter("share_encrypt_uin")?.ifBlank { null }
-                ?: uri.getQueryParameter("hosteuin").orEmpty()
-            songId = uri.getQueryParameter("songid")?.toLongOrNull() ?: 0L
-        }
-
-        if (showId.isBlank()) {
-            val match = Regex("LUGC[0-9a-zA-Z]+").find(rawText)
-            if (match != null) {
-                showId = match.value
-            }
-        }
-    } catch (_: Exception) {
-        // 解析失败保持默认值
-    }
-
-    return Triple(showId, encUin, songId)
-}
 
 /**
  * 一起听好友空间统计数据项。

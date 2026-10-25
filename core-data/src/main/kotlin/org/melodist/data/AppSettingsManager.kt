@@ -29,10 +29,6 @@ enum class LyricFontSize(
 
     val spValue: Int get() = titleSp
 
-    companion object {
-        @Deprecated("Use Custom instead", ReplaceWith("Custom"))
-        val ExtraLarge: LyricFontSize get() = Custom
-    }
 }
 
 data class CacheUsageDetail(
@@ -617,8 +613,8 @@ object AppSettingsManager {
         withContext(Dispatchers.IO) {
             val ctx = appContext ?: return@withContext false
             try {
-                mediaCacheClearAction?.invoke()
-                imageCacheClearAction?.invoke()
+                val mediaCleared = mediaCacheClearAction?.invoke() ?: true
+                val imageCleared = imageCacheClearAction?.invoke() ?: true
 
                 val cacheDir = ctx.cacheDir
                 val preservedFolders = setOf("covers", "local_covers", "lyrics", "matched_lyrics")
@@ -636,7 +632,7 @@ object AppSettingsManager {
                 WebDavManager.onCacheCleared()
                 LocalMusicManager.healMissingCovers()
                 refreshCacheUsage()
-                true
+                mediaCleared && imageCleared
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to clear media and image cache", e)
@@ -653,8 +649,8 @@ object AppSettingsManager {
         withContext(Dispatchers.IO) {
             val ctx = appContext ?: return@withContext false
             try {
-                mediaCacheClearAction?.invoke()
-                imageCacheClearAction?.invoke()
+                val mediaCleared = mediaCacheClearAction?.invoke() ?: true
+                val imageCleared = imageCacheClearAction?.invoke() ?: true
 
                 val cacheDir = ctx.cacheDir
                 val preservedFolders = setOf("covers", "local_covers", "lyrics", "matched_lyrics")
@@ -675,7 +671,7 @@ object AppSettingsManager {
                 WebDavManager.onCacheCleared()
                 LocalMusicManager.healMissingCovers()
                 refreshCacheUsage()
-                true
+                mediaCleared && imageCleared
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w(TAG, "Failed to clear all cache", e)

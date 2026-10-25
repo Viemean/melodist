@@ -97,14 +97,6 @@ object MobileCoverCacheResolver {
         }
     }
 
-    /**
-     * 兼容保留重载
-     */
-    @Deprecated("使用单参数 resolveCandidates(song)", ReplaceWith("resolveCandidates(song)"))
-    fun resolveCandidates(
-        @Suppress("UNUSED_PARAMETER") context: Context,
-        song: Song?,
-    ): List<String> = resolveCandidates(song)
 
     /**
      * 当在 WiFi 环境下播放该音乐时，若原图尚未写入磁盘缓存，自动在后台加载并升级原图缓存

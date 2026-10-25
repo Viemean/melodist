@@ -33,19 +33,6 @@ import javax.xml.parsers.DocumentBuilderFactory
 class WebDavService {
     companion object {
         private val XML_MEDIA_TYPE = "application/xml; charset=utf-8".toMediaType()
-
-        val SUPPORTED_AUDIO_EXTENSIONS =
-            setOf(
-                ".flac",
-                ".mp3",
-                ".m4a",
-                ".wav",
-                ".ogg",
-                ".aac",
-                ".opus",
-                ".ape",
-            )
-
         private val clientCache = ConcurrentHashMap<String, OkHttpClient>()
 
         private fun getClient(server: WebDavServer): OkHttpClient {
@@ -386,9 +373,7 @@ class WebDavService {
                             ),
                         )
                     } else {
-                        val dotIdx = displayName.lastIndexOf('.')
-                        val ext = if (dotIdx != -1) displayName.substring(dotIdx).lowercase() else ""
-                        if (SUPPORTED_AUDIO_EXTENSIONS.contains(ext)) {
+                        if (org.melodist.model.AudioFileFilter.isAudioFile(displayName)) {
                             items.add(
                                 WebDavItem(
                                     name = displayName,

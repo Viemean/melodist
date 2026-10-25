@@ -95,9 +95,6 @@ object LocalMusicManager {
     private const val TAG = "LocalMusicManager"
     private const val PREF_NAME = "melodist_local_music"
     private const val KEY_CONFIG = "local_config_json"
-
-    private val SUPPORTED_AUDIO_EXT = org.melodist.model.AudioFileFilter.SUPPORTED_AUDIO_EXTENSIONS
-
     private var prefs: SharedPreferences? = null
     private var appContext: Context? = null
     private var coversDir: File? = null
@@ -612,20 +609,17 @@ object LocalMusicManager {
                         modifiedMs = f.lastModified(),
                     ),
                 )
-            } else if (f.isFile) {
-                val ext = f.extension.lowercase()
-                if (SUPPORTED_AUDIO_EXT.contains(ext)) {
-                    items.add(
-                        LocalFileItem(
-                            name = f.name,
-                            path = f.absolutePath,
-                            isDirectory = false,
-                            size = f.length(),
-                            modifiedMs = f.lastModified(),
-                            isAudio = true,
-                        ),
-                    )
-                }
+            } else if (f.isFile && AudioFileFilter.isAudioFile(f.name)) {
+                items.add(
+                    LocalFileItem(
+                        name = f.name,
+                        path = f.absolutePath,
+                        isDirectory = false,
+                        size = f.length(),
+                        modifiedMs = f.lastModified(),
+                        isAudio = true,
+                    ),
+                )
             }
         }
 
@@ -669,7 +663,7 @@ object LocalMusicManager {
                     if (f.name.startsWith(".")) continue
                     if (f.isDirectory) {
                         collect(f)
-                    } else if (f.isFile && SUPPORTED_AUDIO_EXT.contains(f.extension.lowercase())) {
+                    } else if (f.isFile && AudioFileFilter.isAudioFile(f.name)) {
                         audioFiles.add(f)
                     }
                 }
@@ -964,7 +958,7 @@ object LocalMusicManager {
                             val path = c.getString(dataIdx)
                             if (!path.isNullOrBlank()) {
                                 val file = File(path)
-                                if (file.exists() && file.isFile && SUPPORTED_AUDIO_EXT.contains(file.extension.lowercase())) {
+                                if (file.exists() && file.isFile && AudioFileFilter.isAudioFile(file.name)) {
                                     audioFiles.add(file)
                                 }
                             }

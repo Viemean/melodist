@@ -73,8 +73,8 @@ import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.melodist.model.AudioQualityFormatter
 import org.melodist.model.Song
-import java.util.Locale
 
 private const val TAG = "FullScreenCoverViewer"
 
@@ -330,7 +330,7 @@ fun FullScreenImageViewer(
                         .padding(bottom = 28.dp),
             ) {
                 if (imageWidth > 0 && imageHeight > 0) {
-                    val sizeStr = fileSizeBytes?.let { formatFileSize(it) }.orEmpty()
+                    val sizeStr = fileSizeBytes?.let { AudioQualityFormatter.formatFileSize(it) }.orEmpty()
                     val infoText =
                         if (sizeStr.isNotBlank()) {
                             "$imageWidth × $imageHeight  •  $sizeStr"
@@ -547,11 +547,3 @@ private fun getDiskCachedCoverSize(
     }
 }
 
-private fun formatFileSize(bytes: Long): String {
-    if (bytes <= 0) return ""
-    return when {
-        bytes >= 1024 * 1024 -> String.format(Locale.US, "%.2f MB", bytes / (1024.0 * 1024.0))
-        bytes >= 1024 -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
-        else -> "$bytes B"
-    }
-}

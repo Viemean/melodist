@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.melodist.data.download.DownloadManager
+import org.melodist.model.AudioQualityFormatter
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 import org.melodist.playback.AudioAuditResult
@@ -236,8 +237,8 @@ fun SongInfoBottomSheet(
 
             val fileSizeDisplay =
                 when {
-                    localFilePath != null -> formatFileSize(File(localFilePath).length())
-                    matchedProbed?.sizeBytes != null && matchedProbed.sizeBytes > 0 -> formatFileSize(matchedProbed.sizeBytes)
+                    localFilePath != null -> AudioQualityFormatter.formatFileSize(File(localFilePath).length())
+                    matchedProbed?.sizeBytes != null && matchedProbed.sizeBytes > 0 -> AudioQualityFormatter.formatFileSize(matchedProbed.sizeBytes)
                     else -> "在线流媒体（动态加载）"
                 }
 
@@ -488,17 +489,5 @@ private fun copyToClipboard(
     Toast.makeText(context, "已复制 $label", Toast.LENGTH_SHORT).show()
 }
 
-private fun formatFileSize(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-    return when {
-        gb >= 1.0 -> "%.2f GB".format(gb)
-        mb >= 1.0 -> "%.2f MB".format(mb)
-        kb >= 1.0 -> "%.1f KB".format(kb)
-        else -> "$bytes B"
-    }
-}
 
 private fun Double.format(digits: Int) = "%.${digits}f".format(this)

@@ -88,45 +88,8 @@ object RawCoverHelper {
      * 给定缩略图路径（如 file:///.../cover_$hash.webp 或 webdav_$hash.webp），
      * 探测其同级目录下是否存在无损原画大图
      */
-    fun findMatchingRawCoverUrl(thumbnailUrl: String): String? {
-        val path =
-            if (thumbnailUrl.startsWith("file://")) {
-                thumbnailUrl.removePrefix("file://")
-            } else if (thumbnailUrl.startsWith("/")) {
-                thumbnailUrl
-            } else {
-                return null
-            }
-
-        val thumbFile = File(path)
-        val parent = thumbFile.parentFile ?: return null
-        val name = thumbFile.name
-
-        val baseHash =
-            when {
-                name.startsWith("cover_") && !name.startsWith("cover_raw_") -> {
-                    name.removePrefix("cover_").substringBeforeLast(".")
-                }
-
-                name.startsWith("webdav_") && !name.startsWith("webdav_raw_") -> {
-                    name.removePrefix("webdav_").substringBeforeLast(".")
-                }
-
-                else -> {
-                    return null
-                }
-            }
-
-        val prefix = if (name.startsWith("webdav_")) "webdav_raw_" else "cover_raw_"
-        val candidateExtensions = listOf("jpg", "png", "webp", "jpeg")
-        for (ext in candidateExtensions) {
-            val candidate = File(parent, "$prefix$baseHash.$ext")
-            if (candidate.exists() && candidate.length() > 512L) {
-                return "file://${candidate.absolutePath}"
-            }
-        }
-        return null
-    }
+    fun findMatchingRawCoverUrl(thumbnailUrl: String): String? =
+        org.melodist.model.CoverUrlResolver.findLocalRawCover(thumbnailUrl)
 
     /**
      * 针对本地音频文件，尝试从内嵌元数据直接提取高清原图
