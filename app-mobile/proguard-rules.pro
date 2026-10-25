@@ -1,5 +1,8 @@
 # Melodist Mobile ProGuard / R8 优化规则
 
+# 包名重排与符号池压缩
+-repackageclasses ''
+
 # Kotlinx Serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.SerializationKt
@@ -13,13 +16,16 @@
     @kotlinx.serialization.SerialName <fields>;
 }
 
-# Core Model
--keep class org.melodist.model.** { *; }
+# Core Model（仅保留参与序列化映射的字段，允许其他模型与工具类被彻底内联优化）
+-keep @kotlinx.serialization.Serializable class org.melodist.model.** {
+    <fields>;
+}
 
-# Media3 & ExoPlayer
--keep class androidx.media3.extractor.** { *; }
--keep class androidx.media3.decoder.** { *; }
--keep class androidx.media3.session.** { *; }
+# Media3 & ExoPlayer（保留跨进程 Session 与 AIDL，移除对 Extractor/Decoder 的全量通配）
+-keep class androidx.media3.session.MediaSession* { *; }
+-keep interface androidx.media3.session.MediaSession* { *; }
+-keep class androidx.media3.session.IMedia* { *; }
+-keep interface androidx.media3.session.IMedia* { *; }
 -dontwarn androidx.media3.**
 
 # OkHttp & Coil
@@ -39,6 +45,10 @@
 -assumenosideeffects class org.melodist.api.ApiLogger {
     public static void d(...);
     public static void i(...);
+}
+
+-assumenosideeffects class java.lang.Throwable {
+    public void printStackTrace();
 }
 
 # Keep line numbers for crash analysis
