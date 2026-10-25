@@ -39,6 +39,18 @@ open class QQMusicApiService : Service() {
             PlaybackManager.isPlaying.collectLatest { playing ->
                 if (playing) {
                     notifyVivoWidgetInit()
+                    val currSong = PlaybackManager.currentSong.value
+                    if (currSong != null) {
+                        val songJson = buildSongJson(currSong)
+                        val songBundle =
+                            Bundle().apply {
+                                putInt("code", 0)
+                                putString("data", songJson)
+                                putString("playSong", songJson)
+                                putString("song", songJson)
+                            }
+                        dispatchSystemEvent(EVENT_PLAY_SONG_CHANGED, songBundle)
+                    }
                 }
                 val state = if (playing) PLAY_STATUS_STARTED else PLAY_STATUS_PAUSED
                 val bundle =
@@ -140,10 +152,19 @@ open class QQMusicApiService : Service() {
 
     private fun notifyVivoWidgetInit() {
         try {
-            val initIntent = Intent("vivo.intent.musicwidgetmix.notify.init")
-            sendBroadcast(initIntent, "vivo.intent.musicwidgetmix.notify.init.PERMISSION")
+            val packageIntent =
+                Intent("vivo.intent.musicwidgetmix.notify.init").apply {
+                    setPackage("com.vivo.musicwidgetmix")
+                }
+            sendBroadcast(packageIntent)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to broadcast notify.init", e)
+            Log.w(TAG, "Failed to broadcast notify.init to package", e)
+        }
+        try {
+            val permIntent = Intent("vivo.intent.musicwidgetmix.notify.init")
+            sendBroadcast(permIntent, "vivo.intent.musicwidgetmix.notify.init.PERMISSION")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to broadcast notify.init with permission", e)
         }
     }
 
@@ -514,9 +535,21 @@ open class QQMusicApiService : Service() {
                 if (listener != null) {
                     val registered = callbackList.register(listener)
                     Log.i(TAG, "registerEventListener: events=$events, registered=$registered")
-                    // Immediate initial state push to the newly connected listener
                     serviceScope.launch {
                         try {
+                            val currSong = PlaybackManager.currentSong.value
+                            if (currSong != null) {
+                                val songJson = buildSongJson(currSong)
+                                listener.onEvent(
+                                    EVENT_PLAY_SONG_CHANGED,
+                                    Bundle().apply {
+                                        putInt("code", 0)
+                                        putString("data", songJson)
+                                        putString("playSong", songJson)
+                                        putString("song", songJson)
+                                    },
+                                )
+                            }
                             val state = if (PlaybackManager.isPlaying.value) PLAY_STATUS_STARTED else PLAY_STATUS_PAUSED
                             listener.onEvent(
                                 EVENT_PLAY_STATE_CHANGED,
@@ -526,14 +559,19 @@ open class QQMusicApiService : Service() {
                                     putInt("playState", state)
                                 },
                             )
-                            val songJson = buildSongJson(PlaybackManager.currentSong.value)
+                            val loopMode = PlaybackManager.loopMode.value
+                            val mode =
+                                when (loopMode) {
+                                    org.melodist.playback.PlaybackLoopMode.ListRepeat -> 0
+                                    org.melodist.playback.PlaybackLoopMode.SingleRepeat -> 1
+                                    org.melodist.playback.PlaybackLoopMode.Shuffle -> 2
+                                }
                             listener.onEvent(
-                                EVENT_PLAY_SONG_CHANGED,
+                                EVENT_PLAY_MODE_CHANGED,
                                 Bundle().apply {
                                     putInt("code", 0)
-                                    putString("data", songJson)
-                                    putString("playSong", songJson)
-                                    putString("song", songJson)
+                                    putInt("data", mode)
+                                    putInt("playMode", mode)
                                 },
                             )
                         } catch (e: Exception) {
