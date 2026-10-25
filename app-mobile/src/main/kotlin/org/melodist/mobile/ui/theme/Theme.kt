@@ -74,10 +74,10 @@ private val DefaultDarkColorScheme =
 
 private val DefaultLightColorScheme =
     createLightColorScheme(
-        primary = MelodistPrimaryContainer,
-        onPrimary = MelodistOnPrimaryContainer,
-        primaryContainer = MelodistPrimary,
-        onPrimaryContainer = MelodistOnPrimary,
+        primary = Color(0xFF005DB4),
+        onPrimary = Color(0xFFFFFFFF),
+        primaryContainer = Color(0xFFD6E3FF),
+        onPrimaryContainer = Color(0xFF001B3E),
     )
 
 private val VioletDarkColorScheme =
@@ -240,7 +240,7 @@ private fun createCustomLightColorScheme(seedColor: Color): ColorScheme {
 fun getPresetColorScheme(
     theme: AppColorTheme,
     isDark: Boolean,
-    customColorHex: String = "#5CAFC4",
+    customColorHex: String = "#1A73E8",
 ): ColorScheme =
     when (theme) {
         AppColorTheme.Default -> {
@@ -291,7 +291,7 @@ fun MelodistMobileTheme(
     themeMode: ThemeMode = ThemeMode.System,
     dynamicColor: Boolean = true,
     colorTheme: AppColorTheme = AppColorTheme.Default,
-    customColorHex: String = "#5CAFC4",
+    customColorHex: String = "#1A73E8",
     amoledDark: Boolean = false,
     content: @Composable () -> Unit,
 ) {

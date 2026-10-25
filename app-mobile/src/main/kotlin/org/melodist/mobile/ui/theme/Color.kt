@@ -2,15 +2,15 @@ package org.melodist.mobile.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val MelodistPrimary = Color(0xFF5CAFC4)
-val MelodistOnPrimary = Color(0xFF003844)
-val MelodistPrimaryContainer = Color(0xFF004E60)
-val MelodistOnPrimaryContainer = Color(0xFFA8D5E3)
+val MelodistPrimary = Color(0xFFA8C7FA)
+val MelodistOnPrimary = Color(0xFF003062)
+val MelodistPrimaryContainer = Color(0xFF004689)
+val MelodistOnPrimaryContainer = Color(0xFFD6E3FF)
 
-val MelodistSecondary = Color(0xFF78BFB0)
-val MelodistOnSecondary = Color(0xFF003730)
-val MelodistSecondaryContainer = Color(0xFF004E47)
-val MelodistOnSecondaryContainer = Color(0xFF9AD8CB)
+val MelodistSecondary = Color(0xFFBDC7DC)
+val MelodistOnSecondary = Color(0xFF283141)
+val MelodistSecondaryContainer = Color(0xFF3E4758)
+val MelodistOnSecondaryContainer = Color(0xFFD9E3F8)
 
 val MelodistBackground = Color(0xFF121212)
 val MelodistOnBackground = Color(0xFFE2E2E2)

@@ -120,7 +120,7 @@ enum class AppColorTheme(
     val label: String,
     val seedColor: Long,
 ) {
-    Default("青蓝 (默认)", 0xFF5CAFC4),
+    Default("谷歌蓝 (默认)", 0xFF1A73E8),
     Violet("极光紫", 0xFF7E57C2),
     Emerald("翡翠绿", 0xFF26A69A),
     Amber("琥珀金", 0xFFFFA000),
@@ -162,7 +162,7 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.System,
     val dynamicColor: Boolean = true,
     val colorTheme: AppColorTheme = AppColorTheme.Default,
-    val customColorHex: String = "#5CAFC4",
+    val customColorHex: String = "#1A73E8",
     val amoledDark: Boolean = false,
 ) {
     // 向后兼容旧字段引用
@@ -301,7 +301,7 @@ object AppSettingsManager {
         val dynamicColor = p.getBoolean(KEY_DYNAMIC_COLOR, true)
         val colorThemeName = p.getString(KEY_COLOR_THEME, AppColorTheme.Default.name) ?: AppColorTheme.Default.name
         val colorTheme = runCatching { AppColorTheme.valueOf(colorThemeName) }.getOrDefault(AppColorTheme.Default)
-        val customColorHex = p.getString(KEY_CUSTOM_COLOR_HEX, "#5CAFC4") ?: "#5CAFC4"
+        val customColorHex = p.getString(KEY_CUSTOM_COLOR_HEX, "#1A73E8") ?: "#1A73E8"
         val amoledDark = p.getBoolean(KEY_AMOLED_DARK, false)
 
         _settings.value =
