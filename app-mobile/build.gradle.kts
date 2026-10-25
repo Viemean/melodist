@@ -162,6 +162,7 @@ dependencies {
 
     // Baseline Profile Installer
     implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":benchmark-mobile"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

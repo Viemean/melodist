@@ -28,6 +28,7 @@ app-mobile/src/release/
 bin/
 */bin/
 **/bin/
+.bin/
 tools/
 scripts/
 
