@@ -165,6 +165,42 @@ DEPENDENCY_MAP = {
             "google",
         )
     ],
+    "baselineprofile": [
+        (
+            "https://dl.google.com/android/maven2/androidx/baselineprofile/androidx.baselineprofile.gradle.plugin/maven-metadata.xml",
+            "google",
+        )
+    ],
+    "benchmark": [
+        (
+            "https://dl.google.com/android/maven2/androidx/benchmark/benchmark-macro-junit4/maven-metadata.xml",
+            "google",
+        )
+    ],
+    "profileinstaller": [
+        (
+            "https://dl.google.com/android/maven2/androidx/profileinstaller/profileinstaller/maven-metadata.xml",
+            "google",
+        )
+    ],
+    "uiautomator": [
+        (
+            "https://dl.google.com/android/maven2/androidx/test/uiautomator/uiautomator/maven-metadata.xml",
+            "google",
+        )
+    ],
+    "androidx-test-ext": [
+        (
+            "https://dl.google.com/android/maven2/androidx/test/ext/junit/maven-metadata.xml",
+            "google",
+        )
+    ],
+    "androidx-test-runner": [
+        (
+            "https://dl.google.com/android/maven2/androidx/test/runner/maven-metadata.xml",
+            "google",
+        )
+    ],
 }
 
 
