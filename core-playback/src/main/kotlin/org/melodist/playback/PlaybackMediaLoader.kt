@@ -96,7 +96,8 @@ object PlaybackMediaLoader {
         withContext(Dispatchers.IO) {
             val isPureLocal = !song.localFilePath.isNullOrBlank() && !song.songMid.startsWith("webdav_")
             if (isPureLocal) {
-                val directFile = File(song.localFilePath!!)
+                val cleanPath = song.localFilePath!!.removePrefix("file://")
+                val directFile = File(cleanPath)
                 if (directFile.exists() && directFile.isFile) {
                     val mediaItem = buildMediaItem(Uri.fromFile(directFile), song, song.currentTier, metadataBuilder)
                     return@withContext PlaybackTargetResult.LocalFile(
@@ -105,6 +106,22 @@ object PlaybackMediaLoader {
                         localFile = directFile,
                     )
                 }
+            }
+
+            val isContentUri = song.localFilePath?.startsWith("content://") == true || song.mediaMid.startsWith("content://")
+            if (isContentUri) {
+                val uriString = if (song.localFilePath?.startsWith("content://") == true) song.localFilePath!! else song.mediaMid
+                val ctx = context ?: return@withContext PlaybackTargetResult.Failure("缺少 Context 上下文")
+                val dataSourceFactory = DefaultDataSource.Factory(ctx)
+                val mediaSource =
+                    ProgressiveMediaSource
+                        .Factory(dataSourceFactory, PlaybackEngineFactory.createExtractorsFactory())
+                        .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(6))
+                        .createMediaSource(buildMediaItem(Uri.parse(uriString), song, song.currentTier, metadataBuilder))
+                return@withContext PlaybackTargetResult.LocalStream(
+                    mediaSource = mediaSource,
+                    actualTier = song.currentTier,
+                )
             }
             val completedDownload =
                 org.melodist.data.download.DownloadManager

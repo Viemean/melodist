@@ -15,6 +15,7 @@ import coil3.request.ImageRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.melodist.api.ApiLogger
@@ -137,13 +138,152 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        handleListenTogetherIntent(intent)
+        handleIncomingIntent(intent)
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: android.content.Intent?) {
+        if (intent == null) return
+        if (handleExternalAudioIntent(intent)) return
         handleListenTogetherIntent(intent)
+    }
+
+    private fun handleExternalAudioIntent(intent: android.content.Intent): Boolean {
+        if (intent.action != android.content.Intent.ACTION_VIEW) return false
+        val uri = intent.data ?: return false
+        val type = intent.type.orEmpty()
+        val scheme = uri.scheme.orEmpty()
+
+        if (uri.host == "i.y.qq.com" && uri.path?.contains("listen_together") == true) {
+            return false
+        }
+
+        val isAudioMime = type.startsWith("audio/") || type == "application/ogg" || type == "application/x-ogg" || type == "application/flac" || type == "application/x-flac"
+        val isAudioScheme = scheme == "content" || scheme == "file"
+        val pathLower = uri.path.orEmpty().lowercase()
+        val isAudioExt = pathLower.endsWith(".mp3") || pathLower.endsWith(".flac") || pathLower.endsWith(".wav") || pathLower.endsWith(".m4a") || pathLower.endsWith(".aac") || pathLower.endsWith(".ogg") || pathLower.endsWith(".opus")
+
+        if (!isAudioMime && !isAudioExt && !isAudioScheme) return false
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                try {
+                    if (scheme == android.content.ContentResolver.SCHEME_CONTENT) {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        )
+                    }
+                } catch (_: Exception) {
+                }
+
+                var displayName: String? = null
+                if (scheme == android.content.ContentResolver.SCHEME_CONTENT) {
+                    try {
+                        contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                if (idx >= 0) displayName = cursor.getString(idx)
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+                val finalDisplayName = displayName?.ifBlank { null } ?: uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { null } ?: "外部音频"
+
+                val (inferredTitle, inferredArtist) = org.melodist.data.pipeline.AudioMetadataPipeline.inferTitleArtist(finalDisplayName)
+                var title = inferredTitle
+                var artist = inferredArtist
+                var album = "外部音频"
+                var durationSec = 0
+                var resolvedCoverUrl = ""
+                var sampleRate: Int? = null
+                var bitrate: Int? = null
+
+                val retriever = android.media.MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(this@MainActivity, uri)
+                    val meta = org.melodist.data.pipeline.AudioMetadataPipeline.parseFromRetriever(
+                        retriever = retriever,
+                        fallbackTitle = title,
+                        fallbackArtist = artist,
+                        fallbackAlbum = album,
+                    )
+                    title = meta.title
+                    artist = meta.artist
+                    album = meta.album
+                    durationSec = meta.durationSeconds
+                    sampleRate = meta.sampleRate
+                    bitrate = meta.bitrate
+
+                    val picBytes = meta.pictureBytes
+                    if (picBytes != null && picBytes.size >= 512) {
+                        val hash = uri.toString().hashCode().toString().replace("-", "n")
+                        val coverFolder = java.io.File(cacheDir, "covers")
+                        val savedCoverPath = org.melodist.data.pipeline.AudioMetadataPipeline.saveThumbnailWebp(
+                            bytes = picBytes,
+                            folder = coverFolder,
+                            baseHash = hash,
+                            prefix = "external_",
+                        )
+                        if (!savedCoverPath.isNullOrBlank()) {
+                            resolvedCoverUrl = "file://$savedCoverPath"
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Failed to extract metadata for external URI: $uri", e)
+                } finally {
+                    try {
+                        retriever.release()
+                    } catch (_: Exception) {
+                    }
+                }
+
+                val ext = finalDisplayName.substringAfterLast('.', "flac")
+                val inferredTier = if (sampleRate != null && sampleRate > 0) {
+                    org.melodist.model.AudioQualityTier.inferFromAudioFormat(
+                        sampleRate = sampleRate,
+                        mimeType = "audio/$ext",
+                        bitrate = bitrate ?: 0,
+                    )
+                } else {
+                    org.melodist.model.AudioQualityTier.Standard
+                }
+
+                val uriStr = uri.toString()
+                val hash = kotlin.math.abs(uriStr.hashCode())
+                val song = org.melodist.model.Song(
+                    songId = hash.toLong(),
+                    songMid = "local_ext_$hash",
+                    name = title,
+                    singer = artist,
+                    album = album,
+                    durationSeconds = durationSec,
+                    currentTier = inferredTier,
+                    coverUrl = resolvedCoverUrl,
+                    rawCoverUrl = resolvedCoverUrl,
+                    localFilePath = uriStr,
+                    mediaMid = uriStr,
+                    dateAdded = System.currentTimeMillis() / 1000L,
+                )
+
+                withContext(Dispatchers.Main) {
+                    PlaybackManager.setPlaylist(
+                        songs = listOf(song),
+                        startIndex = 0,
+                    )
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.e("MainActivity", "Failed to handle external audio intent", e)
+            }
+        }
+        return true
     }
 
     private fun handleListenTogetherIntent(intent: android.content.Intent?) {
