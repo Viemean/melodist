@@ -296,7 +296,7 @@ object WebDavManager {
                 // 请求头部 256KB
                 val headerBytes = webDavService.fetchRangeBytes(server, rawCache.href, 0L, 262143L)
                 if (headerBytes != null && headerBytes.isNotEmpty()) {
-                    // 1 优先使用轻量纯字节解析器提取 FLAC (Vorbis Comment / Picture) 与 MP3 (ID3v2)
+                    // 纯字节解析器提取 FLAC 与 MP3 标签
                     val parsed = AudioMetadataParser.parse(headerBytes)
 
                     var finalTitle = parsed.title?.ifBlank { null } ?: rawCache.title
@@ -357,7 +357,7 @@ object WebDavManager {
                         }
                     }
 
-                    // 2 若纯字节未提取全（如非 FLAC/MP3 或无标签），降级使用 MediaMetadataRetriever 兜底提取
+                    // 降级使用 MediaMetadataRetriever 提取元数据
                     if (finalArtist.isBlank() || finalArtist == "WebDAV 音频" || coverPath.isNullOrBlank() || finalDur == 0) {
                         safeWriteBytes(tmpHdrFile, headerBytes)
                         val retriever = android.media.MediaMetadataRetriever()
@@ -398,7 +398,7 @@ object WebDavManager {
                         }
                     }
 
-                    // 3 若依然无封面，嗅探同目录封面图片
+                    // 嗅探同目录封面图片
                     if (coverPath.isNullOrBlank()) {
                         val parentFolder = rawCache.href.substringBeforeLast('/', "")
                         val folderCoverBytes = webDavService.fetchRemoteCover(server, parentFolder)
@@ -407,7 +407,7 @@ object WebDavManager {
                         }
                     }
 
-                    // 4 歌词嗅探：优先 parsed.lyrics，次选同目录同名 .lrc，再选 extractEmbeddedLyricsFromBytes
+                    // 嗅探内嵌歌词与同目录 .lrc 文件
                     var lyrics = updated.embeddedLyrics
                     if (lyrics.isNullOrBlank()) {
                         if (!parsed.lyrics.isNullOrBlank()) {

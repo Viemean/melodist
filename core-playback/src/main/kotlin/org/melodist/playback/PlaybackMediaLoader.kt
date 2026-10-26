@@ -143,7 +143,11 @@ object PlaybackMediaLoader {
             }
 
             val isProxyStream =
-                (song.isLocal || song.isWebDav || song.songMid.startsWith("local_") || song.songMid.startsWith("pc_local_") || song.songMid.startsWith("webdav_") || song.mediaMid.contains("/stream/")) &&
+                (
+                    song.isLocal || song.isWebDav || song.songMid.startsWith("local_") || song.songMid.startsWith("pc_local_") ||
+                        song.songMid.startsWith("webdav_") ||
+                        song.mediaMid.contains("/stream/")
+                ) &&
                     (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://"))
             if (isProxyStream) {
                 if ((song.mediaMid.endsWith(".flac", ignoreCase = true) || song.name.endsWith(".flac", ignoreCase = true)) &&
