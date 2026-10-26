@@ -50,6 +50,7 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                 color = Color.White,
             )
 
+            val isFlacSupported = org.melodist.playback.AudioCodecDetector.isFlacSupported
             val row1 =
                 listOf(
                     AudioQualityTier.Master to "Master (192k/24b)",
@@ -66,6 +67,14 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (!isFlacSupported) {
+                    Text(
+                        text = "注：当前设备未检测到 FLAC 解码器，无损音质（SQ / Hi-Res / Master）不可用",
+                        fontSize = 12.sp,
+                        color = Color(0xFFFFB74D),
+                    )
+                }
+
                 // 第一行：无损与母带层级 (依次左移，首列返回导航栏)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -73,6 +82,7 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                 ) {
                     row1.forEachIndexed { index, (tier, label) ->
                         val isSelected = (settings.preferredQualityTier == tier)
+                        val isSupported = isFlacSupported
                         val btnModifier =
                             Modifier
                                 .weight(1f)
@@ -80,8 +90,11 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
 
                         Button(
                             onClick = {
-                                PlaybackManager.setPreferredQualityTier(tier)
+                                if (isSupported) {
+                                    PlaybackManager.setPreferredQualityTier(tier)
+                                }
                             },
+                            enabled = isSupported,
                             modifier = btnModifier,
                             shape =
                                 ButtonDefaults.shape(
@@ -101,6 +114,8 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                                     focusedContainerColor = Color.White,
                                     contentColor = if (isSelected) MelodistColors.AccentGreen else Color.White,
                                     focusedContentColor = Color.Black,
+                                    disabledContainerColor = Color.White.copy(alpha = 0.02f),
+                                    disabledContentColor = Color.White.copy(alpha = 0.35f),
                                 ),
                             border =
                                 ButtonDefaults.border(
@@ -114,7 +129,7 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                                                             alpha = 0.7f,
                                                         )
                                                     } else {
-                                                        Color.White.copy(alpha = 0.12f)
+                                                        Color.White.copy(alpha = if (isSupported) 0.12f else 0.04f)
                                                     },
                                                 ),
                                             shape = MelodistShapes.ButtonCorner,
@@ -129,8 +144,8 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                         ) {
                             Text(
-                                text = label,
-                                fontSize = 13.sp,
+                                text = if (isSupported) label else "$label (缺少解码器)",
+                                fontSize = if (isSupported) 13.sp else 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 maxLines = 1,
                                 textAlign = TextAlign.Center,

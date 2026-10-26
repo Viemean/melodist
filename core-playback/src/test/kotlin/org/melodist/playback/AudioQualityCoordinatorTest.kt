@@ -70,4 +70,44 @@ class AudioQualityCoordinatorTest {
         assertEquals(AudioQualityTier.Standard, coordinator.getFallbackTier(AudioQualityTier.HQ))
         assertEquals(null, coordinator.getFallbackTier(AudioQualityTier.Standard))
     }
+
+    @Test
+    fun `when flac decoder missing, clampCodecSupportedTier clamps to HQ`() {
+        AudioCodecDetector.flacSupportedOverride = false
+        try {
+            val onlineSong = Song(songId = 3L, songMid = "online_3", name = "Online Song", singer = "Artist")
+            assertEquals(AudioQualityTier.HQ, PlaybackSourceResolver.clampCodecSupportedTier(AudioQualityTier.SQ, onlineSong))
+            assertEquals(AudioQualityTier.HQ, PlaybackSourceResolver.clampCodecSupportedTier(AudioQualityTier.HiRes, onlineSong))
+            assertEquals(AudioQualityTier.HQ, PlaybackSourceResolver.clampCodecSupportedTier(AudioQualityTier.Master, onlineSong))
+            assertEquals(AudioQualityTier.Standard, PlaybackSourceResolver.clampCodecSupportedTier(AudioQualityTier.Standard, onlineSong))
+        } finally {
+            AudioCodecDetector.flacSupportedOverride = null
+        }
+    }
+
+    @Test
+    fun `when flac decoder missing, local flac song resetForSong marks tier unavailable`() {
+        AudioCodecDetector.flacSupportedOverride = false
+        try {
+            val localSong =
+                Song(
+                    songId = 4L,
+                    songMid = "local_4",
+                    name = "Local FLAC",
+                    singer = "Artist",
+                    localFilePath = "local/song.flac",
+                    currentTier = AudioQualityTier.SQ,
+                )
+            coordinator.resetForSong(localSong)
+            assertTrue(coordinator.availableTiers.value.isEmpty())
+            assertEquals(
+                false,
+                coordinator.probedQualityOptions.value
+                    .first()
+                    .isAvailable,
+            )
+        } finally {
+            AudioCodecDetector.flacSupportedOverride = null
+        }
+    }
 }

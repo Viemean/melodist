@@ -68,7 +68,8 @@ class AudioQualityCoordinator(
         val isPureLocal = PlaybackSourceResolver.isPureLocalOrWebDav(song)
         if (isPureLocal) {
             val actualTier = song.currentTier
-            _availableTiers.value = setOf(actualTier)
+            val isSupported = DeviceAudioCapability.isTierSupported(actualTier)
+            _availableTiers.value = if (isSupported) setOf(actualTier) else emptySet()
             val localPath = song.localFilePath
             val localSize =
                 if (!localPath.isNullOrBlank()) {
@@ -87,7 +88,7 @@ class AudioQualityCoordinator(
                         format = localPath?.substringAfterLast('.', "")?.uppercase()?.ifBlank { "FLAC" } ?: "FLAC",
                         bitrate = "",
                         sizeBytes = localSize,
-                        isAvailable = true,
+                        isAvailable = isSupported,
                     ),
                 )
             probedSongMid = song.songMid
@@ -117,10 +118,13 @@ class AudioQualityCoordinator(
                 _isProbingQuality.value = true
                 try {
                     val probed = apiService.probeSongQualities(song.songMid, song.mediaMid)
-                    val available = probed.filter { it.isAvailable }.map { it.tier }.toSet()
+                    val available = probed.filter { it.isAvailable && DeviceAudioCapability.isTierSupported(it.tier) }.map { it.tier }.toSet()
                     if (available.isNotEmpty()) {
                         _availableTiers.value = available
-                        _probedQualityOptions.value = probed
+                        _probedQualityOptions.value =
+                            probed.map {
+                                if (!DeviceAudioCapability.isTierSupported(it.tier)) it.copy(isAvailable = false) else it
+                            }
                         probedSongMid = song.songMid
 
                         if (song.durationSeconds > 0 && onTrackSpecBitrateCalculated != null) {
@@ -134,7 +138,13 @@ class AudioQualityCoordinator(
                         }
 
                         val preferred = preferredTierProvider()
-                        val effective = clampCellularTier(preferred, song, context)
+                        val cellularClamped = clampCellularTier(preferred, song, context)
+                        val effective =
+                            if (!DeviceAudioCapability.isTierSupported(cellularClamped)) {
+                                AudioQualityTier.HQ
+                            } else {
+                                cellularClamped
+                            }
                         val isBlacklisted = isTierBlacklisted(song.songMid, effective)
                         if (currentTierProvider() != effective && available.contains(effective) && !isBlacklisted && currentSongMidProvider() == song.songMid) {
                             Log.i(

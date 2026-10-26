@@ -699,6 +699,14 @@ object PlaybackManager {
             }
 
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                if (tracks.containsType(androidx.media3.common.C.TRACK_TYPE_AUDIO) &&
+                    !tracks.isTypeSelected(androidx.media3.common.C.TRACK_TYPE_AUDIO)
+                ) {
+                    Log.w("MelodistPlayback", "onTracksChanged: Audio track exists but none selected (missing decoder)")
+                    handlePlaybackFailure("播放失败：当前设备缺少该音频格式解码器")
+                    return
+                }
+
                 val resolved =
                     audioTrackResolver.resolveSelectedAudioTrack(
                         tracks = tracks,
@@ -1210,7 +1218,8 @@ object PlaybackManager {
         appContext?.let { startPlaybackService(it) }
 
         val rawTargetTier = forceTier ?: _preferredTier.value
-        val targetTierInit = clampCellularTier(rawTargetTier, effectiveSong)
+        val cellularTier = clampCellularTier(rawTargetTier, effectiveSong)
+        val targetTierInit = PlaybackSourceResolver.clampCodecSupportedTier(cellularTier, effectiveSong)
         val completedDownloadTier =
             org.melodist.data.download.DownloadManager
                 .getCompletedDownload(effectiveSong.songMid)
@@ -1278,9 +1287,10 @@ object PlaybackManager {
                 val player = exoPlayer ?: return@launch
                 val ctx = appContext ?: return@launch
                 val rawTargetTier = forceTier ?: _preferredTier.value
-                val clampedTier = clampCellularTier(rawTargetTier, song)
+                val cellularTier = clampCellularTier(rawTargetTier, song)
+                val clampedTier = PlaybackSourceResolver.clampCodecSupportedTier(cellularTier, song)
                 val policyTier = policyCoordinator.resolveInitialTier(song, clampedTier)
-                val resolvedTargetTier = policyTier ?: clampedTier
+                val resolvedTargetTier = PlaybackSourceResolver.clampCodecSupportedTier(policyTier ?: clampedTier, song)
                 val isForceTrial = policyCoordinator.isForceTrial(song)
                 val bypassPrefetch = policyCoordinator.shouldBypassPrefetch(song)
 
@@ -1721,13 +1731,14 @@ object PlaybackManager {
         )
 
     fun setPreferredQualityTier(tier: AudioQualityTier) {
-        _preferredTier.value = tier
+        val clamped = PlaybackSourceResolver.clampCodecSupportedTier(tier, _currentSong.value)
+        _preferredTier.value = clamped
         org.melodist.data.AppSettingsManager
-            .updatePreferredQualityTier(tier)
+            .updatePreferredQualityTier(clamped)
         savePlaybackState()
         val current = _currentSong.value
         if (current != null) {
-            val effectiveTier = clampCellularTier(tier, current)
+            val effectiveTier = PlaybackSourceResolver.clampCodecSupportedTier(clampCellularTier(clamped, current), current)
             if (_currentTier.value != effectiveTier) {
                 switchTier(effectiveTier)
             }
@@ -1754,8 +1765,12 @@ object PlaybackManager {
             }
             return
         }
-        val effectiveTier = clampCellularTier(tier, current)
-        if (effectiveTier != tier) {
+        val codecClampedTier = PlaybackSourceResolver.clampCodecSupportedTier(tier, current)
+        if (codecClampedTier != tier) {
+            _errorMessage.value = "当前设备缺少该音频格式解码器，已回退为：${AudioQualityTier.getBadge(codecClampedTier)}"
+        }
+        val effectiveTier = clampCellularTier(codecClampedTier, current)
+        if (effectiveTier != codecClampedTier) {
             _errorMessage.value = "当前为移动网络，已限制为上限音质：${AudioQualityTier.getBadge(effectiveTier)}"
         }
         val previousTier = _currentTier.value

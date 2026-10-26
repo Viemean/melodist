@@ -99,6 +99,9 @@ object PlaybackMediaLoader {
                 val cleanPath = song.localFilePath!!.removePrefix("file://")
                 val directFile = File(cleanPath)
                 if (directFile.exists() && directFile.isFile) {
+                    if (directFile.name.endsWith(".flac", ignoreCase = true) && !AudioCodecDetector.isFlacSupported) {
+                        return@withContext PlaybackTargetResult.Failure("当前设备缺少 FLAC 解码器，无法播放此本地音频", allowRetry = false)
+                    }
                     val mediaItem = buildMediaItem(Uri.fromFile(directFile), song, song.currentTier, metadataBuilder)
                     return@withContext PlaybackTargetResult.LocalFile(
                         mediaItem = mediaItem,
@@ -128,6 +131,9 @@ object PlaybackMediaLoader {
                     .getCompletedDownload(song.songMid)
             if (completedDownload != null) {
                 val (downloadFile, downloadTier) = completedDownload
+                if (downloadFile.name.endsWith(".flac", ignoreCase = true) && !AudioCodecDetector.isFlacSupported) {
+                    return@withContext PlaybackTargetResult.Failure("当前设备缺少 FLAC 解码器，无法播放此下载音频", allowRetry = false)
+                }
                 val mediaItem = buildMediaItem(Uri.fromFile(downloadFile), song, downloadTier, metadataBuilder)
                 return@withContext PlaybackTargetResult.LocalFile(
                     mediaItem = mediaItem,
@@ -170,6 +176,11 @@ object PlaybackMediaLoader {
             if (song.songMid.startsWith("webdav_")) {
                 val server = WebDavManager.getActiveServer()
                 val relativeHref = song.mediaMid.ifBlank { song.localFilePath ?: "" }
+                if ((relativeHref.endsWith(".flac", ignoreCase = true) || song.name.endsWith(".flac", ignoreCase = true)) &&
+                    !AudioCodecDetector.isFlacSupported
+                ) {
+                    return@withContext PlaybackTargetResult.Failure("当前设备缺少 FLAC 解码器，无法播放此 WebDAV 音频", allowRetry = false)
+                }
                 val localFile =
                     if (server != null && relativeHref.isNotBlank()) {
                         WebDavManager.getLocalCacheFile(server.id, relativeHref)

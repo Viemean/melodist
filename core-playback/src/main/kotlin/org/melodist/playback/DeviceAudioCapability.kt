@@ -82,6 +82,7 @@ object DeviceAudioCapability {
         when (tier) {
             AudioQualityTier.Dolby -> supportsDolby
             AudioQualityTier.DtsX -> supportsDts
+            AudioQualityTier.Master, AudioQualityTier.HiRes, AudioQualityTier.SQ -> AudioCodecDetector.isFlacSupported
             else -> true
         }
 
@@ -97,6 +98,10 @@ object DeviceAudioCapability {
 
             AudioQualityTier.DtsX -> {
                 if (supportsDts) Pair(true, null) else Pair(false, "设备缺少 DTS 音频硬件解码支持")
+            }
+
+            AudioQualityTier.Master, AudioQualityTier.HiRes, AudioQualityTier.SQ -> {
+                if (AudioCodecDetector.isFlacSupported) Pair(true, null) else Pair(false, "设备缺少 FLAC 解码器")
             }
 
             else -> {

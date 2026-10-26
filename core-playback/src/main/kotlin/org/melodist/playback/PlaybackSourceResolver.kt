@@ -134,6 +134,19 @@ object PlaybackSourceResolver {
         return if (reqRank > limitRank) cellularLimit else requestedTier
     }
 
+    fun clampCodecSupportedTier(
+        tier: AudioQualityTier,
+        song: Song?,
+    ): AudioQualityTier {
+        if (isLocalOrWebDavSong(song)) {
+            return tier
+        }
+        if (!DeviceAudioCapability.isTierSupported(tier)) {
+            return AudioQualityTier.HQ
+        }
+        return tier
+    }
+
     fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? =
         when (current) {
             AudioQualityTier.Master -> AudioQualityTier.Dolby
