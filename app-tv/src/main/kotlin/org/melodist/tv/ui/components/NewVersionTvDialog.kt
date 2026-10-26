@@ -276,6 +276,49 @@ fun NewVersionTvDialog(
                         )
                     }
 
+                    Button(
+                        onClick = {
+                            val targetUrl = newVersion.browserUrl ?: newVersion.downloadUrl ?: "${UpdateChecker.REPO_WEB_URL}/releases"
+                            val intent =
+                                Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Log.w("NewVersionTvDialog", "Operation failed", e)
+                            }
+                        },
+                        shape =
+                            ButtonDefaults.shape(
+                                shape = MelodistShapes.ButtonCorner,
+                                focusedShape = MelodistShapes.ButtonCorner,
+                            ),
+                        colors =
+                            ButtonDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.08f),
+                                focusedContainerColor = Color.White,
+                                contentColor = Color.White,
+                                focusedContentColor = Color.Black,
+                            ),
+                        border =
+                            ButtonDefaults.border(
+                                border =
+                                    Border(
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                                        shape = MelodistShapes.ButtonCorner,
+                                    ),
+                                focusedBorder = Border.None,
+                            ),
+                    ) {
+                        Text(
+                            text = "浏览器打开",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+
                     when (val state = downloadState) {
                         is UpdateDownloadState.Completed -> {
                             Button(

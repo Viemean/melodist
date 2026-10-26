@@ -17,6 +17,7 @@ sealed interface UpdateResult {
         val tagName: String,
         val downloadUrl: String?,
         val releaseNotes: String,
+        val browserUrl: String? = null,
     ) : UpdateResult
 
     data class Latest(
@@ -133,6 +134,7 @@ object UpdateChecker {
                             tagName = tagName,
                             downloadUrl = downloadUrl,
                             releaseNotes = releaseNotes,
+                            browserUrl = htmlUrl ?: downloadUrl ?: REPO_WEB_URL,
                         )
                     } else {
                         UpdateResult.Latest(currentVersion)

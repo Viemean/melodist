@@ -39,7 +39,7 @@ object AppUpdateDownloader {
     private val httpClient by lazy {
         OkHttpClient
             .Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
     }
@@ -50,6 +50,15 @@ object AppUpdateDownloader {
             dir.mkdirs()
         }
         return dir
+    }
+
+    fun getCandidateDownloadUrls(rawUrl: String): List<String> {
+        if (!rawUrl.contains("github.com")) return listOf(rawUrl)
+        return listOf(
+            "https://gh-proxy.com/$rawUrl",
+            "https://ghproxy.net/$rawUrl",
+            rawUrl,
+        )
     }
 
     /**
@@ -90,61 +99,76 @@ object AppUpdateDownloader {
 
             cleanOldApks(context, excludeFile = finalApk)
 
-            val request =
-                Request
-                    .Builder()
-                    .url(downloadUrl)
-                    .header("User-Agent", "Melodist-UpdateDownloader")
-                    .build()
+            val candidateUrls = getCandidateDownloadUrls(downloadUrl)
+            var lastErrorMessage: String? = null
+            var downloadSuccess = false
 
-            try {
-                val response = httpClient.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    emit(UpdateDownloadState.Error("HTTP ${response.code}"))
-                    return@flow
-                }
-                val body = response.body
-                val totalBytes = body.contentLength()
-                var bytesDownloaded = 0L
-
-                body.byteStream().use { input ->
-                    FileOutputStream(tmpApk).use { output ->
-                        val buffer = ByteArray(32 * 1024)
-                        var read: Int
-                        var lastEmitTime = 0L
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
-                            bytesDownloaded += read
-                            val now = System.currentTimeMillis()
-                            // 节流推送进度更新
-                            if (now - lastEmitTime >= 100L || bytesDownloaded == totalBytes) {
-                                lastEmitTime = now
-                                val progress = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
-                                emit(UpdateDownloadState.Downloading(progress, bytesDownloaded, totalBytes))
-                            }
-                        }
-                        output.flush()
-                    }
-                }
-
+            for (url in candidateUrls) {
                 if (tmpApk.exists()) {
-                    if (finalApk.exists()) {
-                        finalApk.delete()
-                    }
-                    if (tmpApk.renameTo(finalApk)) {
-                        emit(UpdateDownloadState.Completed(finalApk))
-                    } else {
-                        emit(UpdateDownloadState.Error("重命名安装包文件失败"))
-                    }
-                } else {
-                    emit(UpdateDownloadState.Error("下载文件未成功生成"))
+                    tmpApk.delete()
                 }
-            } catch (e: CancellationException) {
-                tmpApk.delete()
-                throw e
-            } catch (e: Exception) {
-                tmpApk.delete()
-                emit(UpdateDownloadState.Error(e.message ?: "下载过程中发生异常"))
+                val request =
+                    Request
+                        .Builder()
+                        .url(url)
+                        .header("User-Agent", "Melodist-UpdateDownloader")
+                        .build()
+
+                try {
+                    val response = httpClient.newCall(request).execute()
+                    if (!response.isSuccessful) {
+                        lastErrorMessage = "HTTP ${response.code}"
+                        continue
+                    }
+                    val body = response.body
+                    val totalBytes = body.contentLength()
+                    var bytesDownloaded = 0L
+
+                    body.byteStream().use { input ->
+                        FileOutputStream(tmpApk).use { output ->
+                            val buffer = ByteArray(32 * 1024)
+                            var read: Int
+                            var lastEmitTime = 0L
+                            while (input.read(buffer).also { read = it } != -1) {
+                                output.write(buffer, 0, read)
+                                bytesDownloaded += read
+                                val now = System.currentTimeMillis()
+                                // 节流推送进度更新
+                                if (now - lastEmitTime >= 100L || bytesDownloaded == totalBytes) {
+                                    lastEmitTime = now
+                                    val progress = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
+                                    emit(UpdateDownloadState.Downloading(progress, bytesDownloaded, totalBytes))
+                                }
+                            }
+                            output.flush()
+                        }
+                    }
+
+                    if (tmpApk.exists() && tmpApk.length() > 0) {
+                        if (finalApk.exists()) {
+                            finalApk.delete()
+                        }
+                        if (tmpApk.renameTo(finalApk)) {
+                            emit(UpdateDownloadState.Completed(finalApk))
+                            downloadSuccess = true
+                            break
+                        } else {
+                            lastErrorMessage = "重命名安装包文件失败"
+                        }
+                    } else {
+                        lastErrorMessage = "下载文件未成功生成"
+                    }
+                } catch (e: CancellationException) {
+                    tmpApk.delete()
+                    throw e
+                } catch (e: Exception) {
+                    tmpApk.delete()
+                    lastErrorMessage = e.message ?: "下载过程中发生异常"
+                }
+            }
+
+            if (!downloadSuccess) {
+                emit(UpdateDownloadState.Error(lastErrorMessage ?: "所有镜像节点下载均失败"))
             }
         }.flowOn(Dispatchers.IO)
 

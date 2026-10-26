@@ -210,13 +210,35 @@ fun NewVersionDialog(
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = {
-                    downloadJob?.cancel()
-                    onDismissRequest()
-                },
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(if (downloadState is UpdateDownloadState.Downloading) "取消下载" else "稍后再说")
+                TextButton(
+                    onClick = {
+                        val targetUrl = newVersion.browserUrl ?: newVersion.downloadUrl ?: "${UpdateChecker.REPO_WEB_URL}/releases"
+                        val intent =
+                            Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.w("NewVersionDialog", "Operation failed", e)
+                        }
+                    },
+                ) {
+                    Text("浏览器打开")
+                }
+                TextButton(
+                    onClick = {
+                        downloadJob?.cancel()
+                        onDismissRequest()
+                    },
+                ) {
+                    Text(if (downloadState is UpdateDownloadState.Downloading) "取消下载" else "稍后再说")
+                }
             }
         },
     )

@@ -31,4 +31,18 @@ class AppUpdateDownloaderTest {
         assertFalse(oldApk2.exists())
         assertTrue(currentApk.exists())
     }
+
+    @Test
+    fun testCandidateDownloadUrls() {
+        val githubUrl = "https://github.com/Viemean/melodist/releases/download/v1.7.1/melodist-mobile.apk"
+        val candidates = AppUpdateDownloader.getCandidateDownloadUrls(githubUrl)
+        org.junit.jupiter.api.Assertions.assertEquals(3, candidates.size)
+        org.junit.jupiter.api.Assertions.assertEquals("https://gh-proxy.com/$githubUrl", candidates[0])
+        org.junit.jupiter.api.Assertions.assertEquals("https://ghproxy.net/$githubUrl", candidates[1])
+        org.junit.jupiter.api.Assertions.assertEquals(githubUrl, candidates[2])
+
+        val nonGithubUrl = "https://example.com/download.apk"
+        val nonGithubCandidates = AppUpdateDownloader.getCandidateDownloadUrls(nonGithubUrl)
+        org.junit.jupiter.api.Assertions.assertEquals(listOf(nonGithubUrl), nonGithubCandidates)
+    }
 }
