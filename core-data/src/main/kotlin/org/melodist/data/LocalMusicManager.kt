@@ -462,7 +462,7 @@ object LocalMusicManager {
         val drives = mutableListOf<StorageDrive>()
         val seenPaths = mutableSetOf<String>()
 
-        // 1. 内部主存储
+        // 内部主存储
         val internalDir = Environment.getExternalStorageDirectory()
         if (internalDir.exists() && internalDir.canRead()) {
             seenPaths.add(internalDir.absolutePath)
@@ -478,7 +478,7 @@ object LocalMusicManager {
             )
         }
 
-        // 2. 常用音乐文件夹
+        // 常用音乐文件夹
         val musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
         if (musicDir.exists() && musicDir.canRead() && !seenPaths.contains(musicDir.absolutePath)) {
             seenPaths.add(musicDir.absolutePath)
@@ -494,7 +494,7 @@ object LocalMusicManager {
             )
         }
 
-        // 3. 下载文件夹
+        // 下载文件夹
         val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
         if (downloadDir.exists() && downloadDir.canRead() && !seenPaths.contains(downloadDir.absolutePath)) {
             seenPaths.add(downloadDir.absolutePath)
@@ -510,7 +510,7 @@ object LocalMusicManager {
             )
         }
 
-        // 4. 检测 /storage/ 挂载点（U 盘、OTG 外置卡、移动硬盘）
+        // 检测 /storage/ 挂载点（U 盘、OTG 外置卡、移动硬盘）
         try {
             val storageRoot = File("/storage")
             if (storageRoot.exists() && storageRoot.isDirectory) {
@@ -543,7 +543,7 @@ object LocalMusicManager {
             Log.w(TAG, "Error listing /storage", e)
         }
 
-        // 5. 通过 Android StorageManager 辅助检测外置卷
+        // 通过 Android StorageManager 辅助检测外置卷
         try {
             val sm = context.getSystemService(Context.STORAGE_SERVICE) as? StorageManager
             if (sm != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -654,7 +654,7 @@ object LocalMusicManager {
             val dir = File(targetDir)
             if (!dir.exists() || !dir.isDirectory) return@withContext emptyList()
 
-            // 1. 递归收集所有音频文件
+            // 递归收集所有音频文件
             val audioFiles = mutableListOf<File>()
 
             fun collect(current: File) {
@@ -872,7 +872,7 @@ object LocalMusicManager {
             val audioFile = File(filePath)
             if (!audioFile.exists()) return@withContext null
 
-            // 1. 同名 .lrc 文件
+            // 同名 .lrc 文件
             val lrcFile = File(audioFile.parentFile, "${audioFile.nameWithoutExtension}.lrc")
             if (lrcFile.exists() && lrcFile.isFile) {
                 try {
@@ -887,7 +887,7 @@ object LocalMusicManager {
                 }
             }
 
-            // 2. 内嵌歌词提取（优先通过纯字节轻量解析 VorbisComment / ID3v2 USLT）
+            // 内嵌歌词提取（优先通过纯字节轻量解析 VorbisComment / ID3v2 USLT）
             try {
                 if (audioFile.length() > 64) {
                     val readLen = (audioFile.length()).coerceAtMost(512 * 1024L).toInt()

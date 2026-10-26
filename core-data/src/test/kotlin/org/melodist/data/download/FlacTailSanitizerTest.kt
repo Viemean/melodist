@@ -34,13 +34,13 @@ class FlacTailSanitizerTest {
 
         val validSize = 5000
         val data = ByteArray(validSize)
-        // 1. "fLaC" 标志
+        // "fLaC" 标志
         data[0] = 'f'.code.toByte()
         data[1] = 'L'.code.toByte()
         data[2] = 'a'.code.toByte()
         data[3] = 'C'.code.toByte()
 
-        // 2. 在偏移 4800 处布置最后一帧 (长度 200 字节)
+        // 在偏移 4800 处布置最后一帧 (长度 200 字节)
         val frameStart = 4800
         val frameDataLen = 198 // 198 字节载荷 + 2 字节 CRC-16
         data[frameStart] = 0xFF.toByte()
@@ -55,7 +55,7 @@ class FlacTailSanitizerTest {
 
         val expectedValidLength = frameStart + frameDataLen + 2
 
-        // 3. 追加 15 字节非音频垃圾填充数据
+        // 追加 15 字节非音频垃圾填充数据
         val trailingGarbage =
             byteArrayOf(
                 0xF0.toByte(),

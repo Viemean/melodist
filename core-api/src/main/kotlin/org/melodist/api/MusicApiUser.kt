@@ -80,7 +80,7 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             var changed = false
             val newProfile = UserSession.profile.copy()
 
-            // 1. 用户基础信息
+            // 用户基础信息
             val baseInfo =
                 root["profile"]
                     ?.jsonObject
@@ -117,7 +117,7 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                 }
             }
 
-            // 2. VIP 与绿钻信息
+            // VIP 与绿钻信息
             val vipData = root["vip"]?.jsonObject?.get("data")?.jsonObject
             if (vipData != null) {
                 val svipRoot = vipData["svip"]?.jsonPrimitive?.intOrNull ?: 0

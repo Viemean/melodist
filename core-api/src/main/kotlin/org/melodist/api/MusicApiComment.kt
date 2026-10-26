@@ -448,7 +448,7 @@ suspend fun MusicApiService.sendSongComment(
         val musicKey = UserSession.profile.musicKey
         val gTk = CryptoUtils.computeGTk(musicKey)
 
-        // 1. 尝试现代网关请求 AddComment
+        // 尝试现代网关请求 AddComment
         val commObj =
             buildJsonObject {
                 put("ct", 24)
@@ -526,7 +526,7 @@ suspend fun MusicApiService.sendSongComment(
             lastErrorMsg = e.message ?: "网络异常"
         }
 
-        // 2. 降级尝试全局 H5 评论写入 CGI (fcg_global_comment_h5.fcg)
+        // 降级尝试全局 H5 评论写入 CGI (fcg_global_comment_h5.fcg)
         try {
             val cmd = if (!replyCommentId.isNullOrBlank()) 2 else 1
             val formBodyBuilder =
@@ -662,7 +662,7 @@ suspend fun MusicApiService.deleteSongComment(
         val gTk = CryptoUtils.computeGTk(musicKey)
         val numericUin = uin.toLongOrNull() ?: 0L
 
-        // 1. 优先调用现代 RPC 网关接口 (music.globalComment.CommentWriteServer -> DelComment)
+        // 优先调用现代 RPC 网关接口 (music.globalComment.CommentWriteServer -> DelComment)
         val commObj =
             buildJsonObject {
                 put("cv", 4747474)
@@ -738,7 +738,7 @@ suspend fun MusicApiService.deleteSongComment(
             lastErrorMsg = e.message ?: "网络异常"
         }
 
-        // 2. 降级尝试全局 H5 评论 CGI (fcg_global_comment_h5.fcg, cmd=3)
+        // 降级尝试全局 H5 评论 CGI (fcg_global_comment_h5.fcg, cmd=3)
         try {
             val formBodyBuilder =
                 FormBody

@@ -109,7 +109,7 @@ fun PlaylistTvTrackList(
         Column(
             modifier = Modifier.fillMaxSize(),
         ) {
-            // 1. 歌单 / 收藏专辑横向筛选 Chips
+            // 歌单 / 收藏专辑横向筛选 Chips
             PlaylistFilterChipsBar(
                 categoryId = categoryId,
                 userPlaylists = userPlaylists,
@@ -120,7 +120,7 @@ fun PlaylistTvTrackList(
                 onSelectAlbumIndex = onSelectAlbumIndex,
             )
 
-            // 2. 表头 (与左侧封面顶部对齐)
+            // 表头 (与左侧封面顶部对齐)
             Row(
                 modifier =
                     Modifier
@@ -153,7 +153,7 @@ fun PlaylistTvTrackList(
             }
 
             if (!UserSession.isLoggedIn) {
-                // 3. 未登录引导卡片
+                // 未登录引导卡片
                 Column(
                     modifier =
                         Modifier
@@ -211,7 +211,7 @@ fun PlaylistTvTrackList(
                     }
                 }
             } else if (isLoading) {
-                // 4. 加载中占位
+                // 加载中占位
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
@@ -224,7 +224,7 @@ fun PlaylistTvTrackList(
                     )
                 }
             } else if (playlistSongs.isEmpty()) {
-                // 5. 空列表占位
+                // 空列表占位
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
@@ -236,7 +236,7 @@ fun PlaylistTvTrackList(
                     )
                 }
             } else {
-                // 6. 滚动加载更多监听
+                // 滚动加载更多监听
                 val shouldLoadMore by remember {
                     derivedStateOf {
                         val totalItems = listState.layoutInfo.totalItemsCount

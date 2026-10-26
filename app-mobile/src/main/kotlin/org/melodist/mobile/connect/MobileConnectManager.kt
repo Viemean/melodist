@@ -471,7 +471,7 @@ object MobileConnectManager {
         autoConnectJob?.cancel()
         autoConnectJob =
             scope.launch {
-                // 1. 监听 NSD 发现的设备：当监听到最近成功连接的设备或已配对设备时，主动发起连接
+                // 监听 NSD 发现的设备并自动连接
                 launch {
                     nsdHelper?.discoveredDevices?.collect { devices ->
                         if (userManuallyDisconnected) return@collect
@@ -497,7 +497,7 @@ object MobileConnectManager {
                     }
                 }
 
-                // 2. 自适应探测重连：带轻量 TCP 端口多候选探测、指数退避与失败上限停止
+                // 自适应探测重连循环
                 var isFirstCheck = true
                 while (isActive) {
                     if (isFirstCheck) {

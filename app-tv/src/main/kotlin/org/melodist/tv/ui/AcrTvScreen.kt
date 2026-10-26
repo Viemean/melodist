@@ -362,7 +362,7 @@ fun AcrTvScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                // 1. 收藏按钮
+                                // 收藏按钮
                                 AcrTvButton(
                                     text = if (isFav) "已收藏" else "收藏",
                                     icon = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -373,7 +373,7 @@ fun AcrTvScreen(
                                     },
                                 )
 
-                                // 2. 静音按钮（显示图标与“静音中”，点击过渡隐藏）
+                                // 静音按钮（显示图标与“静音中”，点击过渡隐藏）
                                 AcrTvButton(
                                     text = "静音中",
                                     icon = Icons.AutoMirrored.Filled.VolumeOff,
@@ -384,7 +384,7 @@ fun AcrTvScreen(
                                     },
                                 )
 
-                                // 3. 重新识别按钮
+                                // 重新识别按钮
                                 AcrTvButton(
                                     text = "重新识别",
                                     icon = Icons.Default.Refresh,

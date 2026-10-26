@@ -49,7 +49,7 @@ fun LyricsPanel(menuRequester: FocusRequester) {
     ) {
         SettingPanelHeader(title = "播放与歌词设置")
 
-        // 1. 默认双语逐行翻译
+        // 默认双语逐行翻译
         SettingSwitchCard(
             title = "显示双语翻译",
             checked = settings.showBilingualLyrics,
@@ -59,7 +59,7 @@ fun LyricsPanel(menuRequester: FocusRequester) {
             },
         )
 
-        // 2. 歌词字号缩放 (依次左移，首列返回导航栏)
+        // 歌词字号缩放 (依次左移，首列返回导航栏)
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(14.dp),

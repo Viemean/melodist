@@ -51,7 +51,7 @@ object AudioMetadataParser {
     fun parse(bytes: ByteArray): ParsedAudioMetadata {
         if (bytes.size < 16) return ParsedAudioMetadata()
 
-        // 1. FLAC
+        // FLAC
         if (bytes[0] == 'f'.code.toByte() &&
             bytes[1] == 'L'.code.toByte() &&
             bytes[2] == 'a'.code.toByte() &&
@@ -60,7 +60,7 @@ object AudioMetadataParser {
             return parseFlac(bytes)
         }
 
-        // 2. MP3 (ID3v2)
+        // MP3 (ID3v2)
         if (bytes[0] == 'I'.code.toByte() && bytes[1] == 'D'.code.toByte() && bytes[2] == '3'.code.toByte()) {
             val id3Result = parseId3v2(bytes)
             if (id3Result.lyrics.isNullOrBlank()) {
@@ -72,7 +72,7 @@ object AudioMetadataParser {
             return id3Result
         }
 
-        // 3. MP4 (ISOBMFF, ftyp / stsd)
+        // MP4 (ISOBMFF, ftyp / stsd)
         val isMp4 =
             (
                 bytes.size >= 8 &&
@@ -87,7 +87,7 @@ object AudioMetadataParser {
             if (mp4Result.sampleRate != null) return mp4Result
         }
 
-        // 4. OGG (Vorbis)
+        // OGG (Vorbis)
         if (bytes.size >= 4 &&
             bytes[0] == 'O'.code.toByte() &&
             bytes[1] == 'g'.code.toByte() &&
@@ -434,7 +434,7 @@ object AudioMetadataParser {
                 return null
             }
 
-        // 1. 查找 Vorbis comment (FLAC / OGG)
+        // 查找 Vorbis comment (FLAC / OGG)
         val vorbisKeys = listOf("LYRICS=", "UNSYNCEDLYRICS=", "SYNCEDLYRICS=")
         for (key in vorbisKeys) {
             val idx = content.indexOf(key, ignoreCase = true)
@@ -457,7 +457,7 @@ object AudioMetadataParser {
             }
         }
 
-        // 2. 查找 ID3v2 USLT (非同步歌词帧)
+        // 查找 ID3v2 USLT (非同步歌词帧)
         val usltIdx = content.indexOf("USLT")
         if (usltIdx != -1 && usltIdx + 10 < bytes.size) {
             val frameSize =

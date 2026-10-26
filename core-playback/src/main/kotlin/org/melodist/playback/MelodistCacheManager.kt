@@ -392,29 +392,29 @@ object MelodistCacheManager : MediaCacheExporter {
             return null
         }
 
-        // 1. FLAC: 0x66 0x4C 0x61 0x43 ("fLaC")
+        // FLAC: 0x66 0x4C 0x61 0x43 ("fLaC")
         if (header[0] == 0x66.toByte() && header[1] == 0x4C.toByte() && header[2] == 0x61.toByte() && header[3] == 0x43.toByte()) {
             return "flac"
         }
-        // 2. MP3 带 ID3v2 标签: 0x49 0x44 0x33 ("ID3")
+        // MP3 带 ID3v2 标签: 0x49 0x44 0x33 ("ID3")
         if (header[0] == 0x49.toByte() && header[1] == 0x44.toByte() && header[2] == 0x33.toByte()) {
             return "mp3"
         }
-        // 3. MP3 裸帧同步字: 11 位连续为 1 (0xFF 且紧随 0xEx/0xFx)
+        // MP3 裸帧同步字: 11 位连续为 1 (0xFF 且紧随 0xEx/0xFx)
         val b0 = header[0].toInt() and 0xFF
         val b1 = header[1].toInt() and 0xFF
         if (b0 == 0xFF && (b1 and 0xE0) == 0xE0 && (b1 and 0x06) != 0x00) {
             return "mp3"
         }
-        // 4. M4A / MP4 容器: 偏移量 4..7 为 "ftyp" (0x66 0x74 0x79 0x70)
+        // M4A / MP4 容器: 偏移量 4..7 为 "ftyp" (0x66 0x74 0x79 0x70)
         if (header[4] == 0x66.toByte() && header[5] == 0x74.toByte() && header[6] == 0x79.toByte() && header[7] == 0x70.toByte()) {
             return "m4a"
         }
-        // 5. OGG: 0x4F 0x67 0x67 0x53 ("OggS")
+        // OGG: 0x4F 0x67 0x67 0x53 ("OggS")
         if (header[0] == 0x4F.toByte() && header[1] == 0x67.toByte() && header[2] == 0x67.toByte() && header[3] == 0x53.toByte()) {
             return "ogg"
         }
-        // 6. WAV: 0x52 0x49 0x46 0x46 ("RIFF") 且偏移 8..11 为 "WAVE"
+        // WAV: 0x52 0x49 0x46 0x46 ("RIFF") 且偏移 8..11 为 "WAVE"
         if (header[0] == 0x52.toByte() &&
             header[1] == 0x49.toByte() &&
             header[2] == 0x46.toByte() &&
@@ -600,7 +600,7 @@ object MelodistCacheManager : MediaCacheExporter {
             return recordedTier
         }
 
-        // 2. 若记录无效或丢失，从高到低主动扫描磁盘上各音质的 CacheKey
+        // 若记录无效或丢失，从高到低主动扫描磁盘上各音质的 CacheKey
         val candidateTiers =
             listOf(
                 org.melodist.model.AudioQualityTier.Master,

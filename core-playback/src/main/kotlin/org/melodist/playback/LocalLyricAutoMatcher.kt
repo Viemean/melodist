@@ -134,7 +134,7 @@ object LocalLyricAutoMatcher {
             var matchedTitle: String = ""
             var matchedArtist: String = ""
 
-            // 2. 通道 1：快速文本搜索试探 (若标签清晰完整)
+            // 通道 1：快速文本搜索试探 (若标签清晰完整)
             val cleanTitle = cleanTrackNumber(song.name)
             val artist = if (song.singer.isNotBlank() && song.singer != "未知歌手" && song.singer != "Unknown") song.singer else ""
             if (cleanTitle.isNotBlank() && artist.isNotBlank()) {
@@ -158,7 +158,7 @@ object LocalLyricAutoMatcher {
                 }
             }
 
-            // 3. 通道 2：若文本通道未命中，执行音频切片声学指纹识别 (ACR)
+            // 通道 2：若文本通道未命中，执行音频切片声学指纹识别 (ACR)
             if (matchedSongMid.isNullOrBlank() && audioFile != null && audioFile.exists() && audioFile.length() > 64 * 1024L) {
                 try {
                     Log.i(TAG, "Invoking audio slice ACR for: ${audioFile.name}")
@@ -187,7 +187,7 @@ object LocalLyricAutoMatcher {
                 }
             }
 
-            // 4. 获取官方双语歌词并持久化落盘至私有缓存
+            // 获取官方双语歌词并持久化落盘至私有缓存
             if (!matchedSongMid.isNullOrBlank()) {
                 try {
                     val officialLyrics = apiService.getLyrics(matchedSongMid)
@@ -227,10 +227,10 @@ object LocalLyricAutoMatcher {
      * 为本地或 WebDAV 歌曲自动校准官方歌词时间轴偏移量 (Offset in milliseconds)
      * 针对本地音频存在片头静音削减/母带版本差异的情况 (如 5:08 本地文件 vs 5:11 官方数字版)
      * 计算规则：
-     * 1. 若已有校准记录则直接返回 (0 网络开销)
-     * 2. 若本地音频文件存在，提取切片声学指纹与精确起始秒数送入 ACR
-     * 3. 毫秒级差分计算: offsetMs = ((acrOffset - sliceStart) * 1000).toLong()
-     * 4. 误差小于 150ms 保存为 0ms；反之持久化 offsetMs 供歌词平移
+     * - 若已有校准记录则直接返回 (0 网络开销)
+     * - 若本地音频文件存在，提取切片声学指纹与精确起始秒数送入 ACR
+     * - 毫秒级差分计算: offsetMs = ((acrOffset - sliceStart) * 1000).toLong()
+     * - 误差小于 150ms 保存为 0ms；反之持久化 offsetMs 供歌词平移
      */
     suspend fun calibrateOffsetAsync(
         song: Song,

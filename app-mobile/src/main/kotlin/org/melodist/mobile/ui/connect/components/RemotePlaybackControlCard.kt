@@ -182,7 +182,7 @@ fun RemotePlaybackControlCard(
 
             val curSong = tvPlayerState?.currentSong
             if (connectionState is MobileConnectionState.Paired && curSong != null) {
-                // 2. 歌曲信息行：支持点击呼起 TV 端播放界面
+                // 歌曲信息行：支持点击呼起 TV 端播放界面
                 Row(
                     modifier =
                         Modifier
@@ -237,7 +237,7 @@ fun RemotePlaybackControlCard(
                     }
                 }
 
-                // 3. 进度条与时间显示
+                // 进度条与时间显示
                 val durationSafe = (tvPlayerState.durationMs).coerceAtLeast(1L)
                 val currentPosSafe = (tvPlayerState.positionMs).coerceIn(0L, durationSafe)
                 var isDraggingSlider by remember { mutableStateOf(false) }
@@ -291,7 +291,7 @@ fun RemotePlaybackControlCard(
                     }
                 }
 
-                // 4. M3 风格控制按钮栏
+                // M3 风格控制按钮栏
                 val isDark = isAppInDarkTheme()
                 val playPauseContainerColor = if (isDark) Color.White else Color(0xFF1C1B1F)
                 val playPauseContentColor = if (isDark) Color(0xFF1C1B1F) else Color.White

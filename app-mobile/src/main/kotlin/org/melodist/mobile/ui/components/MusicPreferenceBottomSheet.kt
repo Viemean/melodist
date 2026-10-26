@@ -195,7 +195,7 @@ fun MusicPreferenceBottomSheet(onDismissRequest: () -> Unit) {
                 modifier = Modifier.weight(1f, fill = false),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // 1. 歌曲熟悉度
+                // 歌曲熟悉度
                 item(key = "familiarity_section") {
                     val currentFamiliarity = editingScores[MusicPreferenceItem.KEY_FAMILIARITY] ?: 50
                     PreferenceOptionGroup(
@@ -214,7 +214,7 @@ fun MusicPreferenceBottomSheet(onDismissRequest: () -> Unit) {
                     )
                 }
 
-                // 2. 音乐情绪
+                // 音乐情绪
                 item(key = "emotion_section") {
                     val currentEmotion = editingScores[MusicPreferenceItem.KEY_EMOTION] ?: 50
                     PreferenceOptionGroup(
@@ -233,7 +233,7 @@ fun MusicPreferenceBottomSheet(onDismissRequest: () -> Unit) {
                     )
                 }
 
-                // 3. 歌曲风格
+                // 歌曲风格
                 item(key = "style_section_title") {
                     Text(
                         text = "歌曲风格",

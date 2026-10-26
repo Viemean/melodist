@@ -71,7 +71,7 @@ fun SongListBatchDialogs(
     val scope = rememberCoroutineScope()
     var isOperating by remember { mutableStateOf(false) }
 
-    // 1. 批量下载确认弹窗
+    // 批量下载确认弹窗
     if (showBatchDownloadDialog) {
         val validDownloadSongs = selectedSongs.filter { it.songMid.isNotBlank() && !it.isLocal && !it.isWebDav }
         val defaultTier = AppSettingsManager.settings.value.preferredQualityTier
@@ -109,7 +109,7 @@ fun SongListBatchDialogs(
         )
     }
 
-    // 2. 批量删除确认弹窗
+    // 批量删除确认弹窗
     if (showBatchDeleteDialog) {
         val count = selectedSongs.size
         val deleteMessage =
@@ -201,7 +201,7 @@ fun SongListBatchDialogs(
         )
     }
 
-    // 3. 批量添加操作二级菜单
+    // 批量添加操作二级菜单
     if (showAddToMenuDialog) {
         val onlineSongs = selectedSongs.filter { it.songMid.isNotBlank() && !it.isLocal && !it.isWebDav }
         ModalBottomSheet(
@@ -221,7 +221,7 @@ fun SongListBatchDialogs(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                 )
 
-                // 3.1 添加到队列（通用）
+                // 1 添加到队列（通用）
                 Row(
                     modifier =
                         Modifier
@@ -246,7 +246,7 @@ fun SongListBatchDialogs(
                     )
                 }
 
-                // 3.2 添加到歌单（仅在线歌曲可用）
+                // 2 添加到歌单（仅在线歌曲可用）
                 Row(
                     modifier =
                         Modifier
@@ -296,7 +296,7 @@ fun SongListBatchDialogs(
         }
     }
 
-    // 4. 添加到自建歌单选择器
+    // 添加到自建歌单选择器
     if (showAddToPlaylistDialog) {
         val onlineSongs = selectedSongs.filter { it.songMid.isNotBlank() && !it.isLocal && !it.isWebDav }
         AddToPlaylistBottomSheet(

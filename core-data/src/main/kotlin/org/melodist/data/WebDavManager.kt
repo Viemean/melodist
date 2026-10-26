@@ -293,10 +293,10 @@ object WebDavManager {
             val tmpHdrFile = File(getSafeCacheDir(), "hdr_$hash.$ext")
 
             try {
-                // 1. 请求头部 256KB
+                // 请求头部 256KB
                 val headerBytes = webDavService.fetchRangeBytes(server, rawCache.href, 0L, 262143L)
                 if (headerBytes != null && headerBytes.isNotEmpty()) {
-                    // 1.1 优先使用轻量纯字节解析器提取 FLAC (Vorbis Comment / Picture) 与 MP3 (ID3v2)
+                    // 1 优先使用轻量纯字节解析器提取 FLAC (Vorbis Comment / Picture) 与 MP3 (ID3v2)
                     val parsed = AudioMetadataParser.parse(headerBytes)
 
                     var finalTitle = parsed.title?.ifBlank { null } ?: rawCache.title
@@ -357,7 +357,7 @@ object WebDavManager {
                         }
                     }
 
-                    // 1.2 若纯字节未提取全（如非 FLAC/MP3 或无标签），降级使用 MediaMetadataRetriever 兜底提取
+                    // 2 若纯字节未提取全（如非 FLAC/MP3 或无标签），降级使用 MediaMetadataRetriever 兜底提取
                     if (finalArtist.isBlank() || finalArtist == "WebDAV 音频" || coverPath.isNullOrBlank() || finalDur == 0) {
                         safeWriteBytes(tmpHdrFile, headerBytes)
                         val retriever = android.media.MediaMetadataRetriever()
@@ -398,7 +398,7 @@ object WebDavManager {
                         }
                     }
 
-                    // 1.3 若依然无封面，嗅探同目录封面图片
+                    // 3 若依然无封面，嗅探同目录封面图片
                     if (coverPath.isNullOrBlank()) {
                         val parentFolder = rawCache.href.substringBeforeLast('/', "")
                         val folderCoverBytes = webDavService.fetchRemoteCover(server, parentFolder)
@@ -407,7 +407,7 @@ object WebDavManager {
                         }
                     }
 
-                    // 1.4 歌词嗅探：优先 parsed.lyrics，次选同目录同名 .lrc，再选 extractEmbeddedLyricsFromBytes
+                    // 4 歌词嗅探：优先 parsed.lyrics，次选同目录同名 .lrc，再选 extractEmbeddedLyricsFromBytes
                     var lyrics = updated.embeddedLyrics
                     if (lyrics.isNullOrBlank()) {
                         if (!parsed.lyrics.isNullOrBlank()) {
@@ -523,7 +523,7 @@ object WebDavManager {
         onProgress: ((title: String, current: Int, total: Int) -> Unit)? = null,
     ): List<WebDavSongCache> =
         withContext(Dispatchers.IO) {
-            // 1. 递归扫描获取所有音频
+            // 递归扫描获取所有音频
             val rawSongs =
                 webDavService.scanFolderRecursive(server, folderHref) { status ->
                     onProgress?.invoke(status, 0, 0)
@@ -533,7 +533,7 @@ object WebDavManager {
                 return@withContext emptyList()
             }
 
-            // 2. 合并去重现存缓存
+            // 合并去重现存缓存
             val existingMap = server.cachedSongs.associateBy { it.href }.toMutableMap()
             val songsToProcess = mutableListOf<WebDavSongCache>()
 
@@ -557,7 +557,7 @@ object WebDavManager {
             val total = songsToProcess.size
             var completed = 0
 
-            // 3. 并发批量嗅探文件头并提取封面/歌词
+            // 并发批量嗅探文件头并提取封面/歌词
             val enrichedList: List<WebDavSongCache> =
                 coroutineScope {
                     val dispatcher = Dispatchers.IO.limitedParallelism(4)
@@ -907,7 +907,7 @@ object WebDavManager {
                 }
             }
 
-            // 2. 线上流式播放场景：若缺少封面、音质，或歌手/专辑为占位信息，拉取头部 512KB
+            // 线上流式播放场景：若缺少封面、音质，或歌手/专辑为占位信息，拉取头部 512KB
             val isMetadataMissing = finalArtist.isNullOrBlank() && (song.singer.isBlank() || song.singer == "WebDAV 音频" || song.singer == "未知歌手")
             if (finalCoverUrl.isNullOrBlank() || finalRawCoverUrl.isNullOrBlank() || finalTier == null || isMetadataMissing) {
                 val ext = relativeHref.substringAfterLast('.', "flac")
@@ -991,7 +991,7 @@ object WebDavManager {
                 }
             }
 
-            // 3. 嗅探同目录封面图片
+            // 嗅探同目录封面图片
             if (finalCoverUrl.isNullOrBlank() || finalRawCoverUrl.isNullOrBlank()) {
                 try {
                     val parentFolder = relativeHref.substringBeforeLast('/', "")

@@ -121,7 +121,7 @@ object LyricParser {
             val isMeta = isMetaInfoLine(orig.first, orig.second)
 
             if (!isMeta && transItems.isNotEmpty()) {
-                // 1. 精确匹配 (< 120ms)
+                // 精确匹配 (< 120ms)
                 val exact = transItems.find { abs(it.first - orig.first) < 120 }
                 if (exact != null) {
                     if (exact.second != "//" &&
@@ -134,7 +134,7 @@ object LyricParser {
                     }
                     // 精确匹配到占位符 "//" 时明确该行无翻译，不应被后续容差候选覆盖
                 } else if (cleanTrans.isNotEmpty()) {
-                    // 2. 容差候选匹配 (<= 600ms)：
+                    // 容差候选匹配 (<= 600ms)：
                     // 优先匹配当前原文行
                     val candidates =
                         cleanTrans.filter { cand ->
@@ -149,7 +149,7 @@ object LyricParser {
                         transText = best.second
                         usedSet.add(best)
                     } else if (cleanTrans.size == origItems.size && i < cleanTrans.size && cleanTrans[i] !in usedSet) {
-                        // 3. 索引回退
+                        // 索引回退
                         transText = cleanTrans[i].second
                         usedSet.add(cleanTrans[i])
                     }
@@ -217,17 +217,17 @@ object LyricParser {
         val t = text.trim()
         if (t == "//") return true
 
-        // 1. 结构化 Key-Value 制作属性匹配 (中/日/韩/英) 及 LRC 标签
+        // 结构化 Key-Value 制作属性匹配 (中/日/韩/英) 及 LRC 标签
         if (META_ROLE_REGEX.containsMatchIn(t) || LRC_TAG_REGEX.containsMatchIn(t)) {
             return true
         }
 
-        // 2. 版权与声明关键词过滤
+        // 版权与声明关键词过滤
         if (META_STATEMENT_KEYWORDS.any { t.contains(it, ignoreCase = true) }) {
             return true
         }
 
-        // 3. 前奏前 6 秒内的歌曲-歌手标题行 (要求两边带空格，且排除句首破折号)
+        // 前奏前 6 秒内的歌曲-歌手标题行 (要求两边带空格，且排除句首破折号)
         if (timestampMs <= 6000) {
             if (TITLE_SEPARATORS.any { t.contains(it) } && !t.startsWith("-") && !t.startsWith("—")) {
                 return true

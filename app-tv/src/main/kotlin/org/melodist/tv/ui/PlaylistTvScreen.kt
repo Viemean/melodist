@@ -712,7 +712,7 @@ fun PlaylistTvScreen(
             if (!isReturning || playlistSongs.isEmpty()) {
                 -1
             } else {
-                // 1. 恢复记录的目标歌曲滚动锚点
+                // 恢复记录的目标歌曲滚动锚点
                 val actionSongIndex =
                     if (!PlaylistScreenCache.targetReturnSongMid.isNullOrBlank() || (PlaylistScreenCache.targetReturnSongId ?: 0L) != 0L) {
                         playlistSongs.indexOfFirst { song ->
@@ -724,7 +724,7 @@ fun PlaylistTvScreen(
                     }
                 val cachedActionIndex = PlaylistScreenCache.targetReturnIndex
 
-                // 2. 如果是从全屏播放器返回且没有明确的长按目标歌曲，尝试定位当前正在播放的曲目
+                // 如果是从全屏播放器返回且没有明确的长按目标歌曲，尝试定位当前正在播放的曲目
                 val playingIndex =
                     if (isReturningFromPlayer && actionSongIndex < 0 && cachedActionIndex !in playlistSongs.indices) {
                         playlistSongs.indexOfFirst {

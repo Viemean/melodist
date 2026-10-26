@@ -50,7 +50,7 @@ fun LazyListScope.remoteDeviceListSection(
     onConnectToPairedDevice: (ConnectDevice) -> Unit,
     onRemovePairedDevice: (deviceId: String) -> Unit,
 ) {
-    // 1. 标题与操作栏
+    // 标题与操作栏
     item {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -95,7 +95,7 @@ fun LazyListScope.remoteDeviceListSection(
         }
     }
 
-    // 2. 扫描中或无设备占位
+    // 扫描中或无设备占位
     if (discoveredDevices.isEmpty() && pairedDevices.isEmpty()) {
         item {
             Box(
@@ -115,7 +115,7 @@ fun LazyListScope.remoteDeviceListSection(
         }
     }
 
-    // 3. 附近发现的设备列表
+    // 附近发现的设备列表
     if (discoveredDevices.isNotEmpty()) {
         item {
             Text(
@@ -170,7 +170,7 @@ fun LazyListScope.remoteDeviceListSection(
         }
     }
 
-    // 4. 已记忆配对历史设备列表
+    // 已记忆配对历史设备列表
     if (pairedDevices.isNotEmpty()) {
         item {
             Text(

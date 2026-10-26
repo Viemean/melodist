@@ -132,28 +132,28 @@ enum class LyricSaveMode(
 }
 
 data class AppSettings(
-    // 1. 音频与音质
+    // 音频与音质
     val preferredQualityTier: AudioQualityTier = AudioQualityTier.SQ,
     val cellularQualityTier: AudioQualityTier = AudioQualityTier.HQ,
     val enableAudioPassthrough: Boolean = false,
     val enableUsbExclusive: Boolean = true,
     val enableAutoMatchLyrics: Boolean = true,
     val ignoreEmbeddedLyrics: Boolean = false,
-    // 2. 播放与歌词
+    // 播放与歌词
     val showBilingualLyrics: Boolean = true,
     val enableWordByWordAnim: Boolean = true,
     val lyricFontSize: LyricFontSize = LyricFontSize.Normal,
     val customLyricFontSizeSp: Int = 30,
-    // 3. OLED 屏保与显示保护
+    // OLED 屏保与显示保护
     val screenSaverTimeout: ScreenSaverTimeout = ScreenSaverTimeout.Minutes5,
     val screenSaverBrightness: ScreenSaverBrightness = ScreenSaverBrightness.Auto,
     val enablePixelShift: Boolean = true,
     val enableScreenSaverDuringPlayback: Boolean = true,
-    // 4. 下载与存储
+    // 下载与存储
     val downloadDirectory: String = "",
     val lyricSaveMode: LyricSaveMode = LyricSaveMode.Embedded,
     val saveLyricTranslation: Boolean = true,
-    // 5. 外观与主题
+    // 外观与主题
     val themeMode: ThemeMode = ThemeMode.System,
     val dynamicColor: Boolean = true,
     val colorTheme: AppColorTheme = AppColorTheme.Default,

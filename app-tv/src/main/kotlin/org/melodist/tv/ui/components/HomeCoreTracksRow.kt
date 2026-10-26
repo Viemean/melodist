@@ -139,7 +139,7 @@ fun HomeCoreTracksRow(
             return@LaunchedEffect
         }
 
-        // 1. 每日推荐：按 00:00 自然日周期判定，今日已拉取则直接使用本地持久化缓存（0网络请求）
+        // 每日推荐：按 00:00 自然日周期判定，今日已拉取则直接使用本地持久化缓存（0网络请求）
         launch {
             try {
                 DailyRecommendCacheManager.loadRecommendSongs(apiService, forceRefresh = false)
@@ -149,7 +149,7 @@ fun HomeCoreTracksRow(
             }
         }
 
-        // 2. 我的喜欢：本地持久化秒出；后台轻量探测第 1 页进行增量合并
+        // 我的喜欢：本地持久化秒出；后台轻量探测第 1 页进行增量合并
         launch {
             try {
                 if (favSongsList.isEmpty()) {
@@ -163,7 +163,7 @@ fun HomeCoreTracksRow(
             }
         }
 
-        // 3. 用户库（歌单与收藏专辑）：本地持久化秒出
+        // 用户库（歌单与收藏专辑）：本地持久化秒出
         launch {
             try {
                 UserLibraryCacheManager.loadLibrary(apiService, forceRefresh = false)
@@ -173,7 +173,7 @@ fun HomeCoreTracksRow(
             }
         }
 
-        // 4. 猜你喜欢：拉取 15 首候选队列并支持 5 分钟定时刷新
+        // 猜你喜欢：拉取 15 首候选队列并支持 5 分钟定时刷新
         launch {
             try {
                 if (radarSongs.isEmpty()) {
@@ -193,7 +193,7 @@ fun HomeCoreTracksRow(
             }
         }
 
-        // 5. 百万推荐：自然日持久化缓存秒出；后台轻量刷新
+        // 百万推荐：自然日持久化缓存秒出；后台轻量刷新
         launch {
             try {
                 org.melodist.data.MillionRecommendManager
@@ -204,7 +204,7 @@ fun HomeCoreTracksRow(
             }
         }
 
-        // 6. 最近播放：后台静默同步云端记录
+        // 最近播放：后台静默同步云端记录
         launch {
             try {
                 org.melodist.data.RecentPlaybackManager
@@ -332,7 +332,7 @@ fun HomeCoreTracksRow(
             favoriteCount,
         ) {
             listOf(
-                // 1. 猜你喜欢（排在首位，包含播放按钮）
+                // 猜你喜欢（排在首位，包含播放按钮）
                 RotatingCardItem(
                     id = "radar",
                     badgeText = "猜你喜欢",
@@ -343,7 +343,7 @@ fun HomeCoreTracksRow(
                     songMid = currentRadarSong?.songMid.orEmpty(),
                     defaultBgColor = Color(0xFF00E676),
                 ),
-                // 2. 每日推荐（二级页面，无播放按钮）
+                // 每日推荐（二级页面，无播放按钮）
                 RotatingCardItem(
                     id = "daily",
                     badgeText = "每日推荐",
@@ -354,7 +354,7 @@ fun HomeCoreTracksRow(
                     songMid = currentDailySong?.songMid.orEmpty(),
                     defaultBgColor = Color(0xFF00B0FF),
                 ),
-                // 3. 我的喜欢（二级页面，无播放按钮）
+                // 我的喜欢（二级页面，无播放按钮）
                 RotatingCardItem(
                     id = "favorites",
                     badgeText = "我的喜欢",
@@ -365,7 +365,7 @@ fun HomeCoreTracksRow(
                     songMid = currentFavSong?.songMid.orEmpty(),
                     defaultBgColor = Color(0xFFE91E63),
                 ),
-                // 4. 百万推荐（二级页面，无播放按钮）
+                // 百万推荐（二级页面，无播放按钮）
                 RotatingCardItem(
                     id = "million",
                     badgeText = "百万推荐",
@@ -376,7 +376,7 @@ fun HomeCoreTracksRow(
                     songMid = currentMillionSong?.songMid.orEmpty(),
                     defaultBgColor = Color(0xFFFFB300),
                 ),
-                // 5. 最近播放（二级页面，无播放按钮）
+                // 最近播放（二级页面，无播放按钮）
                 RotatingCardItem(
                     id = "recent",
                     badgeText = "最近播放",
@@ -389,7 +389,7 @@ fun HomeCoreTracksRow(
                     songMid = currentRecentSong?.songMid.orEmpty(),
                     defaultBgColor = Color(0xFF7C4DFF),
                 ),
-                // 6. 我的歌单（二级页面，无播放按钮）
+                // 我的歌单（二级页面，无播放按钮）
                 RotatingCardItem(
                     id = "playlists",
                     badgeText = "我的歌单",
@@ -398,7 +398,7 @@ fun HomeCoreTracksRow(
                     coverUrl = currentPlaylist?.picUrl.orEmpty(),
                     defaultBgColor = Color(0xFFFF9100),
                 ),
-                // 5. 我的收藏（二级页面，无播放按钮）
+                // 我的收藏（二级页面，无播放按钮）
                 RotatingCardItem(
                     id = "collections",
                     badgeText = "我的收藏",

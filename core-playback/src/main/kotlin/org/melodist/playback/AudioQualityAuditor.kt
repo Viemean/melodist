@@ -52,12 +52,12 @@ data class AudioAuditResult(
 
 /**
  * 判定策略与参数约束：
- * 1. 假无损检测区间设定为 14.0kHz ~ 19.2kHz（覆盖 128k/192k/256k 有损转码特征），避开 20kHz 临界区以减少正版 CD 误判；
- * 2. 升频假 Hi-Res 优先匹配 20.0kHz ~ 24.5kHz 截断特征；
- * 3. 相对阶跃深度判定（pre - post >= 18dB），降低 Dither 噪声干扰；
- * 4. 恒定时域观测窗口（>= 0.4s），按采样率自适应；
- * 5. 频谱平缓滚降曲目判定为通过（AUTHENTIC）；
- * 6. 按 N^2 归一化功率谱密度（PSD）计算分贝值。
+ * - 假无损检测区间设定为 14.0kHz ~ 19.2kHz（覆盖 128k/192k/256k 有损转码特征），避开 20kHz 临界区以减少正版 CD 误判；
+ * - 升频假 Hi-Res 优先匹配 20.0kHz ~ 24.5kHz 截断特征；
+ * - 相对阶跃深度判定（pre - post >= 18dB），降低 Dither 噪声干扰；
+ * - 恒定时域观测窗口（>= 0.4s），按采样率自适应；
+ * - 频谱平缓滚降曲目判定为通过（AUTHENTIC）；
+ * - 按 N^2 归一化功率谱密度（PSD）计算分贝值。
  */
 object AudioQualityAuditor {
     private const val TAG = "AudioQualityAuditor"
@@ -82,7 +82,7 @@ object AudioQualityAuditor {
             val cacheKey = "${song.songMid}_${tier.name}"
             auditCache.get(cacheKey)?.let { return@withContext it }
 
-            // 1. 标准有损音质直接返回 LOSSY，无需频谱检测
+            // 标准有损音质直接返回 LOSSY，无需频谱检测
             if (tier == AudioQualityTier.Standard || tier == AudioQualityTier.HQ) {
                 val result =
                     AudioAuditResult(
@@ -158,7 +158,7 @@ object AudioQualityAuditor {
         song: Song,
         explicitFilePath: String?,
     ): AudioSourceTarget? {
-        // 1. 显式指定的本地路径
+        // 显式指定的本地路径
         if (!explicitFilePath.isNullOrBlank() && File(explicitFilePath).exists()) {
             return AudioSourceTarget(explicitFilePath, isLocal = true)
         }
@@ -167,7 +167,7 @@ object AudioQualityAuditor {
             return AudioSourceTarget(localPath, isLocal = true)
         }
 
-        // 2. WebDAV 歌曲路径与流解析
+        // WebDAV 歌曲路径与流解析
         if (song.songMid.startsWith("webdav_")) {
             val server =
                 org.melodist.data.WebDavManager
@@ -189,7 +189,7 @@ object AudioQualityAuditor {
             }
         }
 
-        // 3. 当前播放器已解析的试听/播放直链
+        // 当前播放器已解析的试听/播放直链
         val currentPlaySong = PlaybackManager.currentSong.value
         if (currentPlaySong?.songMid == song.songMid) {
             val probed = PlaybackManager.probedQualityOptions.value.find { it.tier == song.currentTier }
@@ -199,7 +199,7 @@ object AudioQualityAuditor {
             }
         }
 
-        // 4. QQ 音乐在线 API 探测
+        // QQ 音乐在线 API 探测
         try {
             val api = MusicApiService()
             val probeResults = api.probeSongQualities(song.songMid, song.effectiveMediaMid)
@@ -370,7 +370,7 @@ object AudioQualityAuditor {
             val samplesPerChunk = (sampleRate * 0.4f).toInt().coerceAtLeast(FFT_SIZE * 4)
 
             // 多采样点独立分析与投票决议：
-            // 若为 2.5MB 探针切片，在文件第 2~3 秒安全采样（避开前奏静音，同时保证 192k/24-bit 极端码率不触碰 EOF）；本地文件按全曲比例采样
+            // 若为 2.5MB 探针切片，在文件第 2~3 秒采样；本地文件按全曲比例采样
             val candidateSecs =
                 when {
                     isProbeSlice -> {
@@ -474,10 +474,10 @@ object AudioQualityAuditor {
 
     /**
      * 多采样点表决机制（多数表决制）：
-     * 1. 单切片样本置信度不足时标记为 INDETERMINATE；
-     * 2. 假无损：>= 2 个切片测出低通截断特征时判定为假无损；
-     * 3. 升频假 Hi-Res：>= 2 个切片测出标准截断时判定为升频；
-     * 4. 切片结果分歧时（多数切片具备高频延伸特征），判定为真无损。
+     * - 单切片样本置信度不足时标记为 INDETERMINATE；
+     * - 假无损：>= 2 个切片测出低通截断特征时判定为假无损；
+     * - 升频假 Hi-Res：>= 2 个切片测出标准截断时判定为升频；
+     * - 切片结果分歧时（多数切片具备高频延伸特征），判定为真无损。
      */
     fun voteAuditResults(sliceResults: List<AudioAuditResult>): AudioAuditResult {
         if (sliceResults.isEmpty()) {
@@ -506,17 +506,17 @@ object AudioQualityAuditor {
         val upsampledList = sliceResults.filter { it.verdict == AudioQualityVerdict.UPSAMPLED_HIRES }
         val authenticList = sliceResults.filter { it.verdict == AudioQualityVerdict.AUTHENTIC }
 
-        // 1. 假无损多数表决（>= 2 个切片命中）
+        // 假无损多数表决（>= 2 个切片命中）
         if (fakeList.size >= 2) {
             return fakeList.maxByOrNull { it.cutoffFrequencyHz } ?: fakeList[0]
         }
 
-        // 2. 升频假 Hi-Res 多数表决（>= 2 个切片命中）
+        // 升频假 Hi-Res 多数表决（>= 2 个切片命中）
         if (upsampledList.size >= 2) {
             return upsampledList.maxByOrNull { it.cutoffFrequencyHz } ?: upsampledList[0]
         }
 
-        // 3. 若仅单个切片呈现截断而其余切片具备高频延伸特征，判定为真无损
+        // 若仅单个切片呈现截断而其余切片具备高频延伸特征，判定为真无损
         if (authenticList.isNotEmpty()) {
             val baseAuthentic = authenticList.first()
             val hasDivergence = fakeList.isNotEmpty() || upsampledList.isNotEmpty()
@@ -800,10 +800,10 @@ object AudioQualityAuditor {
 
     /**
      * 频谱特征判定逻辑：
-     * 1. 假无损检测区间设定为 14.0kHz ~ 19.2kHz（对应 128k ~ 256k 转码低通截断点）；
-     * 2. 升频假 Hi-Res 匹配 19.2k ~ 24.5k 频段截断；
-     * 3. 相对能量阶深（pre - post >= 18dB）比对，降低 Dither 噪声干扰；
-     * 4. 频谱平缓滚降曲目判定为通过（AUTHENTIC）。
+     * - 假无损检测区间设定为 14.0kHz ~ 19.2kHz（对应 128k ~ 256k 转码低通截断点）；
+     * - 升频假 Hi-Res 匹配 19.2k ~ 24.5k 频段截断；
+     * - 相对能量阶深（pre - post >= 18dB）比对，降低 Dither 噪声干扰；
+     * - 频谱平缓滚降曲目判定为通过（AUTHENTIC）。
      */
     fun evaluateSpectrum(
         spectrum: FloatArray,
@@ -816,14 +816,14 @@ object AudioQualityAuditor {
         val nyquistHz = sampleRate / 2
         val binResolutionHz = nyquistHz.toFloat() / spectrum.size
 
-        // 1. 频响包络平滑 (400Hz 窗口)
+        // 频响包络平滑 (400Hz 窗口)
         val windowBins = max(5, (400 / binResolutionHz).toInt())
         val smoothed = smoothSpectrumEnvelope(spectrum, windowBins)
 
-        // 2. 中频基准能量 (2k~8k)
+        // 中频基准能量 (2k~8k)
         val midRefDb = getBandAverageDb(smoothed, binResolutionHz, 2000, 8000)
 
-        // 3. 扫描砖墙式低通截断：
+        // 扫描砖墙式低通截断：
         // 扫描上限限制在 25kHz（Nyquist 频带上限）
         val scanStartBin = (10000 / binResolutionHz).toInt().coerceIn(0, smoothed.size - 1)
         val scanEndBin = ((min(nyquistHz.toFloat(), 25000f)) / binResolutionHz).toInt().coerceIn(0, smoothed.size - 1)
@@ -850,7 +850,7 @@ object AudioQualityAuditor {
             }
         }
 
-        // 4. 判定假 Hi-Res (检测区间：19201Hz ~ 24500Hz)
+        // 判定假 Hi-Res (检测区间：19201Hz ~ 24500Hz)
         if (sampleRate >= 88200 && (tier == AudioQualityTier.HiRes || tier == AudioQualityTier.Master)) {
             if (brickwallCutoffHz in 19201..24500 && maxCliffDepthDb >= 18f) {
                 val baseRate = if (brickwallCutoffHz <= 22500) "44.1kHz" else "48kHz"
@@ -868,7 +868,7 @@ object AudioQualityAuditor {
             }
         }
 
-        // 5. 判定假无损：检查 14.0kHz ~ 19.2kHz 区间是否存在低通截断特征
+        // 判定假无损：检查 14.0kHz ~ 19.2kHz 区间是否存在低通截断特征
         if (tier == AudioQualityTier.SQ || tier == AudioQualityTier.HiRes || tier == AudioQualityTier.Master) {
             if (maxCliffDepthDb >= 18f && brickwallCutoffHz in 14000..19200) {
                 val (verdictDesc, detailsDesc) =
@@ -891,7 +891,7 @@ object AudioQualityAuditor {
             }
         }
 
-        // 6. 真实无损 / 真实高解析判定（自然平缓衰减曲目提示性通过）
+        // 真实无损 / 真实高解析判定（自然平缓衰减曲目提示性通过）
         val isHiResAuthentic = (sampleRate >= 88200 || (sampleRate > 48000 && bitDepth > 16) || bitDepth >= 24) && maxCliffDepthDb < 18f
         val hasUltrasoundEnergy =
             sampleRate >= 88200 && isHiResAuthentic && getBandAverageDb(smoothed, binResolutionHz, 26000, min(nyquistHz, 30000)) > (midRefDb - 42f)

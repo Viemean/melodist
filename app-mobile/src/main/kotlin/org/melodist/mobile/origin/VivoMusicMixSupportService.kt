@@ -35,12 +35,12 @@ import java.util.Locale
  *
  * 响应 "com.vivo.musicwidgetmix.support.service" Intent Action，
  * 按照 OriginOS CooperateController (c0.java) 规范对齐实现：
- * 1. 基础播控（play/pause/skipToNext/skipToPrevious/seekTo/playFromMediaId）；
- * 2. 循环模式切换（vivomusicmix.media.action.PLAY_MODE 与 vivomusicmix.media.metadata.LOOP_MODE）；
- * 3. 逐行双语滚动歌词（vivomusicmix.extra.lrc_change、vivomusicmix.extra.key.lyric）；
- * 4. 红心双向收藏联动（RatingCompat.newHeartRating / onSetRating）；
- * 5. 歌单分页与增量同步（vivomusicmix_current_list/favorite_list/local_list，包含 has_more 与 media_page 标记）；
- * 6. 专辑封面位图解码（写入 ALBUM_ART / DISPLAY_ICON）。
+ * - 基础播控（play/pause/skipToNext/skipToPrevious/seekTo/playFromMediaId）；
+ * - 循环模式切换（vivomusicmix.media.action.PLAY_MODE 与 vivomusicmix.media.metadata.LOOP_MODE）；
+ * - 逐行双语滚动歌词（vivomusicmix.extra.lrc_change、vivomusicmix.extra.key.lyric）；
+ * - 红心双向收藏联动（RatingCompat.newHeartRating / onSetRating）；
+ * - 歌单分页与增量同步（vivomusicmix_current_list/favorite_list/local_list，包含 has_more 与 media_page 标记）；
+ * - 专辑封面位图解码（写入 ALBUM_ART / DISPLAY_ICON）。
  *
  * 已对齐 OriginOS 开放标准，但由于系统端原子随身听暂未正式开放第三方应用白名单接入，待系统侧后续开放后即可直接生效。
  */

@@ -90,10 +90,10 @@ class PlaybackPreloadCoordinator(
         val ctx = getContext() ?: return
         prefetchJob =
             scope.launch(Dispatchers.IO) {
-                // 1. 预取下一首歌词至磁盘缓存
+                // 预取下一首歌词至磁盘缓存
                 lyricsCoordinator.prefetchLyrics(nextSong)
 
-                // 2. 预取封面至 Coil 磁盘缓存
+                // 预取封面至 Coil 磁盘缓存
                 val coverUrl = nextSong.coverUrl
                 if (coverUrl.startsWith("http://") || coverUrl.startsWith("https://")) {
                     try {
@@ -110,12 +110,12 @@ class PlaybackPreloadCoordinator(
                     }
                 }
 
-                // 3. 本地纯文件歌曲或 WebDAV 歌曲：无需预取在线播放数据
+                // 本地纯文件歌曲或 WebDAV 歌曲：无需预取在线播放数据
                 val isPureLocal = !nextSong.localFilePath.isNullOrBlank() && !nextSong.songMid.startsWith("webdav_")
                 val isWebDav = nextSong.isWebDav || nextSong.songMid.startsWith("webdav_")
                 if (isPureLocal || isWebDav) return@launch
 
-                // 4. 在线歌曲：若本地已有完整缓存，直接跳过网络预取
+                // 在线歌曲：若本地已有完整缓存，直接跳过网络预取
                 val rawTargetTier = getPreferredTier()
                 val targetTier = clampCellularTier(rawTargetTier, nextSong)
                 val higherStereoTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(nextSong.songMid, targetTier)
@@ -124,7 +124,7 @@ class PlaybackPreloadCoordinator(
                     return@launch
                 }
 
-                // 5. 在线歌曲：预取下一曲播放直链 URL
+                // 在线歌曲：预取下一曲播放直链 URL
                 try {
                     val playUrlInfo = apiService.getPlayUrl(nextSong.songMid, mediaMid = nextSong.mediaMid, preferredTier = targetTier)
                     val playUrl = playUrlInfo.url

@@ -355,7 +355,7 @@ internal fun ListeningClockDial(
         val strokeWidth = 3.6.dp.toPx()
         val radius = size.minDimension / 2f - strokeWidth / 2f - 2.dp.toPx()
 
-        // 1. 表盘背景填充与外圈轮廓
+        // 表盘背景填充与外圈轮廓
         drawCircle(
             color = containerColor,
             radius = radius,
@@ -368,7 +368,7 @@ internal fun ListeningClockDial(
             style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
         )
 
-        // 2. 高亮 12 小时制活跃槽位弧段（与时针空间方位同步）
+        // 活跃槽位弧段
         val peakH = (if (activeHour in 0..23) activeHour else 0) % 12
         val activeSlots12 = mutableSetOf<Int>()
         chartPoints.forEach { pt ->
@@ -378,7 +378,6 @@ internal fun ListeningClockDial(
         }
 
         val sweep = 26f
-        // 先绘制普通活跃槽位，后绘制峰值槽位确保其位于顶层
         val sortedSlots = activeSlots12.sortedBy { it == peakH }
         sortedSlots.forEach { h ->
             val isPeak = h == peakH
@@ -395,7 +394,7 @@ internal fun ListeningClockDial(
             )
         }
 
-        // 3. 四象限刻度点
+        // 四象限刻度点
         val tickRadius = radius - 6.dp.toPx()
         for (i in 0 until 4) {
             val angle = Math.toRadians((i * 90.0) - 90.0)
@@ -411,7 +410,7 @@ internal fun ListeningClockDial(
             )
         }
 
-        // 4. 时针与分针（时针指向最活跃时段，分针指向上方 12 点整）
+        // 时针与分针
         val effectiveHour = if (activeHour in 0..23) activeHour else 0
         val h = effectiveHour % 12
         val hourAngle = Math.toRadians((h * 30.0 - 90.0))
@@ -445,7 +444,7 @@ internal fun ListeningClockDial(
             cap = StrokeCap.Round,
         )
 
-        // 5. 中心轴点
+        // 中心轴点
         drawCircle(
             color = primaryColor,
             radius = 3.dp.toPx(),

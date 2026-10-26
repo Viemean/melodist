@@ -134,11 +134,11 @@ class SongCoverResolutionTest {
         val url800 = "https://y.qq.com/music/photo_new/T002R800x800M000003yPnkT3h4fO8.jpg"
         val url500 = "https://y.qq.com/music/photo_new/T002R500x500M000003yPnkT3h4fO8.jpg"
 
-        // 1. WiFi 环境（非蜂窝）：首选 1200
+        // WiFi 环境（非蜂窝）：首选 1200
         val wifiCandidates = song.resolvePlayerCoverCandidates(isCellular = false, hasRawCache = false)
         assertEquals(url1200, wifiCandidates.first())
 
-        // 2. 蜂窝移动网络：不加载 1200，降级 800
+        // 蜂窝移动网络：不加载 1200，降级 800
         val cellularCandidates = song.resolvePlayerCoverCandidates(isCellular = true, hasRawCache = false)
         assertFalse(cellularCandidates.contains(url1200))
         assertEquals(url800, cellularCandidates.first())

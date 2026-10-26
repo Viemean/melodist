@@ -93,7 +93,6 @@ fun ListeningStatsScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 1. 周期切换器（日 / 周 / 月 / 年）
             item(key = "period_selector") {
                 PeriodSegmentedTabs(
                     selectedPeriod = selectedPeriod,
@@ -105,7 +104,6 @@ fun ListeningStatsScreen(
                 )
             }
 
-            // 2. 日期切换导航（< 2026年10月12日 >）及右侧偏好调节入口
             statsData?.let { report ->
                 if (report.availableDates.isNotEmpty()) {
                     item(key = "date_navigator") {
@@ -124,7 +122,6 @@ fun ListeningStatsScreen(
                 }
             }
 
-            // 3. 听歌核心指标卡片
             item(key = "stats_hero_card") {
                 statsData?.let { report ->
                     ListeningOverviewCard(
@@ -150,14 +147,12 @@ fun ListeningStatsScreen(
                 }
             }
 
-            // 4. 音乐基因卡片
             statsData?.textBlock?.let { tb ->
                 item(key = "music_gene_card") {
                     MusicGeneCard(textBlock = tb)
                 }
             }
 
-            // 5. 高光时刻（月 / 年）
             statsData?.let { report ->
                 if (report.highlights.isNotEmpty()) {
                     item(key = "highlights_section") {
@@ -175,7 +170,6 @@ fun ListeningStatsScreen(
                 }
             }
 
-            // 6. 收听歌曲排行榜
             statsData?.let { report ->
                 if (report.rankSongs.isNotEmpty()) {
                     item(key = "rank_section_header") {

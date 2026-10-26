@@ -133,7 +133,7 @@ fun SongArtistAlbumDialog(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
                 ) {
-                    // 1. 歌手卡片组（可左右滚动）
+                    // 歌手卡片组（可左右滚动）
                     itemsIndexed(artists) { index, artist ->
                         ArtistActionCard(
                             artist = artist,
@@ -146,7 +146,7 @@ fun SongArtistAlbumDialog(
                         )
                     }
 
-                    // 2. 专辑卡片（单个）
+                    // 专辑卡片（单个）
                     if (song.album.isNotBlank() || song.albumMid.isNotBlank()) {
                         item {
                             AlbumActionCard(

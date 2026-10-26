@@ -180,7 +180,7 @@ fun HomeTvScreen(
                 },
             )
 
-            // 2. 正在播放 Hero 展台
+            // 正在播放 Hero 展台
             NowPlayingHeroCard(
                 song = playingSong ?: currentSong,
                 cardHeight = metrics.heroCardHeight,

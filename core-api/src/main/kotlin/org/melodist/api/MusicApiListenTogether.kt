@@ -796,7 +796,7 @@ suspend fun MusicApiService.resolveListenTogetherShareTarget(rawText: String): T
 
         val cleanText = rawText.trim()
 
-        // 1. 尝试从文本中提取 URL
+        // 尝试从文本中提取 URL
         val urlRegex = Regex("https?://[a-zA-Z0-9\\-._~:/?#\\[\\]@!$&'*+,;=%]+")
         var matchedUrl = urlRegex.find(cleanText)?.value
         if (matchedUrl == null) {
@@ -849,7 +849,7 @@ suspend fun MusicApiService.resolveListenTogetherShareTarget(rawText: String): T
             }
         }
 
-        // 2. 兜底正则匹配房间号 (LUGC 开头)
+        // 兜底正则匹配房间号 (LUGC 开头)
         val lugcMatch = Regex("LUGC[0-9a-zA-Z]+").find(cleanText)
         if (lugcMatch != null) {
             return@withContext Triple(lugcMatch.value, "", 0L)

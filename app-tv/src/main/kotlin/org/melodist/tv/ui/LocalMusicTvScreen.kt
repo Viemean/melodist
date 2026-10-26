@@ -406,7 +406,7 @@ fun LocalMusicTvScreen(
             }
         }
 
-        // 3. 存储介质选择弹窗 (内部存储 / U 盘)
+        // 存储介质选择弹窗 (内部存储 / U 盘)
         if (showDriveSelectDialog) {
             val drives = remember { LocalMusicManager.detectStorageDrives(context) }
             StorageDriveSelectDialog(

@@ -65,7 +65,7 @@ fun SettingsAboutSection(
     Column(modifier = modifier) {
         SettingsGroupTitle(title = "关于")
         SettingsGroupCard {
-            // 1. 应用与版本详情行（保留连击凭证彩蛋）
+            // 应用与版本详情行（保留连击凭证彩蛋）
             Row(
                 modifier =
                     Modifier
@@ -223,7 +223,7 @@ fun SettingsAboutSection(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
             )
 
-            // 3. 开源仓库链接行
+            // 开源仓库链接行
             Row(
                 modifier =
                     Modifier

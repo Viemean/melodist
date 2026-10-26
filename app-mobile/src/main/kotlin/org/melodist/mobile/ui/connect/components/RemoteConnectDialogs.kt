@@ -49,7 +49,7 @@ fun RemoteConnectDialogs(
 ) {
     val context = LocalContext.current
 
-    // 1. 扫码弹窗
+    // 扫码弹窗
     if (showQrScanner) {
         QrScannerDialog(
             onDismissRequest = onDismissQrScanner,
@@ -70,7 +70,7 @@ fun RemoteConnectDialogs(
         )
     }
 
-    // 2. 手动输入配对 IP/端口弹窗
+    // 手动输入配对 IP/端口弹窗
     if (showManualInputDialog) {
         var manualHost by remember(manualHostPrefill) { mutableStateOf(manualHostPrefill) }
         var manualPin by remember { mutableStateOf("") }
@@ -135,7 +135,7 @@ fun RemoteConnectDialogs(
         )
     }
 
-    // 3. 针对局域网设备输入 PIN 弹窗
+    // 针对局域网设备输入 PIN 弹窗
     selectedDeviceForPin?.let { dev ->
         var pinInput by remember { mutableStateOf("") }
         val isPinComplete = pinInput.length == 6
@@ -180,7 +180,7 @@ fun RemoteConnectDialogs(
         )
     }
 
-    // 4. TV 端音质切换弹窗
+    // TV 端音质切换弹窗
     if (showTvQualitySheet) {
         val curSong = tvPlayerState?.currentSong
         val curTier = tvPlayerState?.currentTier ?: curSong?.currentTier ?: AudioQualityTier.SQ

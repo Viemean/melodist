@@ -114,7 +114,7 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
             ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // 1. TV 远程控制主卡片
+        // TV 远程控制主卡片
         item {
             RemotePlaybackControlCard(
                 connectionState = connectionState,
@@ -125,7 +125,7 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
             )
         }
 
-        // 2. 互联偏好设置卡片
+        // 互联偏好设置卡片
         item {
             RemotePreferencesCard(
                 remoteControlMode = remoteControlMode,
@@ -134,7 +134,7 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
             )
         }
 
-        // 3. 局域网设备与历史设备列表
+        // 局域网设备与历史设备列表
         remoteDeviceListSection(
             discoveredDevices = discoveredDevices,
             pairedDevices = pairedDevices,

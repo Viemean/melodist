@@ -88,7 +88,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
     ) {
         SettingPanelHeader(title = "屏幕保护")
 
-        // 1. 自动进入屏保闲置时长
+        // 自动进入屏保闲置时长
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -166,7 +166,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
             }
         }
 
-        // 2. 屏保显示亮度调节
+        // 屏保显示亮度调节
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -244,7 +244,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
             }
         }
 
-        // 3. OLED 防烧屏像素微移开关
+        // OLED 防烧屏像素微移开关
         SettingSwitchCard(
             title = "OLED 像素微移",
             checked = settings.enablePixelShift,
@@ -254,7 +254,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
             },
         )
 
-        // 4. 音乐播放中允许进入屏保开关 (移除多余描述)
+        // 音乐播放中允许进入屏保开关 (移除多余描述)
         SettingSwitchCard(
             title = "音频播放期间允许进入屏保",
             checked = settings.enableScreenSaverDuringPlayback,
@@ -264,7 +264,7 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
             },
         )
 
-        // 5. 立即预览屏保按钮
+        // 立即预览屏保按钮
         Button(
             onClick = { isPreviewing = true },
             modifier =
@@ -659,17 +659,17 @@ internal object ScreenSaverColorExtractor {
     // 预置色调配对
     val MONET_PRESET_PALETTES =
         listOf(
-            // 1. 睡莲天青与湖蓝
+            // 睡莲天青与湖蓝
             Pair(Color(0xFF4A90E2), Color(0xFF78B5F2)),
-            // 2. 麦草暖金与柔杏
+            // 麦草暖金与柔杏
             Pair(Color(0xFFD98A2B), Color(0xFFE8AE68)),
-            // 3. 鸢尾雅紫与浅罗兰
+            // 鸢尾雅紫与浅罗兰
             Pair(Color(0xFF8B68E0), Color(0xFFB39AE8)),
-            // 4. 吉维尼池翠与荷叶青
+            // 吉维尼池翠与荷叶青
             Pair(Color(0xFF32A885), Color(0xFF64C9AA)),
-            // 5. 喜帕珊瑚与柔瑰粉
+            // 喜帕珊瑚与柔瑰粉
             Pair(Color(0xFFD65C5C), Color(0xFFE88A8A)),
-            // 6. 圣拉扎尔群青与天际蓝
+            // 圣拉扎尔群青与天际蓝
             Pair(Color(0xFF4376D6), Color(0xFF6C99EC)),
         )
 

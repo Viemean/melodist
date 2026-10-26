@@ -71,7 +71,7 @@ fun SettingsAppearanceSection(
     Column(modifier = modifier) {
         SettingsGroupTitle(title = "外观与显示")
         SettingsGroupCard {
-            // 1. 深浅色模式三段选择器
+            // 深浅色模式三段选择器
             ThemeModeSelector(
                 selectedMode = settings.themeMode,
                 onModeSelected = { AppSettingsManager.setThemeMode(it) },
@@ -80,7 +80,7 @@ fun SettingsAppearanceSection(
 
             SettingsDivider()
 
-            // 2. 动态取色开关 (Material You)
+            // 动态取色开关 (Material You)
             SettingsSwitchRow(
                 icon = Icons.Rounded.ColorLens,
                 title = "动态取色 (Material You)",
@@ -97,7 +97,7 @@ fun SettingsAppearanceSection(
 
             SettingsDivider()
 
-            // 3. 预设调色板与自定义颜色选择器
+            // 预设调色板与自定义颜色选择器
             PresetPaletteSelector(
                 currentColorTheme = settings.colorTheme,
                 customColorHex = settings.customColorHex,
@@ -118,7 +118,7 @@ fun SettingsAppearanceSection(
 
             SettingsDivider()
 
-            // 4. AMOLED 纯黑背景
+            // AMOLED 纯黑背景
             val isCurrentDark = isAppInDarkTheme()
             SettingsSwitchRow(
                 icon = Icons.Rounded.Contrast,

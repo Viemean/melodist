@@ -303,13 +303,13 @@ suspend fun LoginApiService.refreshPlaybackCredentialsImpl(creds: PlaybackCreden
         val openid = cookies["psrf_qqopenid"] ?: if (!isWeChat) cookies["openid"] else null
         val accessToken = cookies["psrf_qqaccess_token"] ?: if (!isWeChat) cookies["access_token"] else null
 
-        // 1. 若具备 QQ 互联扫码续签票据 (openid + accessToken)
+        // 若具备 QQ 互联扫码续签票据 (openid + accessToken)
         if (!openid.isNullOrEmpty() && !accessToken.isNullOrEmpty()) {
             val refreshed = refreshQQPlaybackCredentials(creds, openid, accessToken)
             if (refreshed != null) return@withContext refreshed
         }
 
-        // 2. 若具备官方 App 扫码续签票据 (refresh_token)
+        // 若具备官方 App 扫码续签票据 (refresh_token)
         val refreshToken = cookies["refresh_token"]
         val musicId = creds.uin.ifBlank { cookies["musicid"] ?: cookies["uin"] ?: "" }
         if (!refreshToken.isNullOrEmpty() && musicId.isNotBlank()) {

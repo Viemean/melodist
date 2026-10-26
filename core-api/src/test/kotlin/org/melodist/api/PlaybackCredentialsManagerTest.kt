@@ -75,7 +75,7 @@ class PlaybackCredentialsManagerTest {
                     ),
             )
 
-        // 1. allowRefresh = false 时，refresh_token 应该被过滤
+        // allowRefresh = false 时，refresh_token 应该被过滤
         val tokenWithoutRefresh = PlaybackCredentialsManager.exportToken(profile, allowRefresh = false)
         val importedNoRefresh = PlaybackCredentialsManager.importToken(tokenWithoutRefresh)
         assertFalse(importedNoRefresh.allowRefresh)
@@ -83,7 +83,7 @@ class PlaybackCredentialsManagerTest {
         assertFalse(importedNoRefresh.cookies.containsKey("refresh_key"))
         assertFalse(PlaybackCredentialsManager.canRefreshCredentials(importedNoRefresh))
 
-        // 2. allowRefresh = true 时，refresh_token 和 refresh_key 应该被保留
+        // allowRefresh = true 时，refresh_token 和 refresh_key 应该被保留
         val tokenWithRefresh = PlaybackCredentialsManager.exportToken(profile, allowRefresh = true)
         val importedWithRefresh = PlaybackCredentialsManager.importToken(tokenWithRefresh)
         assertTrue(importedWithRefresh.allowRefresh)
@@ -92,7 +92,7 @@ class PlaybackCredentialsManagerTest {
         assertFalse(importedWithRefresh.cookies.containsKey("unrelated_tracking_cookie"))
         assertTrue(PlaybackCredentialsManager.canRefreshCredentials(importedWithRefresh))
 
-        // 3. QQ 互联凭据测试 (openid + access_token)
+        // QQ 互联凭据测试 (openid + access_token)
         val qqProfile =
             UserProfile(
                 uin = "234567890",
@@ -162,13 +162,13 @@ class PlaybackCredentialsManagerTest {
 
     @Test
     fun `test inspectToken gating handles expired, non-vip, and downgrade correctly`() {
-        // 1. 普通用户凭证 (Non-VIP)
+        // 普通用户凭证 (Non-VIP)
         val nonVipProfile = UserProfile(uin = "1001", nick = "普通账号", isVip = false, isHugeVip = false, isSvip = false)
         val nonVipToken = PlaybackCredentialsManager.exportToken(nonVipProfile)
         val nonVipResult = PlaybackCredentialsManager.inspectToken(nonVipToken)
         assertTrue(nonVipResult is PlaybackCredentialsManager.ImportValidationResult.NonVip)
 
-        // 2. 过期凭证 (Expired)
+        // 过期凭证 (Expired)
         val expiredProfile =
             UserProfile(
                 uin = "1002",
@@ -181,7 +181,7 @@ class PlaybackCredentialsManagerTest {
         val expiredResult = PlaybackCredentialsManager.inspectToken(expiredToken)
         assertTrue(expiredResult is PlaybackCredentialsManager.ImportValidationResult.Expired)
 
-        // 3. 降级导入 (当前账号是 SVIP，导入的凭证是绿钻)
+        // 降级导入 (当前账号是 SVIP，导入的凭证是绿钻)
         UserSession.profile = UserProfile(uin = "88888", isSvip = true, isVip = true)
         val greenProfile =
             UserProfile(
@@ -198,7 +198,7 @@ class PlaybackCredentialsManagerTest {
         assertEquals(PlaybackVipTier.SVIP, warning.currentTier)
         assertEquals(PlaybackVipTier.GREEN, warning.importedTier)
 
-        // 4. 正常升级或同级导入 (当前账号是普通用户，导入绿钻)
+        // 正常升级或同级导入 (当前账号是普通用户，导入绿钻)
         UserSession.profile = UserProfile(uin = "0", isVip = false)
         val successResult = PlaybackCredentialsManager.inspectToken(greenToken)
         assertTrue(successResult is PlaybackCredentialsManager.ImportValidationResult.Success)

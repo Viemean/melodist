@@ -103,14 +103,14 @@ object AudioMetadataWriter {
         val tempFile = File(file.parentFile, "${file.name}.meta_tmp")
         try {
             FileInputStream(file).use { fis ->
-                // 1. 校验 fLaC 魔数
+                // 校验 fLaC 魔数
                 val magic = ByteArray(4)
                 if (fis.read(magic) != 4 || String(magic, Charsets.US_ASCII) != "fLaC") {
                     Log.w(TAG, "Not a valid FLAC stream: ${file.name}")
                     return false
                 }
 
-                // 2. 读取现有 block，提取必须保留的 STREAMINFO 与其他非 VORBIS/PICTURE 块
+                // 读取现有 block，提取必须保留的 STREAMINFO 与其他非 VORBIS/PICTURE 块
                 var streamInfoBlock: ByteArray? = null
                 val otherBlocks = mutableListOf<ByteArray>()
 
@@ -183,7 +183,7 @@ object AudioMetadataWriter {
                     lastBlock[0] = (lastBlock[0].toInt() or 0x80).toByte()
                 }
 
-                // 5. 写入临时文件并拼接后续音频数据帧
+                // 写入临时文件并拼接后续音频数据帧
                 FileOutputStream(tempFile).use { fos ->
                     fos.write("fLaC".toByteArray(Charsets.US_ASCII))
                     for (b in blocksToWrite) {
@@ -336,10 +336,10 @@ object AudioMetadataWriter {
                     fis.channel.position(0)
                 }
 
-                // 2. 生成新 ID3v2.3 标签二进制
+                // 生成新 ID3v2.3 标签二进制
                 val newId3Block = buildId3v23Tag(payload)
 
-                // 3. 写入临时文件
+                // 写入临时文件
                 FileOutputStream(tempFile).use { fos ->
                     fos.write(newId3Block)
 

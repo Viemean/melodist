@@ -68,7 +68,7 @@ object AudioHeaderSniffer {
                         return@withContext null
                     }
 
-                    // 1. 从 Content-Range 头提取精确总字节数: "bytes 0-2047/31457280"
+                    // 从 Content-Range 头提取精确总字节数: "bytes 0-2047/31457280"
                     val contentRange = response.header("Content-Range")
                     val totalSize =
                         contentRange?.substringAfterLast('/')?.toLongOrNull()

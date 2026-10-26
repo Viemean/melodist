@@ -98,7 +98,7 @@ fun MobileSettingsScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // 1. 账号资料卡片
+                // 账号资料卡片
                 item {
                     SettingsAccountCard(
                         userProfile = userProfile,
@@ -107,17 +107,17 @@ fun MobileSettingsScreen(
                     )
                 }
 
-                // 2. 外观与主题
+                // 外观与主题
                 item {
                     SettingsAppearanceSection(settings = settings)
                 }
 
-                // 3. 播放、音质与歌词显示
+                // 播放、音质与歌词显示
                 item {
                     SettingsPlaybackSection(settings = settings)
                 }
 
-                // 3. 下载与存储缓存
+                // 下载与存储缓存
                 item {
                     SettingsStorageSection(
                         settings = settings,
@@ -125,7 +125,7 @@ fun MobileSettingsScreen(
                     )
                 }
 
-                // 4. 关于应用
+                // 关于应用
                 item {
                     SettingsAboutSection(
                         playbackCreds = playbackCreds,

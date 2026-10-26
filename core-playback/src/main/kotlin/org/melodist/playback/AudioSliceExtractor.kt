@@ -120,7 +120,7 @@ object AudioSliceExtractor {
                 val timeoutUs = 10_000L
 
                 while (!isEos && rawPcmList.size < maxSamplesToDecode) {
-                    // 1. 发送输入数据
+                    // 发送输入数据
                     val inputIndex = codec.dequeueInputBuffer(timeoutUs)
                     if (inputIndex >= 0) {
                         val inputBuffer = codec.getInputBuffer(inputIndex)
@@ -137,7 +137,7 @@ object AudioSliceExtractor {
                         }
                     }
 
-                    // 2. 获取解码输出
+                    // 获取解码输出
                     var outputIndex = codec.dequeueOutputBuffer(bufferInfo, timeoutUs)
                     while (outputIndex >= 0) {
                         if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
@@ -175,13 +175,13 @@ object AudioSliceExtractor {
                     return@withContext null
                 }
 
-                // 3. 转单声道
+                // 转单声道
                 val monoSamples = convertToMono(rawPcmList, channelCount)
 
-                // 4. 重采样到 8000Hz
+                // 重采样到 8000Hz
                 val resampled8k = resampleTo8k(monoSamples, srcSampleRate)
 
-                // 5. 提取指纹
+                // 提取指纹
                 val feature = AcousticFingerprintExtractor.extract(resampled8k)
                 if (feature != null) {
                     Log.i(

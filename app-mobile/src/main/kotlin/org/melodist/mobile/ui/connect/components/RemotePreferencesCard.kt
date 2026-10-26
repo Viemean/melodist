@@ -52,7 +52,7 @@ fun RemotePreferencesCard(
                 modifier = Modifier.padding(bottom = 12.dp),
             )
 
-            // 1. 控制模式选择
+            // 控制模式选择
             Text(
                 text = "联动控制模式",
                 style = MaterialTheme.typography.bodyMedium,
@@ -159,7 +159,7 @@ fun RemotePreferencesCard(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-            // 2. 本地静音开关
+            // 本地静音开关
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -181,7 +181,7 @@ fun RemotePreferencesCard(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-            // 3. TV 离线模式开关
+            // TV 离线模式开关
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

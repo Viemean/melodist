@@ -282,7 +282,7 @@ fun SongDiaryBottomSheet(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                // 1. 红心时间 与 上次收听（两列）
+                                // 红心时间 与 上次收听（两列）
                                 item {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -304,7 +304,7 @@ fun SongDiaryBottomSheet(
                                     }
                                 }
 
-                                // 2. 首次邂逅
+                                // 首次邂逅
                                 if (diary.firstLsnTime.isNotBlank()) {
                                     item {
                                         Card(
@@ -363,7 +363,7 @@ fun SongDiaryBottomSheet(
                                     }
                                 }
 
-                                // 3. 近年播放走势
+                                // 近年播放走势
                                 if (diary.totalLsnCounts.isNotEmpty()) {
                                     item {
                                         Card(
@@ -415,7 +415,7 @@ fun SongDiaryBottomSheet(
                                     }
                                 }
 
-                                // 4. 近半年播放
+                                // 近半年播放
                                 if (diary.recentLsnMonths.isNotEmpty()) {
                                     item {
                                         Card(
@@ -462,7 +462,7 @@ fun SongDiaryBottomSheet(
                                     }
                                 }
 
-                                // 5. 深夜里程碑
+                                // 深夜里程碑
                                 if (diary.milestoneTime.isNotBlank()) {
                                     item {
                                         Card(

@@ -190,7 +190,7 @@ fun AboutPanel(menuRequester: FocusRequester) {
             }
         }
 
-        // 1. 系统与运行环境
+        // 系统与运行环境
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(2.dp),

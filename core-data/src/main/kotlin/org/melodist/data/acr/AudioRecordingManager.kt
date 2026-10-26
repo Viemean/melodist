@@ -171,12 +171,12 @@ class AudioRecordingManager {
 
             if (size <= 1) return rawSamples
 
-            // 1. DC 偏置去除
+            // DC 偏置去除
             var sum = 0L
             for (s in rawSamples) sum += s
             val dcOffset = (sum / size).toInt()
 
-            // 2. 120Hz 高通滤波 (滤除低频机身震动与环境手震杂音)
+            // 120Hz 高通滤波 (滤除低频机身震动与环境手震杂音)
             // y[n] = alpha * (y[n-1] + x[n] - x[n-1]), alpha = 0.953 @ 16kHz
             val hpAlpha = 0.953f
             val hpFiltered = FloatArray(size)
@@ -192,7 +192,7 @@ class AudioRecordingManager {
                 prevY = curY
             }
 
-            // 3. 标准一阶 FIR 预加重：y[n] = x[n] - preAlpha * x[n-1] (preAlpha = 0.93)
+            // 标准一阶 FIR 预加重：y[n] = x[n] - preAlpha * x[n-1] (preAlpha = 0.93)
             val preAlpha = 0.93f
             val preEmphasized = FloatArray(size)
             preEmphasized[0] = hpFiltered[0]

@@ -184,7 +184,7 @@ object DownloadManager {
         val targetTier = preferredTier ?: AppSettingsManager.settings.value.preferredQualityTier
         val taskId = "${song.songMid}_${targetTier.name}"
 
-        // 1. 防重复下载检测：检查磁盘中是否已有完整同名文件
+        // 防重复下载检测：检查磁盘中是否已有完整同名文件
         val existing = findExistingFile(song, targetTier)
         if (existing != null) {
             _toastEvent.tryEmit("文件已存在：${existing.name}")
@@ -288,7 +288,7 @@ object DownloadManager {
                 throw CancellationException("Download cancelled or paused before url fetch")
             }
 
-            // 2. 常规网络直链获取
+            // 常规网络直链获取
             val urlInfo = apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = preferredTier)
             val downloadUrl = urlInfo.url
             if (downloadUrl.isNullOrBlank()) {
@@ -304,7 +304,7 @@ object DownloadManager {
                 throw CancellationException("Download cancelled or paused after url fetch")
             }
 
-            // 3. 降级音质缓存复用二次检测
+            // 降级音质缓存复用二次检测
             if (actualTier != preferredTier && exporter != null && exporter.isTierFullyCached(song.songMid, actualTier)) {
                 val exportedFile = exporter.exportCompleteCache(song.songMid, actualTier, targetDir, finalBaseName)
                 if (exportedFile != null && exportedFile.exists() && exportedFile.length() > 2048L) {
@@ -328,7 +328,7 @@ object DownloadManager {
                 return
             }
 
-            // 4. 流式下载音频到临时文件 .downloading (支持 HTTP Range 断点续传)
+            // 流式下载音频到临时文件 .downloading (支持 HTTP Range 断点续传)
             val tempFile = File(targetDir, "$finalBaseName.$ext.downloading")
             activeTempFile = tempFile
             val existingBytes = if (tempFile.exists()) tempFile.length() else 0L
@@ -431,7 +431,7 @@ object DownloadManager {
                 throw CancellationException("Task status is no longer downloading (${finalCheck?.status}), aborting finalize")
             }
 
-            // 5. 原子重命名为目标文件
+            // 原子重命名为目标文件
             if (tempFile.exists()) {
                 if (finalFile.exists()) finalFile.delete()
                 val renamed = tempFile.renameTo(finalFile)

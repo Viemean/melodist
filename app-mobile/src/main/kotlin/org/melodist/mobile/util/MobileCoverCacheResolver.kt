@@ -34,12 +34,12 @@ object MobileCoverCacheResolver {
     ): Boolean {
         if (song == null) return false
 
-        // 1. 本地音频或 WebDAV 本地大图文件探测
+        // 本地音频或 WebDAV 本地大图文件探测
         if (isLocalCoverValid(song.rawCoverUrl)) return true
         val matchingRaw = RawCoverHelper.findMatchingRawCoverUrl(song.coverUrl)
         if (!matchingRaw.isNullOrBlank() && isLocalCoverValid(matchingRaw)) return true
 
-        // 2. 在线音乐无损原图在 Coil 磁盘缓存中是否存在
+        // 在线音乐无损原图在 Coil 磁盘缓存中是否存在
         val rawUrl = song.rawCoverUrlOnly
         if (rawUrl != null && (rawUrl.startsWith("http://") || rawUrl.startsWith("https://"))) {
             val snapshot = SingletonImageLoader.get(context).diskCache?.openSnapshot(rawUrl)
@@ -65,8 +65,8 @@ object MobileCoverCacheResolver {
 
     /**
      * 莫奈取色候选链：
-     * 1. 500x500 缩略图：优先复用歌曲列表与抽屉已缓存的缩略图，避免重复网络请求并降低解码开销；
-     * 2. 1200x1200 播放器大图：若 500 图像未能解析则回退至播放器常规大图。
+     * - 500x500 缩略图：优先复用歌曲列表与抽屉已缓存的缩略图，避免重复网络请求并降低解码开销；
+     * - 1200x1200 播放器大图：若 500 图像未能解析则回退至播放器常规大图。
      */
     fun resolvePaletteCandidates(song: Song?): List<String> {
         if (song == null) return emptyList()

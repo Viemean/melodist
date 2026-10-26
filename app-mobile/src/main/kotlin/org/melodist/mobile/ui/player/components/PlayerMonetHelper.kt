@@ -75,7 +75,7 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         sat = 0.22f
     }
 
-    // 1. 亮色背景色：低饱和浅色底（明度 0.93f，饱和度 0.12f..0.20f）
+    // 亮色背景色：低饱和浅色底（明度 0.93f，饱和度 0.12f..0.20f）
     val lightBgHsl =
         floatArrayOf(
             hue,
@@ -84,7 +84,7 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val lightBgColorInt = ColorUtils.HSLToColor(lightBgHsl)
 
-    // 2. 深色背景色：黑曜石深灰色（明度 0.075f，饱和度 0.04f..0.08f）
+    // 深色背景色：黑曜石深灰色（明度 0.075f，饱和度 0.04f..0.08f）
     val darkBgHsl =
         floatArrayOf(
             hue,
@@ -93,7 +93,7 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val darkBgColorInt = ColorUtils.HSLToColor(darkBgHsl)
 
-    // 3. 阴影基色（深沉色相匹配，消除摩尔纹与断层）：明度 0.07f
+    // 阴影基色（深沉色相匹配，消除摩尔纹与断层）：明度 0.07f
     val shadowHsl =
         floatArrayOf(
             hue,
@@ -102,7 +102,7 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val shadowTintInt = ColorUtils.HSLToColor(shadowHsl)
 
-    // 4. 按钮与进度条强调色：从封面提取鲜亮但不过曝的强调色
+    // 按钮与进度条强调色：从封面提取鲜亮但不过曝的强调色
     val accentSwatch = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: selectedSwatch
     val accentHsl = FloatArray(3)
     val accentColorInt =
@@ -121,7 +121,7 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
             ColorUtils.HSLToColor(defaultAccentHsl)
         }
 
-    // 5. 歌词高亮色：与强调色同色相，通透轻盈
+    // 歌词高亮色：与强调色同色相，通透轻盈
     val hlHsl =
         floatArrayOf(
             accentHsl[0],

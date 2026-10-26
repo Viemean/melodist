@@ -139,7 +139,7 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
 
             val result = mutableListOf<Playlist>()
 
-            // 1. 自建歌单
+            // 自建歌单
             val selfList =
                 root["self_playlists"]
                     ?.jsonObject
@@ -191,7 +191,7 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
                 }
             }
 
-            // 2. 外部收藏歌单
+            // 外部收藏歌单
             val favList =
                 root["fav_playlists"]
                     ?.jsonObject

@@ -92,7 +92,7 @@ fun SongListFloatingActions(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.End,
         ) {
-            // 1. 最上方：展开式胶囊过滤搜索条 / 过滤按钮
+            // 最上方：展开式胶囊过滤搜索条 / 过滤按钮
             if (!isMultiSelectMode || isFilterExpanded || filterQuery.isNotEmpty()) {
                 if (isFilterExpanded) {
                     Surface(
