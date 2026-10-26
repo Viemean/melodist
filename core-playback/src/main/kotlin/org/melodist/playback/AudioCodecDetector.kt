@@ -55,7 +55,15 @@ object AudioCodecDetector {
     }
 
     val isFlacSupported: Boolean
-        get() = flacSupportedOverride ?: isMimeSupported(MimeTypes.AUDIO_FLAC)
+        get() = flacSupportedOverride ?: (isMimeSupported(MimeTypes.AUDIO_FLAC) || isFlacExtensionAvailable())
+
+    private fun isFlacExtensionAvailable(): Boolean {
+        return try {
+            androidx.media3.decoder.flac.FlacLibrary.isAvailable()
+        } catch (_: Throwable) {
+            false
+        }
+    }
 
     fun getSupportedAudioMimes(): Set<String> = cachedSupportedAudioMimes
 }

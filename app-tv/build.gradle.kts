@@ -116,6 +116,10 @@ androidComponents {
     beforeVariants { builder ->
         (builder as? com.android.build.api.variant.HasUnitTestBuilder)?.enableUnitTest = true
     }
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.packaging.jniLibs.excludes.add("lib/x86/**")
+        variant.packaging.jniLibs.excludes.add("lib/x86_64/**")
+    }
 }
 
 dependencies {
