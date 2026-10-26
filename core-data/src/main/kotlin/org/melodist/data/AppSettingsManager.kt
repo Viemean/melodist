@@ -136,7 +136,7 @@ data class AppSettings(
     val preferredQualityTier: AudioQualityTier = AudioQualityTier.SQ,
     val cellularQualityTier: AudioQualityTier = AudioQualityTier.HQ,
     val enableAudioPassthrough: Boolean = false,
-    val enableUsbExclusive: Boolean = true,
+    val enableUsbExclusive: Boolean = false,
     val enableAutoMatchLyrics: Boolean = true,
     val ignoreEmbeddedLyrics: Boolean = false,
     // 播放与歌词
@@ -248,9 +248,9 @@ object AppSettingsManager {
             }
         val usbExclusive =
             if (p.contains(KEY_USB_EXCLUSIVE)) {
-                p.getBoolean(KEY_USB_EXCLUSIVE, true)
+                p.getBoolean(KEY_USB_EXCLUSIVE, false)
             } else {
-                true
+                false
             }
         val autoLyrics = p.getBoolean(KEY_AUTO_MATCH_LYRICS, true)
         val ignoreEmbedded = p.getBoolean(KEY_IGNORE_EMBEDDED_LYRICS, false)

@@ -39,13 +39,16 @@ object PlaybackEngineFactory {
                         AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES
                     }
 
+                val supportsFloatOutput = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+                val shouldEnableFloat = (isExclusive || enableFloatOutput) && supportsFloatOutput
+
                 @Suppress("DEPRECATION")
                 val builder =
                     DefaultAudioSink
                         .Builder(context)
                         .setAudioCapabilities(audioCapabilities)
                         .setAudioProcessors(emptyArray())
-                        .setEnableFloatOutput(if (isExclusive) true else enableFloatOutput)
+                        .setEnableFloatOutput(shouldEnableFloat)
                         .setEnableAudioTrackPlaybackParams(if (isExclusive) false else enableAudioTrackPlaybackParams)
                 return builder.build()
             }

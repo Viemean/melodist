@@ -65,8 +65,11 @@ fun SettingsPlaybackSection(
     var showFontSizeDialog by remember { mutableStateOf(false) }
 
     val activeUsbDevice by PlaybackManager.activeUsbDeviceName.collectAsState()
+    val isFloatOutputSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
     val usbSubtitle =
-        if (settings.enableUsbExclusive && !activeUsbDevice.isNullOrBlank()) {
+        if (!isFloatOutputSupported) {
+            "当前系统版本低于 Android 10，不受支持"
+        } else if (settings.enableUsbExclusive && !activeUsbDevice.isNullOrBlank()) {
             "已连接: $activeUsbDevice"
         } else {
             "以 32-bit 浮点处理输出，实际听感可能不会提升"
@@ -97,7 +100,8 @@ fun SettingsPlaybackSection(
                 icon = Icons.Rounded.Usb,
                 title = "32Bit浮点通道输出",
                 subtitle = usbSubtitle,
-                checked = settings.enableUsbExclusive,
+                checked = isFloatOutputSupported && settings.enableUsbExclusive,
+                enabled = isFloatOutputSupported,
                 onCheckedChange = { AppSettingsManager.setEnableUsbExclusive(it) },
             )
 

@@ -227,6 +227,26 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
             },
         )
 
+        // 32Bit 浮点通道输出
+        val isFloatOutputSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
+        val floatSubtitle =
+            if (!isFloatOutputSupported) {
+                "当前系统版本低于 Android 10，不受支持"
+            } else {
+                "以 32-bit 浮点处理输出，实际听感可能不会提升"
+            }
+
+        SettingSwitchCard(
+            title = "32Bit浮点通道输出",
+            subtitle = floatSubtitle,
+            checked = isFloatOutputSupported && settings.enableUsbExclusive,
+            enabled = isFloatOutputSupported,
+            menuRequester = menuRequester,
+            onToggle = {
+                AppSettingsManager.setEnableUsbExclusive(!settings.enableUsbExclusive)
+            },
+        )
+
         // 本地与 WebDAV 歌词文件名匹配
         SettingSwitchCard(
             title = "本地与WebDAV音乐匹配歌词",

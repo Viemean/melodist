@@ -127,6 +127,7 @@ fun SettingSwitchCard(
     title: String,
     subtitle: String = "",
     checked: Boolean,
+    enabled: Boolean = true,
     menuRequester: FocusRequester? = null,
     onToggle: () -> Unit,
 ) {
@@ -136,6 +137,7 @@ fun SettingSwitchCard(
 
     Button(
         onClick = onToggle,
+        enabled = enabled,
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -152,12 +154,14 @@ fun SettingSwitchCard(
                 focusedContainerColor = Color.White,
                 contentColor = Color.White,
                 focusedContentColor = Color.Black,
+                disabledContainerColor = surfaceColor.toMonetContainer(0.04f),
+                disabledContentColor = Color.White.copy(alpha = 0.35f),
             ),
         border =
             ButtonDefaults.border(
                 border =
                     Border(
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = if (enabled) 0.10f else 0.04f)),
                         shape = MelodistShapes.ButtonCorner,
                     ),
                 focusedBorder =
@@ -175,13 +179,17 @@ fun SettingSwitchCard(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
                 if (subtitle.isNotBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = subtitle,
                         fontSize = 12.sp,
-                        color = Color.White,
+                        color = LocalContentColor.current.copy(alpha = 0.8f),
                         lineHeight = 18.sp,
                     )
                 }
@@ -190,19 +198,15 @@ fun SettingSwitchCard(
 
             val pillBgColor =
                 when {
+                    !enabled -> Color.White.copy(alpha = 0.05f)
                     isFocused && checked -> Color(0xFF0D9488)
-
-                    // 获焦开启：翡翠青绿底
                     isFocused && !checked -> Color(0xFF2C313A)
-
-                    // 获焦关闭：深石板黑底
                     !isFocused && checked -> MelodistColors.AccentGreen
-
-                    // 未获焦开启：明绿底
-                    else -> Color.White.copy(alpha = 0.12f) // 未获焦关闭：暗底
+                    else -> Color.White.copy(alpha = 0.12f)
                 }
             val pillTextColor =
                 when {
+                    !enabled -> Color.White.copy(alpha = 0.35f)
                     isFocused && checked -> Color.White
                     isFocused && !checked -> Color.White
                     !isFocused && checked -> Color.Black
@@ -210,6 +214,7 @@ fun SettingSwitchCard(
                 }
             val pillBorder =
                 when {
+                    !enabled -> BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
                     isFocused && checked -> BorderStroke(1.dp, Color(0xFF0F766E))
                     isFocused && !checked -> BorderStroke(1.dp, Color(0xFF1F2937))
                     !isFocused && checked -> BorderStroke(1.dp, MelodistColors.AccentGreen)
@@ -226,7 +231,14 @@ fun SettingSwitchCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (checked) "开启" else "关闭",
+                    text =
+                        if (!enabled) {
+                            "不可用"
+                        } else if (checked) {
+                            "开启"
+                        } else {
+                            "关闭"
+                        },
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = pillTextColor,
