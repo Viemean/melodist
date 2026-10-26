@@ -31,6 +31,7 @@ object PlaybackPlayerBinder {
         onLocalFilePostAction: () -> Unit,
         onFailure: (message: String, allowRetry: Boolean) -> Unit,
     ) {
+        val effectiveVolume = if (isMuted) 0f else targetVolume
         when (target) {
             is PlaybackTargetResult.LocalFile -> {
                 if (seekToMs > 0L) {
@@ -38,6 +39,7 @@ object PlaybackPlayerBinder {
                 } else {
                     player.setMediaItem(target.mediaItem)
                 }
+                player.volume = effectiveVolume
                 player.prepare()
                 player.play()
                 onPlaybackStarted(target.actualTier, true, 1f)
@@ -50,6 +52,7 @@ object PlaybackPlayerBinder {
                 } else {
                     player.setMediaSource(target.mediaSource)
                 }
+                player.volume = effectiveVolume
                 player.prepare()
                 player.play()
                 onPlaybackStarted(target.actualTier, false, 0f)
@@ -61,6 +64,7 @@ object PlaybackPlayerBinder {
                 } else {
                     player.setMediaItem(target.mediaItem)
                 }
+                player.volume = effectiveVolume
                 player.prepare()
                 player.play()
                 onPlaybackStarted(target.actualTier, true, 1f)
@@ -73,6 +77,7 @@ object PlaybackPlayerBinder {
                 } else {
                     player.setMediaSource(target.mediaSource)
                 }
+                player.volume = effectiveVolume
                 player.prepare()
                 player.play()
                 onPlaybackStarted(target.actualTier, false, 0f)
@@ -85,7 +90,7 @@ object PlaybackPlayerBinder {
                 } else {
                     player.setMediaSource(target.mediaSource)
                 }
-                player.volume = if (isMuted) 0f else targetVolume
+                player.volume = effectiveVolume
                 player.prepare()
                 player.play()
                 onPlaybackStarted(target.actualTier, target.isDirectCached, target.fileCacheFraction)

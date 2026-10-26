@@ -108,8 +108,8 @@ object PlaybackEngineFactory {
                 .setBufferDurationsMs(
                     profile.minBufferMs,
                     profile.maxBufferMs,
-                    2_000,
-                    4_000,
+                    500,
+                    1_000,
                 ).setPrioritizeTimeOverSizeThresholds(true)
                 .build()
 

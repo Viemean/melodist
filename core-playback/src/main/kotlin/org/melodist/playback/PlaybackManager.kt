@@ -1144,6 +1144,11 @@ object PlaybackManager {
             audioTrackRetryCount = 0
             preloadCoordinator.onSongChanged(song.songMid)
         }
+        if (playJob?.isActive == true && exoPlayer?.isPlaying == true) {
+            exoPlayer?.volume = 0f
+            exoPlayer?.stop()
+            exoPlayer?.clearMediaItems()
+        }
         playJob?.cancel()
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
@@ -1181,7 +1186,8 @@ object PlaybackManager {
         prefetchAdjacentCoversAndMetadata()
 
         if (playbackInterceptor?.onInterceptPlaySong(effectiveSong, forceTier, seekToMs) == true) {
-            exoPlayer?.pause()
+            exoPlayer?.stop()
+            exoPlayer?.clearMediaItems()
             _currentSong.value = effectiveSong
             _currentPositionMs.value = seekToMs
             _bufferedPositionMs.value = seekToMs
@@ -1195,7 +1201,6 @@ object PlaybackManager {
             return
         }
 
-        exoPlayer?.pause()
         _currentSong.value = effectiveSong
         playbackEventListeners.forEach { it.onSongPlay(effectiveSong) }
         _currentPositionMs.value = seekToMs
@@ -1279,17 +1284,31 @@ object PlaybackManager {
                 val isForceTrial = policyCoordinator.isForceTrial(song)
                 val bypassPrefetch = policyCoordinator.shouldBypassPrefetch(song)
 
-                val target =
-                    PlaybackMediaLoader.resolveTarget(
-                        context = ctx,
-                        song = song,
-                        targetTier = resolvedTargetTier,
-                        apiService = apiService,
-                        isSongFavorite = { isSongFavorite(it) },
-                        metadataBuilder = { buildMediaMetadata(it) },
-                        prefetchedUrlInfo = if (forceTier == null && !bypassPrefetch) preloadCoordinator.prefetchedUrlInfo else null,
-                        forceTrial = isForceTrial,
-                    )
+                val resolveTargetDeferred =
+                    async(Dispatchers.IO) {
+                        PlaybackMediaLoader.resolveTarget(
+                            context = ctx,
+                            song = song,
+                            targetTier = resolvedTargetTier,
+                            apiService = apiService,
+                            isSongFavorite = { isSongFavorite(it) },
+                            metadataBuilder = { buildMediaMetadata(it) },
+                            prefetchedUrlInfo = if (forceTier == null && !bypassPrefetch) preloadCoordinator.prefetchedUrlInfo else null,
+                            forceTrial = isForceTrial,
+                        )
+                    }
+
+                if (player.isPlaying && player.volume > 0f) {
+                    val initialVol = player.volume
+                    player.volume = initialVol * 0.4f
+                    delay(12L)
+                    player.volume = 0f
+                    delay(8L)
+                }
+                player.stop()
+                player.clearMediaItems()
+
+                val target = resolveTargetDeferred.await()
 
                 PlaybackPlayerBinder.bindAndPlay(
                     player = player,
@@ -1387,6 +1406,7 @@ object PlaybackManager {
      */
     fun play() {
         if (playbackInterceptor?.onInterceptResume() == true) return
+        if (_isLoading.value) return
         val currSong = _currentSong.value
         if (currSong != null && ListenTogetherManager.isInRoom && isLocalOrWebDavSong(currSong)) {
             notifyUser("请退出一起听后再播放哦")
@@ -1399,6 +1419,7 @@ object PlaybackManager {
             } else if (player.currentMediaItem == null && currSong != null) {
                 playSong(currSong, seekToMs = _currentPositionMs.value)
             } else {
+                player.volume = if (_isMuted.value) 0f else targetVolume
                 player.play()
                 appContext?.let { startPlaybackService(it) }
             }
@@ -1438,6 +1459,10 @@ object PlaybackManager {
             return
         }
         lastCustomStreamArgs = Triple(song, streamUrl, headers)
+        stopSilentKeepAlive()
+        exoPlayer?.repeatMode = Player.REPEAT_MODE_OFF
+        exoPlayer?.stop()
+        exoPlayer?.clearMediaItems()
         MelodistCacheManager.onNewSongStarted(song.songMid)
         if (_currentSong.value?.songMid != song.songMid) {
             currentSongRetryCount = 0

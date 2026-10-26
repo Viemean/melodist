@@ -67,7 +67,18 @@ class MelodistForwardingPlayer(
                 Timeline.EMPTY
             }
         } else {
-            super.getCurrentTimeline()
+            val superTimeline = super.getCurrentTimeline()
+            if (superTimeline.isEmpty) {
+                val item = currentMediaItem
+                if (item != null) {
+                    val durationUs = (PlaybackManager.durationMs.value.coerceAtLeast(0L)) * 1000L
+                    SinglePeriodTimeline(durationUs, true, false, false, null, item)
+                } else {
+                    Timeline.EMPTY
+                }
+            } else {
+                superTimeline
+            }
         }
 
     override fun getCurrentPeriodIndex(): Int = if (isRemoteVirtual) 0 else super.getCurrentPeriodIndex()
@@ -105,7 +116,7 @@ class MelodistForwardingPlayer(
                 .buildUpon()
                 .setMediaMetadata(PlaybackManager.buildMediaMetadata(currentSong, PlaybackManager.remoteDeviceName.value))
                 .build()
-        } else if (isRemoteVirtual && currentSong != null) {
+        } else if (currentSong != null) {
             PlaybackManager.buildMediaItemForSong(currentSong, PlaybackManager.remoteDeviceName.value)
         } else {
             current
@@ -198,6 +209,9 @@ class MelodistForwardingPlayer(
         }
 
     override fun play() {
+        if (PlaybackManager.isLoading.value) {
+            return
+        }
         if (isRemoteVirtual || (super.getCurrentMediaItem() == null && PlaybackManager.currentSong.value != null)) {
             PlaybackManager.togglePlayPause()
         } else {
