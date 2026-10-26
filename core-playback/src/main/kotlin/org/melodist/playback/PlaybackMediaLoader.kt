@@ -142,10 +142,15 @@ object PlaybackMediaLoader {
                 )
             }
 
-            val isLocalStream =
-                (song.isLocal || song.songMid.startsWith("local_") || song.songMid.startsWith("pc_local_") || song.mediaMid.contains("/stream/local")) &&
+            val isProxyStream =
+                (song.isLocal || song.isWebDav || song.songMid.startsWith("local_") || song.songMid.startsWith("pc_local_") || song.songMid.startsWith("webdav_") || song.mediaMid.contains("/stream/")) &&
                     (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://"))
-            if (isLocalStream) {
+            if (isProxyStream) {
+                if ((song.mediaMid.endsWith(".flac", ignoreCase = true) || song.name.endsWith(".flac", ignoreCase = true)) &&
+                    !AudioCodecDetector.isFlacSupported
+                ) {
+                    return@withContext PlaybackTargetResult.Failure("当前设备缺少 FLAC 解码器，无法播放此流音频", allowRetry = false)
+                }
                 val baseHttpFactory =
                     DefaultHttpDataSource
                         .Factory()

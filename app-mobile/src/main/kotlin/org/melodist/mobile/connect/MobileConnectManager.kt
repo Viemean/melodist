@@ -1103,6 +1103,7 @@ object MobileConnectManager {
             updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
         }
         val isTrueLocal = updated.isLocal || updated.songMid.startsWith("local_")
+        val isWebDavSong = updated.isWebDav || updated.songMid.startsWith("webdav_")
         if (isTrueLocal) {
             if (updated.mediaMid.startsWith("http://") || updated.mediaMid.startsWith("https://")) {
                 return updated
@@ -1121,7 +1122,16 @@ object MobileConnectManager {
                         mediaMid = streamUrl,
                     )
             }
-        } else if (!updated.isWebDav) {
+        } else if (isWebDavSong) {
+            if (!updated.mediaMid.startsWith("http://") && !updated.mediaMid.startsWith("https://")) {
+                val serverId = updated.songMid.removePrefix("webdav_").substringBeforeLast('_')
+                val href = updated.mediaMid.ifBlank { updated.localFilePath.orEmpty() }
+                if (serverId.isNotBlank() && href.isNotBlank()) {
+                    val streamUrl = server.buildWebDavStreamUrl(serverId, href)
+                    updated = updated.copy(mediaMid = streamUrl)
+                }
+            }
+        } else {
             if (updated.localFilePath != null) {
                 updated = updated.copy(localFilePath = null)
             }
