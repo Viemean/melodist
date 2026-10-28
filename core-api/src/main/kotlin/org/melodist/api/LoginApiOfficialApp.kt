@@ -299,7 +299,22 @@ internal suspend fun LoginApiService.refreshOfficialAppTokenImpl(
 suspend fun LoginApiService.refreshPlaybackCredentialsImpl(creds: PlaybackCredentials): PlaybackCredentials? =
     withContext(Dispatchers.IO) {
         val cookies = creds.cookies
-        val isWeChat = cookies["tmeLoginType"] == "1"
+        val musicId = creds.uin.ifBlank { cookies["musicid"] ?: cookies["uin"] ?: "" }
+        val currentMusicKey = creds.musicKey.ifBlank { cookies["musickey"] ?: cookies["qm_keyst"] ?: "" }
+        val isWeChat = cookies["tmeLoginType"] == "1" || currentMusicKey.startsWith("W_X_")
+
+        if (!isWeChat && creds.allowRefresh && musicId.isNotBlank() && currentMusicKey.isNotBlank()) {
+            val refreshed = refreshByExistingMusicPlaybackCredentials(creds, musicId, currentMusicKey)
+            if (refreshed != null) return@withContext refreshed
+        }
+
+        // 若具备官方 App 扫码续签票据 (refresh_token)
+        val refreshToken = cookies["refresh_token"]
+        if (!refreshToken.isNullOrEmpty() && musicId.isNotBlank()) {
+            val refreshed = refreshOfficialPlaybackCredentials(creds, musicId, refreshToken)
+            if (refreshed != null) return@withContext refreshed
+        }
+
         val openid = cookies["psrf_qqopenid"] ?: if (!isWeChat) cookies["openid"] else null
         val accessToken = cookies["psrf_qqaccess_token"] ?: if (!isWeChat) cookies["access_token"] else null
 
@@ -309,13 +324,6 @@ suspend fun LoginApiService.refreshPlaybackCredentialsImpl(creds: PlaybackCreden
             if (refreshed != null) return@withContext refreshed
         }
 
-        // 若具备官方 App 扫码续签票据 (refresh_token)
-        val refreshToken = cookies["refresh_token"]
-        val musicId = creds.uin.ifBlank { cookies["musicid"] ?: cookies["uin"] ?: "" }
-        if (!refreshToken.isNullOrEmpty() && musicId.isNotBlank()) {
-            val refreshed = refreshOfficialPlaybackCredentials(creds, musicId, refreshToken)
-            if (refreshed != null) return@withContext refreshed
-        }
         null
     }
 

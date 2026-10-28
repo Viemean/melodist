@@ -512,3 +512,162 @@ internal suspend fun LoginApiService.refreshQQPlaybackCredentials(
             null
         }
     }
+
+/**
+ * 使用当前已有的 musickey 与 uin 申请 90 天凭据续期。
+ *
+ * @param musicId 用户识别标识（musicid 或 uin）
+ * @param musicKey 当前生效的旧 musickey
+ * @return 刷新并更新成功返回 `true`；失败返回 `false`
+ */
+internal suspend fun LoginApiService.refreshByExistingMusicKeyImpl(
+    musicId: String,
+    musicKey: String,
+): Boolean =
+    withContext(Dispatchers.IO) {
+        try {
+            val cleanUin = musicId.trimStart('o')
+            val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+            val payload =
+                """{"comm":{"ct":11,"cv":14090008,"v":14090008,"platform":"android"},"login":{"module":"QQConnectLogin.LoginServer","method":"QQLogin","param":{"musicid":"$cleanUin","musickey":"$musicKey","expired_in":7776000}}}"""
+
+            val requestBuilder =
+                Request
+                    .Builder()
+                    .url(url)
+                    .post(payload.toRequestBody(LoginApiService.JSON_TYPE))
+                    .header("User-Agent", "QQMusic 14090008(android 14)")
+
+            val cookieHeader = UserSession.getCookieHeader()
+            if (cookieHeader.isNotBlank()) {
+                requestBuilder.header("Cookie", cookieHeader)
+            }
+
+            client.newCall(requestBuilder.build()).execute().use { resp ->
+                if (!resp.isSuccessful) return@withContext false
+                val json = resp.body.string()
+                val jsonElement = Json.parseToJsonElement(json).jsonObject
+                val loginObj = jsonElement["login"]?.jsonObject ?: return@withContext false
+                val code = loginObj["code"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: -1
+                if (code != 0) return@withContext false
+                val loginData = loginObj["data"]?.jsonObject ?: return@withContext false
+
+                val newMusicKey = loginData["musickey"]?.jsonPrimitive?.contentOrNull ?: ""
+                if (newMusicKey.isEmpty()) return@withContext false
+
+                val returnedMusicId =
+                    loginData["str_musicid"]?.jsonPrimitive?.contentOrNull
+                        ?: loginData["musicid"]?.jsonPrimitive?.contentOrNull
+                        ?: musicId
+                val newOpenid = loginData["openid"]?.jsonPrimitive?.contentOrNull
+                val newAccessToken = loginData["access_token"]?.jsonPrimitive?.contentOrNull
+                val unionid = loginData["unionid"]?.jsonPrimitive?.contentOrNull
+
+                val cookies = UserSession.profile.cookies.toMutableMap()
+                if (returnedMusicId.isNotEmpty()) {
+                    cookies["musicid"] = returnedMusicId
+                    cookies["uin"] = returnedMusicId
+                    cookies["qqmusic_uin"] = returnedMusicId
+                }
+                cookies["qqmusic_key"] = newMusicKey
+                cookies["qm_keyst"] = newMusicKey
+                cookies["musickey"] = newMusicKey
+                cookies["qqmusic_version"] = "17"
+                cookies["qqmusic_miniversion"] = "70"
+                cookies["tmeLoginType"] = "2"
+                if (!newOpenid.isNullOrEmpty()) cookies["psrf_qqopenid"] = newOpenid
+                if (!newAccessToken.isNullOrEmpty()) cookies["psrf_qqaccess_token"] = newAccessToken
+                if (!unionid.isNullOrEmpty()) cookies["psrf_qqunionid"] = unionid
+
+                UserSession.update(
+                    uin = returnedMusicId.ifEmpty { UserSession.profile.uin },
+                    nick = UserSession.profile.nick,
+                    musicKey = newMusicKey,
+                    cookies = cookies,
+                    avatarUrl = UserSession.profile.avatarUrl,
+                    isVip = UserSession.profile.isVip,
+                )
+                true
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.w("LoginApiService", "refreshByExistingMusicKey exception", e)
+            false
+        }
+    }
+
+/**
+ * 为独立的 PlaybackCredentials 凭据使用当前已有的 musickey 与 uin 申请 90 天凭据续期。
+ *
+ * @param creds 待续签的播放凭据
+ * @param musicId 用户识别标识（musicid 或 uin）
+ * @param musicKey 当前生效的旧 musickey
+ * @return 续签成功后的新凭据，失败时返回 null
+ */
+internal suspend fun LoginApiService.refreshByExistingMusicPlaybackCredentials(
+    creds: PlaybackCredentials,
+    musicId: String,
+    musicKey: String,
+): PlaybackCredentials? =
+    withContext(Dispatchers.IO) {
+        try {
+            val cleanUin = musicId.trimStart('o')
+            val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+            val payload =
+                """{"comm":{"ct":11,"cv":14090008,"v":14090008,"platform":"android"},"login":{"module":"QQConnectLogin.LoginServer","method":"QQLogin","param":{"musicid":"$cleanUin","musickey":"$musicKey","expired_in":7776000}}}"""
+
+            val requestBuilder =
+                Request
+                    .Builder()
+                    .url(url)
+                    .post(payload.toRequestBody(LoginApiService.JSON_TYPE))
+                    .header("User-Agent", "QQMusic 14090008(android 14)")
+
+            val cookieHeader = creds.cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+            if (cookieHeader.isNotBlank()) {
+                requestBuilder.header("Cookie", cookieHeader)
+            }
+
+            client.newCall(requestBuilder.build()).execute().use { resp ->
+                if (!resp.isSuccessful) return@withContext null
+                val json = resp.body.string()
+                val jsonElement = Json.parseToJsonElement(json).jsonObject
+                val loginObj = jsonElement["login"]?.jsonObject ?: return@withContext null
+                val code = loginObj["code"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: -1
+                if (code != 0) return@withContext null
+                val loginData = loginObj["data"]?.jsonObject ?: return@withContext null
+
+                val newMusicKey = loginData["musickey"]?.jsonPrimitive?.contentOrNull ?: return@withContext null
+                if (newMusicKey.isEmpty()) return@withContext null
+
+                val returnedMusicId =
+                    loginData["str_musicid"]?.jsonPrimitive?.contentOrNull
+                        ?: loginData["musicid"]?.jsonPrimitive?.contentOrNull
+                        ?: creds.uin
+
+                val updatedCookies = creds.cookies.toMutableMap()
+                if (returnedMusicId.isNotBlank()) {
+                    updatedCookies["musicid"] = returnedMusicId
+                    updatedCookies["uin"] = returnedMusicId
+                    updatedCookies["qqmusic_uin"] = returnedMusicId
+                }
+                updatedCookies["musickey"] = newMusicKey
+                updatedCookies["qm_keyst"] = newMusicKey
+                updatedCookies["qqmusic_key"] = newMusicKey
+                loginData["openid"]?.jsonPrimitive?.contentOrNull?.let { updatedCookies["psrf_qqopenid"] = it }
+                loginData["access_token"]?.jsonPrimitive?.contentOrNull?.let { updatedCookies["psrf_qqaccess_token"] = it }
+
+                creds.copy(
+                    uin = returnedMusicId.ifBlank { creds.uin },
+                    musicKey = newMusicKey,
+                    cookies = updatedCookies.toMap(),
+                    updateTime = System.currentTimeMillis(),
+                    isRevoked = false,
+                )
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            ApiLogger.w("LoginApiService", "refreshByExistingMusicPlaybackCredentials exception", e)
+            null
+        }
+    }

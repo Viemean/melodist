@@ -112,6 +112,19 @@ class PlaybackCredentialsManagerTest {
         assertTrue(importedQq.cookies.containsKey("psrf_qqopenid"))
         assertTrue(importedQq.cookies.containsKey("psrf_qqaccess_token"))
         assertTrue(PlaybackCredentialsManager.canRefreshCredentials(importedQq))
+
+        val pureKeyProfile =
+            UserProfile(
+                uin = "345678901",
+                nick = "纯Key用户",
+                musicKey = "PURE_MUSIC_KEY",
+                isVip = true,
+                cookies = mapOf("qm_keyst" to "PURE_MUSIC_KEY"),
+            )
+        val pureTokenWithRefresh = PlaybackCredentialsManager.exportToken(pureKeyProfile, allowRefresh = true)
+        val importedPure = PlaybackCredentialsManager.importToken(pureTokenWithRefresh)
+        assertTrue(importedPure.allowRefresh)
+        assertTrue(PlaybackCredentialsManager.canRefreshCredentials(importedPure))
     }
 
     @Test

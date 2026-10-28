@@ -44,6 +44,11 @@ class LoginApiService(
 
     suspend fun exchangeOAuthForMusicKey(cookies: MutableMap<String, String>): Boolean = exchangeOAuthForMusicKeyImpl(cookies)
 
+    suspend fun refreshByExistingMusicKey(
+        musicId: String,
+        musicKey: String,
+    ): Boolean = refreshByExistingMusicKeyImpl(musicId, musicKey)
+
     suspend fun refreshQQLoginToken(
         openid: String,
         accessToken: String,
@@ -102,29 +107,38 @@ class LoginApiService(
                     }
                 }
                 val cookies = UserSession.profile.cookies.toMutableMap()
-                val openid = cookies["psrf_qqopenid"]
-                val accessToken = cookies["psrf_qqaccess_token"]
-                if (!openid.isNullOrEmpty() && !accessToken.isNullOrEmpty()) {
-                    val refreshed = refreshQQLoginToken(openid, accessToken)
+                val currentKey = UserSession.profile.musicKey.ifBlank { cookies["qm_keyst"] ?: cookies["musickey"] ?: "" }
+                val currentUin = UserSession.profile.uin.ifBlank { cookies["musicid"] ?: cookies["uin"] ?: "" }
+                val isWeChat = cookies["tmeLoginType"] == "1" || currentKey.startsWith("W_X_")
+
+                if (!isWeChat && currentKey.isNotEmpty() && currentUin.isNotEmpty()) {
+                    val refreshed = refreshByExistingMusicKey(currentUin, currentKey)
                     if (refreshed) return@withLock true
                 }
 
                 val refreshToken = cookies["refresh_token"]
-                val musicId = cookies["musicid"] ?: cookies["uin"] ?: UserSession.profile.uin
-                if (!refreshToken.isNullOrEmpty() && musicId.isNotEmpty()) {
+                if (!refreshToken.isNullOrEmpty() && currentUin.isNotEmpty()) {
                     val refreshKey = cookies["refresh_key"].orEmpty()
-                    val musicKey = cookies["musickey"] ?: cookies["qm_keyst"] ?: UserSession.profile.musicKey
                     val rawLoginType = cookies["tmeLoginType"]?.toIntOrNull() ?: UserSession.loginType
+                    val openid = cookies["psrf_qqopenid"].orEmpty()
+                    val accessToken = cookies["psrf_qqaccess_token"].orEmpty()
                     val refreshed =
                         refreshOfficialAppToken(
-                            musicId = musicId,
+                            musicId = currentUin,
                             refreshToken = refreshToken,
                             refreshKey = refreshKey,
-                            musicKey = musicKey,
+                            musicKey = currentKey,
                             loginType = rawLoginType,
-                            openid = openid.orEmpty(),
-                            accessToken = accessToken.orEmpty(),
+                            openid = openid,
+                            accessToken = accessToken,
                         )
+                    if (refreshed) return@withLock true
+                }
+
+                val openid = cookies["psrf_qqopenid"]
+                val accessToken = cookies["psrf_qqaccess_token"]
+                if (!openid.isNullOrEmpty() && !accessToken.isNullOrEmpty()) {
+                    val refreshed = refreshQQLoginToken(openid, accessToken)
                     if (refreshed) return@withLock true
                 }
 
