@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +42,6 @@ import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Tv
@@ -133,6 +133,17 @@ fun SongActionSheet(
     val isTvConnected = connectState is MobileConnectionState.Paired
     val pairedDevice = (connectState as? MobileConnectionState.Paired)?.targetDevice
     var showTvMenu by remember { mutableStateOf(false) }
+
+    val dlnaCastingDevice by org.melodist.mobile.connect.dlna.DlnaCastManager.castingDevice.collectAsState()
+    val dlnaDevices by org.melodist.mobile.connect.dlna.DlnaCastManager.discoveredDevices.collectAsState()
+    val isDlnaScanning by org.melodist.mobile.connect.dlna.DlnaCastManager.isScanning.collectAsState()
+    val isCastActive = (isTvConnected && pairedDevice != null) || dlnaCastingDevice != null
+
+    LaunchedEffect(showTvMenu) {
+        if (showTvMenu) {
+            org.melodist.mobile.connect.dlna.DlnaCastManager.startScan()
+        }
+    }
 
     val localFilePath =
         remember(song) {
@@ -347,7 +358,7 @@ fun SongActionSheet(
             val hasQuickActions =
                 onViewCover != null ||
                     (showFavorite && !isWebDavOrLocal) ||
-                    (showTvCast && isTvConnected && pairedDevice != null) ||
+                    showTvCast ||
                     showNextPlay ||
                     (!song.isLocal && !song.isWebDav)
 
@@ -383,13 +394,18 @@ fun SongActionSheet(
                         )
                     }
 
-                    if (showTvCast && isTvConnected && pairedDevice != null) {
+                    if (showTvCast) {
                         Box(modifier = Modifier.weight(1f)) {
                             QuickActionButton(
                                 icon = Icons.Rounded.Tv,
-                                title = "投至电视",
-                                tint = MaterialTheme.colorScheme.primary,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                title = "投屏",
+                                tint = if (isCastActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                containerColor =
+                                    if (isCastActive) {
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    },
                                 modifier = Modifier.fillMaxWidth(),
                                 onClick = {
                                     showTvMenu = true
@@ -400,76 +416,166 @@ fun SongActionSheet(
                                 expanded = showTvMenu,
                                 onDismissRequest = { showTvMenu = false },
                             ) {
-                                Text(
-                                    text = pairedDevice.name,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                )
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                DropdownMenuItem(
-                                    text = { Text("立即在电视播放") },
-                                    leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
-                                    onClick = {
-                                        showTvMenu = false
-                                        MobileConnectManager.playOnTv(song, queue = playlistContext)
-                                        Toast.makeText(context, "已发送至 TV 播放", Toast.LENGTH_SHORT).show()
-                                        onDismissRequest()
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("稍后在电视播放") },
-                                    leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
-                                    onClick = {
-                                        showTvMenu = false
-                                        MobileConnectManager.enqueueNextOnTv(song)
-                                        Toast.makeText(context, "已插播至 TV 队列", Toast.LENGTH_SHORT).show()
-                                        onDismissRequest()
-                                    },
-                                )
-                                val currentPlaying = PlaybackManager.currentSong.collectAsState().value
-                                if (isFromPlayer || song.songMid == currentPlaying?.songMid) {
-                                    val isTakeover =
-                                        MobileConnectManager.remoteControlMode.collectAsState().value ==
-                                            org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
+                                val hasTvConnect = isTvConnected && pairedDevice != null
+                                if (hasTvConnect) {
+                                    val tvModelName =
+                                        if (pairedDevice.name.contains("(") && pairedDevice.name.contains(")")) {
+                                            pairedDevice.name.substringAfter("(").substringBeforeLast(")")
+                                        } else {
+                                            pairedDevice.name.removePrefix("Melodist TV").trim().ifBlank { pairedDevice.name }
+                                        }
+                                    Text(
+                                        text = tvModelName,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                     DropdownMenuItem(
-                                        text = { Text(if (isTakeover) "接管模式" else "进度接力") },
-                                        leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
+                                        text = { Text("立即在电视播放") },
+                                        leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
                                         onClick = {
                                             showTvMenu = false
-                                            if (isTakeover) {
-                                                Toast.makeText(
-                                                    context,
-                                                    "当前处于全面接管模式，播放直通 TV",
-                                                    Toast.LENGTH_SHORT,
-                                                ).show()
-                                            } else {
-                                                MobileConnectManager.relayCurrentPlaybackToTv()
-                                                Toast.makeText(
-                                                    context,
-                                                    "已接力至 TV 播放",
-                                                    Toast.LENGTH_SHORT,
-                                                ).show()
-                                            }
+                                            MobileConnectManager.playOnTv(song, queue = playlistContext)
+                                            Toast.makeText(context, "已发送至 TV 播放", Toast.LENGTH_SHORT).show()
                                             onDismissRequest()
                                         },
                                     )
-                                }
-                                DropdownMenuItem(
-                                    text = { Text("断开连接", color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Rounded.LinkOff,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error,
+                                    DropdownMenuItem(
+                                        text = { Text("稍后在电视播放") },
+                                        leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
+                                        onClick = {
+                                            showTvMenu = false
+                                            MobileConnectManager.enqueueNextOnTv(song)
+                                            Toast.makeText(context, "已插播至 TV 队列", Toast.LENGTH_SHORT).show()
+                                            onDismissRequest()
+                                        },
+                                    )
+                                    val currentPlaying = PlaybackManager.currentSong.collectAsState().value
+                                    if (isFromPlayer || song.songMid == currentPlaying?.songMid) {
+                                        val isTakeover =
+                                            MobileConnectManager.remoteControlMode.collectAsState().value ==
+                                                org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
+                                        DropdownMenuItem(
+                                            text = { Text(if (isTakeover) "接管模式" else "进度接力") },
+                                            leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
+                                            onClick = {
+                                                showTvMenu = false
+                                                if (isTakeover) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "当前处于全面接管模式，播放直通 TV",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                } else {
+                                                    MobileConnectManager.relayCurrentPlaybackToTv()
+                                                    Toast.makeText(
+                                                        context,
+                                                        "已接力至 TV 播放",
+                                                        Toast.LENGTH_SHORT,
+                                                    ).show()
+                                                }
+                                                onDismissRequest()
+                                            },
                                         )
-                                    },
-                                    onClick = {
-                                        showTvMenu = false
-                                        MobileConnectManager.disconnect()
-                                        Toast.makeText(context, "已断开与 TV 的连接", Toast.LENGTH_SHORT).show()
-                                    },
-                                )
+                                    }
+                                    if (dlnaDevices.isNotEmpty()) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    }
+                                }
+
+                                if (dlnaDevices.isNotEmpty()) {
+                                    Text(
+                                        text = "DLNA 设备",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    dlnaDevices.forEach { dev ->
+                                        val isThisDevCasting = dlnaCastingDevice?.controlUrl == dev.controlUrl
+                                        DropdownMenuItem(
+                                            text = {
+                                                Column {
+                                                    Text(
+                                                        text = dev.name,
+                                                        color = if (isThisDevCasting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                        fontWeight = if (isThisDevCasting) FontWeight.SemiBold else FontWeight.Normal,
+                                                    )
+                                                    if (isThisDevCasting) {
+                                                        Text(
+                                                            text = "投屏中",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = if (isThisDevCasting) Icons.Rounded.CastConnected else Icons.Rounded.Tv,
+                                                    contentDescription = null,
+                                                    tint = if (isThisDevCasting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                if (isThisDevCasting) {
+                                                    Surface(
+                                                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        onClick = {
+                                                            coroutineScope.launch {
+                                                                org.melodist.mobile.connect.dlna.DlnaCastManager.disconnect()
+                                                                Toast.makeText(context, "已断开投屏", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                            showTvMenu = false
+                                                        },
+                                                    ) {
+                                                        Text(
+                                                            text = "断开",
+                                                            color = MaterialTheme.colorScheme.error,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    showTvMenu = false
+                                                    Toast.makeText(context, "正在投至 ${dev.name}...", Toast.LENGTH_SHORT).show()
+                                                    val ok = org.melodist.mobile.connect.dlna.DlnaCastManager.cast(context, song, dev)
+                                                    if (ok) {
+                                                        Toast.makeText(context, "已投至 ${dev.name} 播放", Toast.LENGTH_SHORT).show()
+                                                        onDismissRequest()
+                                                    } else {
+                                                        Toast.makeText(context, "投屏失败，请检查电视投屏设置", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                        )
+                                    }
+                                } else if (!hasTvConnect) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = if (isDlnaScanning) "正在搜索投屏设备..." else "未发现可用电视设备",
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Tv,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        },
+                                        onClick = {
+                                            org.melodist.mobile.connect.dlna.DlnaCastManager.startScan()
+                                        },
+                                    )
+                                }
                             }
                         }
                     }

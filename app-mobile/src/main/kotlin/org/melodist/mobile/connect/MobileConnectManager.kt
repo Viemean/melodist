@@ -50,6 +50,8 @@ object MobileConnectManager {
     private val apiService = MusicApiService()
     private var nsdHelper: ConnectNsdHelper? = null
     private var streamServer: LocalAudioStreamServer? = null
+    val audioStreamServer: LocalAudioStreamServer?
+        get() = streamServer
     private var userManuallyDisconnected = false
     private var autoConnectJob: Job? = null
     private var isSyncingFromTv = false
