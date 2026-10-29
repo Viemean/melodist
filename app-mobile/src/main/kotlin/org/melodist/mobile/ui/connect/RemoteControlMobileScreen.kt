@@ -139,9 +139,7 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
             discoveredDevices = discoveredDevices,
             pairedDevices = pairedDevices,
             connectionState = connectionState,
-            onRequestScanQr = { showQrScanner = true },
             onRequestRefresh = { MobileConnectManager.startDiscovery() },
-            onRequestManualInput = { showManualInputDialog = true },
             onSelectDeviceToConnect = { device ->
                 selectedDeviceForPin = device
             },

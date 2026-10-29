@@ -15,9 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.FilledTonalButton
@@ -43,9 +41,7 @@ fun LazyListScope.remoteDeviceListSection(
     discoveredDevices: List<ConnectDevice>,
     pairedDevices: List<ConnectDevice>,
     connectionState: MobileConnectionState,
-    onRequestScanQr: () -> Unit,
     onRequestRefresh: () -> Unit,
-    onRequestManualInput: () -> Unit,
     onSelectDeviceToConnect: (ConnectDevice) -> Unit,
     onConnectToPairedDevice: (ConnectDevice) -> Unit,
     onRemovePairedDevice: (deviceId: String) -> Unit,
@@ -63,34 +59,13 @@ fun LazyListScope.remoteDeviceListSection(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            TextButton(
+                onClick = onRequestRefresh,
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
             ) {
-                TextButton(
-                    onClick = onRequestScanQr,
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                ) {
-                    Icon(Icons.Rounded.QrCodeScanner, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text("扫码", fontSize = 12.sp, maxLines = 1, softWrap = false)
-                }
-                TextButton(
-                    onClick = onRequestRefresh,
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                ) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text("刷新", fontSize = 12.sp, maxLines = 1, softWrap = false)
-                }
-                TextButton(
-                    onClick = onRequestManualInput,
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                ) {
-                    Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text("手动", fontSize = 12.sp, maxLines = 1, softWrap = false)
-                }
+                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
+                Spacer(modifier = Modifier.width(2.dp))
+                Text("刷新", fontSize = 12.sp, maxLines = 1, softWrap = false)
             }
         }
     }

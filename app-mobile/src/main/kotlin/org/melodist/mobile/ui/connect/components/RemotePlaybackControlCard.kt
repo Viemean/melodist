@@ -165,17 +165,6 @@ fun RemotePlaybackControlCard(
                                 modifier = Modifier.size(18.dp),
                             )
                         }
-                    } else {
-                        FilledTonalButton(
-                            onClick = onRequestScanQr,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(30.dp),
-                        ) {
-                            Icon(Icons.Rounded.QrCodeScanner, contentDescription = null, modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("扫码", fontSize = 11.sp)
-                        }
                     }
                 }
             }
