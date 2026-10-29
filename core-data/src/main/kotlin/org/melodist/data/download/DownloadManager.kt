@@ -605,10 +605,7 @@ object DownloadManager {
      * 暂停正在执行或排队中的下载任务。
      */
     fun pauseDownload(taskId: String) {
-        try {
-            activeCalls[taskId]?.cancel()
-        } catch (_: Exception) {
-        }
+        activeCalls[taskId]?.cancel()
         activeCalls.remove(taskId)
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
@@ -633,10 +630,7 @@ object DownloadManager {
      * 取消下载任务并从活跃任务列表中移除，同步清理临时未完成文件。
      */
     fun cancelDownload(taskId: String) {
-        try {
-            activeCalls[taskId]?.cancel()
-        } catch (_: Exception) {
-        }
+        activeCalls[taskId]?.cancel()
         activeCalls.remove(taskId)
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
@@ -655,10 +649,7 @@ object DownloadManager {
      */
     fun pauseAll() {
         for ((_, call) in activeCalls) {
-            try {
-                call.cancel()
-            } catch (_: Exception) {
-            }
+            call.cancel()
         }
         activeCalls.clear()
         for ((_, job) in activeJobs) {
@@ -697,10 +688,7 @@ object DownloadManager {
      */
     fun cancelAll() {
         for ((_, call) in activeCalls) {
-            try {
-                call.cancel()
-            } catch (_: Exception) {
-            }
+            call.cancel()
         }
         activeCalls.clear()
         for ((_, job) in activeJobs) {

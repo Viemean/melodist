@@ -2,6 +2,7 @@ package org.melodist.playback
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -162,6 +163,7 @@ class AudioQualityCoordinator(
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     Log.w("AudioQualityCoordinator", "Probe qualities failed", e)
                 } finally {
                     _isProbingQuality.value = false

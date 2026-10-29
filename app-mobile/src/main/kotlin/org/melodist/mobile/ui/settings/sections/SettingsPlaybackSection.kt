@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -122,25 +123,23 @@ fun SettingsPlaybackSection(
                         "未加入电池优化白名单"
                     },
                 onClick = {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                        try {
-                            val intent =
-                                if (!isBatteryWhitelisted) {
-                                    android.content
-                                        .Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                                        .apply {
-                                            data = android.net.Uri.parse("package:${context.packageName}")
-                                        }
-                                } else {
-                                    android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                                }
-                            context.startActivity(intent)
-                        } catch (_: Exception) {
-                            try {
-                                context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS))
-                            } catch (e: Exception) {
-                                Log.w("SettingsPlaybackSection", "Operation failed", e)
+                    try {
+                        val intent =
+                            if (!isBatteryWhitelisted) {
+                                android.content
+                                    .Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                    .apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                    }
+                            } else {
+                                android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                             }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {
+                        try {
+                            context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS))
+                        } catch (e: Exception) {
+                            Log.w("SettingsPlaybackSection", "Operation failed", e)
                         }
                     }
                 },
@@ -229,7 +228,7 @@ fun SettingsPlaybackSection(
 
     if (showFontSizeDialog) {
         var selectedFont by remember { mutableStateOf(settings.lyricFontSize) }
-        var customSp by remember { mutableStateOf(settings.customLyricFontSizeSp) }
+        var customSp by remember { mutableIntStateOf(settings.customLyricFontSizeSp) }
 
         val previewTitleSp =
             if (selectedFont == LyricFontSize.Custom) {

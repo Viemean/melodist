@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -105,6 +106,7 @@ class PlaybackFavoriteController(
                     onStateChanged()
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w("MelodistPlayback", "Failed to sync favorite songs: $e")
             } finally {
                 isSyncingFavorites = false
@@ -208,6 +210,7 @@ class PlaybackFavoriteController(
                 }
                 UserLibraryCacheManager.onFavoriteToggled(song, willBeFav)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 Log.w("MelodistPlayback", "Failed to sync favorite to cloud: $e")
             }
         }

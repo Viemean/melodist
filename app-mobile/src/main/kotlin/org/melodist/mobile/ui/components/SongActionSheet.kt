@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.util.Log
 import android.widget.Toast
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,6 +75,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.SongCommentCountCache
@@ -132,14 +132,18 @@ fun SongActionSheet(
     val pairedDevice = (connectState as? MobileConnectionState.Paired)?.targetDevice
     var showTvMenu by remember { mutableStateOf(false) }
 
-    val dlnaCastingDevice by org.melodist.mobile.connect.dlna.DlnaCastManager.castingDevice.collectAsState()
-    val dlnaDevices by org.melodist.mobile.connect.dlna.DlnaCastManager.discoveredDevices.collectAsState()
-    val isDlnaScanning by org.melodist.mobile.connect.dlna.DlnaCastManager.isScanning.collectAsState()
+    val dlnaCastingDevice by org.melodist.mobile.connect.dlna.DlnaCastManager.castingDevice
+        .collectAsState()
+    val dlnaDevices by org.melodist.mobile.connect.dlna.DlnaCastManager.discoveredDevices
+        .collectAsState()
+    val isDlnaScanning by org.melodist.mobile.connect.dlna.DlnaCastManager.isScanning
+        .collectAsState()
     val isCastActive = (isTvConnected && pairedDevice != null) || dlnaCastingDevice != null
 
     LaunchedEffect(showTvMenu) {
         if (showTvMenu) {
-            org.melodist.mobile.connect.dlna.DlnaCastManager.startScan()
+            org.melodist.mobile.connect.dlna.DlnaCastManager
+                .startScan()
         }
     }
 
@@ -419,7 +423,10 @@ fun SongActionSheet(
                                         if (pairedDevice.name.contains("(") && pairedDevice.name.contains(")")) {
                                             pairedDevice.name.substringAfter("(").substringBeforeLast(")")
                                         } else {
-                                            pairedDevice.name.removePrefix("Melodist TV").trim().ifBlank { pairedDevice.name }
+                                            pairedDevice.name
+                                                .removePrefix("Melodist TV")
+                                                .trim()
+                                                .ifBlank { pairedDevice.name }
                                         }
                                     Text(
                                         text = tvModelName,
@@ -459,18 +466,20 @@ fun SongActionSheet(
                                             onClick = {
                                                 showTvMenu = false
                                                 if (isTakeover) {
-                                                    Toast.makeText(
-                                                        context,
-                                                        "当前处于全面接管模式，播放直通 TV",
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
+                                                    Toast
+                                                        .makeText(
+                                                            context,
+                                                            "当前处于全面接管模式，播放直通 TV",
+                                                            Toast.LENGTH_SHORT,
+                                                        ).show()
                                                 } else {
                                                     MobileConnectManager.relayCurrentPlaybackToTv()
-                                                    Toast.makeText(
-                                                        context,
-                                                        "已接力至 TV 播放",
-                                                        Toast.LENGTH_SHORT,
-                                                    ).show()
+                                                    Toast
+                                                        .makeText(
+                                                            context,
+                                                            "已接力至 TV 播放",
+                                                            Toast.LENGTH_SHORT,
+                                                        ).show()
                                                 }
                                                 onDismissRequest()
                                             },
@@ -494,9 +503,15 @@ fun SongActionSheet(
                                         DropdownMenuItem(
                                             text = {
                                                 Column {
+                                                    val nameColor =
+                                                        if (isThisDevCasting) {
+                                                            MaterialTheme.colorScheme.primary
+                                                        } else {
+                                                            MaterialTheme.colorScheme.onSurface
+                                                        }
                                                     Text(
                                                         text = dev.name,
-                                                        color = if (isThisDevCasting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                                        color = nameColor,
                                                         fontWeight = if (isThisDevCasting) FontWeight.SemiBold else FontWeight.Normal,
                                                     )
                                                     if (isThisDevCasting) {
@@ -509,10 +524,16 @@ fun SongActionSheet(
                                                 }
                                             },
                                             leadingIcon = {
+                                                val iconTint =
+                                                    if (isThisDevCasting) {
+                                                        MaterialTheme.colorScheme.primary
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                    }
                                                 Icon(
                                                     imageVector = if (isThisDevCasting) Icons.Rounded.CastConnected else Icons.Rounded.Tv,
                                                     contentDescription = null,
-                                                    tint = if (isThisDevCasting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    tint = iconTint,
                                                 )
                                             },
                                             trailingIcon = {
@@ -522,7 +543,8 @@ fun SongActionSheet(
                                                         shape = RoundedCornerShape(6.dp),
                                                         onClick = {
                                                             coroutineScope.launch {
-                                                                org.melodist.mobile.connect.dlna.DlnaCastManager.disconnect()
+                                                                org.melodist.mobile.connect.dlna.DlnaCastManager
+                                                                    .disconnect()
                                                                 Toast.makeText(context, "已断开投屏", Toast.LENGTH_SHORT).show()
                                                             }
                                                             showTvMenu = false
@@ -542,7 +564,9 @@ fun SongActionSheet(
                                                 coroutineScope.launch {
                                                     showTvMenu = false
                                                     Toast.makeText(context, "正在投至 ${dev.name}...", Toast.LENGTH_SHORT).show()
-                                                    val ok = org.melodist.mobile.connect.dlna.DlnaCastManager.cast(context, song, dev)
+                                                    val ok =
+                                                        org.melodist.mobile.connect.dlna.DlnaCastManager
+                                                            .cast(context, song, dev)
                                                     if (ok) {
                                                         Toast.makeText(context, "已投至 ${dev.name} 播放", Toast.LENGTH_SHORT).show()
                                                         onDismissRequest()
@@ -569,7 +593,8 @@ fun SongActionSheet(
                                             )
                                         },
                                         onClick = {
-                                            org.melodist.mobile.connect.dlna.DlnaCastManager.startScan()
+                                            org.melodist.mobile.connect.dlna.DlnaCastManager
+                                                .startScan()
                                         },
                                     )
                                 }

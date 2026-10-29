@@ -95,7 +95,10 @@ class ConnectStorageManager(
         persistDevices(current)
     }
 
-    private fun isSameEndpoint(a: ConnectDevice, b: ConnectDevice): Boolean {
+    private fun isSameEndpoint(
+        a: ConnectDevice,
+        b: ConnectDevice,
+    ): Boolean {
         if (a.id == b.id) return true
         if (a.host.isNotBlank() && b.host.isNotBlank() && a.host == b.host && a.port == b.port) return true
         return false

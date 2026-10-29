@@ -45,7 +45,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         WindowCompat.enableEdgeToEdge(window)
         super.onCreate(savedInstanceState)
-        setupHighRefreshRate()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(
@@ -185,7 +184,7 @@ class MainActivity : ComponentActivity() {
                             android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
                         )
                     }
-                } catch (_: Exception) {
+                } catch (_: SecurityException) {
                 }
 
                 var displayName: String? = null
@@ -197,7 +196,7 @@ class MainActivity : ComponentActivity() {
                                 if (idx >= 0) displayName = cursor.getString(idx)
                             }
                         }
-                    } catch (_: Exception) {
+                    } catch (_: SecurityException) {
                     }
                 }
                 val finalDisplayName = displayName?.ifBlank { null } ?: uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { null } ?: "外部音频"
@@ -332,61 +331,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        setupHighRefreshRate()
-    }
-
     override fun onStop() {
         super.onStop()
         PlaybackManager.savePlaybackState()
         PlaybackManager.savePlaybackProgress()
-    }
-
-    private fun setupHighRefreshRate() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val currentDisplay =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        display
-                    } else {
-                        @Suppress("DEPRECATION")
-                        windowManager.defaultDisplay
-                    }
-                currentDisplay?.let { disp ->
-                    val defaultMode = disp.mode
-                    val targetWidth = defaultMode.physicalWidth
-                    val targetHeight = defaultMode.physicalHeight
-                    val modes = disp.supportedModes
-                    // 选取当前屏幕物理分辨率下的最高刷新率模式
-                    val maxRefreshMode =
-                        modes
-                            .filter { it.physicalWidth == targetWidth && it.physicalHeight == targetHeight }
-                            .maxByOrNull { it.refreshRate }
-                            ?: modes.maxByOrNull { it.refreshRate }
-
-                    if (maxRefreshMode != null && maxRefreshMode.refreshRate > 60f) {
-                        val targetRate = maxRefreshMode.refreshRate.coerceAtLeast(120f)
-                        val lp = window.attributes
-                        var changed = false
-                        if (lp.preferredDisplayModeId != maxRefreshMode.modeId) {
-                            lp.preferredDisplayModeId = maxRefreshMode.modeId
-                            changed = true
-                        }
-                        if (lp.preferredRefreshRate != targetRate) {
-                            lp.preferredRefreshRate = targetRate
-                            changed = true
-                        }
-                        if (changed) {
-                            window.attributes = lp
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            Log.w("MainActivity", "Operation failed", e)
-        }
     }
 
     override fun onTrimMemory(level: Int) {

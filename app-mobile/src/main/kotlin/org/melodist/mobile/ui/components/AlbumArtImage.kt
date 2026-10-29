@@ -150,8 +150,7 @@ fun AlbumArtImage(
                             currentMemoryCacheKey?.let {
                                 placeholderMemoryCacheKey(it)
                             }
-                        }
-                        .precision(coil3.size.Precision.INEXACT)
+                        }.precision(coil3.size.Precision.INEXACT)
                         .build()
                 }
 

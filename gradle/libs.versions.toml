@@ -1,5 +1,5 @@
 [versions]
-agp = "9.6.0-alpha01"
+agp = "9.6.0-alpha02"
 kotlin = "2.5.0-Beta2"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.12.0"

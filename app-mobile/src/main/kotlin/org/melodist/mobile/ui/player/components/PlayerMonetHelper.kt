@@ -182,9 +182,7 @@ object PlayerMonetCacheManager {
                     if (result is coil3.request.SuccessResult) {
                         val rawBitmap = result.image.toBitmap()
                         val softwareBitmap =
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-                                rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE
-                            ) {
+                            if (rawBitmap.config == android.graphics.Bitmap.Config.HARDWARE) {
                                 rawBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
                             } else {
                                 rawBitmap

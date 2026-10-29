@@ -243,7 +243,8 @@ internal fun resolveLocalIpv4Address(): String {
                 }
             }
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        ApiLogger.w("MusicApiPlayStream", "Failed to resolve local IPv4 address", e)
     }
     return "192.168.1.100"
 }

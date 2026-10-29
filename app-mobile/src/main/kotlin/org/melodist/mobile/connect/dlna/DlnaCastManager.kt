@@ -214,7 +214,11 @@ object DlnaCastManager {
         song: Song,
         streamUrl: String,
     ): String {
-        val pathOrUrl = song.localFilePath.orEmpty().ifBlank { streamUrl }.lowercase()
+        val pathOrUrl =
+            song.localFilePath
+                .orEmpty()
+                .ifBlank { streamUrl }
+                .lowercase()
         return when {
             pathOrUrl.contains(".flac") -> "audio/flac"
             pathOrUrl.contains(".wav") -> "audio/wav"
