@@ -158,7 +158,7 @@ object RecommendFeedManager {
             if (_isLoadingFlow.value && !forceRefresh) return
             _isLoadingFlow.value = _shelvesFlow.value.isEmpty()
             try {
-                val shelves = apiService.getRecommendFeed(direction = 0, page = 1, sNum = 6)
+                val shelves = apiService.getRecommendFeed(direction = 0, page = 1, sNum = 15)
                 if (shelves.isNotEmpty()) {
                     _shelvesFlow.value = shelves
                     lastFetchTimestamp = System.currentTimeMillis()

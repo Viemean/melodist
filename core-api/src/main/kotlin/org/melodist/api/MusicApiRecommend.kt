@@ -433,7 +433,7 @@ suspend fun MusicApiService.getTrackInfoBatch(songIds: List<Long>): List<Song> =
 suspend fun MusicApiService.getRecommendFeed(
     direction: Int = 0,
     page: Int = 1,
-    sNum: Int = 6,
+    sNum: Int = 15,
 ): List<RecommendShelf> =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn) return@withContext emptyList()
@@ -445,7 +445,7 @@ suspend fun MusicApiService.getRecommendFeed(
         val payload =
             """
             {
-              "comm": { "uin": "$uin", "format": "json", "ct": 20, "cv": 1770, "platform": "wk_v17", "authst": "$authst" },
+              "comm": { "uin": "$uin", "format": "json", "ct": 11, "cv": 20080008, "platform": "android", "authst": "$authst" },
               "feed": {
                 "module": "music.recommend.RecommendFeed",
                 "method": "get_recommend_feed",
@@ -496,16 +496,18 @@ suspend fun MusicApiService.getRecommendFeed(
                             rawTemplate
                         }
                 }
-                title = title.replace(Regex("[💗❤️💖💕💓💘🤍🖤🤎💜💙💚💛🧡♥]"), "").trim()
+                title = title.replace(Regex("[\\p{So}\\p{Sk}\\p{Cs}\\u2600-\\u27BF\\uFE00-\\uFE0F]"), "").trim()
                 if (title.isBlank()) {
                     continue
                 }
 
-                // 仅保留“听「xxxx」的也在听 / 喜欢”货架，过滤非相关货架
                 val isTargetShelf =
-                    titleContent.isNotBlank() &&
-                        (rawTemplate.contains("听") || title.contains("听「")) &&
-                        (rawTemplate.contains("也在听") || rawTemplate.contains("喜欢") || title.contains("也在听") || title.contains("喜欢"))
+                    rawTemplate.contains("喜欢") || title.contains("喜欢") ||
+                        rawTemplate.contains("也在听") || title.contains("也在听") ||
+                        rawTemplate.contains("红心") || title.contains("红心") ||
+                        rawTemplate.contains("宝藏好歌") || title.contains("宝藏好歌") ||
+                        rawTemplate.contains("惊喜好歌") || title.contains("惊喜好歌") ||
+                        rawTemplate.contains("反复") || title.contains("反复")
                 if (!isTargetShelf) {
                     continue
                 }
@@ -573,7 +575,11 @@ suspend fun MusicApiService.getRecommendFeed(
                     )
                 }
             }
-            shelves
+            if (shelves.size > 1) {
+                shelves.shuffled().take(1)
+            } else {
+                shelves
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiRecommend", "getRecommendFeed failed: direction=$direction, page=$page", e)

@@ -71,7 +71,7 @@ private fun RecommendShelfItem(
     ) {
         val cleanTitle =
             androidx.compose.runtime.remember(shelf.title) {
-                shelf.title.replace(Regex("[💗❤️💖💕💓💘🤍🖤🤎💜💙💚💛🧡♥]"), "").trim()
+                shelf.title.replace(Regex("[\\p{So}\\p{Sk}\\p{Cs}\\u2600-\\u27BF\\uFE00-\\uFE0F]"), "").trim()
             }
 
         // 货架头部标题
