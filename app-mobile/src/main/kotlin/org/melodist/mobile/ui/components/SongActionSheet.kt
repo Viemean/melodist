@@ -29,7 +29,6 @@ import androidx.compose.material.icons.automirrored.rounded.Comment
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Album
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteForever
@@ -125,7 +124,6 @@ fun SongActionSheet(
     var showSongInfoSheet by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var showCommentsSheet by remember { mutableStateOf(false) }
-    var showSimilarSongsSheet by remember { mutableStateOf(false) }
     var showDiarySheet by remember { mutableStateOf(false) }
     var showListenTogetherSheet by remember { mutableStateOf(false) }
 
@@ -359,7 +357,6 @@ fun SongActionSheet(
                 onViewCover != null ||
                     (showFavorite && !isWebDavOrLocal) ||
                     showTvCast ||
-                    showNextPlay ||
                     (!song.isLocal && !song.isWebDav)
 
             if (hasQuickActions) {
@@ -580,19 +577,6 @@ fun SongActionSheet(
                         }
                     }
 
-                    if (showNextPlay) {
-                        QuickActionButton(
-                            icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
-                            title = "稍后播放",
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                PlaybackManager.insertNextPlay(song)
-                                Toast.makeText(context, "已加入稍后播放", Toast.LENGTH_SHORT).show()
-                                onDismissRequest()
-                            },
-                        )
-                    }
-
                     if (onViewCover != null) {
                         QuickActionButton(
                             icon = Icons.Rounded.Image,
@@ -640,6 +624,18 @@ fun SongActionSheet(
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(4.dp))
 
+            if (showNextPlay) {
+                ActionSheetItem(
+                    icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
+                    title = "稍后播放",
+                    onClick = {
+                        PlaybackManager.insertNextPlay(song)
+                        Toast.makeText(context, "已加入稍后播放", Toast.LENGTH_SHORT).show()
+                        onDismissRequest()
+                    },
+                )
+            }
+
             if (canShowArtistAction) {
                 val displaySubtitle =
                     if (currentDest is ScreenDestination.ArtistDetail) {
@@ -686,17 +682,6 @@ fun SongActionSheet(
                             Toast.makeText(context, "暂无专辑详情数据", Toast.LENGTH_SHORT).show()
                             onDismissRequest()
                         }
-                    },
-                )
-            }
-
-            if (!isFromPlayer && !song.isLocal && !song.isWebDav && (song.songId > 0L || song.songMid.isNotBlank())) {
-                ActionSheetItem(
-                    icon = Icons.Rounded.AutoAwesome,
-                    title = "相似推荐",
-                    subtitle = "查看类似风格歌曲",
-                    onClick = {
-                        showSimilarSongsSheet = true
                     },
                 )
             }
@@ -831,8 +816,6 @@ fun SongActionSheet(
         onDismissCommentsSheet = { showCommentsSheet = false },
         showSongInfoSheet = showSongInfoSheet,
         onDismissSongInfoSheet = { showSongInfoSheet = false },
-        showSimilarSongsSheet = showSimilarSongsSheet,
-        onDismissSimilarSongsSheet = { showSimilarSongsSheet = false },
         showDiarySheet = showDiarySheet,
         onDismissDiarySheet = { showDiarySheet = false },
         showListenTogetherSheet = showListenTogetherSheet,

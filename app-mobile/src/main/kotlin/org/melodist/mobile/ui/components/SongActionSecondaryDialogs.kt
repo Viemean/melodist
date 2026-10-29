@@ -160,8 +160,6 @@ fun SongActionSecondaryDialogs(
     onDismissCommentsSheet: () -> Unit,
     showSongInfoSheet: Boolean,
     onDismissSongInfoSheet: () -> Unit,
-    showSimilarSongsSheet: Boolean = false,
-    onDismissSimilarSongsSheet: () -> Unit = {},
     showDiarySheet: Boolean = false,
     onDismissDiarySheet: () -> Unit = {},
     showListenTogetherSheet: Boolean = false,
@@ -178,13 +176,6 @@ fun SongActionSecondaryDialogs(
         SongDiaryBottomSheet(
             song = song,
             onDismissRequest = onDismissDiarySheet,
-        )
-    }
-
-    if (showSimilarSongsSheet) {
-        SimilarSongsBottomSheet(
-            song = song,
-            onDismissRequest = onDismissSimilarSongsSheet,
         )
     }
 
