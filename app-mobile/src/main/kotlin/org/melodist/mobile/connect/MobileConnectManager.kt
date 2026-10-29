@@ -17,6 +17,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService
 import org.melodist.api.getGuessRecommendSongs
+import org.melodist.api.getLyrics
+import org.melodist.api.getPlayUrl
 import org.melodist.core.connect.client.MobileConnectClient
 import org.melodist.core.connect.client.MobileConnectionState
 import org.melodist.core.connect.discovery.ConnectNsdHelper
@@ -24,10 +26,12 @@ import org.melodist.core.connect.model.AudioSourceDescriptor
 import org.melodist.core.connect.model.AudioSourceType
 import org.melodist.core.connect.model.ConnectDevice
 import org.melodist.core.connect.model.DeviceType
+import org.melodist.core.connect.model.LyricsSyncPayload
 import org.melodist.core.connect.model.PlayerStateEvent
 import org.melodist.core.connect.model.QrPairData
 import org.melodist.core.connect.model.RemoteControlMode
 import org.melodist.core.connect.storage.ConnectStorageManager
+import org.melodist.data.LyricCacheManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackInterceptor
@@ -43,6 +47,7 @@ object MobileConnectManager {
 
     private var storageManager: ConnectStorageManager? = null
     private var connectClient: MobileConnectClient? = null
+    private val apiService = MusicApiService()
     private var nsdHelper: ConnectNsdHelper? = null
     private var streamServer: LocalAudioStreamServer? = null
     private var userManuallyDisconnected = false
@@ -737,7 +742,7 @@ object MobileConnectManager {
 
             val (audioSource, effectiveSong, preparedInitialQueue) =
                 withContext(Dispatchers.IO) {
-                    val src = resolveAudioSource(song)
+                    val src = resolveAudioSource(song, effectiveTier)
                     val effSong = prepareSongForTv(song)
                     val prepQueue = initialQueue.map { prepareSongForTv(it) }
                     Triple(src, effSong, prepQueue)
@@ -759,6 +764,10 @@ object MobileConnectManager {
                 audioSource = effectiveAudioSource,
                 qualityTier = effectiveTier,
             )
+
+            if (tvOfflineProxy.value) {
+                syncLyricsForOfflineMode(song)
+            }
 
             if (isRadio && targetPlaylist.size <= 10) {
                 checkAndExpandRadioQueue(initialIdx, force = true)
@@ -1098,9 +1107,14 @@ object MobileConnectManager {
     private fun prepareSongForTv(song: Song): Song {
         val server = streamServer ?: return resolveWebDavCoverLocally(song)
         var updated = resolveWebDavCoverLocally(song)
+        val isOfflineMode = tvOfflineProxy.value
         val coverUrl = updated.coverUrl
-        if (coverUrl.isNotBlank() && (coverUrl.startsWith("file://") || coverUrl.startsWith("/"))) {
-            updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
+        if (coverUrl.isNotBlank()) {
+            if (coverUrl.startsWith("file://") || coverUrl.startsWith("/")) {
+                updated = updated.copy(coverUrl = server.buildLocalCoverUrl(coverUrl))
+            } else if (isOfflineMode && (coverUrl.startsWith("http://") || coverUrl.startsWith("https://"))) {
+                updated = updated.copy(coverUrl = server.buildProxyStreamUrl(coverUrl))
+            }
         }
         val isTrueLocal = updated.isLocal || updated.songMid.startsWith("local_")
         val isWebDavSong = updated.isWebDav || updated.songMid.startsWith("webdav_")
@@ -1171,7 +1185,10 @@ object MobileConnectManager {
         return song
     }
 
-    private fun resolveAudioSource(song: Song): AudioSourceDescriptor {
+    private suspend fun resolveAudioSource(
+        song: Song,
+        qualityTier: AudioQualityTier? = null,
+    ): AudioSourceDescriptor {
         if (song.mediaMid.startsWith("http://") || song.mediaMid.startsWith("https://")) {
             return AudioSourceDescriptor(
                 sourceType = AudioSourceType.STREAM_PROXY,
@@ -1212,12 +1229,62 @@ object MobileConnectManager {
         }
 
         if (isOfflineMode && server != null) {
-            // TV 离线模式下，在线曲目走手机中转
-            return AudioSourceDescriptor(
-                sourceType = AudioSourceType.DIRECT_API,
-            )
+            val cachedPath = song.localFilePath?.takeIf { java.io.File(it).exists() }
+            if (!cachedPath.isNullOrBlank()) {
+                return AudioSourceDescriptor(
+                    sourceType = AudioSourceType.STREAM_PROXY,
+                    streamUrl = server.buildLocalAudioStreamUrl(cachedPath),
+                )
+            }
+            try {
+                val targetTier = qualityTier ?: AudioQualityTier.SQ
+                val res = apiService.getPlayUrl(song.songMid, mediaMid = song.mediaMid, preferredTier = targetTier)
+                val targetUrl = res.url
+                if (!targetUrl.isNullOrBlank()) {
+                    return AudioSourceDescriptor(
+                        sourceType = AudioSourceType.STREAM_PROXY,
+                        streamUrl = server.buildProxyStreamUrl(targetUrl),
+                    )
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MobileConnectManager", "Failed to resolve online stream proxy for TV", e)
+            }
         }
 
         return AudioSourceDescriptor(sourceType = AudioSourceType.DIRECT_API)
+    }
+
+    private fun syncLyricsForOfflineMode(song: Song) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val cached = LyricCacheManager.getLyrics(song.songMid)
+                val lyrics =
+                    if (!cached.isNullOrEmpty()) {
+                        cached
+                    } else if (!song.isLocal && !song.songMid.startsWith("local_") && !song.isWebDav) {
+                        val fetched = apiService.getLyrics(song.songMid, song.songId, songName = song.name, singer = song.singer)
+                        if (fetched.isNotEmpty()) {
+                            LyricCacheManager.saveLyrics(song.songMid, fetched)
+                        }
+                        fetched
+                    } else {
+                        emptyList()
+                    }
+                if (lyrics.isNotEmpty()) {
+                    connectClient?.sendLyricsSync(
+                        LyricsSyncPayload(
+                            songMid = song.songMid,
+                            title = song.name,
+                            singer = song.singer,
+                            lyrics = lyrics,
+                        ),
+                    )
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.w("MobileConnectManager", "Failed to sync offline lyrics to TV", e)
+            }
+        }
     }
 }

@@ -109,7 +109,7 @@ fun MiniPlayerBar(
     }
     var pendingTargetSongMid by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(song?.songMid, currentPrevSong?.songMid, currentNextSong?.songMid, centerSlotIndex) {
+    LaunchedEffect(song, currentPrevSong, currentNextSong, centerSlotIndex) {
         val target = pendingTargetSongMid
         if (target != null) {
             if (song?.songMid == target) {
@@ -250,11 +250,11 @@ fun MiniPlayerBar(
                                             state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
                                             fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
                                             targetFraction = -1f,
-                                            durationMs = 180L,
+                                            durationMs = 280L,
                                         )
                                         dragOffsetX.animateTo(
                                             targetValue = -fullStepPx,
-                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                                         )
                                         val targetSong = currentNextSong
                                         pendingTargetSongMid = targetSong?.songMid
@@ -266,11 +266,11 @@ fun MiniPlayerBar(
                                             state = org.melodist.core.connect.model.GestureSwipeState.SETTLING,
                                             fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
                                             targetFraction = 1f,
-                                            durationMs = 180L,
+                                            durationMs = 280L,
                                         )
                                         dragOffsetX.animateTo(
                                             targetValue = fullStepPx,
-                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                                         )
                                         val targetSong = currentPrevSong
                                         pendingTargetSongMid = targetSong?.songMid
@@ -282,14 +282,14 @@ fun MiniPlayerBar(
                                             state = org.melodist.core.connect.model.GestureSwipeState.CANCEL,
                                             fraction = (currentOffset / fullStepPx).coerceIn(-1f, 1f),
                                             targetFraction = 0f,
-                                            durationMs = 200L,
+                                            durationMs = 260L,
                                         )
                                         dragOffsetX.animateTo(
                                             targetValue = 0f,
                                             animationSpec =
                                                 spring(
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow,
+                                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                                    stiffness = Spring.StiffnessLow,
                                                 ),
                                         )
                                     }

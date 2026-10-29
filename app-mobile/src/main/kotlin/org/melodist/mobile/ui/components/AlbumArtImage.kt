@@ -138,12 +138,19 @@ fun AlbumArtImage(
                 }
             }
         } else {
+            var currentMemoryCacheKey by remember { mutableStateOf<coil3.memory.MemoryCache.Key?>(null) }
+
             val imageRequest =
-                remember(effectiveUrl, crossfade) {
+                remember(effectiveUrl, crossfade, currentMemoryCacheKey) {
                     ImageRequest
                         .Builder(context)
                         .data(effectiveUrl)
                         .crossfade(crossfade)
+                        .apply {
+                            currentMemoryCacheKey?.let {
+                                placeholderMemoryCacheKey(it)
+                            }
+                        }
                         .precision(coil3.size.Precision.INEXACT)
                         .build()
                 }
@@ -153,6 +160,9 @@ fun AlbumArtImage(
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 filterQuality = FilterQuality.Medium,
+                onSuccess = { state ->
+                    currentMemoryCacheKey = state.result.memoryCacheKey
+                },
                 onError = {
                     if (candidateIndex + 1 < candidateList.size) {
                         candidateIndex++
