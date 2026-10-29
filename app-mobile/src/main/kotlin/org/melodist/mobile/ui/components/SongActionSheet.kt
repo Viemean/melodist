@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Tv
@@ -101,7 +103,7 @@ fun SongActionSheet(
     showNextPlay: Boolean = true,
     showFavorite: Boolean = true,
     isFromPlayer: Boolean = false,
-    showTvCast: Boolean = !isFromPlayer,
+    showTvCast: Boolean = true,
     onViewCover: (() -> Unit)? = null,
     showTogether: Boolean = isFromPlayer && onViewCover != null,
     onRemoveFromQueue: (() -> Unit)? = null,
@@ -423,6 +425,49 @@ fun SongActionSheet(
                                         MobileConnectManager.enqueueNextOnTv(song)
                                         Toast.makeText(context, "已插播至 TV 队列", Toast.LENGTH_SHORT).show()
                                         onDismissRequest()
+                                    },
+                                )
+                                val currentPlaying = PlaybackManager.currentSong.collectAsState().value
+                                if (isFromPlayer || song.songMid == currentPlaying?.songMid) {
+                                    val isTakeover =
+                                        MobileConnectManager.remoteControlMode.collectAsState().value ==
+                                            org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
+                                    DropdownMenuItem(
+                                        text = { Text(if (isTakeover) "接管模式" else "进度接力") },
+                                        leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
+                                        onClick = {
+                                            showTvMenu = false
+                                            if (isTakeover) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "当前处于全面接管模式，播放直通 TV",
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                            } else {
+                                                MobileConnectManager.relayCurrentPlaybackToTv()
+                                                Toast.makeText(
+                                                    context,
+                                                    "已接力至 TV 播放",
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                            }
+                                            onDismissRequest()
+                                        },
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("断开连接", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Rounded.LinkOff,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        showTvMenu = false
+                                        MobileConnectManager.disconnect()
+                                        Toast.makeText(context, "已断开与 TV 的连接", Toast.LENGTH_SHORT).show()
                                     },
                                 )
                             }

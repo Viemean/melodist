@@ -44,24 +44,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.CastConnected
-import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -100,8 +93,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.getSongCommentCount
-import org.melodist.core.connect.client.MobileConnectionState
-import org.melodist.mobile.connect.MobileConnectManager
 import org.melodist.mobile.ui.components.AudioQualityBottomSheet
 import org.melodist.mobile.ui.components.FullScreenCoverViewer
 import org.melodist.mobile.ui.components.SongActionSheet
@@ -152,9 +143,7 @@ fun FullPlayerSheet(
     val currentIndex by PlaybackManager.currentIndex.collectAsState()
     val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
     val isMuted by PlaybackManager.isMuted.collectAsState()
-    val connectState by MobileConnectManager.connectionState.collectAsState()
     var displayMode by remember { mutableStateOf(PlayerDisplayMode.Cover) }
-    var showTvMenu by remember { mutableStateOf(false) }
     var showDislikeConfirmDialog by remember { mutableStateOf(false) }
 
     val isFavSupported = remember(song) { PlaybackManager.isSongFavoriteSupported(song) }
@@ -746,109 +735,6 @@ fun FullPlayerSheet(
                                         onClick = onCollapse,
                                     ),
                         )
-
-                        val curConnectState = connectState
-                        if (curConnectState is MobileConnectionState.Paired) {
-                            val pairedDevice = curConnectState.targetDevice
-                            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
-                                IconButton(
-                                    onClick = { showTvMenu = true },
-                                    modifier = Modifier.size(32.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Computer,
-                                        contentDescription = "已连接 ${pairedDevice.name}",
-                                        tint = animatedAccentColor,
-                                        modifier = Modifier.size(20.dp),
-                                    )
-                                }
-
-                                DropdownMenu(
-                                    expanded = showTvMenu,
-                                    onDismissRequest = { showTvMenu = false },
-                                ) {
-                                    Text(
-                                        text = pairedDevice.name,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                    )
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-                                    DropdownMenuItem(
-                                        text = { Text("立即播放") },
-                                        leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
-                                        enabled = song != null,
-                                        onClick = {
-                                            showTvMenu = false
-                                            if (song != null) {
-                                                MobileConnectManager.playOnTv(song)
-                                                android.widget.Toast
-                                                    .makeText(context, "已发送至 TV 播放", android.widget.Toast.LENGTH_SHORT)
-                                                    .show()
-                                            }
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("稍后播放") },
-                                        leadingIcon = { Icon(Icons.AutoMirrored.Rounded.PlaylistPlay, contentDescription = null) },
-                                        enabled = song != null,
-                                        onClick = {
-                                            showTvMenu = false
-                                            if (song != null) {
-                                                MobileConnectManager.enqueueNextOnTv(song)
-                                                android.widget.Toast
-                                                    .makeText(context, "已插播至 TV 队列", android.widget.Toast.LENGTH_SHORT)
-                                                    .show()
-                                            }
-                                        },
-                                    )
-                                    val isTakeoverPortrait =
-                                        MobileConnectManager.remoteControlMode.collectAsState().value ==
-                                            org.melodist.core.connect.model.RemoteControlMode.TAKEOVER
-                                    DropdownMenuItem(
-                                        text = { Text(if (isTakeoverPortrait) "接管模式" else "进度接力") },
-                                        leadingIcon = { Icon(Icons.Rounded.CastConnected, contentDescription = null) },
-                                        onClick = {
-                                            showTvMenu = false
-                                            if (isTakeoverPortrait) {
-                                                android.widget.Toast
-                                                    .makeText(
-                                                        context,
-                                                        "当前处于全面接管模式，播放直通 TV",
-                                                        android.widget.Toast.LENGTH_SHORT,
-                                                    ).show()
-                                            } else {
-                                                MobileConnectManager.relayCurrentPlaybackToTv()
-                                                android.widget.Toast
-                                                    .makeText(
-                                                        context,
-                                                        "已接力至 TV 播放",
-                                                        android.widget.Toast.LENGTH_SHORT,
-                                                    ).show()
-                                            }
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("断开连接", color = MaterialTheme.colorScheme.error) },
-                                        leadingIcon = {
-                                            Icon(
-                                                Icons.Rounded.LinkOff,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.error,
-                                            )
-                                        },
-                                        onClick = {
-                                            showTvMenu = false
-                                            MobileConnectManager.disconnect()
-                                            android.widget.Toast
-                                                .makeText(context, "已断开与 TV 的连接", android.widget.Toast.LENGTH_SHORT)
-                                                .show()
-                                        },
-                                    )
-                                }
-                            }
-                        }
                     }
 
                     // 封面与歌词区域
