@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.melodist.core.connect.client.MobileConnectionState
@@ -117,19 +118,29 @@ fun LazyListScope.remoteDeviceListSection(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Icon(Icons.Rounded.Tv, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Column {
-                            Text(device.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
                             Text(
-                                "${device.host}:${device.port}",
+                                text = device.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = "${device.host}:${device.port}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
                     if (isConnected) {
                         Text("已连接", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                     } else {
@@ -181,6 +192,7 @@ fun LazyListScope.remoteDeviceListSection(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
@@ -189,11 +201,13 @@ fun LazyListScope.remoteDeviceListSection(
                             contentDescription = null,
                             tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Column {
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
                             Text(
                                 text = target.name,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (isConnected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text =
@@ -204,10 +218,16 @@ fun LazyListScope.remoteDeviceListSection(
                                     },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         if (!isConnected) {
                             FilledTonalButton(
                                 onClick = { onConnectToPairedDevice(target) },

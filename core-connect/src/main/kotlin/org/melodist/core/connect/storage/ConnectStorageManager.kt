@@ -90,9 +90,15 @@ class ConnectStorageManager(
 
     fun savePairedDevice(device: ConnectDevice) {
         val current = _pairedDevicesFlow.value.toMutableList()
-        current.removeAll { it.id == device.id }
+        current.removeAll { isSameEndpoint(it, device) }
         current.add(device)
         persistDevices(current)
+    }
+
+    private fun isSameEndpoint(a: ConnectDevice, b: ConnectDevice): Boolean {
+        if (a.id == b.id) return true
+        if (a.host.isNotBlank() && b.host.isNotBlank() && a.host == b.host && a.port == b.port) return true
+        return false
     }
 
     fun removePairedDevice(deviceId: String) {
@@ -132,12 +138,20 @@ class ConnectStorageManager(
 
     private fun loadPairedDevices(): List<ConnectDevice> {
         val raw = prefs.getString(KEY_PAIRED_DEVICES, null) ?: return emptyList()
-        return try {
-            json.decodeFromString(raw)
-        } catch (e: Exception) {
-            Log.w("ConnectStorage", "Failed to decode paired devices JSON", e)
-            emptyList()
+        val loaded =
+            try {
+                json.decodeFromString<List<ConnectDevice>>(raw)
+            } catch (e: Exception) {
+                Log.w("ConnectStorage", "Failed to decode paired devices JSON", e)
+                emptyList()
+            }
+        if (loaded.isEmpty()) return emptyList()
+        val deduplicated = mutableListOf<ConnectDevice>()
+        for (dev in loaded) {
+            deduplicated.removeAll { isSameEndpoint(it, dev) }
+            deduplicated.add(dev)
         }
+        return deduplicated
     }
 
     private fun persistDevices(devices: List<ConnectDevice>) {
