@@ -95,7 +95,7 @@ fun RemotePreferencesCard(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "选歌、歌单、切音质直接调度在 TV 播放",
+                            text = "选歌与控制直接由 TV 播放响应",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
                             color =
@@ -141,7 +141,7 @@ fun RemotePreferencesCard(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "手机本地播放，点击接力或菜单时在 TV 播放",
+                            text = "手机本地播放，仅在手动投送时切至 TV",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
                             color =
@@ -166,9 +166,9 @@ fun RemotePreferencesCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("本地静音功能", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text("本地静音", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                     Text(
-                        "开启后手机仅充当遥控板不发声，避免双端回声重叠",
+                        "联动时手机保持静音，避免双端同时发声",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -188,9 +188,9 @@ fun RemotePreferencesCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("TV 离线中转模式", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text("TV 离线中转", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                     Text(
-                        "开启后 TV 端无需直连公网，全部音频流与元数据经由手机代理中转",
+                        "TV 无需访问外网，音频与数据由手机代理中转",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
