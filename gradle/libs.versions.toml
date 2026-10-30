@@ -28,8 +28,8 @@ baselineprofile = "1.6.0-alpha01"
 benchmark = "1.6.0-alpha01"
 profileinstaller = "1.4.1"
 uiautomator = "2.4.0"
-androidx-test-ext = "1.4.0-alpha01"
-androidx-test-runner = "1.8.0-alpha01"
+androidx-test-ext = "1.4.0-alpha03"
+androidx-test-runner = "1.8.0-alpha03"
 
 [libraries]
 androidx-media = { module = "androidx.media:media", version.ref = "androidx-media" }
