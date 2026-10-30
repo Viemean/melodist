@@ -295,7 +295,7 @@ suspend fun MusicApiService.getGuessRecommendSongs(
         val authst = UserSession.profile.musicKey
         val targetCount = count.coerceIn(1, 100)
 
-        val cleanSeeds = seedSongIds.filter { it > 0L }.distinct().take(5)
+        val cleanSeeds = seedSongIds.filter { it > 0L }.distinct().take(6)
 
         if (cleanSeeds.isNotEmpty()) {
             val songsPerSeed = (targetCount / cleanSeeds.size + 3).coerceIn(6, 15)
@@ -337,7 +337,12 @@ suspend fun MusicApiService.getGuessRecommendSongs(
                         }.awaitAll()
                 }
 
-            val interleaved = interleaveAndFilterRecommendations(seedResults, targetCount, excludeSongIds)
+            val interleaved =
+                interleaveAndFilterRecommendations(
+                    seedResults = seedResults,
+                    targetCount = targetCount,
+                    excludeSongIds = excludeSongIds + cleanSeeds,
+                )
             if (interleaved.isNotEmpty()) {
                 return@withContext interleaved
             }

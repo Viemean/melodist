@@ -42,7 +42,73 @@ class GuessRecommendManagerTest {
 
     @Test
     fun selectDiverseSeeds_handlesEmptyCandidates() {
-        val seeds = GuessRecommendManager.selectDiverseSeeds(emptyList(), maxSeeds = 5)
+        val seeds = GuessRecommendManager.selectDiverseSeeds(emptyList(), maxSeeds = 6)
         assertTrue(seeds.isEmpty())
+    }
+
+    @Test
+    fun selectDiverseSeeds_respectsFourToTwoRatio() {
+        val favSongs =
+            listOf(
+                Song(songId = 1L, name = "Fav 1", singer = "Aimer"),
+                Song(songId = 2L, name = "Fav 2", singer = "Yorushika"),
+                Song(songId = 3L, name = "Fav 3", singer = "Mili"),
+                Song(songId = 4L, name = "Fav 4", singer = "Vivienne"),
+                Song(songId = 5L, name = "Fav 5", singer = "fripSide"),
+                Song(songId = 6L, name = "Fav 6", singer = "Kenshi Yonezu"),
+            )
+        val recentSongs =
+            listOf(
+                Song(songId = 101L, name = "Recent 1", singer = "Yoasobi"),
+                Song(songId = 102L, name = "Recent 2", singer = "King Gnu"),
+                Song(songId = 103L, name = "Recent 3", singer = "ZUTOMAYO"),
+            )
+
+        val seeds =
+            GuessRecommendManager.selectDiverseSeeds(
+                favSongs = favSongs,
+                recentSongs = recentSongs,
+                maxSeeds = 6,
+                favQuota = 4,
+            )
+        assertEquals(6, seeds.size)
+
+        val favIds = favSongs.map { it.songId }.toSet()
+        val recentIds = recentSongs.map { it.songId }.toSet()
+
+        val fromFav = seeds.filter { favIds.contains(it.songId) }
+        val fromRecent = seeds.filter { recentIds.contains(it.songId) }
+
+        // 4 首来自红心，2 首来自最近播放
+        assertEquals(4, fromFav.size)
+        assertEquals(2, fromRecent.size)
+
+        // 6 首种子必须来自 6 位不同歌手
+        val uniqueSingers = seeds.map { it.singer }.toSet()
+        assertEquals(6, uniqueSingers.size)
+    }
+
+    @Test
+    fun selectDiverseSeeds_restrictsFavoritesToTop50Singers() {
+        // 构建 60 位不同歌手的红心歌曲
+        val favSongs =
+            (1..60).map { i ->
+                Song(songId = i.toLong(), name = "Song $i", singer = "Singer_$i")
+            }
+
+        val seeds =
+            GuessRecommendManager.selectDiverseSeeds(
+                favSongs = favSongs,
+                recentSongs = emptyList(),
+                maxSeeds = 6,
+                favQuota = 4,
+            )
+        assertEquals(6, seeds.size)
+
+        val top50SingerNames = (1..50).map { "Singer_$it" }.toSet()
+        // 所有选中的种子歌手都必须在前 50 位歌手之内
+        for (seed in seeds) {
+            assertTrue(top50SingerNames.contains(seed.singer), "Seed singer ${seed.singer} must be in top 50")
+        }
     }
 }

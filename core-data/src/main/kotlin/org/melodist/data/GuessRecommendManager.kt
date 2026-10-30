@@ -89,69 +89,119 @@ object GuessRecommendManager {
     }
 
     /**
-     * 自适应分级获取 30 首猜你喜欢歌曲：
-     * 1. 深度用户（收藏或播放历史 >= 5 首）：从不同歌手的曲目中采样 5 首种子并发雷达碰撞，去重后交织出 30 首
-     * 2. 轻度用户（收藏或播放历史 1~4 首）：以现有曲目作为种子并发雷达
-     * 3. 冷启动用户（无收藏与历史）：直接调用官方原生猜你喜欢 (无种子)
+     * 自适应分级获取 30 首猜你喜欢歌曲。
+     * 红心与历史充足时按配比采样种子，不足时动态降级补齐或触发官方兜底。
      */
     private suspend fun fetchRecommendSongs(apiService: MusicApiService): List<Song> {
         val favSongs = UserLibraryCacheManager.loadFavoriteSongs(apiService, forceRefresh = false)
         val recentSongs = RecentPlaybackManager.recentSongsFlow.value
 
-        val excludeIds = favSongs.mapNotNull { it.songId.takeIf { id -> id > 0L } }.toSet()
-
-        val seedPool = mutableListOf<Song>()
-        seedPool.addAll(favSongs)
-        for (r in recentSongs) {
-            if (seedPool.none { it.songId == r.songId && r.songId > 0L }) {
-                seedPool.add(r)
-            }
-        }
-
-        val seeds = selectDiverseSeeds(seedPool, maxSeeds = 5)
+        val seeds =
+            selectDiverseSeeds(
+                favSongs = favSongs,
+                recentSongs = recentSongs,
+                maxSeeds = 6,
+                favQuota = 4,
+            )
         val seedIds = seeds.mapNotNull { it.songId.takeIf { id -> id > 0L } }
 
         return apiService.getGuessRecommendSongs(
             count = TARGET_BATCH_SIZE,
             seedSongIds = seedIds,
-            excludeSongIds = excludeIds,
+            excludeSongIds = seedIds.toSet(),
         )
     }
 
     /**
-     * 从候选池中抽取跨歌手的种子歌曲（优先不同歌手，不足时随机补齐）。
+     * 从红心收藏（前 50 位不同歌手）与最近播放中，按 4:2 比例跨歌手抽取种子歌曲。
      */
     internal fun selectDiverseSeeds(
-        candidates: List<Song>,
-        maxSeeds: Int = 5,
+        favSongs: List<Song>,
+        recentSongs: List<Song> = emptyList(),
+        maxSeeds: Int = 6,
+        favQuota: Int = 4,
     ): List<Song> {
-        if (candidates.isEmpty()) return emptyList()
-        val validSongs = candidates.filter { it.songId > 0L }
-        if (validSongs.isEmpty()) return emptyList()
+        val validFavs = favSongs.filter { it.songId > 0L }
+        val validRecents = recentSongs.filter { it.songId > 0L }
 
-        val bySinger =
-            validSongs.groupBy {
-                it.singer
-                    .split('/', ',', '&', '、')
-                    .firstOrNull()
-                    ?.trim()
-                    .orEmpty()
-            }
+        if (validFavs.isEmpty() && validRecents.isEmpty()) return emptyList()
+
+        fun extractPrimarySinger(song: Song): String =
+            song.singer
+                .split('/', ',', '&', '、')
+                .firstOrNull()
+                ?.trim()
+                .orEmpty()
+
+        val favBySinger = LinkedHashMap<String, MutableList<Song>>()
+        for (song in validFavs) {
+            val singer = extractPrimarySinger(song)
+            favBySinger.getOrPut(singer) { mutableListOf() }.add(song)
+        }
+        val topFavSingers = favBySinger.keys.take(50).shuffled()
 
         val diverse = mutableListOf<Song>()
-        val shuffledSingers = bySinger.keys.shuffled()
+        val selectedSingers = mutableSetOf<String>()
 
-        for (singer in shuffledSingers) {
-            val songs = bySinger[singer].orEmpty()
+        for (singer in topFavSingers) {
+            val songs = favBySinger[singer].orEmpty()
             if (songs.isNotEmpty()) {
                 diverse.add(songs.random())
+                selectedSingers.add(singer)
             }
-            if (diverse.size >= maxSeeds) break
+            if (diverse.size >= favQuota) break
+        }
+
+        val recentQuota = (maxSeeds - favQuota).coerceAtLeast(0)
+        if (recentQuota > 0 && diverse.size < maxSeeds) {
+            val recentBySinger = LinkedHashMap<String, MutableList<Song>>()
+            for (song in validRecents) {
+                val singer = extractPrimarySinger(song)
+                if (!selectedSingers.contains(singer)) {
+                    recentBySinger.getOrPut(singer) { mutableListOf() }.add(song)
+                }
+            }
+            val shuffledRecentSingers = recentBySinger.keys.shuffled()
+            for (singer in shuffledRecentSingers) {
+                val songs = recentBySinger[singer].orEmpty()
+                if (songs.isNotEmpty()) {
+                    diverse.add(songs.random())
+                    selectedSingers.add(singer)
+                }
+                if (diverse.size >= favQuota + recentQuota || diverse.size >= maxSeeds) break
+            }
         }
 
         if (diverse.size < maxSeeds) {
-            val remaining = validSongs.filter { s -> diverse.none { it.songId == s.songId } }.shuffled()
-            for (song in remaining) {
+            for (singer in topFavSingers) {
+                if (selectedSingers.contains(singer)) continue
+                val songs = favBySinger[singer].orEmpty()
+                if (songs.isNotEmpty()) {
+                    diverse.add(songs.random())
+                    selectedSingers.add(singer)
+                }
+                if (diverse.size >= maxSeeds) break
+            }
+        }
+
+        if (diverse.size < maxSeeds) {
+            val remainingRecents =
+                validRecents
+                    .filter { s -> diverse.none { it.songId == s.songId } }
+                    .shuffled()
+            for (song in remainingRecents) {
+                val singer = extractPrimarySinger(song)
+                if (!selectedSingers.contains(singer)) {
+                    diverse.add(song)
+                    selectedSingers.add(singer)
+                }
+                if (diverse.size >= maxSeeds) break
+            }
+        }
+
+        if (diverse.size < maxSeeds) {
+            val allCandidates = (validFavs + validRecents).filter { s -> diverse.none { it.songId == s.songId } }.shuffled()
+            for (song in allCandidates) {
                 diverse.add(song)
                 if (diverse.size >= maxSeeds) break
             }
