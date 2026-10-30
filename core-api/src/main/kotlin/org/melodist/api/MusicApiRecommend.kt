@@ -637,13 +637,18 @@ suspend fun MusicApiService.getRecommendFeed(
                     continue
                 }
 
+                if (rawTemplate.contains("播客") || title.contains("播客")) {
+                    continue
+                }
+
                 val isTargetShelf =
                     rawTemplate.contains("喜欢") || title.contains("喜欢") ||
                         rawTemplate.contains("也在听") || title.contains("也在听") ||
                         rawTemplate.contains("红心") || title.contains("红心") ||
-                        rawTemplate.contains("宝藏好歌") || title.contains("宝藏好歌") ||
-                        rawTemplate.contains("惊喜好歌") || title.contains("惊喜好歌") ||
-                        rawTemplate.contains("反复") || title.contains("反复")
+                        rawTemplate.contains("宝藏") || title.contains("宝藏") ||
+                        rawTemplate.contains("反复") || title.contains("反复") ||
+                        rawTemplate.contains("音乐收藏") || title.contains("音乐收藏") ||
+                        rawTemplate.contains("一键重温") || title.contains("一键重温")
                 if (!isTargetShelf) {
                     continue
                 }
@@ -675,7 +680,7 @@ suspend fun MusicApiService.getRecommendFeed(
                     }
                 }
 
-                if (songIds.isEmpty()) continue
+                if (songIds.size < 36) continue
 
                 // 批量获取高精度 Track 元数据
                 val detailedSongs =
@@ -696,7 +701,7 @@ suspend fun MusicApiService.getRecommendFeed(
                         cardSongsFallback
                     }
 
-                if (finalSongs.isNotEmpty()) {
+                if (finalSongs.size >= 36) {
                     shelves.add(
                         RecommendShelf(
                             title = title,
@@ -712,7 +717,32 @@ suspend fun MusicApiService.getRecommendFeed(
                 }
             }
             if (shelves.size > 1) {
-                shelves.shuffled().take(1)
+                val groupedShelves =
+                    shelves.groupBy { shelf ->
+                        when {
+                            shelf.rawTemplate.contains("红心") || shelf.title.contains("红心") -> "favorite_explore"
+
+                            shelf.rawTemplate.contains("宝藏") || shelf.title.contains("宝藏") -> "treasure"
+
+                            shelf.rawTemplate.contains("反复") || shelf.title.contains("反复") -> "repeat"
+
+                            shelf.rawTemplate.contains("音乐收藏") || shelf.title.contains("音乐收藏") ||
+                                shelf.rawTemplate.contains("一键重温") || shelf.title.contains("一键重温") -> "collection_review"
+
+                            shelf.rawTemplate.contains("也在听") || shelf.title.contains("也在听") ||
+                                shelf.rawTemplate.contains("听") || shelf.title.contains("听「") -> "similar_tracks"
+
+                            shelf.rawTemplate.isNotBlank() -> shelf.rawTemplate
+
+                            else -> shelf.title
+                        }
+                    }
+                val candidates = groupedShelves.values.mapNotNull { it.randomOrNull() }
+                if (candidates.isNotEmpty()) {
+                    listOf(candidates.random())
+                } else {
+                    shelves.take(1)
+                }
             } else {
                 shelves
             }
