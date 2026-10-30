@@ -22,8 +22,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
-import org.melodist.api.getGuessRecommendSongs
 import org.melodist.data.DailyRecommendCacheManager
+import org.melodist.data.GuessRecommendManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
@@ -113,8 +113,7 @@ fun HomeCoreTracksRow(
         .collectAsState()
     val recentSongsList by org.melodist.data.RecentPlaybackManager.recentSongsFlow
         .collectAsState()
-
-    var radarSongs by remember { mutableStateOf(HomeCardsCache.radarSongs) }
+    val radarSongs by GuessRecommendManager.songsFlow.collectAsState()
 
     val favSongs = favSongsList
     val dailySongs = dailyData.songs
@@ -122,6 +121,10 @@ fun HomeCoreTracksRow(
     val recentSongs = recentSongsList
     val playlistItems = userLibraryData.playlists.filterNot { it.isMyFavorite }
     val albumItems = userLibraryData.favoriteAlbums
+
+    val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
+    val isPlaying by PlaybackManager.isPlaying.collectAsState()
+    val isPlayingRadar = isRadioMode && isPlaying
 
     // 7 张卡片当前选中的候选索引
     var favIndex by remember { mutableIntStateOf(0) }
@@ -134,7 +137,6 @@ fun HomeCoreTracksRow(
 
     LaunchedEffect(userProfile) {
         if (!UserSession.isLoggedIn) {
-            radarSongs = emptyList()
             HomeCardsCache.radarSongs = emptyList()
             return@LaunchedEffect
         }
@@ -173,19 +175,11 @@ fun HomeCoreTracksRow(
             }
         }
 
-        // 猜你喜欢：拉取 15 首候选队列并支持 5 分钟定时刷新
+        // 猜你喜欢：直接依托公共 GuessRecommendManager 加载与维护 30 首推荐池
         launch {
             try {
                 if (radarSongs.isEmpty()) {
-                    val radar = apiService.getGuessRecommendSongs(count = 15)
-                    if (radar.isNotEmpty()) {
-                        val valid = radar.take(15)
-                        radarSongs = valid
-                        HomeCardsCache.radarSongs = valid
-                        HomeCardsCache.radarCover = valid.first().coverUrl
-                        HomeCardsCache.radarAlbumMid = valid.first().albumMid
-                        HomeCardsCache.lastRadarFetchTimeMs = System.currentTimeMillis()
-                    }
+                    GuessRecommendManager.refresh(apiService, forceRefresh = false)
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -216,39 +210,7 @@ fun HomeCoreTracksRow(
         }
     }
 
-    val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
-    val isPlaying by PlaybackManager.isPlaying.collectAsState()
-    val isPlayingRadar = isRadioMode && isPlaying
-
-    // 猜你喜欢每 5 分钟在后台拉取新的一批 15 首
-    LaunchedEffect(userProfile, isPlayingRadar) {
-        if (!UserSession.isLoggedIn) return@LaunchedEffect
-        while (isActive) {
-            val now = System.currentTimeMillis()
-            val timeSinceLast = now - HomeCardsCache.lastRadarFetchTimeMs
-            if (HomeCardsCache.lastRadarFetchTimeMs > 0L && timeSinceLast >= HomeCardsCache.RADAR_REFRESH_INTERVAL_MS) {
-                if (!isPlayingRadar) {
-                    try {
-                        val radar = apiService.getGuessRecommendSongs(count = 15)
-                        if (radar.isNotEmpty()) {
-                            val valid = radar.take(15)
-                            radarSongs = valid
-                            HomeCardsCache.radarSongs = valid
-                            HomeCardsCache.radarCover = valid.first().coverUrl
-                            HomeCardsCache.radarAlbumMid = valid.first().albumMid
-                            HomeCardsCache.lastRadarFetchTimeMs = System.currentTimeMillis()
-                        }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.w("HomeCardsCache", "Operation failed", e)
-                    }
-                }
-            }
-            delay(15_000L)
-        }
-    }
-
-    // 15 秒固定轮换定时器：各个卡片从自身的候选池中随机换到下一张（仅当池大小 > 1 时触发，无网/单项静止）
+    // 20 秒固定轮换定时器：各个卡片从自身的候选池中随机换到下一张（仅当池大小 > 1 时触发，无网/单项静止）
     LaunchedEffect(favSongs.size, dailySongs.size, radarSongs.size, millionSongs.size, playlistItems.size, albumItems.size) {
         fun pickNextRandom(
             current: Int,
@@ -263,7 +225,7 @@ fun HomeCoreTracksRow(
         }
 
         while (isActive) {
-            delay(15_000L)
+            delay(20_000L)
             if (!isPlayingRadar && radarSongs.size > 1) {
                 radarIndex = pickNextRandom(radarIndex, radarSongs.size)
             }
@@ -467,10 +429,9 @@ fun HomeCoreTracksRow(
                     onClick = {
                         when (item.id) {
                             "radar" -> {
-                                val available = radarSongs.ifEmpty { HomeCardsCache.radarSongs }
-                                if (available.isNotEmpty()) {
-                                    val start = radarIndex.coerceIn(0, available.size - 1)
-                                    PlaybackManager.setPlaylist(available, start, isRadio = true)
+                                if (radarSongs.isNotEmpty()) {
+                                    val start = radarIndex.coerceIn(0, radarSongs.size - 1)
+                                    PlaybackManager.setPlaylist(radarSongs, start, isRadio = true)
                                 } else {
                                     onPlayRadar(emptyList())
                                 }

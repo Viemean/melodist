@@ -21,7 +21,8 @@ import org.melodist.api.getGuessRecommendSongs
 import org.melodist.model.Song
 
 object GuessRecommendManager {
-    private const val REFRESH_INTERVAL_MS = 3 * 60 * 1000L // 3 分钟
+    private const val REFRESH_INTERVAL_MS = 30 * 60 * 1000L // 30 分钟保鲜冷却
+    private const val TARGET_BATCH_SIZE = 30
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val refreshMutex = Mutex()
@@ -88,30 +89,86 @@ object GuessRecommendManager {
     }
 
     /**
-     * 连续两次拉取并去重合并，构成 10 首猜你喜欢候选池
+     * 自适应分级获取 30 首猜你喜欢歌曲：
+     * 1. 深度用户（收藏或播放历史 >= 5 首）：从不同歌手的曲目中采样 5 首种子并发雷达碰撞，去重后交织出 30 首
+     * 2. 轻度用户（收藏或播放历史 1~4 首）：以现有曲目作为种子并发雷达
+     * 3. 冷启动用户（无收藏与历史）：直接调用官方原生猜你喜欢 (无种子)
      */
-    private suspend fun fetchTenSongs(apiService: MusicApiService): List<Song> {
-        val first = apiService.getGuessRecommendSongs(count = 5)
-        val second = apiService.getGuessRecommendSongs(count = 5)
-        val combined = mutableListOf<Song>()
-        val seen = mutableSetOf<String>()
-        for (song in first + second) {
-            if (song.songMid.isNotBlank() && seen.add(song.songMid)) {
-                combined.add(song)
+    private suspend fun fetchRecommendSongs(apiService: MusicApiService): List<Song> {
+        val favSongs = UserLibraryCacheManager.loadFavoriteSongs(apiService, forceRefresh = false)
+        val recentSongs = RecentPlaybackManager.recentSongsFlow.value
+
+        val excludeIds = favSongs.mapNotNull { it.songId.takeIf { id -> id > 0L } }.toSet()
+
+        val seedPool = mutableListOf<Song>()
+        seedPool.addAll(favSongs)
+        for (r in recentSongs) {
+            if (seedPool.none { it.songId == r.songId && r.songId > 0L }) {
+                seedPool.add(r)
             }
         }
-        return combined.take(10)
+
+        val seeds = selectDiverseSeeds(seedPool, maxSeeds = 5)
+        val seedIds = seeds.mapNotNull { it.songId.takeIf { id -> id > 0L } }
+
+        return apiService.getGuessRecommendSongs(
+            count = TARGET_BATCH_SIZE,
+            seedSongIds = seedIds,
+            excludeSongIds = excludeIds,
+        )
     }
 
     /**
-     * 提前在后台静默抓取下一批 10 首，避免轮播耗尽时等待
+     * 从候选池中抽取跨歌手的种子歌曲（优先不同歌手，不足时随机补齐）。
+     */
+    internal fun selectDiverseSeeds(
+        candidates: List<Song>,
+        maxSeeds: Int = 5,
+    ): List<Song> {
+        if (candidates.isEmpty()) return emptyList()
+        val validSongs = candidates.filter { it.songId > 0L }
+        if (validSongs.isEmpty()) return emptyList()
+
+        val bySinger =
+            validSongs.groupBy {
+                it.singer
+                    .split('/', ',', '&', '、')
+                    .firstOrNull()
+                    ?.trim()
+                    .orEmpty()
+            }
+
+        val diverse = mutableListOf<Song>()
+        val shuffledSingers = bySinger.keys.shuffled()
+
+        for (singer in shuffledSingers) {
+            val songs = bySinger[singer].orEmpty()
+            if (songs.isNotEmpty()) {
+                diverse.add(songs.random())
+            }
+            if (diverse.size >= maxSeeds) break
+        }
+
+        if (diverse.size < maxSeeds) {
+            val remaining = validSongs.filter { s -> diverse.none { it.songId == s.songId } }.shuffled()
+            for (song in remaining) {
+                diverse.add(song)
+                if (diverse.size >= maxSeeds) break
+            }
+        }
+
+        return diverse
+    }
+
+    /**
+     * 提前在后台静默抓取下一批 30 首，避免轮播耗尽时等待
      */
     fun prefetchNextBatch(apiService: MusicApiService = MusicApiService()) {
         if (isPrefetching || (nextBatch?.isNotEmpty() == true)) return
         scope.launch {
             try {
                 isPrefetching = true
-                val fetched = fetchTenSongs(apiService)
+                val fetched = fetchRecommendSongs(apiService)
                 if (fetched.isNotEmpty()) {
                     nextBatch = fetched
                 }
@@ -125,7 +182,7 @@ object GuessRecommendManager {
     }
 
     /**
-     * 当前批次 10 首轮播完毕后切换到下一批
+     * 当前批次 30 首轮播完毕后切换到下一批
      */
     suspend fun rotateToNextBatch(apiService: MusicApiService = MusicApiService()): List<Song> =
         refreshMutex.withLock {
@@ -136,7 +193,7 @@ object GuessRecommendManager {
                 lastRefreshTimestamp = System.currentTimeMillis()
                 candidate
             } else {
-                val fresh = fetchTenSongs(apiService)
+                val fresh = fetchRecommendSongs(apiService)
                 if (fresh.isNotEmpty()) {
                     _songsFlow.value = fresh
                     lastRefreshTimestamp = System.currentTimeMillis()
@@ -154,7 +211,7 @@ object GuessRecommendManager {
             if (_isLoadingFlow.value && !forceRefresh) return
             _isLoadingFlow.value = _songsFlow.value.isEmpty()
             try {
-                val songs = fetchTenSongs(apiService)
+                val songs = fetchRecommendSongs(apiService)
                 if (songs.isNotEmpty()) {
                     _songsFlow.value = songs
                     nextBatch = null

@@ -2,6 +2,9 @@ package org.melodist.api
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
@@ -271,12 +274,18 @@ suspend fun MusicApiService.getMillionRecommendDetail(): MillionRecommendResult 
 suspend fun MusicApiService.getMillionRecommendSongs(): List<Song> = getMillionRecommendDetail().songs
 
 /**
- * 获取基于用户画像与收听偏好的“猜你喜欢”个性化推荐歌曲。
+ * 获取基于用户画像、种子碰撞或冷启动分级的“猜你喜欢”个性化推荐歌曲。
  *
- * @param count 期望拉取的歌曲数量，默认 25 首
+ * @param count 期望拉取的歌曲数量，默认 30 首
+ * @param seedSongIds 推荐种子歌曲 ID 列表；若提供种子，则执行多路雷达并发碰撞；若为空则由官方云端协同过滤接管
+ * @param excludeSongIds 需要从推荐结果中排除的歌曲 ID 集合（如已红心歌曲或种子本身）
  * @return 推荐歌曲列表；请求失败时返回已成功收集的部分结果或空列表
  */
-suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> =
+suspend fun MusicApiService.getGuessRecommendSongs(
+    count: Int = 30,
+    seedSongIds: List<Long> = emptyList(),
+    excludeSongIds: Set<Long> = emptySet(),
+): List<Song> =
     withContext(Dispatchers.IO) {
         if (UserSession.isLoggedIn) {
             ensureMusicKeySafe()
@@ -284,13 +293,65 @@ suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> 
 
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val authst = UserSession.profile.musicKey
+        val targetCount = count.coerceIn(1, 100)
+
+        val cleanSeeds = seedSongIds.filter { it > 0L }.distinct().take(5)
+
+        if (cleanSeeds.isNotEmpty()) {
+            val songsPerSeed = (targetCount / cleanSeeds.size + 3).coerceIn(6, 15)
+            val seedResults =
+                coroutineScope {
+                    cleanSeeds
+                        .map { seedId ->
+                            async {
+                                try {
+                                    val payload =
+                                        """
+                                        {
+                                          "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "$authst" },
+                                          "radar": {
+                                            "module": "music.radioProxy.MbTrackRadioSvr",
+                                            "method": "get_radio_track",
+                                            "param": { "id": 99, "num": $songsPerSeed, "from": 0, "scene": 1, "song_ids": [$seedId] }
+                                          }
+                                        }
+                                        """.trimIndent()
+
+                                    val respJson = postGateway(payload)
+                                    val root = Json.parseToJsonElement(respJson).jsonObject
+                                    val tracks =
+                                        root["radar"]
+                                            ?.jsonObject
+                                            ?.get("data")
+                                            ?.jsonObject
+                                            ?.get("tracks")
+                                            ?.jsonArray ?: return@async emptyList()
+
+                                    tracks.mapNotNull { MusicApiService.parseSongFromElement(it) }
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    ApiLogger.w("MusicApiRecommend", "radar seed $seedId failed", e)
+                                    emptyList()
+                                }
+                            }
+                        }.awaitAll()
+                }
+
+            val interleaved = interleaveAndFilterRecommendations(seedResults, targetCount, excludeSongIds)
+            if (interleaved.isNotEmpty()) {
+                return@withContext interleaved
+            }
+        }
+
+        // 兜底分支：无种子或种子雷达未返回曲目时的官方原生猜你喜欢 (scene=0)
         val result = mutableListOf<Song>()
         val seenMids = mutableSetOf<String>()
+        val excludeIdSet = excludeSongIds + cleanSeeds
 
         try {
-            val maxBatches = (count / 15 + 1).coerceIn(1, 4)
+            val maxBatches = (targetCount / 15 + 1).coerceIn(1, 4)
             for (batch in 0 until maxBatches) {
-                if (result.size >= count) break
+                if (result.size >= targetCount) break
                 val payload =
                     """
                     {
@@ -316,7 +377,10 @@ suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> 
                 var addedInBatch = 0
                 for (item in tracks) {
                     val song = MusicApiService.parseSongFromElement(item)
-                    if (song != null && song.songMid.isNotBlank() && seenMids.add(song.songMid)) {
+                    if (song != null && song.songMid.isNotBlank() &&
+                        !excludeIdSet.contains(song.songId) &&
+                        seenMids.add(song.songMid)
+                    ) {
                         result.add(song)
                         addedInBatch++
                     }
@@ -328,6 +392,78 @@ suspend fun MusicApiService.getGuessRecommendSongs(count: Int = 25): List<Song> 
             result
         }
     }
+
+/**
+ * 将多路种子的雷达推荐结果进行轮转交织（Round-Robin Interleaving）、去重与歌手防过密打散。
+ */
+internal fun interleaveAndFilterRecommendations(
+    seedResults: List<List<Song>>,
+    targetCount: Int,
+    excludeSongIds: Set<Long>,
+): List<Song> {
+    val result = mutableListOf<Song>()
+    val seenIds = HashSet<Long>(excludeSongIds)
+    val seenMids = mutableSetOf<String>()
+    val singerCountMap = mutableMapOf<String, Int>()
+
+    val queues = seedResults.map { it.toMutableList() }
+    var hasMore = true
+
+    while (hasMore && result.size < targetCount) {
+        hasMore = false
+        for (list in queues) {
+            val iterator = list.iterator()
+            while (iterator.hasNext()) {
+                val song = iterator.next()
+                if (song.songId <= 0L && song.songMid.isBlank()) {
+                    iterator.remove()
+                    continue
+                }
+                if (seenIds.contains(song.songId) || (song.songMid.isNotBlank() && seenMids.contains(song.songMid))) {
+                    iterator.remove()
+                    continue
+                }
+
+                val primarySinger =
+                    song.singer
+                        .split('/', ',', '&', '、')
+                        .firstOrNull()
+                        ?.trim()
+                        .orEmpty()
+                val currentCount = if (primarySinger.isNotBlank()) singerCountMap.getOrDefault(primarySinger, 0) else 0
+                if (primarySinger.isNotBlank() && currentCount >= 2) {
+                    continue
+                }
+
+                iterator.remove()
+                if (song.songId > 0L) seenIds.add(song.songId)
+                if (song.songMid.isNotBlank()) seenMids.add(song.songMid)
+                if (primarySinger.isNotBlank()) singerCountMap[primarySinger] = currentCount + 1
+                result.add(song)
+                hasMore = true
+                break
+            }
+            if (result.size >= targetCount) break
+        }
+    }
+
+    if (result.size < targetCount) {
+        for (list in queues) {
+            for (song in list) {
+                if (result.size >= targetCount) break
+                if (song.songId <= 0L && song.songMid.isBlank()) continue
+                if (seenIds.contains(song.songId) || (song.songMid.isNotBlank() && seenMids.contains(song.songMid))) {
+                    continue
+                }
+                if (song.songId > 0L) seenIds.add(song.songId)
+                if (song.songMid.isNotBlank()) seenMids.add(song.songMid)
+                result.add(song)
+            }
+        }
+    }
+
+    return result
+}
 
 /**
  * 分页获取指定排行榜（如飙升榜、热歌榜、新歌榜）的歌曲列表。

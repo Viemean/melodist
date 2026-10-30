@@ -25,7 +25,6 @@ import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
 private const val ROTATION_INTERVAL_MS = 20_000L
-private const val PREFETCH_THRESHOLD_INDEX = 7
 
 @Composable
 fun GuessRecommendCard(
@@ -53,23 +52,17 @@ fun GuessRecommendCard(
         }
     }
 
-    // 15 秒无序轮播定时器，并在剩余约 3 首时提前预抓取下一批 10 首
+    // 20 秒纯内存无序轮播定时器，在一轮轮完后重新洗牌，0网络请求
     LaunchedEffect(shuffledList, isRadioMode, isForeground) {
         if (isRadioMode || !isForeground || shuffledList.size <= 1) return@LaunchedEffect
         while (isActive) {
             delay(ROTATION_INTERVAL_MS)
             val nextIndex = currentIndex + 1
-            // 达到预抓取阈值时，静默提前抓取下一轮 10 首
-            if (nextIndex >= PREFETCH_THRESHOLD_INDEX) {
-                GuessRecommendManager.prefetchNextBatch()
-            }
-
             if (nextIndex < shuffledList.size) {
                 currentIndex = nextIndex
             } else {
-                // 本轮 10 首已全部轮播完毕，切换到下一批并重新洗牌
-                val nextSongs = GuessRecommendManager.rotateToNextBatch()
-                shuffledList = RotatingCandidatePool.createShuffledQueue(nextSongs, lastItem = shuffledList.lastOrNull())
+                // 本轮候选已全部轮播完毕，在当前内存池中重新洗牌并重置索引，不触发任何网络请求
+                shuffledList = RotatingCandidatePool.createShuffledQueue(guessSongs, lastItem = shuffledList.lastOrNull())
                 currentIndex = 0
             }
         }
