@@ -1,7 +1,10 @@
 package org.melodist.mobile.connect
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +37,7 @@ import org.melodist.core.connect.storage.ConnectStorageManager
 import org.melodist.data.LyricCacheManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
+import org.melodist.mobile.util.LocalNetworkPermissionHelper
 import org.melodist.playback.PlaybackInterceptor
 import org.melodist.playback.PlaybackManager
 
@@ -557,6 +561,11 @@ object MobileConnectManager {
     }
 
     fun startDiscovery() {
+        val app = appContext
+        if (app != null && !LocalNetworkPermissionHelper.hasPermission(app)) {
+            Log.w("MobileConnectManager", "Local network permission not granted, skipping NSD discovery")
+            return
+        }
         nsdHelper?.startDiscovery()
         if (!userManuallyDisconnected && autoConnectJob?.isActive != true && connectionState.value !is MobileConnectionState.Paired) {
             resetAndRetryAutoConnect()

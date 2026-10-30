@@ -31,14 +31,15 @@ import org.melodist.data.WebDavManager
 import org.melodist.data.download.DownloadManager
 import org.melodist.mobile.ui.navigation.MainNavigationScreen
 import org.melodist.mobile.ui.theme.MelodistMobileTheme
+import org.melodist.mobile.util.LocalNetworkPermissionHelper
 import org.melodist.playback.DeviceAudioCapability
 import org.melodist.playback.PlaybackManager
 
 class MainActivity : ComponentActivity() {
-    private val requestNotificationPermissionLauncher =
+    private val requestPermissionsLauncher =
         registerForActivityResult(
             androidx.activity.result.contract.ActivityResultContracts
-                .RequestPermission(),
+                .RequestMultiplePermissions(),
         ) { _ ->
         }
 
@@ -46,14 +47,23 @@ class MainActivity : ComponentActivity() {
         WindowCompat.enableEdgeToEdge(window)
         super.onCreate(savedInstanceState)
 
+        val permissionsToRequest = mutableListOf<String>()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(
                     this,
                     android.Manifest.permission.POST_NOTIFICATIONS,
                 ) != android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
-                requestNotificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                permissionsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS)
             }
+        }
+        if (Build.VERSION.SDK_INT >= 37) {
+            if (!LocalNetworkPermissionHelper.hasPermission(this)) {
+                permissionsToRequest.add(LocalNetworkPermissionHelper.PERMISSION_ACCESS_LOCAL_NETWORK)
+            }
+        }
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         }
 
         lifecycleScope.launch(Dispatchers.Default) {

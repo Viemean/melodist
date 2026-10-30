@@ -1,6 +1,10 @@
 package org.melodist.mobile.ui.connect
 
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,6 +31,7 @@ import org.melodist.mobile.ui.connect.components.RemoteConnectDialogs
 import org.melodist.mobile.ui.connect.components.RemotePlaybackControlCard
 import org.melodist.mobile.ui.connect.components.RemotePreferencesCard
 import org.melodist.mobile.ui.connect.components.remoteDeviceListSection
+import org.melodist.mobile.util.LocalNetworkPermissionHelper
 import org.melodist.model.QualityOption
 
 /**
@@ -48,6 +55,27 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
 
     var tvProbedQualityOptions by remember { mutableStateOf<List<QualityOption>>(emptyList()) }
     var isTvProbingQuality by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    var hasLocalNetworkPermission by remember {
+        mutableStateOf(LocalNetworkPermissionHelper.hasPermission(context))
+    }
+
+    LaunchedEffect(Unit) {
+        LocalNetworkPermissionHelper.showToastOnceIfDenied(context)
+    }
+
+    val localNetworkPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            hasLocalNetworkPermission = granted
+            if (granted) {
+                MobileConnectManager.startDiscovery()
+            } else {
+                LocalNetworkPermissionHelper.showToastOnceIfDenied(context)
+            }
+        }
 
     val curTvSong = tvPlayerState?.currentSong
     LaunchedEffect(showTvQualitySheet, curTvSong?.songMid) {
@@ -77,8 +105,12 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
         }
     }
 
-    DisposableEffect(Unit) {
-        MobileConnectManager.startDiscovery()
+    DisposableEffect(hasLocalNetworkPermission) {
+        if (hasLocalNetworkPermission) {
+            MobileConnectManager.startDiscovery()
+        } else if (Build.VERSION.SDK_INT >= 37) {
+            localNetworkPermissionLauncher.launch(LocalNetworkPermissionHelper.PERMISSION_ACCESS_LOCAL_NETWORK)
+        }
         onDispose {
             MobileConnectManager.stopDiscovery()
         }
@@ -139,7 +171,13 @@ fun RemoteControlMobileScreen(contentPadding: PaddingValues = PaddingValues(0.dp
             discoveredDevices = discoveredDevices,
             pairedDevices = pairedDevices,
             connectionState = connectionState,
-            onRequestRefresh = { MobileConnectManager.startDiscovery() },
+            onRequestRefresh = {
+                if (hasLocalNetworkPermission) {
+                    MobileConnectManager.startDiscovery()
+                } else if (Build.VERSION.SDK_INT >= 37) {
+                    localNetworkPermissionLauncher.launch(LocalNetworkPermissionHelper.PERMISSION_ACCESS_LOCAL_NETWORK)
+                }
+            },
             onSelectDeviceToConnect = { device ->
                 selectedDeviceForPin = device
             },

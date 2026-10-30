@@ -58,6 +58,7 @@ import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.storage.StorageDirectoryListView
 import org.melodist.mobile.ui.storage.StorageItemModel
+import org.melodist.mobile.util.LocalNetworkPermissionHelper
 import org.melodist.mobile.ui.storage.StoragePathBreadcrumbs
 import org.melodist.mobile.ui.storage.StorageScanProgressCard
 import org.melodist.model.AudioFileFilter
@@ -78,6 +79,9 @@ fun WebDavMobileScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        LocalNetworkPermissionHelper.showToastOnceIfDenied(context)
+    }
     val scope = rememberCoroutineScope()
     val webDavService = remember { WebDavService() }
 
