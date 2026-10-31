@@ -22,6 +22,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +43,7 @@ fun NowPlayingHeroCard(
     song: Song?,
     cardHeight: Dp = 250.dp,
     surfaceColor: Color = MelodistColors.SurfaceDark,
+    accentColor: Color? = null,
     isPlaying: Boolean = false,
     isFavorite: Boolean = false,
     currentTier: AudioQualityTier = AudioQualityTier.Standard,
@@ -59,6 +61,17 @@ fun NowPlayingHeroCard(
     connectedPhoneName: String? = null,
     onFocusChangedCallback: ((Boolean) -> Unit)? = null,
 ) {
+    val themeHighlightColor =
+        accentColor ?: remember(surfaceColor) {
+            val hsv = FloatArray(3)
+            android.graphics.Color.colorToHSV(surfaceColor.toArgb(), hsv)
+            val hue = hsv[0]
+            val rawSat = hsv[1]
+            val sat = (rawSat * 1.15f).coerceIn(0.40f, 0.68f)
+            val value = 0.94f
+            Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value)))
+        }
+
     val songTitle = song?.name ?: "未在播放曲目"
     val songArtist = song?.singer?.takeIf { it.isNotBlank() } ?: if (song != null) "未知歌手" else "请从歌单中选择歌曲播放"
     val songAlbum = song?.album?.takeIf { it.isNotBlank() } ?: if (song != null) "未知专辑" else ""
@@ -212,6 +225,7 @@ fun NowPlayingHeroCard(
                     HeroProgressBar(
                         progressMsProvider = actualProgressProvider,
                         durationMs = durationMs,
+                        accentColor = themeHighlightColor,
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -485,6 +499,7 @@ private fun HeroActionButton(
 private fun HeroProgressBar(
     progressMsProvider: () -> Long,
     durationMs: Long,
+    accentColor: Color = MelodistColors.AccentGreen,
     modifier: Modifier = Modifier,
 ) {
     val progressMs by org.melodist.playback.PlaybackManager.currentPositionMs
@@ -508,7 +523,7 @@ private fun HeroProgressBar(
                 Modifier
                     .fillMaxWidth(progressFraction)
                     .fillMaxHeight()
-                    .background(MelodistColors.AccentGreen),
+                    .background(accentColor),
         )
     }
 }
