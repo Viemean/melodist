@@ -34,6 +34,8 @@ dependencies {
     implementation(project(":core-model"))
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.palette)
+    implementation(libs.coil)
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     implementation(libs.androidx.compose.ui)

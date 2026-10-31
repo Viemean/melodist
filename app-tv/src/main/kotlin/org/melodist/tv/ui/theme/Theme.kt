@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.graphics.ColorUtils
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.darkColorScheme
@@ -22,6 +23,8 @@ import coil3.toBitmap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.melodist.ui.monet.MonetSeed
+import org.melodist.ui.monet.MonetSeedExtractor
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -42,25 +45,60 @@ private val DarkColorPalette =
         border = MelodistColors.FocusTeal,
     )
 
-/**
- * 专辑莫奈色度提取器 (Material You Monet Dark Surface Spec)
- * 从专辑封面采样色相并计算暗色背景
- */
+data class TvMonetColors(
+    val surfaceColor: Color = Color(0xFF121418),
+    val accentColor: Color = MelodistColors.AccentGreen,
+    val containerColor: Color = Color(0xFF1A1D24),
+)
+
+fun resolveTvMonetColors(seed: MonetSeed): TvMonetColors {
+    val hue = seed.hue
+    val targetSat = (seed.saturation * 0.95f).coerceIn(0.30f, 0.46f)
+    val targetVal = 0.24f
+
+    val surfaceHsv = floatArrayOf(hue, targetSat, targetVal)
+    val darkSurface = Color(android.graphics.Color.HSVToColor(surfaceHsv))
+
+    val accentHsv =
+        floatArrayOf(
+            seed.accentHue,
+            seed.accentSaturation.coerceIn(0.60f, 0.85f),
+            0.92f,
+        )
+    val accent = Color(android.graphics.Color.HSVToColor(accentHsv))
+
+    val containerHsv =
+        floatArrayOf(
+            hue,
+            (targetSat * 0.85f).coerceIn(0.24f, 0.40f),
+            (targetVal + 0.08f).coerceIn(0f, 1f),
+        )
+    val container = Color(android.graphics.Color.HSVToColor(containerHsv))
+
+    return TvMonetColors(
+        surfaceColor = darkSurface,
+        accentColor = accent,
+        containerColor = container,
+    )
+}
+
 object MonetColorExtractor {
+    private val seedCache = android.util.LruCache<String, MonetSeed>(128)
     private val colorCache = android.util.LruCache<String, Color>(128)
-    val DefaultSurfaceColor = Color(0xFF142032) // 默认暗色
+    val DefaultSurfaceColor = Color(0xFF121418)
+    val DefaultLightSurfaceColor = Color(0xFFF7F7F9)
 
     fun getCachedColor(url: String?): Color? {
         if (url.isNullOrBlank()) return null
         return colorCache.get(url)
     }
 
-    suspend fun extractFromUrl(
+    suspend fun extractSeedFromUrl(
         context: Context? = null,
         url: String,
-    ): Color {
-        if (url.isBlank()) return DefaultSurfaceColor
-        colorCache.get(url)?.let { return it }
+    ): MonetSeed? {
+        if (url.isBlank()) return null
+        seedCache.get(url)?.let { return it }
 
         return withContext(Dispatchers.IO) {
             try {
@@ -83,10 +121,10 @@ object MonetColorExtractor {
                         }
                     val bitmap = BitmapFactory.decodeFile(localFile.absolutePath, options)
                     if (bitmap != null) {
-                        val color = extractMonetDarkSurface(bitmap)
+                        val seed = MonetSeedExtractor.extractFromBitmap(bitmap)
                         bitmap.recycle()
-                        colorCache.put(url, color)
-                        return@withContext color
+                        seedCache.put(url, seed)
+                        return@withContext seed
                     }
                 }
 
@@ -104,9 +142,9 @@ object MonetColorExtractor {
                         val result = loader.execute(request)
                         if (result is SuccessResult) {
                             val bitmap = result.image.toBitmap()
-                            val color = extractMonetDarkSurface(bitmap)
-                            colorCache.put(url, color)
-                            return@withContext color
+                            val seed = MonetSeedExtractor.extractFromBitmap(bitmap)
+                            seedCache.put(url, seed)
+                            return@withContext seed
                         }
                     } catch (e: Throwable) {
                         if (e is CancellationException) throw e
@@ -115,7 +153,7 @@ object MonetColorExtractor {
                 }
 
                 if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-                    val conn = URL(cleanUrl).openConnection() as? HttpURLConnection ?: return@withContext DefaultSurfaceColor
+                    val conn = URL(cleanUrl).openConnection() as? HttpURLConnection ?: return@withContext null
                     conn.connectTimeout = 3000
                     conn.readTimeout = 3000
                     conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
@@ -132,95 +170,49 @@ object MonetColorExtractor {
                     conn.disconnect()
 
                     if (bitmap != null) {
-                        val color = extractMonetDarkSurface(bitmap)
+                        val seed = MonetSeedExtractor.extractFromBitmap(bitmap)
                         bitmap.recycle()
-                        colorCache.put(url, color)
-                        return@withContext color
+                        seedCache.put(url, seed)
+                        return@withContext seed
                     }
                 }
 
-                DefaultSurfaceColor
+                null
             } catch (_: Exception) {
-                DefaultSurfaceColor
+                null
             }
         }
+    }
+
+    suspend fun extractFromUrl(
+        context: Context? = null,
+        url: String,
+    ): Color {
+        if (url.isBlank()) return DefaultSurfaceColor
+        colorCache.get(url)?.let { return it }
+
+        val seed = extractSeedFromUrl(context, url)
+        val color =
+            if (seed != null) {
+                resolveTvMonetColors(seed).surfaceColor
+            } else {
+                DefaultSurfaceColor
+            }
+        colorCache.put(url, color)
+        return color
     }
 
     suspend fun extractFromUrl(url: String): Color = extractFromUrl(null, url)
 
-    /**
-     * 全局莫奈调色规则：深色背景与低饱和度配置
-     */
     fun applyUnifiedMonetCurve(
         avgHue: Float,
         rawSat: Float,
     ): Color {
-        // 饱和度区间约束 0.30f..0.46f
         val targetSat = (rawSat * 0.95f).coerceIn(0.30f, 0.46f)
-        // 限制明度为 0.25f，平衡深色氛围与色彩辨识度
-        val targetVal = 0.25f
+        val targetVal = 0.24f
         val targetHsv = floatArrayOf(avgHue, targetSat, targetVal)
         val argb = android.graphics.Color.HSVToColor(targetHsv)
         return Color(argb)
-    }
-
-    private fun extractMonetDarkSurface(bitmap: Bitmap): Color {
-        val readableBitmap =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bitmap.config == Bitmap.Config.HARDWARE) {
-                bitmap.copy(Bitmap.Config.ARGB_8888, false)
-            } else {
-                bitmap
-            } ?: bitmap
-
-        val width = readableBitmap.width
-        val height = readableBitmap.height
-        val stepX = (width / 24).coerceAtLeast(1)
-        val stepY = (height / 24).coerceAtLeast(1)
-
-        val pixels = IntArray(width * height)
-        readableBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        if (readableBitmap !== bitmap) {
-            readableBitmap.recycle()
-        }
-
-        val hsl = FloatArray(3)
-        var sumHueSin = 0.0
-        var sumHueCos = 0.0
-        var sumSat = 0.0
-        var totalWeight = 0.0
-
-        for (y in 0 until height step stepY) {
-            val rowOffset = y * width
-            for (x in 0 until width step stepX) {
-                val pixel = pixels[rowOffset + x]
-                val r = (pixel shr 16) and 0xFF
-                val g = (pixel shr 8) and 0xFF
-                val b = pixel and 0xFF
-
-                android.graphics.Color.RGBToHSV(r, g, b, hsl)
-                val h = hsl[0]
-                val s = hsl[1]
-                val v = hsl[2]
-
-                // 排除极暗、极亮与无彩黑白灰，优先采样高饱和鲜艳像素
-                if (v in 0.12f..0.96f && s >= 0.12f) {
-                    val weight = s * s
-                    val rad = Math.toRadians(h.toDouble())
-                    sumHueSin += sin(rad) * weight
-                    sumHueCos += cos(rad) * weight
-                    sumSat += s * weight
-                    totalWeight += weight
-                }
-            }
-        }
-
-        if (totalWeight <= 0.0) return DefaultSurfaceColor
-
-        var avgHue = Math.toDegrees(atan2(sumHueSin, sumHueCos)).toFloat()
-        if (avgHue < 0) avgHue += 360f
-
-        val avgSat = (sumSat / totalWeight).toFloat()
-        return applyUnifiedMonetCurve(avgHue, avgSat)
     }
 
     suspend fun extractWeightedFromUrls(
@@ -229,9 +221,9 @@ object MonetColorExtractor {
     ): Color {
         val validUrls = urls.filter { it.isNotBlank() }.take(3)
         if (validUrls.isEmpty()) return DefaultSurfaceColor
-        if (validUrls.size == 1) return extractFromUrl(validUrls[0])
+        if (validUrls.size == 1) return extractFromUrl(null, validUrls[0])
 
-        val colors = validUrls.map { extractFromUrl(it) }
+        val colors = validUrls.map { extractFromUrl(null, it) }
         var sumHueSin = 0.0
         var sumHueCos = 0.0
         var sumSat = 0.0

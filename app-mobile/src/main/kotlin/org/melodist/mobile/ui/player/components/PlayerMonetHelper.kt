@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
 import coil3.toBitmap
+import org.melodist.ui.monet.MonetSeed
+import org.melodist.ui.monet.MonetSeedExtractor
 
 data class PlayerMonetColors(
     val darkBackgroundColor: Color = Color(0xFF141416),
@@ -26,56 +28,14 @@ data class PlayerMonetColors(
 }
 
 fun resolveMonetColors(palette: Palette): PlayerMonetColors {
-    val hsl = FloatArray(3)
+    val seed = MonetSeedExtractor.extractFromPalette(palette)
+    return resolveMonetColorsFromSeed(seed)
+}
 
-    // 过滤纯黑纯白、高曝光与灰阶噪点（明度限定 0.08f..0.92f，饱和度 >= 0.10f）
-    fun isValidColor(swatch: Palette.Swatch?): Boolean {
-        if (swatch == null) return false
-        ColorUtils.colorToHSL(swatch.rgb, hsl)
-        val s = hsl[1]
-        val l = hsl[2]
-        return s >= 0.10f && l in 0.08f..0.92f
-    }
+fun resolveMonetColorsFromSeed(seed: MonetSeed): PlayerMonetColors {
+    val hue = seed.hue
+    val sat = seed.saturation
 
-    val preferredCandidates =
-        listOfNotNull(
-            palette.vibrantSwatch,
-            palette.lightVibrantSwatch,
-            palette.darkVibrantSwatch,
-            palette.mutedSwatch,
-            palette.dominantSwatch,
-        )
-
-    var selectedSwatch = preferredCandidates.firstOrNull { isValidColor(it) }
-
-    if (selectedSwatch == null) {
-        val validSwatches = palette.swatches.filter { isValidColor(it) }
-        if (validSwatches.isNotEmpty()) {
-            // 提升高饱和度样本权重，提取主视觉强调色
-            selectedSwatch =
-                validSwatches.maxByOrNull { swatch ->
-                    ColorUtils.colorToHSL(swatch.rgb, hsl)
-                    val s = hsl[1]
-                    val l = hsl[2]
-                    val lightnessScore = 1f - kotlin.math.abs(l - 0.50f) * 1.5f
-                    (s * 3200f) + (lightnessScore * 800f) + (swatch.population * 0.08f)
-                }
-        }
-    }
-
-    val hue: Float
-    val sat: Float
-    if (selectedSwatch != null) {
-        ColorUtils.colorToHSL(selectedSwatch.rgb, hsl)
-        hue = hsl[0]
-        sat = hsl[1]
-    } else {
-        // 黑白图片默认回退低饱和灰蓝调
-        hue = 215f
-        sat = 0.22f
-    }
-
-    // 亮色背景色：低饱和浅色底（明度 0.93f，饱和度 0.12f..0.20f）
     val lightBgHsl =
         floatArrayOf(
             hue,
@@ -84,7 +44,6 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val lightBgColorInt = ColorUtils.HSLToColor(lightBgHsl)
 
-    // 深色背景色：黑曜石深灰色（明度 0.075f，饱和度 0.04f..0.08f）
     val darkBgHsl =
         floatArrayOf(
             hue,
@@ -93,7 +52,6 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val darkBgColorInt = ColorUtils.HSLToColor(darkBgHsl)
 
-    // 阴影基色（深沉色相匹配，消除摩尔纹与断层）：明度 0.07f
     val shadowHsl =
         floatArrayOf(
             hue,
@@ -102,26 +60,14 @@ fun resolveMonetColors(palette: Palette): PlayerMonetColors {
         )
     val shadowTintInt = ColorUtils.HSLToColor(shadowHsl)
 
-    // 按钮与进度条强调色：从封面提取鲜亮但不过曝的强调色
-    val accentSwatch = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: selectedSwatch
-    val accentHsl = FloatArray(3)
-    val accentColorInt =
-        if (accentSwatch != null && isValidColor(accentSwatch)) {
-            ColorUtils.colorToHSL(accentSwatch.rgb, accentHsl)
-            accentHsl[1] = accentHsl[1].coerceIn(0.50f, 0.75f)
-            accentHsl[2] = accentHsl[2].coerceIn(0.42f, 0.58f)
-            ColorUtils.HSLToColor(accentHsl)
-        } else {
-            val defaultAccentHsl =
-                floatArrayOf(
-                    if (sat < 0.20f) 165f else hue,
-                    0.60f,
-                    0.50f,
-                )
-            ColorUtils.HSLToColor(defaultAccentHsl)
-        }
+    val accentHsl =
+        floatArrayOf(
+            seed.accentHue,
+            seed.accentSaturation.coerceIn(0.50f, 0.75f),
+            seed.accentLightness.coerceIn(0.42f, 0.58f),
+        )
+    val accentColorInt = ColorUtils.HSLToColor(accentHsl)
 
-    // 歌词高亮色：与强调色同色相，通透轻盈
     val hlHsl =
         floatArrayOf(
             accentHsl[0],
