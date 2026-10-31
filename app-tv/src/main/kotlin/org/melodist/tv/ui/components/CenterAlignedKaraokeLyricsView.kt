@@ -65,7 +65,16 @@ fun CenterAlignedKaraokeLyricsView(
             if (index == -1) 0 else index
         }
 
-    val listState = rememberLazyListState()
+    val initialIndex =
+        remember(lyrics) {
+            val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
+            if (index == -1) 0 else index
+        }
+    val listState =
+        rememberLazyListState(
+            initialFirstVisibleItemIndex = initialIndex.coerceIn(0, (lyrics.size - 1).coerceAtLeast(0)),
+        )
+    var isInitialAligned by remember(lyrics) { mutableStateOf(false) }
     val takeoverScroll by org.melodist.tv.connect.TakeoverLyricsState.scrollFlow
         .collectAsState()
 
@@ -81,10 +90,18 @@ fun CenterAlignedKaraokeLyricsView(
             }
         } else {
             if (activeIndex in lyrics.indices) {
-                listState.animateScrollToItem(
-                    index = activeIndex,
-                    scrollOffset = -80,
-                )
+                if (!isInitialAligned) {
+                    isInitialAligned = true
+                    listState.scrollToItem(
+                        index = activeIndex,
+                        scrollOffset = -80,
+                    )
+                } else {
+                    listState.animateScrollToItem(
+                        index = activeIndex,
+                        scrollOffset = -80,
+                    )
+                }
             }
         }
     }
