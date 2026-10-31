@@ -261,27 +261,5 @@ fun AudioQualityPanel(menuRequester: FocusRequester) {
                 AppSettingsManager.setEnableUsbExclusive(!settings.enableUsbExclusive)
             },
         )
-
-        // 本地与 WebDAV 歌词文件名匹配
-        SettingSwitchCard(
-            title = "本地与WebDAV音乐匹配歌词",
-            checked = settings.enableAutoMatchLyrics,
-            menuRequester = menuRequester,
-            onToggle = {
-                AppSettingsManager.updateAutoMatchLyrics(!settings.enableAutoMatchLyrics)
-            },
-        )
-
-        // 忽略音频内嵌歌词
-        if (settings.enableAutoMatchLyrics) {
-            SettingSwitchCard(
-                title = "忽略音频内嵌歌词",
-                checked = settings.ignoreEmbeddedLyrics,
-                menuRequester = menuRequester,
-                onToggle = {
-                    AppSettingsManager.updateIgnoreEmbeddedLyrics(!settings.ignoreEmbeddedLyrics)
-                },
-            )
-        }
     }
 }

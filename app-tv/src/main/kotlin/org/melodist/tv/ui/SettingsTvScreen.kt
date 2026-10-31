@@ -32,7 +32,7 @@ enum class SettingsCategory(
 ) {
     Account("账号与授权", "QQ / 微信 / QQ音乐扫码登录"),
     AudioQuality("音频与音质", "首选音质 / Master / Hi-Res / SQ"),
-    Lyrics("播放与歌词", "双语逐行翻译 / 歌词字号大小"),
+    Lyrics("播放与歌词", "双语翻译 / 匹配与内嵌 / 歌词字号"),
     ScreenSaver("OLED 屏保与显示", "闲置等待时间 / 像素微移 / 播放屏保"),
     Storage("存储与缓存清理", "缓存占用统计 / 图片与歌词缓存释放"),
     About("关于 Melodist TV", "系统环境 / 音频直通 / 解码能力"),

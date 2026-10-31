@@ -59,6 +59,30 @@ fun LyricsPanel(menuRequester: FocusRequester) {
             },
         )
 
+        // 自动匹配歌词
+        SettingSwitchCard(
+            title = "自动匹配歌词",
+            subtitle = "为不完整歌词的本地和 WebDAV 音乐匹配歌词",
+            checked = settings.enableAutoMatchLyrics,
+            menuRequester = menuRequester,
+            onToggle = {
+                AppSettingsManager.updateAutoMatchLyrics(!settings.enableAutoMatchLyrics)
+            },
+        )
+
+        // 忽略内嵌歌词
+        if (settings.enableAutoMatchLyrics) {
+            SettingSwitchCard(
+                title = "忽略内嵌歌词",
+                subtitle = "优先使用匹配的歌词而不是内嵌歌词",
+                checked = settings.ignoreEmbeddedLyrics,
+                menuRequester = menuRequester,
+                onToggle = {
+                    AppSettingsManager.updateIgnoreEmbeddedLyrics(!settings.ignoreEmbeddedLyrics)
+                },
+            )
+        }
+
         // 歌词字号缩放 (依次左移，首列返回导航栏)
         Column(
             modifier = Modifier.fillMaxWidth(),
