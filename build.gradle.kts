@@ -19,8 +19,9 @@ subprojects {
         android.set(true)
         ignoreFailures.set(true)
         filter {
-            exclude { it.file.name.startsWith("Acoustic") }
-            exclude { it.file.path.contains("/build/") }
+            exclude("**/Acoustic*.kt")
+            exclude("**/QrcDecoder.kt")
+            exclude("**/build/**")
         }
         reporters {
             reporter(org.jlleitschuh.gradle.ktlint.reporter.ReporterType.PLAIN)

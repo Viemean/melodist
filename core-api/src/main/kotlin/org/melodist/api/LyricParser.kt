@@ -93,15 +93,79 @@ object LyricParser {
     }
 
     /**
-     * 合并原文与译文歌词列表为 LyricLine 列表
+     * 合并原文（LRC 或 QRC）与译文歌词列表为 LyricLine 列表
      */
     fun parseMergedLyrics(
         origLrc: String?,
         transLrc: String?,
     ): List<LyricLine> {
-        val origItems = parseLrc(origLrc)
+        if (origLrc.isNullOrBlank()) return emptyList()
+
+        val isQrc = isQrcContent(origLrc)
         val transItems = parseLrc(transLrc)
 
+        if (isQrc) {
+            val qrcLines = parseQrcLyrics(origLrc)
+            if (qrcLines.isEmpty()) return emptyList()
+            if (transItems.isEmpty()) return qrcLines
+
+            val cleanTrans =
+                transItems.filter {
+                    it.second != "//" && !it.second.contains("享有") && !it.second.contains("大模型") && !it.second.contains("翻译贡献")
+                }
+
+            val usedSet = mutableSetOf<Pair<Long, String>>()
+            val result = mutableListOf<LyricLine>()
+
+            for (i in qrcLines.indices) {
+                val qrcLine = qrcLines[i]
+                var transText = ""
+                val isMeta = isMetaInfoLine(qrcLine.timestampMs, qrcLine.text)
+
+                if (!isMeta && transItems.isNotEmpty()) {
+                    val exact = transItems.find { abs(it.first - qrcLine.timestampMs) < 150 }
+                    if (exact != null) {
+                        if (exact.second != "//" &&
+                            !exact.second.contains("享有") &&
+                            !exact.second.contains("大模型") &&
+                            !exact.second.contains("翻译贡献")
+                        ) {
+                            transText = exact.second
+                            usedSet.add(exact)
+                        }
+                    } else if (cleanTrans.isNotEmpty()) {
+                        val candidates =
+                            cleanTrans.filter { cand ->
+                                cand !in usedSet &&
+                                    abs(cand.first - qrcLine.timestampMs) <= 600 &&
+                                    !qrcLines.drop(i + 1).any { nextOrig ->
+                                        abs(cand.first - nextOrig.timestampMs) < abs(cand.first - qrcLine.timestampMs)
+                                    }
+                            }
+                        if (candidates.isNotEmpty()) {
+                            val best = candidates.minByOrNull { abs(it.first - qrcLine.timestampMs) }!!
+                            transText = best.second
+                            usedSet.add(best)
+                        } else if (cleanTrans.size == qrcLines.size && i < cleanTrans.size && cleanTrans[i] !in usedSet) {
+                            transText = cleanTrans[i].second
+                            usedSet.add(cleanTrans[i])
+                        }
+                    }
+                }
+
+                result.add(
+                    LyricLine(
+                        timestampMs = qrcLine.timestampMs,
+                        text = qrcLine.text,
+                        transText = transText,
+                        words = qrcLine.words,
+                    ),
+                )
+            }
+            return result
+        }
+
+        val origItems = parseLrc(origLrc)
         if (origItems.isEmpty()) return emptyList()
         if (transItems.isEmpty()) {
             return mergeSingleLrcBilingual(origItems)
@@ -132,10 +196,7 @@ object LyricParser {
                         transText = exact.second
                         usedSet.add(exact)
                     }
-                    // 精确匹配到占位符 "//" 时明确该行无翻译，不应被后续容差候选覆盖
                 } else if (cleanTrans.isNotEmpty()) {
-                    // 容差候选匹配 (<= 600ms)：
-                    // 优先匹配当前原文行
                     val candidates =
                         cleanTrans.filter { cand ->
                             cand !in usedSet &&
@@ -149,7 +210,6 @@ object LyricParser {
                         transText = best.second
                         usedSet.add(best)
                     } else if (cleanTrans.size == origItems.size && i < cleanTrans.size && cleanTrans[i] !in usedSet) {
-                        // 索引回退
                         transText = cleanTrans[i].second
                         usedSet.add(cleanTrans[i])
                     }
@@ -162,44 +222,136 @@ object LyricParser {
         return result
     }
 
+    private val QRC_MS_REGEX = Regex("""\[(\d+),(\d+)\]""")
+
     /**
-     * 解析 QRC / 逐字时间轴（格式如 `[01:23.45](0,200)你(200,300)好`）
+     * 判断一段歌词文本是否为 QRC（包含 XML 结构或逐字时间标签）
+     */
+    fun isQrcContent(text: String?): Boolean {
+        if (text.isNullOrBlank()) return false
+        val trimmed = text.trim()
+        return trimmed.startsWith("<?xml") || trimmed.contains("<QrcInfos") || QRC_MS_REGEX.containsMatchIn(trimmed)
+    }
+
+    /**
+     * 从 QRC XML 报文中提取 LyricContent 文本，若非 XML 则原样返回
+     */
+    fun extractQrcLyricContent(rawText: String?): String {
+        if (rawText.isNullOrBlank()) return ""
+        val trimmed = rawText.trim()
+        if (trimmed.startsWith("<?xml") || trimmed.contains("<QrcInfos")) {
+            // QQ音乐 QRC 的 LyricContent 属性值内常包含未经转义的双引号（如合作曲名），需匹配到末尾标签前闭合的双引号
+            val contentMatch = Regex("""LyricContent="(.*)"(?:\s*/>|\s*>)""", RegexOption.DOT_MATCHES_ALL).find(trimmed)
+            if (contentMatch != null) {
+                return contentMatch.groupValues[1]
+                    .replace("&apos;", "'")
+                    .replace("&quot;", "\"")
+                    .replace("&gt;", ">")
+                    .replace("&lt;", "<")
+                    .replace("&amp;", "&")
+            }
+        }
+        return rawText
+    }
+
+    /**
+     * 解析基础 QRC（逐字时间戳）行列表
+     */
+    fun parseQrcLyrics(qrcText: String?): List<LyricLine> {
+        val content = extractQrcLyricContent(qrcText)
+        if (content.isBlank()) return emptyList()
+
+        val lines = content.lines()
+        val result = mutableListOf<LyricLine>()
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) continue
+            val parsed = parseQrcLine(trimmed)
+            if (parsed != null) {
+                result.add(parsed)
+            }
+        }
+        return result
+    }
+
+    /**
+     * 解析 QRC / 逐字时间轴（支持标准分秒 `[01:23.45]` 与纯毫秒 `[12345,6789]` 格式）
      */
     fun parseQrcLine(rawLine: String): LyricLine? {
-        val match = TIMESTAMP_REGEX.find(rawLine) ?: return null
-        val min = match.groupValues[1].toIntOrNull() ?: 0
-        val sec = match.groupValues[2].toIntOrNull() ?: 0
-        val msStr =
-            match.groupValues
-                .getOrNull(3)
-                ?.padEnd(3, '0')
-                ?.take(3) ?: "000"
-        val lineTimestampMs = min * 60_000L + sec * 1_000L + (msStr.toIntOrNull() ?: 0)
+        // 先检查纯毫秒格式 [startMs, durationMs]
+        val msMatch = QRC_MS_REGEX.find(rawLine)
+        val lineTimestampMs: Long
+        val afterTimestamp: String
 
-        val afterTimestamp = rawLine.substring(match.range.last + 1)
-        val wordMatches = QRC_WORD_REGEX.findAll(afterTimestamp).toList()
-
-        if (wordMatches.isEmpty()) {
-            val text = afterTimestamp.trim()
-            return if (text.isNotEmpty()) LyricLine(lineTimestampMs, text) else null
+        if (msMatch != null && msMatch.range.first == 0) {
+            lineTimestampMs = msMatch.groupValues[1].toLongOrNull() ?: 0L
+            afterTimestamp = rawLine.substring(msMatch.range.last + 1)
+        } else {
+            val match = TIMESTAMP_REGEX.find(rawLine) ?: return null
+            val min = match.groupValues[1].toIntOrNull() ?: 0
+            val sec = match.groupValues[2].toIntOrNull() ?: 0
+            val msStr =
+                match.groupValues
+                    .getOrNull(3)
+                    ?.padEnd(3, '0')
+                    ?.take(3) ?: "000"
+            lineTimestampMs = min * 60_000L + sec * 1_000L + (msStr.toIntOrNull() ?: 0)
+            afterTimestamp = rawLine.substring(match.range.last + 1)
         }
 
-        val words = mutableListOf<WordSpan>()
-        val fullTextBuilder = StringBuilder()
+        // 增强 LRC 格式（括号起始）：(start,dur)文本 如 "(0,300)旋(300,200)律(500,400)家"
+        // QRC 格式（文本起始）：文本(start,dur) 如 "蝉(25961,245)の(26206,403)"
+        val isLeadingStyle = afterTimestamp.startsWith("(")
+        val timeTagRegex = Regex("""\((\d+),(\d+)\)""")
 
-        for (wm in wordMatches) {
-            val offset = wm.groupValues[1].toLongOrNull() ?: 0L
-            val dur = wm.groupValues[2].toLongOrNull() ?: 0L
-            val word = wm.groupValues[3]
-            words.add(WordSpan(word = word, offsetMs = offset, durationMs = dur))
-            fullTextBuilder.append(word)
+        if (isLeadingStyle) {
+            val leadingMatches = QRC_WORD_REGEX.findAll(afterTimestamp).toList()
+            if (leadingMatches.isEmpty()) {
+                val text = afterTimestamp.trim()
+                return if (text.isNotEmpty()) LyricLine(lineTimestampMs, text) else null
+            }
+            val words = mutableListOf<WordSpan>()
+            val fullTextBuilder = StringBuilder()
+            for (wm in leadingMatches) {
+                val offsetOrAbsStart = wm.groupValues[1].toLongOrNull() ?: 0L
+                val dur = wm.groupValues[2].toLongOrNull() ?: 0L
+                val word = wm.groupValues[3]
+                val relOffset = if (offsetOrAbsStart >= lineTimestampMs) offsetOrAbsStart - lineTimestampMs else offsetOrAbsStart
+                words.add(WordSpan(word = word, offsetMs = relOffset, durationMs = dur))
+                fullTextBuilder.append(word)
+            }
+            return LyricLine(
+                timestampMs = lineTimestampMs,
+                text = fullTextBuilder.toString(),
+                words = words,
+            )
+        } else {
+            val tagMatches = timeTagRegex.findAll(afterTimestamp).toList()
+            if (tagMatches.isEmpty()) {
+                val text = afterTimestamp.trim()
+                return if (text.isNotEmpty()) LyricLine(lineTimestampMs, text) else null
+            }
+            val words = mutableListOf<WordSpan>()
+            val fullTextBuilder = StringBuilder()
+            var lastEnd = 0
+            for (tm in tagMatches) {
+                val word = afterTimestamp.substring(lastEnd, tm.range.first)
+                val offsetOrAbsStart = tm.groupValues[1].toLongOrNull() ?: 0L
+                val dur = tm.groupValues[2].toLongOrNull() ?: 0L
+                val relOffset = if (offsetOrAbsStart >= lineTimestampMs) offsetOrAbsStart - lineTimestampMs else offsetOrAbsStart
+                if (word.isNotEmpty()) {
+                    words.add(WordSpan(word = word, offsetMs = relOffset, durationMs = dur))
+                    fullTextBuilder.append(word)
+                }
+                lastEnd = tm.range.last + 1
+            }
+            return LyricLine(
+                timestampMs = lineTimestampMs,
+                text = fullTextBuilder.toString(),
+                words = words,
+            )
         }
-
-        return LyricLine(
-            timestampMs = lineTimestampMs,
-            text = fullTextBuilder.toString(),
-            words = words,
-        )
     }
 
     /**

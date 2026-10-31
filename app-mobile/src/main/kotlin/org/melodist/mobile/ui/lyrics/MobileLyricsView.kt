@@ -33,11 +33,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
@@ -47,6 +51,7 @@ import kotlinx.coroutines.delay
 import org.melodist.data.AppSettingsManager
 import org.melodist.model.LyricLine
 import org.melodist.model.Song
+import org.melodist.ui.lyrics.ContinuousKaraokeText
 import kotlin.math.abs
 
 @Composable
@@ -271,8 +276,13 @@ private fun LyricLineItem(
     val defaultTextColor = textColor
     val defaultTransColor = transColor
 
+    val naturalTransHighlightColor =
+        remember(highlightColor) {
+            highlightColor.copy(alpha = 0.88f)
+        }
+
     val animatedTransColor by animateColorAsState(
-        targetValue = if (isCurrent) highlightColor.copy(alpha = 0.88f) else defaultTransColor,
+        targetValue = if (isCurrent) naturalTransHighlightColor else defaultTransColor,
         animationSpec = tween(250),
         label = "trans_color",
     )
@@ -290,26 +300,13 @@ private fun LyricLineItem(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (enableWordByWordAnim && line.isWordSynced && isCurrent) {
-            val annotatedString =
-                buildAnnotatedString {
-                    line.words.forEach { wordSpan ->
-                        val wordStart = wordSpan.offsetMs
-                        val isSang = currentLineElapsedMs >= wordStart
-                        val color = if (isSang) highlightColor else defaultTextColor
-                        val weight = if (isSang) FontWeight.Bold else FontWeight.Medium
-
-                        pushStyle(SpanStyle(color = color, fontWeight = weight, fontSize = fontSize))
-                        append(wordSpan.word)
-                        pop()
-                    }
-                }
-            Text(
-                text = annotatedString,
-                style = MaterialTheme.typography.titleLarge,
+            ContinuousKaraokeText(
+                line = line,
+                currentLineElapsedMs = currentLineElapsedMs,
+                highlightColor = highlightColor,
+                defaultTextColor = defaultTextColor,
                 fontSize = fontSize,
                 lineHeight = lineHeight,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
             )
         } else {
             val textColor by animateColorAsState(
@@ -335,7 +332,7 @@ private fun LyricLineItem(
                 color = animatedTransColor,
                 fontSize = transFontSize,
                 lineHeight = transLineHeight,
-                fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )

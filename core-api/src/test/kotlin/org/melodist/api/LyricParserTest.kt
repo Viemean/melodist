@@ -48,6 +48,79 @@ class LyricParserTest {
     }
 
     @Test
+    fun `parseQrcLine parses lines with nested parentheses without leaking timestamp digits`() {
+        val qrcLine = "[0,52470]や(0,2186)ま(2186,2186) (37162,2186)((39348,2186)初(41534,2186)音(43720,2186))(50278,2186)"
+        val parsed = LyricParser.parseQrcLine(qrcLine)
+
+        assertNotNull(parsed)
+        assertEquals("やま (初音)", parsed!!.text)
+        assertFalse(parsed.text.contains("39348"), "Text should not contain leaked timestamp numbers")
+    }
+
+    @Test
+    fun `parseQrcLine parses millisecond timestamp and absolute word offsets correctly`() {
+        val qrcLine = "[29471,6073]手(29471,425)を(29896,851)つ(30747,756)"
+        val parsed = LyricParser.parseQrcLine(qrcLine)
+
+        assertNotNull(parsed)
+        assertEquals(29471L, parsed!!.timestampMs)
+        assertEquals("手をつ", parsed.text)
+        assertEquals(3, parsed.words.size)
+
+        // 验证绝对毫秒被正确转换为相对偏移
+        assertEquals("手", parsed.words[0].word)
+        assertEquals(0L, parsed.words[0].offsetMs)
+        assertEquals(425L, parsed.words[0].durationMs)
+
+        assertEquals("を", parsed.words[1].word)
+        assertEquals(425L, parsed.words[1].offsetMs)
+        assertEquals(851L, parsed.words[1].durationMs)
+
+        assertEquals("つ", parsed.words[2].word)
+        assertEquals(1276L, parsed.words[2].offsetMs)
+        assertEquals(756L, parsed.words[2].durationMs)
+    }
+
+    @Test
+    fun `parseMergedLyrics preserves word sync for original and aligns line-level translation`() {
+        val qrc =
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <QrcInfos>
+            <LyricInfo>
+            <Lyric_1 LyricContent="[29471,6073]手(29471,425)を(29896,851)
+            [36973,5186]た(36973,362)だ(37335,362)"/>
+            </LyricInfo>
+            </QrcInfos>
+            """.trimIndent()
+
+        val trans =
+            """
+            [00:29.47]牵着手
+            [00:36.97]只是这样
+            """.trimIndent()
+
+        val merged = LyricParser.parseMergedLyrics(qrc, trans)
+        assertEquals(2, merged.size)
+
+        // 第一行：原文保持逐字切片，译文整行锚定，无破坏
+        assertEquals("手を", merged[0].text)
+        assertEquals("牵着手", merged[0].transText)
+        assertTrue(merged[0].isWordSynced)
+        assertEquals(2, merged[0].words.size)
+        assertEquals("手", merged[0].words[0].word)
+        assertEquals(0L, merged[0].words[0].offsetMs)
+        assertEquals("を", merged[0].words[1].word)
+        assertEquals(425L, merged[0].words[1].offsetMs)
+
+        // 第二行
+        assertEquals("ただ", merged[1].text)
+        assertEquals("只是这样", merged[1].transText)
+        assertTrue(merged[1].isWordSynced)
+        assertEquals(2, merged[1].words.size)
+    }
+
+    @Test
     fun `parseMergedLyrics matches translation correctly`() {
         val orig =
             """
@@ -229,5 +302,27 @@ class LyricParserTest {
         assertFalse(LyricParser.isMetaInfoLine(10000L, "别再听倒带了"))
         assertFalse(LyricParser.isMetaInfoLine(10000L, "这是一句普通的歌词"))
         assertFalse(LyricParser.isMetaInfoLine(2000L, "— 我依然在这里"))
+    }
+
+    @Test
+    fun `extractQrcLyricContent handles unescaped double quotes inside LyricContent correctly`() {
+        val xml =
+            """
+            <?xml version="1.0" encoding="utf-8"?>
+            <QrcInfos>
+            <LyricInfo LyricCount="1">
+            <Lyric_1 LyricType="1" LyricContent="[ti:ぶれないアイで (坚定的eye) ("初音未来xROHTO Digital Eye"合作曲)]
+            [ar:Mitchie M]
+            [931,4869]ぶ(931,497)れ(1428,34)な(1462,33)い(1495,32)
+            "/>
+            </LyricInfo>
+            </QrcInfos>
+            """.trimIndent()
+
+        val extracted = LyricParser.extractQrcLyricContent(xml)
+        assertTrue(extracted.contains("[931,4869]ぶ(931,497)れ"))
+        val lines = LyricParser.parseQrcLyrics(xml)
+        assertEquals(1, lines.size)
+        assertEquals("ぶれない", lines[0].text)
     }
 }

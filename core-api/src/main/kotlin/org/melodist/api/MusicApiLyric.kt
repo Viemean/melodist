@@ -32,7 +32,7 @@ suspend fun MusicApiService.getLyrics(
         if (songMid.isNotBlank() || songId > 0L) {
             val payload =
                 """
-                {"comm":{"ct":24,"cv":0},"playLyricInfo":{"module":"music.musichallSong.PlayLyricInfo","method":"GetPlayLyricInfo","param":{"songMID":"$songMid","songID":$songId,"qrc":0,"trans":1,"roma":1,"isHQ":1}}}
+                {"comm":{"ct":24,"cv":0},"playLyricInfo":{"module":"music.musichallSong.PlayLyricInfo","method":"GetPlayLyricInfo","param":{"songMID":"$songMid","songID":$songId,"qrc":1,"trans":1,"roma":1,"isHQ":1,"crypt":1}}}
                 """.trimIndent()
 
             try {
@@ -42,11 +42,33 @@ suspend fun MusicApiService.getLyrics(
                 val code = playLyricInfo?.get("code")?.jsonPrimitive?.intOrNull ?: 0
                 if (code == 0) {
                     val data = playLyricInfo?.get("data")?.jsonObject
-                    val b64Lyric = data?.get("lyric")?.jsonPrimitive?.contentOrNull
-                    val b64Trans = data?.get("trans")?.jsonPrimitive?.contentOrNull
+                    val lyricField = data?.get("lyric")?.jsonPrimitive?.contentOrNull
+                    val transField = data?.get("trans")?.jsonPrimitive?.contentOrNull
 
-                    rawLyric = decodeBase64(b64Lyric)
-                    rawTrans = decodeBase64(b64Trans)
+                    if (!lyricField.isNullOrBlank()) {
+                        // 若返回为加密 hex (crypt=1 长度较大且全为 16 进制字符)，通过 QrcDecoder 解密
+                        if (lyricField.length > 100 && lyricField.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) {
+                            val decodedQrc = QrcDecoder.decodeQrc(lyricField)
+                            if (decodedQrc.isNotBlank()) {
+                                rawLyric = decodedQrc
+                            }
+                        }
+                        if (rawLyric.isBlank()) {
+                            rawLyric = decodeBase64(lyricField)
+                        }
+                    }
+
+                    if (!transField.isNullOrBlank()) {
+                        if (transField.length > 100 && transField.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) {
+                            val decodedTrans = QrcDecoder.decodeQrc(transField)
+                            if (decodedTrans.isNotBlank()) {
+                                rawTrans = decodedTrans
+                            }
+                        }
+                        if (rawTrans.isBlank()) {
+                            rawTrans = decodeBase64(transField).ifBlank { transField }
+                        }
+                    }
                 }
 
                 // 若主网关返回空，尝试传统歌词接口降级拉取

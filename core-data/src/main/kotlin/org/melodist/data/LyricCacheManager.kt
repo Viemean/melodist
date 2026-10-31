@@ -68,11 +68,23 @@ object LyricCacheManager {
 
         if (current.isEmpty()) return true
 
+        val candidateHasWords = candidate.any { it.isWordSynced }
+        val currentHasWords = current.any { it.isWordSynced }
+
+        if (candidateHasWords && !currentHasWords) return true
+        if (!candidateHasWords && currentHasWords) return false
+
         val candidateHasTrans = candidate.any { it.hasTranslation }
         val currentHasTrans = current.any { it.hasTranslation }
 
         if (candidateHasTrans && !currentHasTrans) return true
         if (!candidateHasTrans && currentHasTrans) return false
+
+        val candidateWordCount = candidate.count { it.isWordSynced }
+        val currentWordCount = current.count { it.isWordSynced }
+        if (candidateWordCount != currentWordCount) {
+            return candidateWordCount > currentWordCount
+        }
 
         return candidate.size > current.size
     }
