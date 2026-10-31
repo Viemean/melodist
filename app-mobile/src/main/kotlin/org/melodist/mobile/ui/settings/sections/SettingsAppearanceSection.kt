@@ -52,7 +52,6 @@ import org.melodist.data.AppColorTheme
 import org.melodist.data.AppSettings
 import org.melodist.data.AppSettingsManager
 import org.melodist.data.ThemeMode
-import org.melodist.mobile.ui.components.SettingsDivider
 import org.melodist.mobile.ui.components.SettingsGroupCard
 import org.melodist.mobile.ui.components.SettingsGroupTitle
 import org.melodist.mobile.ui.components.SettingsSwitchRow
@@ -78,8 +77,6 @@ fun SettingsAppearanceSection(
                 modifier = Modifier.padding(16.dp),
             )
 
-            SettingsDivider()
-
             // 动态取色开关 (Material You)
             SettingsSwitchRow(
                 icon = Icons.Rounded.ColorLens,
@@ -94,8 +91,6 @@ fun SettingsAppearanceSection(
                 onCheckedChange = { AppSettingsManager.setDynamicColor(it) },
                 enabled = isDynamicColorSupported,
             )
-
-            SettingsDivider()
 
             // 预设调色板与自定义颜色选择器
             PresetPaletteSelector(
@@ -115,8 +110,6 @@ fun SettingsAppearanceSection(
                 onOpenCustomDialog = { showCustomColorDialog = true },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             )
-
-            SettingsDivider()
 
             // AMOLED 纯黑背景
             val isCurrentDark = isAppInDarkTheme()

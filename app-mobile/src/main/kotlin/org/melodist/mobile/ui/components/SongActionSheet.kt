@@ -46,7 +46,6 @@ import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -364,9 +363,7 @@ fun SongActionSheet(
                     (!song.isLocal && !song.isWebDav)
 
             if (hasQuickActions) {
-                Spacer(modifier = Modifier.height(10.dp))
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier =
@@ -434,7 +431,6 @@ fun SongActionSheet(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     )
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                     DropdownMenuItem(
                                         text = { Text("立即在电视播放") },
                                         leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
@@ -485,9 +481,6 @@ fun SongActionSheet(
                                             },
                                         )
                                     }
-                                    if (dlnaDevices.isNotEmpty()) {
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                    }
                                 }
 
                                 if (dlnaDevices.isNotEmpty()) {
@@ -497,7 +490,6 @@ fun SongActionSheet(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     )
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                     dlnaDevices.forEach { dev ->
                                         val isThisDevCasting = dlnaCastingDevice?.controlUrl == dev.controlUrl
                                         DropdownMenuItem(
@@ -641,13 +633,10 @@ fun SongActionSheet(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             } else {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.height(4.dp))
 
             if (showNextPlay) {
                 ActionSheetItem(

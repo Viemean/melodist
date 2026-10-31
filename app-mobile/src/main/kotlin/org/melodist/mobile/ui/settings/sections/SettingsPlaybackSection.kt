@@ -48,7 +48,6 @@ import org.melodist.data.AppSettingsManager
 import org.melodist.data.LyricFontSize
 import org.melodist.mobile.ui.components.AudioQualityBottomSheet
 import org.melodist.mobile.ui.components.SettingsClickableRow
-import org.melodist.mobile.ui.components.SettingsDivider
 import org.melodist.mobile.ui.components.SettingsGroupCard
 import org.melodist.mobile.ui.components.SettingsGroupTitle
 import org.melodist.mobile.ui.components.SettingsSwitchRow
@@ -86,16 +85,12 @@ fun SettingsPlaybackSection(
                 onClick = { showQualityDialog = true },
             )
 
-            SettingsDivider()
-
             SettingsClickableRow(
                 icon = Icons.Rounded.SignalCellularAlt,
                 title = "移动网络音质",
                 subtitle = getQualityTierDetailedLabel(settings.cellularQualityTier),
                 onClick = { showCellularQualityDialog = true },
             )
-
-            SettingsDivider()
 
             SettingsSwitchRow(
                 icon = Icons.Rounded.Usb,
@@ -105,8 +100,6 @@ fun SettingsPlaybackSection(
                 enabled = isFloatOutputSupported,
                 onCheckedChange = { AppSettingsManager.setEnableUsbExclusive(it) },
             )
-
-            SettingsDivider()
 
             val context = androidx.compose.ui.platform.LocalContext.current
             var isBatteryWhitelisted by remember {
@@ -159,8 +152,6 @@ fun SettingsPlaybackSection(
                 onCheckedChange = { AppSettingsManager.setShowBilingualTranslation(it) },
             )
 
-            SettingsDivider()
-
             SettingsSwitchRow(
                 icon = Icons.Rounded.Sync,
                 title = "自动匹配歌词",
@@ -170,8 +161,6 @@ fun SettingsPlaybackSection(
             )
 
             if (settings.enableAutoMatchLyrics) {
-                SettingsDivider()
-
                 SettingsSwitchRow(
                     icon = Icons.Rounded.MusicNote,
                     title = "忽略内嵌歌词",
@@ -180,8 +169,6 @@ fun SettingsPlaybackSection(
                     onCheckedChange = { AppSettingsManager.updateIgnoreEmbeddedLyrics(it) },
                 )
             }
-
-            SettingsDivider()
 
             SettingsClickableRow(
                 icon = Icons.Rounded.Palette,

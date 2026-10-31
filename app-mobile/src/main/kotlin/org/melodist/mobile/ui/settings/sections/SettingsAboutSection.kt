@@ -19,7 +19,6 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -129,11 +128,6 @@ fun SettingsAboutSection(
                 }
             }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-            )
-
             Row(
                 modifier =
                     Modifier
@@ -217,11 +211,6 @@ fun SettingsAboutSection(
                     )
                 }
             }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-            )
 
             // 开源仓库链接行
             Row(

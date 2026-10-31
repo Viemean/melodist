@@ -49,7 +49,6 @@ import org.melodist.data.CacheUsageDetail
 import org.melodist.data.LyricSaveMode
 import org.melodist.data.download.DownloadManager
 import org.melodist.mobile.ui.components.SettingsClickableRow
-import org.melodist.mobile.ui.components.SettingsDivider
 import org.melodist.mobile.ui.components.SettingsGroupCard
 import org.melodist.mobile.ui.components.SettingsGroupTitle
 import org.melodist.mobile.ui.components.SettingsSwitchRow
@@ -77,16 +76,12 @@ fun SettingsStorageSection(
                 onClick = { showDownloadDirDialog = true },
             )
 
-            SettingsDivider()
-
             SettingsClickableRow(
                 icon = Icons.Rounded.Subtitles,
                 title = "歌词保存方式",
                 subtitle = settings.lyricSaveMode.label,
                 onClick = { showLyricSaveModeDialog = true },
             )
-
-            SettingsDivider()
 
             SettingsSwitchRow(
                 icon = Icons.Rounded.Translate,
@@ -95,8 +90,6 @@ fun SettingsStorageSection(
                 checked = settings.saveLyricTranslation,
                 onCheckedChange = { AppSettingsManager.setSaveLyricTranslation(it) },
             )
-
-            SettingsDivider()
 
             Row(
                 modifier =
