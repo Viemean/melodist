@@ -11,8 +11,8 @@ object LocalNetworkPermissionHelper {
 
     private var hasShownToastInLifecycle = false
 
-    fun hasPermission(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= 37) {
+    fun hasPermission(context: Context): Boolean =
+        if (Build.VERSION.SDK_INT >= 37) {
             ContextCompat.checkSelfPermission(
                 context,
                 PERMISSION_ACCESS_LOCAL_NETWORK,
@@ -20,7 +20,6 @@ object LocalNetworkPermissionHelper {
         } else {
             true
         }
-    }
 
     fun showToastOnceIfDenied(context: Context) {
         if (Build.VERSION.SDK_INT >= 37 && !hasShownToastInLifecycle && !hasPermission(context)) {

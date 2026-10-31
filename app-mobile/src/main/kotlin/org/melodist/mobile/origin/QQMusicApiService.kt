@@ -15,9 +15,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
+import org.melodist.data.LyricCacheManager
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
@@ -309,7 +312,13 @@ open class QQMusicApiService : Service() {
                         }
 
                         "getLyricWithId" -> {
-                            val lyrics = PlaybackManager.lyrics.value
+                            var lyrics = PlaybackManager.lyrics.value
+                            if (lyrics.isEmpty()) {
+                                val curr = PlaybackManager.currentSong.value
+                                if (curr != null) {
+                                    lyrics = LyricCacheManager.getLyrics(curr.songMid).orEmpty()
+                                }
+                            }
                             val lrcText = formatLyricsToLrc(lyrics)
                             Bundle().apply {
                                 putInt("code", 0)
@@ -352,17 +361,23 @@ open class QQMusicApiService : Service() {
                                     val targetSong =
                                         if (!songIdList.isNullOrEmpty() && index < songIdList.size) {
                                             val targetSongId = songIdList[index]
-                                            currentPlaylist.find { it.songMid == targetSongId || it.songId.toString() == targetSongId }
+                                            currentPlaylist.find {
+                                                resolveSongId(it) == targetSongId || it.songMid == targetSongId ||
+                                                    it.songId.toString() == targetSongId
+                                            }
                                                 ?: org.melodist.data.UserLibraryCacheManager.favoriteSongsFlow.value.find {
-                                                    it.songMid == targetSongId ||
+                                                    resolveSongId(it) == targetSongId ||
+                                                        it.songMid == targetSongId ||
                                                         it.songId.toString() == targetSongId
                                                 }
                                                 ?: org.melodist.data.LocalMusicManager.getScannedSongs().find {
-                                                    it.songMid == targetSongId ||
+                                                    resolveSongId(it) == targetSongId ||
+                                                        it.songMid == targetSongId ||
                                                         it.songId.toString() == targetSongId
                                                 }
                                                 ?: org.melodist.data.download.DownloadManager.completedTasks.value.map { it.song }.find {
-                                                    it.songMid == targetSongId ||
+                                                    resolveSongId(it) == targetSongId ||
+                                                        it.songMid == targetSongId ||
                                                         it.songId.toString() == targetSongId
                                                 }
                                         } else {
@@ -515,6 +530,37 @@ open class QQMusicApiService : Service() {
                 params: Bundle?,
                 callback: IQQMusicApiCallback?,
             ) {
+                if (action == "getLyricWithId" && callback != null) {
+                    serviceScope.launch {
+                        var lyrics = PlaybackManager.lyrics.value
+                        if (lyrics.isEmpty()) {
+                            val curr = PlaybackManager.currentSong.value
+                            if (curr != null) {
+                                lyrics = LyricCacheManager.getLyrics(curr.songMid).orEmpty()
+                            }
+                        }
+                        if (lyrics.isEmpty()) {
+                            withTimeoutOrNull(2000L) {
+                                PlaybackManager.lyrics.first { it.isNotEmpty() }
+                            }?.let {
+                                lyrics = it
+                            }
+                        }
+                        val lrcText = formatLyricsToLrc(lyrics)
+                        val result =
+                            Bundle().apply {
+                                putInt("code", 0)
+                                putString("data", lrcText)
+                            }
+                        try {
+                            callback.onReturn(result)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error invoking callback for getLyricWithId", e)
+                        }
+                    }
+                    return
+                }
+
                 val result = execute(action, params)
                 if (callback != null) {
                     try {
@@ -579,7 +625,10 @@ open class QQMusicApiService : Service() {
                         }
                     }
                 }
-                return Bundle().apply { putInt("code", 0) }
+                return Bundle().apply {
+                    putInt("code", 0)
+                    putInt("data", 0)
+                }
             }
 
             override fun unregisterEventListener(
@@ -590,7 +639,10 @@ open class QQMusicApiService : Service() {
                     val unregistered = callbackList.unregister(listener)
                     Log.i(TAG, "unregisterEventListener: unregistered=$unregistered")
                 }
-                return Bundle().apply { putInt("code", 0) }
+                return Bundle().apply {
+                    putInt("code", 0)
+                    putInt("data", 0)
+                }
             }
         }
 
@@ -642,14 +694,22 @@ open class QQMusicApiService : Service() {
         }
 
         val cleanUrl = rawUrl.substringBefore('?')
-        val filePath = cleanUrl.removePrefix("file://")
-        val file = java.io.File(filePath)
+        val rawPath = cleanUrl.removePrefix("file://")
+        val decodedPath = android.net.Uri.decode(rawPath)
+        val file = java.io.File(decodedPath)
         if (file.exists() && file.isFile && file.length() > 0L) {
             return OriginCoverProvider.buildContentUri(packageName, file).toString()
         }
 
-        return rawUrl
+        return ""
     }
+
+    private fun resolveSongId(song: Song): String =
+        when {
+            song.songId > 0L -> song.songId.toString()
+            song.songMid.isNotBlank() -> song.songMid
+            else -> (song.localFilePath ?: song.name).hashCode().toString()
+        }
 
     @Volatile
     private var cachedSong: Song? = null
@@ -681,7 +741,7 @@ open class QQMusicApiService : Service() {
         val json =
             JSONObject()
                 .apply {
-                    put("id", song.songId.toString())
+                    put("id", resolveSongId(song))
                     put("mid", song.songMid)
                     put("title", song.name)
                     put("type", 0)
