@@ -39,7 +39,7 @@ fun MelodistAsyncImage(
     contentDescription: String? = null,
     modifier: Modifier = Modifier,
     shape: Shape? = null,
-    bleedCrop: Boolean = true,
+    bleedCrop: Boolean = false,
     contentScale: ContentScale = ContentScale.Crop,
     preferRawCover: Boolean = false,
     errorContent: (@Composable () -> Unit)? = null,
@@ -81,15 +81,12 @@ fun MelodistAsyncImage(
                 }
                 list.add(normalized)
             } else {
-                // QQ 音乐 CDN 1200x1200 与 800x800 分辨率优先
+                // 封面分辨率：全屏播放页优先 1200x1200，主页卡片优先 800x800
                 if (coverUrl.isNotBlank()) {
-                    val upgraded1200 = CoverUrlResolver.upgradeTvCoverUrl(coverUrl, 1200)
-                    val upgraded800 = CoverUrlResolver.upgradeTvCoverUrl(coverUrl, 800)
-                    if (upgraded1200 != coverUrl) {
-                        list.add(upgraded1200)
-                    }
-                    if (upgraded800 != coverUrl && !list.contains(upgraded800)) {
-                        list.add(upgraded800)
+                    val targetDimension = if (preferRawCover) 1200 else 800
+                    val upgraded = CoverUrlResolver.upgradeTvCoverUrl(coverUrl, targetDimension)
+                    if (upgraded != coverUrl) {
+                        list.add(upgraded)
                     }
                 }
                 if (albumMid.isNotBlank()) {

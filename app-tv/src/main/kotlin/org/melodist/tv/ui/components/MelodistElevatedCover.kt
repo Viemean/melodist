@@ -55,6 +55,7 @@ fun MelodistElevatedCover(
     Box(
         modifier =
             modifier
+                .aspectRatio(1f)
                 .then(clickableModifier)
                 .shadow(
                     elevation = elevation,

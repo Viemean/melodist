@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -79,18 +80,19 @@ fun RotatingTrackCard(
         label = "RotatingCardContainerColor",
     )
 
-    // 单图 Monet 取色：作为点睛强调色 (Dynamic Accent) 赋予 Badge 与播放按钮
+    val context = LocalContext.current
     var dynamicCoverColor by remember { mutableStateOf<Color?>(null) }
     LaunchedEffect(item.coverUrl) {
         if (item.coverUrl.isNotBlank()) {
-            dynamicCoverColor = MonetColorExtractor.extractFromUrl(item.coverUrl)
+            kotlinx.coroutines.delay((slotIndex % 6) * 35L)
+            dynamicCoverColor = MonetColorExtractor.extractFromUrl(context, item.coverUrl)
         }
     }
 
     // 提取封面色相并调整明度作为强调色
     val accentColor =
-        remember(dynamicCoverColor) {
-            val base = dynamicCoverColor ?: Color(0xFFB4F8FF)
+        remember(dynamicCoverColor, item.defaultBgColor) {
+            val base = dynamicCoverColor ?: item.defaultBgColor
             val hsv = FloatArray(3)
             android.graphics.Color.colorToHSV(base.toArgb(), hsv)
             hsv[1] = (hsv[1] * 0.90f).coerceIn(0.35f, 0.75f)
@@ -105,8 +107,8 @@ fun RotatingTrackCard(
 
     // 点睛容器底色：微暗同色系底色，用于徽章胶囊背景
     val accentContainerColor =
-        remember(dynamicCoverColor) {
-            val base = dynamicCoverColor ?: Color(0xFF1E2E40)
+        remember(dynamicCoverColor, item.defaultBgColor) {
+            val base = dynamicCoverColor ?: item.defaultBgColor
             val hsv = FloatArray(3)
             android.graphics.Color.colorToHSV(base.toArgb(), hsv)
             hsv[1] = (hsv[1] * 0.70f).coerceIn(0.25f, 0.50f)
@@ -120,8 +122,8 @@ fun RotatingTrackCard(
     )
 
     val accentOnColor =
-        remember(dynamicCoverColor) {
-            val base = dynamicCoverColor ?: Color(0xFF0F172A)
+        remember(dynamicCoverColor, item.defaultBgColor) {
+            val base = dynamicCoverColor ?: item.defaultBgColor
             val hsv = FloatArray(3)
             android.graphics.Color.colorToHSV(base.toArgb(), hsv)
             hsv[1] = (hsv[1] * 1.20f).coerceIn(0.60f, 0.95f)
