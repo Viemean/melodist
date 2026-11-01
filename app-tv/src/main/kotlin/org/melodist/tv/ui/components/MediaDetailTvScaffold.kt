@@ -404,8 +404,6 @@ fun MediaDetailTvScaffold(
                                     .focusRequester(playAllFocusRequester)
                                     .onFocusChanged {
                                         isPlayAllFocused = it.isFocused
-                                    }.focusProperties {
-                                        right = firstSongFocusRequester
                                     },
                             shape =
                                 ButtonDefaults.shape(

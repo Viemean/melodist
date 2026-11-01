@@ -217,14 +217,7 @@ fun PlaylistTvLeftPanel(
                                 .fillMaxWidth()
                                 .height(46.dp)
                                 .focusRequester(playAllRequester)
-                                .onFocusChanged { onPlayAllFocusChanged(it.isFocused) }
-                                .then(
-                                    if (hasSongs) {
-                                        Modifier.focusProperties { right = firstSongRequester }
-                                    } else {
-                                        Modifier
-                                    },
-                                ),
+                                .onFocusChanged { onPlayAllFocusChanged(it.isFocused) },
                         shape =
                             ButtonDefaults.shape(
                                 shape = MelodistShapes.CardCorner,

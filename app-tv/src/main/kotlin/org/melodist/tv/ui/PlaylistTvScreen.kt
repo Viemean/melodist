@@ -909,17 +909,19 @@ fun PlaylistTvScreen(
             } else {
                 PlaylistScreenCache.clearTargetReturnSong()
             }
-        } else if (!isReturning) {
-            var focused = false
-            for (attempt in 0..3) {
-                kotlinx.coroutines.delay(if (attempt == 0) 60L else 40L)
+        }
+    }
+
+    // 首次进入歌单时，确保焦点准确落在左侧“播放全部”按钮上
+    LaunchedEffect(isReturning) {
+        if (!isReturning) {
+            for (attempt in 0..9) {
+                kotlinx.coroutines.delay(if (attempt == 0) 50L else 50L)
                 try {
                     playAllRequester.requestFocus()
-                    focused = true
                     break
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    Log.w("PlaylistScreenMode", "Operation failed", e)
                 }
             }
         }
