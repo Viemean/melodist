@@ -526,6 +526,9 @@ class MainActivity : ComponentActivity() {
                                         onPlayAll = {},
                                         onPlayShuffle = {},
                                         onSongClick = {},
+                                        onNavigateToPlayer = {
+                                            navigateTo(TvScreenDestination.Player)
+                                        },
                                         onNavigateToArtist = { mid, name ->
                                             navigateTo(TvScreenDestination.Artist(mid, name))
                                         },

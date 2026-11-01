@@ -131,7 +131,7 @@ fun MelodistAsyncImage(
                 ImageRequest
                     .Builder(context)
                     .data(currentUrl)
-                    .crossfade(260)
+                    .crossfade(false)
                     .precision(coil3.size.Precision.INEXACT)
                     .build()
             }

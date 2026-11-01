@@ -91,6 +91,7 @@ fun PlaylistTvLeftPanel(
                 songMid = if (isPlayerMode) activePlayingSong?.songMid.orEmpty() else "",
                 contentDescription = if (isPlayerMode) activePlayingSong?.name.orEmpty() else resolvedTitle,
                 shape = RoundedCornerShape(6.dp),
+                preferRawCover = true,
                 modifier = Modifier.size(coverSize),
             )
         } else if (!isPlayerMode && categoryId == "favorites") {

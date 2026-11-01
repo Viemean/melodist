@@ -60,10 +60,10 @@ fun PlaylistTvScreen(
     isReturningFromPlayer: Boolean = false,
     isReturningFromSubScreen: Boolean = false,
     songs: List<Song> = emptyList(),
-    currentPlayingSongId: Long? = null,
     onPlayAll: () -> Unit = {},
     onPlayShuffle: () -> Unit = {},
     onSongClick: (Song) -> Unit = {},
+    onNavigateToPlayer: () -> Unit = {},
     onNavigateToArtist: (String, String) -> Unit = { _, _ -> },
     onNavigateToAlbum: (String, String) -> Unit = { _, _ -> },
     onNavigateToSettings: () -> Unit = {},
@@ -849,17 +849,21 @@ fun PlaylistTvScreen(
                     else -> PlaylistScreenCache.lastPlayedIndex.coerceIn(0, playlistSongs.size - 1)
                 }
             dynamicReturnTargetIndex = target
-            listState.scrollToItem((target - 1).coerceAtLeast(0))
             var focused = false
             for (attempt in 0..5) {
-                kotlinx.coroutines.delay(if (attempt == 0) 100L else 60L)
+                kotlinx.coroutines.delay(if (attempt == 0) 80L else 50L)
                 try {
                     returnSongRequester.requestFocus()
                     focused = true
                     break
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    Log.w("PlaylistScreenMode", "Operation failed", e)
+                    if (attempt == 1) {
+                        val isVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == target }
+                        if (!isVisible) {
+                            listState.scrollToItem((target - 2).coerceAtLeast(0))
+                        }
+                    }
                 }
             }
             if (!focused) {
@@ -878,17 +882,21 @@ fun PlaylistTvScreen(
         if (isReturning && returnTargetIndex >= 0 && playlistSongs.isNotEmpty()) {
             dynamicReturnTargetIndex = returnTargetIndex
             isPlayAllFocused = false
-            listState.scrollToItem((returnTargetIndex - 1).coerceAtLeast(0))
             var focused = false
             for (attempt in 0..7) {
-                kotlinx.coroutines.delay(if (attempt == 0) 100L else 60L)
+                kotlinx.coroutines.delay(if (attempt == 0) 80L else 50L)
                 try {
                     returnSongRequester.requestFocus()
                     focused = true
                     break
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    Log.w("PlaylistScreenMode", "Operation failed", e)
+                    if (attempt == 1) {
+                        val isVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == returnTargetIndex }
+                        if (!isVisible) {
+                            listState.scrollToItem((returnTargetIndex - 2).coerceAtLeast(0))
+                        }
+                    }
                 }
             }
             if (!focused) {
@@ -952,7 +960,7 @@ fun PlaylistTvScreen(
                             )
                         }
                         syncFullPlaylistToPlayback()
-                        screenMode = PlaylistScreenMode.Player
+                        onNavigateToPlayer()
                     }
                     onPlayAll()
                 },
@@ -1002,7 +1010,7 @@ fun PlaylistTvScreen(
                         )
                     }
                     syncFullPlaylistToPlayback()
-                    screenMode = PlaylistScreenMode.Player
+                    onNavigateToPlayer()
                     onSongClick(song)
                 },
                 onSongLongClick = { song ->
