@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -91,6 +93,7 @@ import org.melodist.model.Artist
 import org.melodist.model.QualityOption
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
+import org.melodist.playback.SleepTimerManager
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -125,6 +128,8 @@ fun SongActionSheet(
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showDiarySheet by remember { mutableStateOf(false) }
     var showListenTogetherSheet by remember { mutableStateOf(false) }
+    var showSleepTimerSelectDialog by remember { mutableStateOf(false) }
+    var showSleepTimerActiveConfirmDialog by remember { mutableStateOf(false) }
 
     val connectState by MobileConnectManager.connectionState.collectAsState()
     val isTvConnected = connectState is MobileConnectionState.Paired
@@ -299,6 +304,35 @@ fun SongActionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        dragHandle = {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    modifier =
+                        Modifier
+                            .size(width = 32.dp, height = 4.dp)
+                            .align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    shape = CircleShape,
+                ) {}
+
+                SleepTimerActionBadge(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    onClick = {
+                        if (SleepTimerManager.isTimerActive.value) {
+                            showSleepTimerActiveConfirmDialog = true
+                        } else {
+                            showSleepTimerSelectDialog = true
+                        }
+                    },
+                )
+            }
+        },
     ) {
         Column(
             modifier =
@@ -871,6 +905,17 @@ fun SongActionSheet(
             onDismissRequest = { showDownloadQualityDialog = false },
         )
     }
+
+    SleepTimerSelectDialog(
+        visible = showSleepTimerSelectDialog,
+        onDismissRequest = { showSleepTimerSelectDialog = false },
+    )
+
+    SleepTimerActiveConfirmDialog(
+        visible = showSleepTimerActiveConfirmDialog,
+        onDismissRequest = { showSleepTimerActiveConfirmDialog = false },
+        onResetTimer = { showSleepTimerSelectDialog = true },
+    )
 }
 
 @Composable
