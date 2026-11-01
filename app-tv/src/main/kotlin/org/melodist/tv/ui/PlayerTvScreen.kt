@@ -33,10 +33,12 @@ import org.melodist.api.UserSession
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
+import org.melodist.playback.SleepTimerManager
 import org.melodist.tv.ui.components.AudioQualityDialog
 import org.melodist.tv.ui.components.BottomPlayerBar
 import org.melodist.tv.ui.components.CenterAlignedKaraokeLyricsView
 import org.melodist.tv.ui.components.PlayerQueueSidebar
+import org.melodist.tv.ui.components.SleepTimerTvDialog
 import org.melodist.tv.ui.components.TakeoverGestureCoverCarousel
 import org.melodist.tv.ui.components.TvSplitPlaybackScaffold
 import org.melodist.tv.ui.theme.MelodistColors
@@ -55,16 +57,17 @@ fun PlayerTvScreen(
     var isControlsHidden by remember { mutableStateOf(false) }
     var showArtistAlbumDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
+    var showTimerDialog by remember { mutableStateOf(false) }
     var lastInteractionTimeMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    LaunchedEffect(isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
-        if (!isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
+    LaunchedEffect(isControlsHidden, showQueueSidebar, showQualityDialog, showTimerDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
+        if (!isControlsHidden && !showQueueSidebar && !showQualityDialog && !showTimerDialog && !showArtistAlbumDialog) {
             delay(10_000L)
             isControlsHidden = true
         }
     }
 
-    BackHandler(enabled = !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
+    BackHandler(enabled = !showQueueSidebar && !showQualityDialog && !showTimerDialog && !showArtistAlbumDialog) {
         if (isControlsHidden) {
             isControlsHidden = false
             lastInteractionTimeMs = System.currentTimeMillis()
@@ -84,6 +87,7 @@ fun PlayerTvScreen(
     val loopMode by PlaybackManager.loopMode.collectAsState()
     val isLoading by PlaybackManager.isLoading.collectAsState()
     val isTrial by PlaybackManager.isListenTogetherTrialActive.collectAsState()
+    val isTimerActive by SleepTimerManager.isTimerActive.collectAsState()
     val errorMessage by PlaybackManager.errorMessage.collectAsState()
 
     val scope = rememberCoroutineScope()
@@ -214,6 +218,8 @@ fun PlayerTvScreen(
                     isPlaying = isPlaying,
                     isFavorite = isFavorite,
                     canFavorite = canFavorite,
+                    isTimerActive = isTimerActive,
+                    onTimerClick = { showTimerDialog = true },
                     loopMode = loopMode.label,
                     qualityLabel = if (isTrial) "试听" else AudioQualityTier.getBadge(selectedTier),
                     canChangeQuality = canChangeQuality,
@@ -311,6 +317,14 @@ fun PlayerTvScreen(
                         PlaybackManager.switchTier(it)
                     },
                     onDismiss = { showQualityDialog = false },
+                )
+            }
+
+            // 定时关闭弹窗
+            if (showTimerDialog) {
+                SleepTimerTvDialog(
+                    accentColor = themeHighlightColor,
+                    onDismiss = { showTimerDialog = false },
                 )
             }
 

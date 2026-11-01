@@ -95,12 +95,15 @@ fun MediaDetailTvScaffold(
     var isControlsHidden by remember { mutableStateOf(false) }
     var showQueueSidebar by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
+    var showTimerDialog by remember { mutableStateOf(false) }
     var showArtistAlbumDialog by remember { mutableStateOf(false) }
     var lastInteractionTimeMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     val currentPlayingSong by PlaybackManager.currentSong.collectAsState()
     val playlist by PlaybackManager.playlist.collectAsState()
     val isPlaying by PlaybackManager.isPlaying.collectAsState()
+    val isTimerActive by org.melodist.playback.SleepTimerManager.isTimerActive
+        .collectAsState()
     val durationMs by PlaybackManager.durationMs.collectAsState()
     val selectedTier by PlaybackManager.currentTier.collectAsState()
     val lyrics by PlaybackManager.lyrics.collectAsState()
@@ -169,8 +172,10 @@ fun MediaDetailTvScaffold(
         }
     }
 
-    LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
-        if (screenMode == MediaDetailScreenMode.Player && !isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
+    LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showTimerDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
+        if (screenMode == MediaDetailScreenMode.Player && !isControlsHidden && !showQueueSidebar && !showQualityDialog && !showTimerDialog &&
+            !showArtistAlbumDialog
+        ) {
             kotlinx.coroutines.delay(10_000L)
             isControlsHidden = true
         }
@@ -181,6 +186,8 @@ fun MediaDetailTvScaffold(
             showArtistAlbumDialog = false
         } else if (showQualityDialog) {
             showQualityDialog = false
+        } else if (showTimerDialog) {
+            showTimerDialog = false
         } else if (showQueueSidebar) {
             showQueueSidebar = false
         } else if (isControlsHidden) {
@@ -706,6 +713,8 @@ fun MediaDetailTvScaffold(
                     isPlaying = isPlaying,
                     isFavorite = activePlayingSong?.songMid in favoriteSongMids,
                     canFavorite = canFavorite,
+                    isTimerActive = isTimerActive,
+                    onTimerClick = { showTimerDialog = true },
                     loopMode = loopMode.label,
                     qualityLabel = AudioQualityTier.getBadge(selectedTier),
                     canChangeQuality = canChangeQuality,
@@ -801,6 +810,14 @@ fun MediaDetailTvScaffold(
                         PlaybackManager.switchTier(it)
                     },
                     onDismiss = { showQualityDialog = false },
+                )
+            }
+
+            // 定时关闭弹窗
+            if (showTimerDialog) {
+                SleepTimerTvDialog(
+                    accentColor = themeHighlightColor,
+                    onDismiss = { showTimerDialog = false },
                 )
             }
 

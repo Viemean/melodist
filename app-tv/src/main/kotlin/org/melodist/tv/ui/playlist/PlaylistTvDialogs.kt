@@ -14,7 +14,9 @@ import org.melodist.model.AudioQualityTier
 import org.melodist.model.Song
 import org.melodist.tv.ui.components.AudioQualityDialog
 import org.melodist.tv.ui.components.PlayerQueueSidebar
+import org.melodist.tv.ui.components.SleepTimerTvDialog
 import org.melodist.tv.ui.components.SongArtistAlbumDialog
+import org.melodist.tv.ui.theme.MelodistColors
 
 @Composable
 fun BoxScope.PlaylistTvDialogs(
@@ -28,6 +30,9 @@ fun BoxScope.PlaylistTvDialogs(
     selectedTier: AudioQualityTier,
     onSelectTier: (AudioQualityTier) -> Unit,
     onDismissQualityDialog: () -> Unit,
+    showTimerDialog: Boolean = false,
+    onDismissTimerDialog: () -> Unit = {},
+    accentColor: Color = MelodistColors.AccentGreen,
     showArtistAlbumDialog: Boolean,
     onDismissArtistAlbumDialog: () -> Unit,
     actionSong: Song?,
@@ -64,6 +69,14 @@ fun BoxScope.PlaylistTvDialogs(
             selectedTier = selectedTier,
             onSelectTier = onSelectTier,
             onDismiss = onDismissQualityDialog,
+        )
+    }
+
+    // 定时关闭弹窗
+    if (showTimerDialog) {
+        SleepTimerTvDialog(
+            accentColor = accentColor,
+            onDismiss = onDismissTimerDialog,
         )
     }
 

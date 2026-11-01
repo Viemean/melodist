@@ -54,6 +54,7 @@ import org.melodist.tv.ui.components.BottomPlayerBar
 import org.melodist.tv.ui.components.CenterAlignedKaraokeLyricsView
 import org.melodist.tv.ui.components.MelodistElevatedCover
 import org.melodist.tv.ui.components.PlayerQueueSidebar
+import org.melodist.tv.ui.components.SleepTimerTvDialog
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
 import org.melodist.tv.ui.theme.rememberTvWindowMetrics
@@ -81,6 +82,8 @@ fun AcrTvScreen(
     val favoriteSongMids by PlaybackManager.favoriteSongMids.collectAsState()
     val isLoadingLyrics by PlaybackManager.isLoading.collectAsState()
     val isPlaying by PlaybackManager.isPlaying.collectAsState()
+    val isTimerActive by org.melodist.playback.SleepTimerManager.isTimerActive
+        .collectAsState()
     val durationMs by PlaybackManager.durationMs.collectAsState()
     val loopMode by PlaybackManager.loopMode.collectAsState()
     val selectedTier by PlaybackManager.currentTier.collectAsState()
@@ -103,6 +106,7 @@ fun AcrTvScreen(
     var hasUnmutedToPlayer by remember { mutableStateOf(false) }
     var isPlaybackRestored by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
+    var showTimerDialog by remember { mutableStateOf(false) }
     var showQueueSidebar by remember { mutableStateOf(false) }
 
     fun restoreOriginalPlayback() {
@@ -234,6 +238,8 @@ fun AcrTvScreen(
     BackHandler {
         if (showQualityDialog) {
             showQualityDialog = false
+        } else if (showTimerDialog) {
+            showTimerDialog = false
         } else if (showQueueSidebar) {
             showQueueSidebar = false
         } else {
@@ -623,6 +629,8 @@ fun AcrTvScreen(
                 isPlaying = isPlaying,
                 isFavorite = isFav,
                 canFavorite = canFavorite,
+                isTimerActive = isTimerActive,
+                onTimerClick = { showTimerDialog = true },
                 loopMode = loopMode.label,
                 qualityLabel = AudioQualityTier.getBadge(selectedTier),
                 canChangeQuality = canChangeQuality,
@@ -659,6 +667,14 @@ fun AcrTvScreen(
                     showQualityDialog = false
                 },
                 onDismiss = { showQualityDialog = false },
+            )
+        }
+
+        // 定时关闭弹窗
+        if (showTimerDialog) {
+            SleepTimerTvDialog(
+                accentColor = themeHighlightColor,
+                onDismiss = { showTimerDialog = false },
             )
         }
 

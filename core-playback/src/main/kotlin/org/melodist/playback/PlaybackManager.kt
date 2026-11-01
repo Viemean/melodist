@@ -1962,6 +1962,13 @@ object PlaybackManager {
             Log.d("MelodistPlayback", "Remote playback is active, skip local song ended auto-advance.")
             return
         }
+        if (SleepTimerManager.onSongEnded()) {
+            _isTransitioning.value = false
+            exoPlayer?.seekTo(0L)
+            _currentPositionMs.value = 0L
+            pause()
+            return
+        }
         _isTransitioning.value = true
         when {
             !queueManager.isRadioMode.value && !queueManager.hasPendingNextPlay && queueManager.loopMode.value == PlaybackLoopMode.SingleRepeat -> {

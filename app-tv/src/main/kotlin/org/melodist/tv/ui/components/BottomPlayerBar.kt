@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,7 @@ fun BottomPlayerBar(
     isPlaying: Boolean = true,
     isFavorite: Boolean = false,
     canFavorite: Boolean = true,
+    isTimerActive: Boolean = false,
     loopMode: String = "列表循环",
     qualityLabel: String = "SQ 无损",
     canChangeQuality: Boolean = true,
@@ -64,6 +66,7 @@ fun BottomPlayerBar(
     horizontalPadding: Dp = 48.dp,
     onFavoriteClick: () -> Unit = {},
     onLoopClick: () -> Unit = {},
+    onTimerClick: () -> Unit = {},
     onPrevClick: () -> Unit = {},
     onPlayPauseClick: () -> Unit = {},
     onNextClick: () -> Unit = {},
@@ -86,6 +89,7 @@ fun BottomPlayerBar(
 
     val progressRequester = remember { FocusRequester() }
 
+    val timerRequester = remember { FocusRequester() }
     val favRequester = remember { FocusRequester() }
     val loopRequester = remember { FocusRequester() }
     val prevRequester = remember { FocusRequester() }
@@ -136,6 +140,22 @@ fun BottomPlayerBar(
                 modifier = Modifier.align(Alignment.CenterStart),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                TvIconButton(
+                    imageVector = Icons.Filled.Timer,
+                    contentDescription = if (isTimerActive) "定时器（已开启）" else "定时器",
+                    iconTint = if (isTimerActive) accentColor else MelodistColors.TextPrimary,
+                    containerBg = btnContainer,
+                    modifier =
+                        Modifier
+                            .focusRequester(timerRequester)
+                            .focusProperties {
+                                up = progressRequester
+                                right = if (canFavorite) favRequester else loopRequester
+                            },
+                    onClick = onTimerClick,
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+
                 if (canFavorite) {
                     TvIconButton(
                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -147,6 +167,7 @@ fun BottomPlayerBar(
                                 .focusRequester(favRequester)
                                 .focusProperties {
                                     up = progressRequester
+                                    left = timerRequester
                                     right = loopRequester
                                 },
                         onClick = onFavoriteClick,
@@ -162,9 +183,7 @@ fun BottomPlayerBar(
                             .focusRequester(loopRequester)
                             .focusProperties {
                                 up = progressRequester
-                                if (canFavorite) {
-                                    left = favRequester
-                                }
+                                left = if (canFavorite) favRequester else timerRequester
                                 right = prevRequester
                             },
                     onClick = onLoopClick,

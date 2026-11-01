@@ -786,11 +786,14 @@ fun PlaylistTvScreen(
     var isControlsHidden by remember { mutableStateOf(false) }
     var showQueueSidebar by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
+    var showTimerDialog by remember { mutableStateOf(false) }
     var showArtistAlbumDialog by remember { mutableStateOf(false) }
     var lastInteractionTimeMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     val playlist by PlaybackManager.playlist.collectAsState()
     val isPlaying by PlaybackManager.isPlaying.collectAsState()
+    val isTimerActive by org.melodist.playback.SleepTimerManager.isTimerActive
+        .collectAsState()
     val durationMs by PlaybackManager.durationMs.collectAsState()
     val selectedTier by PlaybackManager.currentTier.collectAsState()
     val lyrics by PlaybackManager.lyrics.collectAsState()
@@ -810,8 +813,10 @@ fun PlaylistTvScreen(
             Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, sat, value)))
         }
 
-    LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
-        if (screenMode == PlaylistScreenMode.Player && !isControlsHidden && !showQueueSidebar && !showQualityDialog && !showArtistAlbumDialog) {
+    LaunchedEffect(screenMode, isControlsHidden, showQueueSidebar, showQualityDialog, showTimerDialog, showArtistAlbumDialog, lastInteractionTimeMs) {
+        if (screenMode == PlaylistScreenMode.Player && !isControlsHidden && !showQueueSidebar && !showQualityDialog && !showTimerDialog &&
+            !showArtistAlbumDialog
+        ) {
             kotlinx.coroutines.delay(10_000L)
             isControlsHidden = true
         }
@@ -822,6 +827,8 @@ fun PlaylistTvScreen(
             showArtistAlbumDialog = false
         } else if (showQualityDialog) {
             showQualityDialog = false
+        } else if (showTimerDialog) {
+            showTimerDialog = false
         } else if (showQueueSidebar) {
             showQueueSidebar = false
         } else if (isControlsHidden) {
@@ -1050,6 +1057,8 @@ fun PlaylistTvScreen(
                 loopMode = loopMode,
                 selectedTier = selectedTier,
                 queueCount = playlist.size,
+                isTimerActive = isTimerActive,
+                onTimerClick = { showTimerDialog = true },
                 onFavoriteClick = { PlaybackManager.toggleCurrentSongFavorite() },
                 onPrevClick = { PlaybackManager.playPrevious() },
                 onPlayPauseClick = { PlaybackManager.togglePlayPause() },
@@ -1096,6 +1105,9 @@ fun PlaylistTvScreen(
                 selectedTier = selectedTier,
                 onSelectTier = { PlaybackManager.switchTier(it) },
                 onDismissQualityDialog = { showQualityDialog = false },
+                showTimerDialog = showTimerDialog,
+                onDismissTimerDialog = { showTimerDialog = false },
+                accentColor = themeHighlightColor,
                 showArtistAlbumDialog = showArtistAlbumDialog,
                 onDismissArtistAlbumDialog = { showArtistAlbumDialog = false },
                 actionSong = actionSong,
