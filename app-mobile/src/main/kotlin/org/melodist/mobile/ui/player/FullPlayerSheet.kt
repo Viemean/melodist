@@ -208,14 +208,20 @@ fun FullPlayerSheet(
         }
     }
 
+    val isDark = isAppInDarkTheme()
+    val isAmoled = isAppInAmoledDark()
+
     val animatedAccentColor by animateColorAsState(
-        targetValue = monetColors.accentColor,
+        targetValue = monetColors.getAccentColor(isDark),
         animationSpec = tween(650),
         label = "monet_accent_color",
     )
+    val animatedHighlightColor by animateColorAsState(
+        targetValue = monetColors.getHighlightColor(isDark),
+        animationSpec = tween(650),
+        label = "monet_highlight_color",
+    )
 
-    val isDark = isAppInDarkTheme()
-    val isAmoled = isAppInAmoledDark()
     val view = LocalView.current
     val window = (context as? Activity)?.window
     DisposableEffect(window, view, isDark) {
@@ -511,7 +517,7 @@ fun FullPlayerSheet(
                             lyrics = lyrics,
                             currentPositionMs = lyricPositionMs,
                             onSeekTo = onSeekTo,
-                            highlightColor = animatedAccentColor,
+                            highlightColor = animatedHighlightColor,
                             textColor = contentPrimary.copy(alpha = 0.72f),
                             transColor = contentPrimary.copy(alpha = 0.55f),
                             modifier = Modifier.fillMaxSize(),
@@ -807,7 +813,7 @@ fun FullPlayerSheet(
                                         lyrics = lyrics,
                                         currentPositionMs = lyricPositionMs,
                                         onSeekTo = onSeekTo,
-                                        highlightColor = animatedAccentColor,
+                                        highlightColor = animatedHighlightColor,
                                         textColor = contentPrimary.copy(alpha = 0.72f),
                                         transColor = contentPrimary.copy(alpha = 0.55f),
                                         modifier = Modifier.fillMaxSize(),

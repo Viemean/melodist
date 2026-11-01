@@ -10,11 +10,35 @@ import org.melodist.ui.monet.MonetSeedExtractor
 data class PlayerMonetColors(
     val darkBackgroundColor: Color = Color(0xFF141416),
     val lightBackgroundColor: Color = Color(0xFFF7F7FA),
-    val accentColor: Color = Color(0xFF2DB580),
-    val highlightColor: Color = Color(0xFF3EC896),
+    val darkAccentColor: Color = Color(0xFF5CE6AA),
+    val lightAccentColor: Color = Color(0xFF1E825B),
+    val darkHighlightColor: Color = Color(0xFF85ECC0),
+    val lightHighlightColor: Color = Color(0xFF2DB580),
     val shadowTint: Color = Color(0xFF0D1016),
 ) {
+    constructor(
+        darkBackgroundColor: Color = Color(0xFF141416),
+        lightBackgroundColor: Color = Color(0xFFF7F7FA),
+        accentColor: Color = Color(0xFF2DB580),
+        highlightColor: Color = Color(0xFF3EC896),
+        shadowTint: Color = Color(0xFF0D1016),
+    ) : this(
+        darkBackgroundColor = darkBackgroundColor,
+        lightBackgroundColor = lightBackgroundColor,
+        darkAccentColor = accentColor,
+        lightAccentColor = accentColor,
+        darkHighlightColor = highlightColor,
+        lightHighlightColor = highlightColor,
+        shadowTint = shadowTint,
+    )
+
     val backgroundColor: Color get() = darkBackgroundColor
+    val accentColor: Color get() = darkAccentColor
+    val highlightColor: Color get() = darkHighlightColor
+
+    fun getAccentColor(isDark: Boolean): Color = if (isDark) darkAccentColor else lightAccentColor
+
+    fun getHighlightColor(isDark: Boolean): Color = if (isDark) darkHighlightColor else lightHighlightColor
 
     fun getBackgroundColor(
         isDark: Boolean,
@@ -60,27 +84,65 @@ fun resolveMonetColorsFromSeed(seed: MonetSeed): PlayerMonetColors {
         )
     val shadowTintInt = ColorUtils.HSLToColor(shadowHsl)
 
-    val accentHsl =
-        floatArrayOf(
-            seed.accentHue,
-            seed.accentSaturation.coerceIn(0.50f, 0.75f),
-            seed.accentLightness.coerceIn(0.42f, 0.58f),
-        )
-    val accentColorInt = ColorUtils.HSLToColor(accentHsl)
+    val accentHue = seed.accentHue
+    val accentSat = seed.accentSaturation
 
-    val hlHsl =
-        floatArrayOf(
-            accentHsl[0],
-            accentHsl[1].coerceIn(0.55f, 0.78f),
-            0.62f,
+    val isYellowGreen = accentHue in 40f..100f
+    val isRedOrViolet = accentHue in 340f..360f || accentHue in 0f..25f || accentHue in 215f..265f
+
+    val lightAccentL =
+        if (isYellowGreen) {
+            0.36f
+        } else {
+            0.44f
+        }
+    val lightAccentColorInt =
+        ColorUtils.HSLToColor(
+            floatArrayOf(
+                accentHue,
+                accentSat.coerceIn(0.65f, 0.90f),
+                lightAccentL,
+            ),
         )
-    val highlightColorInt = ColorUtils.HSLToColor(hlHsl)
+    val lightHighlightColorInt =
+        ColorUtils.HSLToColor(
+            floatArrayOf(
+                accentHue,
+                accentSat.coerceIn(0.60f, 0.85f),
+                (lightAccentL - 0.08f).coerceAtLeast(0.28f),
+            ),
+        )
+
+    val darkAccentL =
+        when {
+            isRedOrViolet -> 0.56f
+            isYellowGreen -> 0.50f
+            else -> 0.54f
+        }
+    val darkAccentColorInt =
+        ColorUtils.HSLToColor(
+            floatArrayOf(
+                accentHue,
+                accentSat.coerceIn(0.86f, 0.98f),
+                darkAccentL,
+            ),
+        )
+    val darkHighlightColorInt =
+        ColorUtils.HSLToColor(
+            floatArrayOf(
+                accentHue,
+                accentSat.coerceIn(0.88f, 0.98f),
+                (darkAccentL + 0.08f).coerceAtMost(0.66f),
+            ),
+        )
 
     return PlayerMonetColors(
         darkBackgroundColor = Color(darkBgColorInt),
         lightBackgroundColor = Color(lightBgColorInt),
-        accentColor = Color(accentColorInt),
-        highlightColor = Color(highlightColorInt),
+        darkAccentColor = Color(darkAccentColorInt),
+        lightAccentColor = Color(lightAccentColorInt),
+        darkHighlightColor = Color(darkHighlightColorInt),
+        lightHighlightColor = Color(lightHighlightColorInt),
         shadowTint = Color(shadowTintInt),
     )
 }
