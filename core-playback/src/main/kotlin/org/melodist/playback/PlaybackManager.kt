@@ -1143,19 +1143,28 @@ object PlaybackManager {
         val prevPos = _currentPositionMs.value
         val prevDur = _durationMs.value
         val prevTier = _currentTier.value
-        if (prevSong != null && prevSong.songMid != song.songMid) {
-            MelodistCacheManager.handleTrackSwitchEviction(prevSong.songMid, prevPos, prevDur, prevTier)
+        val isSongSwitching = (prevSong == null || prevSong.songMid != song.songMid)
+        if (isSongSwitching) {
+            MelodistCacheManager.handleTrackSwitchEviction(prevSong?.songMid.orEmpty(), prevPos, prevDur, prevTier)
+            _lyrics.value = emptyList()
+            _isLoading.value = true
+            _currentPositionMs.value = seekToMs
+            _bufferedPositionMs.value = seekToMs
         }
         MelodistCacheManager.onNewSongStarted(song.songMid)
-        if (_currentSong.value?.songMid != song.songMid) {
+        if (isSongSwitching) {
             currentSongRetryCount = 0
             audioTrackRetryCount = 0
             preloadCoordinator.onSongChanged(song.songMid)
         }
-        if (playJob?.isActive == true && exoPlayer?.isPlaying == true) {
-            exoPlayer?.volume = 0f
-            exoPlayer?.stop()
-            exoPlayer?.clearMediaItems()
+        exoPlayer?.let { player ->
+            try {
+                player.volume = 0f
+                player.stop()
+                player.clearMediaItems()
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+            }
         }
         playJob?.cancel()
         switchQualityJob?.cancel()
@@ -1188,6 +1197,11 @@ object PlaybackManager {
             }
         }
 
+        _currentSong.value = effectiveSong
+        _currentPositionMs.value = seekToMs
+        _bufferedPositionMs.value = seekToMs
+        _durationMs.value = policyCoordinator.resolveDurationMs(effectiveSong)
+
         val initialLyrics = LyricCacheManager.getLyrics(effectiveSong.songMid).orEmpty()
         _lyrics.value = initialLyrics
         loadLyricsForSong(effectiveSong)
@@ -1196,10 +1210,6 @@ object PlaybackManager {
         if (playbackInterceptor?.onInterceptPlaySong(effectiveSong, forceTier, seekToMs) == true) {
             exoPlayer?.stop()
             exoPlayer?.clearMediaItems()
-            _currentSong.value = effectiveSong
-            _currentPositionMs.value = seekToMs
-            _bufferedPositionMs.value = seekToMs
-            _durationMs.value = if (effectiveSong.durationSeconds > 0) effectiveSong.durationSeconds * 1000L else 0L
             _currentTier.value = forceTier ?: _preferredTier.value
             _isPlaying.value = true
             _isTransitioning.value = false
@@ -1209,11 +1219,7 @@ object PlaybackManager {
             return
         }
 
-        _currentSong.value = effectiveSong
         playbackEventListeners.forEach { it.onSongPlay(effectiveSong) }
-        _currentPositionMs.value = seekToMs
-        _bufferedPositionMs.value = seekToMs
-        _durationMs.value = policyCoordinator.resolveDurationMs(effectiveSong)
         _isTransitioning.value = true
         appContext?.let { startPlaybackService(it) }
 

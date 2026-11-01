@@ -59,11 +59,13 @@ fun PlaylistTvLyricsOverlay(
             contentAlignment = Alignment.Center,
         ) {
             if (lyrics.isNotEmpty()) {
+                val currentSong by PlaybackManager.currentSong.collectAsState()
                 val lyricsCurrentPositionMs by PlaybackManager.currentPositionMs.collectAsState()
                 CenterAlignedKaraokeLyricsView(
                     lyrics = lyrics,
                     currentPositionMs = lyricsCurrentPositionMs,
                     highlightColor = themeHighlightColor,
+                    songMid = currentSong?.songMid.orEmpty(),
                 )
             } else if (isPlaybackLoading) {
                 Text(

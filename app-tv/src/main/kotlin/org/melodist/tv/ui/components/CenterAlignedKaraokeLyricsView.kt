@@ -30,6 +30,7 @@ fun CenterAlignedKaraokeLyricsView(
     lyrics: List<LyricLine>,
     currentPositionMs: Long,
     modifier: Modifier = Modifier,
+    songMid: String = "",
     lyricOffsetMs: Long =
         org.melodist.playback.PlaybackManager.currentLyricOffsetMs
             .collectAsState()
@@ -66,15 +67,18 @@ fun CenterAlignedKaraokeLyricsView(
         }
 
     val initialIndex =
-        remember(lyrics) {
+        remember(songMid, lyrics) {
             val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
             if (index == -1) 0 else index
         }
     val listState =
-        rememberLazyListState(
-            initialFirstVisibleItemIndex = initialIndex.coerceIn(0, (lyrics.size - 1).coerceAtLeast(0)),
-        )
-    var isInitialAligned by remember(lyrics) { mutableStateOf(false) }
+        remember(songMid.ifBlank { lyrics.firstOrNull()?.text.orEmpty() }) {
+            androidx.compose.foundation.lazy.LazyListState(
+                firstVisibleItemIndex = initialIndex.coerceIn(0, (lyrics.size - 1).coerceAtLeast(0)),
+                firstVisibleItemScrollOffset = 0,
+            )
+        }
+    var isInitialAligned by remember(songMid, lyrics) { mutableStateOf(false) }
     val takeoverScroll by org.melodist.tv.connect.TakeoverLyricsState.scrollFlow
         .collectAsState()
 
@@ -90,7 +94,9 @@ fun CenterAlignedKaraokeLyricsView(
             }
         } else {
             if (activeIndex in lyrics.indices) {
-                if (!isInitialAligned) {
+                val currentVisibleIndex = listState.firstVisibleItemIndex
+                val distance = abs(activeIndex - currentVisibleIndex)
+                if (!isInitialAligned || distance > 3) {
                     isInitialAligned = true
                     listState.scrollToItem(
                         index = activeIndex,

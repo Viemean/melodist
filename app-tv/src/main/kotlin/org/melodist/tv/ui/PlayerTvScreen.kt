@@ -171,6 +171,7 @@ fun PlayerTvScreen(
                     lyrics = lyrics,
                     currentPositionMs = lyricsCurrentPositionMs,
                     highlightColor = themeHighlightColor,
+                    songMid = activeSong?.songMid.orEmpty(),
                 )
             } else if (isLoading) {
                 Text(
