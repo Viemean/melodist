@@ -58,6 +58,7 @@ import org.melodist.data.ScreenSaverTimeout
 import org.melodist.playback.PlaybackManager
 import org.melodist.tv.ui.theme.MelodistColors
 import org.melodist.tv.ui.theme.MelodistShapes
+import org.melodist.ui.lyrics.ContinuousKaraokeText
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
@@ -264,6 +265,16 @@ fun ScreenSaverPanel(menuRequester: FocusRequester) {
             },
         )
 
+        // 熄屏显示实时歌词开关
+        SettingSwitchCard(
+            title = "熄屏显示实时歌词",
+            checked = settings.enableScreenSaverLyrics,
+            menuRequester = menuRequester,
+            onToggle = {
+                AppSettingsManager.updateEnableScreenSaverLyrics(!settings.enableScreenSaverLyrics)
+            },
+        )
+
         // 立即预览屏保按钮
         Button(
             onClick = { isPreviewing = true },
@@ -410,6 +421,27 @@ fun ScreenSaverOverlay(
     }
 
     val currentSong by PlaybackManager.currentSong.collectAsState()
+    val lyrics by PlaybackManager.lyrics.collectAsState()
+    val currentPositionMs by PlaybackManager.currentPositionMs.collectAsState()
+    val lyricOffsetMs by PlaybackManager.currentLyricOffsetMs.collectAsState()
+
+    val effectivePositionMs = currentPositionMs + lyricOffsetMs
+    val activeLine =
+        remember(lyrics, effectivePositionMs) {
+            if (lyrics.isEmpty()) {
+                null
+            } else {
+                lyrics.lastOrNull { it.timestampMs <= effectivePositionMs }
+            }
+        }
+    val currentLineElapsedMs =
+        remember(activeLine, effectivePositionMs) {
+            if (activeLine != null) {
+                (effectivePositionMs - activeLine.timestampMs).coerceAtLeast(0L)
+            } else {
+                0L
+            }
+        }
 
     var canDismiss by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -607,7 +639,9 @@ fun ScreenSaverOverlay(
 
                     // 当前正在播放的曲目信息
                     if (song != null) {
-                        Spacer(modifier = Modifier.height(44.dp))
+                        val currentActiveLine = activeLine
+                        val hasScreenSaverLyrics = settings.enableScreenSaverLyrics && currentActiveLine != null
+                        Spacer(modifier = Modifier.height(if (hasScreenSaverLyrics) 28.dp else 44.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(18.dp),
@@ -644,6 +678,56 @@ fun ScreenSaverOverlay(
                                     color = Color.White.copy(alpha = 0.5f),
                                     maxLines = 1,
                                 )
+                            }
+                        }
+
+                        if (settings.enableScreenSaverLyrics && currentActiveLine != null) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth(0.85f)
+                                        .padding(horizontal = 16.dp),
+                            ) {
+                                val fontSp = settings.effectiveLyricTitleSp.sp
+                                val transFontSp = (settings.effectiveLyricTitleSp * 0.75f).sp
+                                val lineHeightSp = (settings.effectiveLyricTitleSp * 1.40f).sp
+                                val transLineHeightSp = (settings.effectiveLyricTitleSp * 1.05f).sp
+
+                                if (currentActiveLine.isWordSynced && settings.enableWordByWordAnim) {
+                                    ContinuousKaraokeText(
+                                        line = currentActiveLine,
+                                        currentLineElapsedMs = currentLineElapsedMs,
+                                        highlightColor = animatedTimeColor,
+                                        defaultTextColor = Color.White.copy(alpha = 0.60f),
+                                        fontSize = fontSp,
+                                        lineHeight = lineHeightSp,
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                } else {
+                                    Text(
+                                        text = currentActiveLine.text,
+                                        color = animatedTimeColor,
+                                        fontSize = fontSp,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center,
+                                        lineHeight = lineHeightSp,
+                                    )
+                                }
+
+                                if (currentActiveLine.hasTranslation && settings.showBilingualLyrics) {
+                                    Text(
+                                        text = currentActiveLine.transText,
+                                        color = animatedTimeColor.copy(alpha = 0.88f),
+                                        fontSize = transFontSp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        textAlign = TextAlign.Center,
+                                        lineHeight = transLineHeightSp,
+                                    )
+                                }
                             }
                         }
                     }

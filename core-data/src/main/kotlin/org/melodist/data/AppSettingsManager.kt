@@ -149,6 +149,7 @@ data class AppSettings(
     val screenSaverBrightness: ScreenSaverBrightness = ScreenSaverBrightness.Auto,
     val enablePixelShift: Boolean = true,
     val enableScreenSaverDuringPlayback: Boolean = true,
+    val enableScreenSaverLyrics: Boolean = true,
     // 下载与存储
     val downloadDirectory: String = "",
     val lyricSaveMode: LyricSaveMode = LyricSaveMode.Embedded,
@@ -199,6 +200,7 @@ object AppSettingsManager {
     private const val KEY_SCREENSAVER_BRIGHTNESS = "screensaver_brightness"
     private const val KEY_SCREENSAVER_PIXEL_SHIFT = "screensaver_pixel_shift"
     private const val KEY_SCREENSAVER_DURING_PLAYBACK = "screensaver_during_playback"
+    private const val KEY_SCREENSAVER_LYRICS = "screensaver_lyrics"
     private const val KEY_DOWNLOAD_DIRECTORY = "download_directory"
     private const val KEY_LYRIC_SAVE_MODE = "lyric_save_mode"
     private const val KEY_SAVE_LYRIC_TRANSLATION = "save_lyric_translation"
@@ -287,6 +289,7 @@ object AppSettingsManager {
 
         val pixelShift = p.getBoolean(KEY_SCREENSAVER_PIXEL_SHIFT, true)
         val duringPlayback = p.getBoolean(KEY_SCREENSAVER_DURING_PLAYBACK, true)
+        val screenSaverLyrics = p.getBoolean(KEY_SCREENSAVER_LYRICS, true)
         val downloadDir = p.getString(KEY_DOWNLOAD_DIRECTORY, "") ?: ""
         val lyricSaveModeName = p.getString(KEY_LYRIC_SAVE_MODE, LyricSaveMode.Embedded.name) ?: LyricSaveMode.Embedded.name
         val lyricSaveMode = runCatching { LyricSaveMode.valueOf(lyricSaveModeName) }.getOrDefault(LyricSaveMode.Embedded)
@@ -315,6 +318,7 @@ object AppSettingsManager {
                 screenSaverBrightness = brightness,
                 enablePixelShift = pixelShift,
                 enableScreenSaverDuringPlayback = duringPlayback,
+                enableScreenSaverLyrics = screenSaverLyrics,
                 downloadDirectory = downloadDir,
                 lyricSaveMode = lyricSaveMode,
                 saveLyricTranslation = saveLyricTranslation,
@@ -480,6 +484,13 @@ object AppSettingsManager {
     }
 
     fun updateEnableScreenSaverDuringPlayback(enable: Boolean) = setEnableScreenSaverDuringPlayback(enable)
+
+    fun setEnableScreenSaverLyrics(enable: Boolean) {
+        _settings.value = _settings.value.copy(enableScreenSaverLyrics = enable)
+        prefs?.edit()?.putBoolean(KEY_SCREENSAVER_LYRICS, enable)?.apply()
+    }
+
+    fun updateEnableScreenSaverLyrics(enable: Boolean) = setEnableScreenSaverLyrics(enable)
 
     fun setThemeMode(mode: ThemeMode) {
         _settings.value = _settings.value.copy(themeMode = mode)
