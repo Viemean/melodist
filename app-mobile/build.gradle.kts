@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "org.melodist.mobile"
     compileSdk = 37
+    ndkVersion = libs.versions.ndk.get()
 
     val releaseKeystore = file("../app-tv/release.jks")
     val keystorePassword = System.getenv("KEYSTORE_PASSWORD")

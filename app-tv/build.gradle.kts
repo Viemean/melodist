@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "org.melodist.tv"
     compileSdk = 37
+    ndkVersion = libs.versions.ndk.get()
 
     defaultConfig {
         applicationId = "org.melodist.tv"
