@@ -67,6 +67,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -146,19 +147,25 @@ enum class HomeFilter(
 
 private sealed interface AppScreen {
     val depth: Int
+    val saveableKey: String
 
     data object Home : AppScreen {
         override val depth: Int = 0
+        override val saveableKey: String = "screen_home"
     }
 
     data object Search : AppScreen {
         override val depth: Int = 1
+        override val saveableKey: String = "screen_search"
     }
 
     data class Detail(
         val destination: ScreenDestination,
         override val depth: Int,
-    ) : AppScreen
+    ) : AppScreen {
+        override val saveableKey: String
+            get() = "screen_detail_${depth}_$destination"
+    }
 }
 
 data class MobileAcrSuccessData(
@@ -172,6 +179,7 @@ private const val MAX_BACK_DEPTH = 3
 
 @Composable
 fun MainNavigationScreen(modifier: Modifier = Modifier) {
+    val saveableStateHolder = rememberSaveableStateHolder()
     val screenStack = remember { mutableStateListOf<ScreenDestination>() }
     var isSearching by remember { mutableStateOf(false) }
 
@@ -179,13 +187,18 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
         destination: ScreenDestination,
         clearStack: Boolean,
     ) {
+        val baseDepth = if (isSearching) 1 else 0
         if (clearStack) {
             isSearching = false
+            screenStack.forEachIndexed { index, dest ->
+                saveableStateHolder.removeState("screen_detail_${baseDepth + index + 1}_$dest")
+            }
             screenStack.clear()
             screenStack.add(destination)
         } else {
             while (screenStack.size >= MAX_BACK_DEPTH) {
-                screenStack.removeAt(0)
+                val removed = screenStack.removeAt(0)
+                saveableStateHolder.removeState("screen_detail_${baseDepth + 1}_$removed")
             }
             screenStack.add(destination)
         }
@@ -231,7 +244,10 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
 
                 override fun navigateBack(): Boolean =
                     if (screenStack.isNotEmpty()) {
-                        screenStack.removeLastOrNull()
+                        val poppedIndex = screenStack.size - 1
+                        val popped = screenStack.removeAt(poppedIndex)
+                        val baseDepth = if (isSearching) 1 else 0
+                        saveableStateHolder.removeState("screen_detail_${baseDepth + poppedIndex + 1}_$popped")
                         true
                     } else if (isSearching) {
                         isSearching = false
@@ -587,71 +603,73 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                             label = "main_screen_transition",
                             modifier = Modifier.fillMaxSize(),
                         ) { targetScreen ->
-                            RenderAppScreen(
-                                screen = targetScreen,
-                                innerPadding = innerPadding,
-                                navController = navController,
-                                onSearchClick = { isSearching = true },
-                                onBackFromSearch = {
-                                    isSearching = false
-                                    searchScreenState.reset()
-                                },
-                                searchState = searchScreenState,
-                                onOpenSettings = { showSettingsScreen = true },
-                                onOpenLogin = { showLoginDialog = true },
-                                onOpenPlayer = { isFullPlayerExpanded = true },
-                                acrViewModel = acrViewModel,
-                                acrUiState = acrUiState,
-                                acrSuccessData = acrSuccessData,
-                                onActivateAcr = { isAcrControllerActive = true },
-                                onCancelAcr = {
-                                    isAcrControllerActive = false
-                                    acrViewModel.reset()
-                                },
-                                onCloseAcr = {
-                                    acrSuccessData = null
-                                    showAcrResultCard = false
-                                    isAcrCardInteracting = false
-                                    acrViewModel.reset()
-                                },
-                                onExpandAcr = {
-                                    val data = acrSuccessData
-                                    if (data != null) {
-                                        val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
-                                        val prepLatencyMs = 850L
-                                        val seekMs =
-                                            ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
-                                                .coerceAtLeast(0L)
-                                        PlaybackManager.insertAndPlay(
-                                            song = data.song,
-                                            seekToMs = seekMs,
-                                        )
+                            saveableStateHolder.SaveableStateProvider(key = targetScreen.saveableKey) {
+                                RenderAppScreen(
+                                    screen = targetScreen,
+                                    innerPadding = innerPadding,
+                                    navController = navController,
+                                    onSearchClick = { isSearching = true },
+                                    onBackFromSearch = {
+                                        isSearching = false
+                                        searchScreenState.reset()
+                                    },
+                                    searchState = searchScreenState,
+                                    onOpenSettings = { showSettingsScreen = true },
+                                    onOpenLogin = { showLoginDialog = true },
+                                    onOpenPlayer = { isFullPlayerExpanded = true },
+                                    acrViewModel = acrViewModel,
+                                    acrUiState = acrUiState,
+                                    acrSuccessData = acrSuccessData,
+                                    onActivateAcr = { isAcrControllerActive = true },
+                                    onCancelAcr = {
+                                        isAcrControllerActive = false
+                                        acrViewModel.reset()
+                                    },
+                                    onCloseAcr = {
+                                        acrSuccessData = null
                                         showAcrResultCard = false
-                                    }
-                                    isFullPlayerExpanded = true
-                                },
-                                onPlayAcrCard = {
-                                    val data = acrSuccessData
-                                    if (data != null) {
-                                        val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
-                                        val prepLatencyMs = 850L
-                                        val seekMs =
-                                            ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
-                                                .coerceAtLeast(0L)
-                                        PlaybackManager.insertAndPlay(
-                                            song = data.song,
-                                            seekToMs = seekMs,
-                                        )
-                                        showAcrResultCard = false
-                                    }
-                                },
-                                onCollapseAcrCard = { showAcrResultCard = false },
-                                onAcrCardInteractionChange = { isAcrCardInteracting = it },
-                                showAcrResultCard = showAcrResultCard,
-                                pagerState = pagerState,
-                                chipScrollState = chipScrollState,
-                                coroutineScope = coroutineScope,
-                            )
+                                        isAcrCardInteracting = false
+                                        acrViewModel.reset()
+                                    },
+                                    onExpandAcr = {
+                                        val data = acrSuccessData
+                                        if (data != null) {
+                                            val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
+                                            val prepLatencyMs = 850L
+                                            val seekMs =
+                                                ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
+                                                    .coerceAtLeast(0L)
+                                            PlaybackManager.insertAndPlay(
+                                                song = data.song,
+                                                seekToMs = seekMs,
+                                            )
+                                            showAcrResultCard = false
+                                        }
+                                        isFullPlayerExpanded = true
+                                    },
+                                    onPlayAcrCard = {
+                                        val data = acrSuccessData
+                                        if (data != null) {
+                                            val elapsedRealtimeMs = android.os.SystemClock.elapsedRealtime() - data.anchorRealtimeMs
+                                            val prepLatencyMs = 850L
+                                            val seekMs =
+                                                ((data.offsetSeconds * 1000).toLong() + elapsedRealtimeMs + prepLatencyMs)
+                                                    .coerceAtLeast(0L)
+                                            PlaybackManager.insertAndPlay(
+                                                song = data.song,
+                                                seekToMs = seekMs,
+                                            )
+                                            showAcrResultCard = false
+                                        }
+                                    },
+                                    onCollapseAcrCard = { showAcrResultCard = false },
+                                    onAcrCardInteractionChange = { isAcrCardInteracting = it },
+                                    showAcrResultCard = showAcrResultCard,
+                                    pagerState = pagerState,
+                                    chipScrollState = chipScrollState,
+                                    coroutineScope = coroutineScope,
+                                )
+                            }
                         }
                     }
                 }

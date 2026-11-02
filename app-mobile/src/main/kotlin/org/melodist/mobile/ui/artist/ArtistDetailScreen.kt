@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -50,6 +51,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,6 +80,51 @@ enum class ArtistContentTab {
     Albums,
 }
 
+internal data class ArtistMemoryState(
+    val contentTab: ArtistContentTab = ArtistContentTab.Songs,
+    val isHotOrder: Boolean = true,
+    val artistDetail: ArtistDetail? = null,
+    val songs: List<Song> = emptyList(),
+    val totalSongs: Int = 0,
+    val currentSongPage: Int = 1,
+    val hasMoreSongs: Boolean = false,
+    val albums: List<Album> = emptyList(),
+    val totalAlbums: Int = 0,
+    val currentAlbumPage: Int = 1,
+    val hasMoreAlbums: Boolean = false,
+    val isBriefExpanded: Boolean = false,
+    val songScrollIndex: Int = 0,
+    val songScrollOffset: Int = 0,
+    val albumScrollIndex: Int = 0,
+    val albumScrollOffset: Int = 0,
+)
+
+internal object ArtistMemoryCache {
+    private const val MAX_SIZE = 10
+    private val cache =
+        object : LinkedHashMap<String, ArtistMemoryState>(MAX_SIZE, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ArtistMemoryState>?): Boolean = size > MAX_SIZE
+        }
+
+    @Synchronized
+    fun get(artistMid: String): ArtistMemoryState? = cache[artistMid]
+
+    @Synchronized
+    fun save(
+        artistMid: String,
+        state: ArtistMemoryState,
+    ) {
+        if (artistMid.isNotBlank()) {
+            cache[artistMid] = state
+        }
+    }
+
+    @Synchronized
+    fun clear(artistMid: String) {
+        cache.remove(artistMid)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistDetailScreen(
@@ -93,29 +140,72 @@ fun ArtistDetailScreen(
     val followedMids by FavoriteArtistsManager.followedArtistMids.collectAsState()
     val isFollowed = followedMids.contains(artistMid)
 
-    var contentTab by remember { mutableStateOf(ArtistContentTab.Songs) }
-    var isHotOrder by remember { mutableStateOf(true) }
+    val cachedState = remember(artistMid) { ArtistMemoryCache.get(artistMid) }
+
+    var contentTab by rememberSaveable { mutableStateOf(cachedState?.contentTab ?: ArtistContentTab.Songs) }
+    var isHotOrder by rememberSaveable { mutableStateOf(cachedState?.isHotOrder ?: true) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    var artistDetail by remember { mutableStateOf<ArtistDetail?>(null) }
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var isLoadingSongs by remember { mutableStateOf(true) }
+    var artistDetail by remember { mutableStateOf(cachedState?.artistDetail) }
+    var songs by remember { mutableStateOf(cachedState?.songs.orEmpty()) }
+    var isLoadingSongs by remember { mutableStateOf(cachedState?.songs.isNullOrEmpty()) }
     var isLoadingMoreSongs by remember { mutableStateOf(false) }
-    var currentSongPage by remember { mutableIntStateOf(1) }
-    var totalSongs by remember { mutableIntStateOf(0) }
-    var hasMoreSongs by remember { mutableStateOf(false) }
+    var currentSongPage by rememberSaveable { mutableIntStateOf(cachedState?.currentSongPage ?: 1) }
+    var totalSongs by rememberSaveable { mutableIntStateOf(cachedState?.totalSongs ?: 0) }
+    var hasMoreSongs by rememberSaveable { mutableStateOf(cachedState?.hasMoreSongs ?: false) }
 
-    var albums by remember { mutableStateOf<List<Album>>(emptyList()) }
+    var albums by remember { mutableStateOf(cachedState?.albums.orEmpty()) }
     var isLoadingAlbums by remember { mutableStateOf(false) }
     var isLoadingMoreAlbums by remember { mutableStateOf(false) }
-    var currentAlbumPage by remember { mutableIntStateOf(1) }
-    var totalAlbums by remember { mutableIntStateOf(0) }
-    var hasMoreAlbums by remember { mutableStateOf(false) }
+    var currentAlbumPage by rememberSaveable { mutableIntStateOf(cachedState?.currentAlbumPage ?: 1) }
+    var totalAlbums by rememberSaveable { mutableIntStateOf(cachedState?.totalAlbums ?: 0) }
+    var hasMoreAlbums by rememberSaveable { mutableStateOf(cachedState?.hasMoreAlbums ?: false) }
 
-    var isBriefExpanded by remember { mutableStateOf(false) }
+    var isBriefExpanded by rememberSaveable { mutableStateOf(cachedState?.isBriefExpanded ?: false) }
 
-    val songListState = rememberLazyListState()
-    val albumListState = rememberLazyListState()
+    val songListState =
+        rememberLazyListState(
+            initialFirstVisibleItemIndex = cachedState?.songScrollIndex ?: 0,
+            initialFirstVisibleItemScrollOffset = cachedState?.songScrollOffset ?: 0,
+        )
+    val albumListState =
+        rememberLazyListState(
+            initialFirstVisibleItemIndex = cachedState?.albumScrollIndex ?: 0,
+            initialFirstVisibleItemScrollOffset = cachedState?.albumScrollOffset ?: 0,
+        )
+
+    fun persistMemoryState() {
+        if (artistMid.isNotBlank()) {
+            ArtistMemoryCache.save(
+                artistMid = artistMid,
+                state =
+                    ArtistMemoryState(
+                        contentTab = contentTab,
+                        isHotOrder = isHotOrder,
+                        artistDetail = artistDetail,
+                        songs = songs,
+                        totalSongs = totalSongs,
+                        currentSongPage = currentSongPage,
+                        hasMoreSongs = hasMoreSongs,
+                        albums = albums,
+                        totalAlbums = totalAlbums,
+                        currentAlbumPage = currentAlbumPage,
+                        hasMoreAlbums = hasMoreAlbums,
+                        isBriefExpanded = isBriefExpanded,
+                        songScrollIndex = songListState.firstVisibleItemIndex,
+                        songScrollOffset = songListState.firstVisibleItemScrollOffset,
+                        albumScrollIndex = albumListState.firstVisibleItemIndex,
+                        albumScrollOffset = albumListState.firstVisibleItemScrollOffset,
+                    ),
+            )
+        }
+    }
+
+    DisposableEffect(artistMid) {
+        onDispose {
+            persistMemoryState()
+        }
+    }
 
     val displayName = artistDetail?.name ?: artistName.ifBlank { "歌手详情" }
     val avatarUrl =
@@ -160,23 +250,29 @@ fun ArtistDetailScreen(
             hasMoreAlbums = firstPageAlbums.isNotEmpty() && firstPageAlbums.size < effectiveAlbumTotal
             currentAlbumPage = 1
         }
+        persistMemoryState()
         isRefreshing = false
     }
 
     LaunchedEffect(artistMid) {
         if (artistMid.isNotBlank()) {
             FavoriteArtistsManager.checkStatus(artistMid)
-            val detail = ArtistAlbumCacheManager.getArtistDetail(artistMid)
-            if (detail != null) {
-                artistDetail = detail
-                if (detail.totalSongs > 0) totalSongs = maxOf(totalSongs, detail.totalSongs)
-                if (detail.totalAlbums > 0) totalAlbums = maxOf(totalAlbums, detail.totalAlbums)
+            if (artistDetail == null) {
+                val detail = ArtistAlbumCacheManager.getArtistDetail(artistMid)
+                if (detail != null) {
+                    artistDetail = detail
+                    if (detail.totalSongs > 0) totalSongs = maxOf(totalSongs, detail.totalSongs)
+                    if (detail.totalAlbums > 0) totalAlbums = maxOf(totalAlbums, detail.totalAlbums)
+                }
             }
         }
     }
 
     LaunchedEffect(artistMid, isHotOrder) {
         if (artistMid.isNotBlank()) {
+            if (songs.isNotEmpty() && isHotOrder == cachedState?.isHotOrder) {
+                return@LaunchedEffect
+            }
             isLoadingSongs = true
             currentSongPage = 1
             val (firstPageSongs, total) =
