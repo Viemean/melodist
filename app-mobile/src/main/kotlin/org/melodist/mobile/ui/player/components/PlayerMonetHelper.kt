@@ -88,7 +88,8 @@ fun resolveMonetColorsFromSeed(seed: MonetSeed): PlayerMonetColors {
     val accentSat = seed.accentSaturation
 
     val isYellowGreen = accentHue in 40f..100f
-    val isRedOrViolet = accentHue in 340f..360f || accentHue in 0f..25f || accentHue in 215f..265f
+    val isRed = accentHue in 340f..360f || accentHue in 0f..25f
+    val isBlueViolet = accentHue in 210f..275f
 
     val lightAccentL =
         if (isYellowGreen) {
@@ -115,15 +116,24 @@ fun resolveMonetColorsFromSeed(seed: MonetSeed): PlayerMonetColors {
 
     val darkAccentL =
         when {
-            isRedOrViolet -> 0.56f
-            isYellowGreen -> 0.50f
-            else -> 0.54f
+            isBlueViolet -> 0.70f
+            isRed -> 0.62f
+            isYellowGreen -> 0.54f
+            else -> 0.64f
         }
+
+    val darkAccentSat =
+        when {
+            isBlueViolet -> accentSat.coerceIn(0.55f, 0.72f)
+            isYellowGreen -> accentSat.coerceIn(0.65f, 0.85f)
+            else -> accentSat.coerceIn(0.65f, 0.82f)
+        }
+
     val darkAccentColorInt =
         ColorUtils.HSLToColor(
             floatArrayOf(
                 accentHue,
-                accentSat.coerceIn(0.86f, 0.98f),
+                darkAccentSat,
                 darkAccentL,
             ),
         )
@@ -131,8 +141,8 @@ fun resolveMonetColorsFromSeed(seed: MonetSeed): PlayerMonetColors {
         ColorUtils.HSLToColor(
             floatArrayOf(
                 accentHue,
-                accentSat.coerceIn(0.88f, 0.98f),
-                (darkAccentL + 0.08f).coerceAtMost(0.66f),
+                (darkAccentSat - 0.05f).coerceAtLeast(0.48f),
+                (darkAccentL + 0.08f).coerceAtMost(0.82f),
             ),
         )
 
