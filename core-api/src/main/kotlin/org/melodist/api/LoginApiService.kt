@@ -52,11 +52,21 @@ class LoginApiService(
     suspend fun refreshQQLoginToken(
         openid: String,
         accessToken: String,
-    ): Boolean = refreshQQLoginTokenImpl(openid, accessToken)
+        refreshToken: String = "",
+        musicId: String = "",
+        musicKey: String = "",
+    ): Boolean = refreshQQLoginTokenImpl(openid, accessToken, refreshToken, musicId, musicKey)
 
     suspend fun fetchWeChatQrCode(): QrCodeInfo = fetchWeChatQrCodeImpl()
 
     suspend fun pollWeChatQrStatus(uuid: String): PollResult = pollWeChatQrStatusImpl(uuid)
+
+    suspend fun refreshWeChatLoginToken(
+        musicId: String,
+        musicKey: String,
+        refreshToken: String,
+        openid: String = "",
+    ): Boolean = refreshWeChatLoginTokenImpl(musicId, musicKey, refreshToken, openid)
 
     suspend fun fetchOfficialAppQrCode(): QrCodeInfo = fetchOfficialAppQrCodeImpl()
 
@@ -111,17 +121,28 @@ class LoginApiService(
                 val currentUin = UserSession.profile.uin.ifBlank { cookies["musicid"] ?: cookies["uin"] ?: "" }
                 val isWeChat = cookies["tmeLoginType"] == "1" || currentKey.startsWith("W_X_")
 
-                if (!isWeChat && currentKey.isNotEmpty() && currentUin.isNotEmpty()) {
-                    val refreshed = refreshByExistingMusicKey(currentUin, currentKey)
-                    if (refreshed) return@withLock true
-                }
+                val refreshKey = cookies["refresh_key"].orEmpty()
+                val rawLoginType =
+                    cookies["tmeLoginType"]?.toIntOrNull()
+                        ?: if (isWeChat) 1 else 2
+                val refreshToken =
+                    cookies["refresh_token"]
+                        ?: if (isWeChat) cookies["psrf_wxrefresh_token"] else cookies["psrf_qqrefresh_token"]
+                val openid =
+                    if (isWeChat) {
+                        cookies["openid"] ?: cookies["psrf_wxopenid"].orEmpty()
+                    } else {
+                        cookies["psrf_qqopenid"] ?: cookies["openid"].orEmpty()
+                    }
+                val accessToken =
+                    if (isWeChat) {
+                        cookies["access_token"] ?: cookies["psrf_wx_access_token"].orEmpty()
+                    } else {
+                        cookies["psrf_qqaccess_token"] ?: cookies["access_token"].orEmpty()
+                    }
 
-                val refreshToken = cookies["refresh_token"]
+                // 1. 统一账户网关续签通道 (覆盖官方 App 扫码、微信扫码与 QQ 互联扫码)
                 if (!refreshToken.isNullOrEmpty() && currentUin.isNotEmpty()) {
-                    val refreshKey = cookies["refresh_key"].orEmpty()
-                    val rawLoginType = cookies["tmeLoginType"]?.toIntOrNull() ?: UserSession.loginType
-                    val openid = cookies["psrf_qqopenid"].orEmpty()
-                    val accessToken = cookies["psrf_qqaccess_token"].orEmpty()
                     val refreshed =
                         refreshOfficialAppToken(
                             musicId = currentUin,
@@ -135,17 +156,32 @@ class LoginApiService(
                     if (refreshed) return@withLock true
                 }
 
-                val openid = cookies["psrf_qqopenid"]
-                val accessToken = cookies["psrf_qqaccess_token"]
-                if (!openid.isNullOrEmpty() && !accessToken.isNullOrEmpty()) {
-                    val refreshed = refreshQQLoginToken(openid, accessToken)
+                // 2. 微信登录专有换票重试
+                if (isWeChat && !refreshToken.isNullOrEmpty() && currentUin.isNotEmpty()) {
+                    val refreshed =
+                        refreshWeChatLoginToken(
+                            musicId = currentUin,
+                            musicKey = currentKey,
+                            refreshToken = refreshToken,
+                            openid = openid,
+                        )
                     if (refreshed) return@withLock true
                 }
 
-                val pskey = cookies["p_skey"] ?: cookies["skey"]
-                if (!pskey.isNullOrEmpty()) {
-                    return@withLock exchangeOAuthForMusicKey(cookies)
+                // 3. QQ 互联 OAuth 降级换票兜底 (非微信账号且具备 openid 与 accessToken)
+                if (!isWeChat && openid.isNotEmpty() && accessToken.isNotEmpty()) {
+                    val qqRefreshToken = cookies["psrf_qqrefresh_token"] ?: cookies["refresh_token"].orEmpty()
+                    val refreshed =
+                        refreshQQLoginToken(
+                            openid = openid,
+                            accessToken = accessToken,
+                            refreshToken = qqRefreshToken,
+                            musicId = currentUin,
+                            musicKey = currentKey,
+                        )
+                    if (refreshed) return@withLock true
                 }
+
                 false
             }
         }

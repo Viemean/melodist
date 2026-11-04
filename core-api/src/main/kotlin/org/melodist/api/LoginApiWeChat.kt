@@ -3,10 +3,12 @@ package org.melodist.api
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
@@ -156,9 +158,18 @@ private suspend fun LoginApiService.exchangeWeChatCode(code: String): Boolean =
                     "tmeLoginType" to "1",
                 )
 
-            data["psrf_wxopenid"]?.jsonPrimitive?.contentOrNull?.let { cookies["openid"] = it }
-            data["psrf_wx_access_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["access_token"] = it }
-            data["psrf_wxrefresh_token"]?.jsonPrimitive?.contentOrNull?.let { cookies["refresh_token"] = it }
+            data["psrf_wxopenid"]?.jsonPrimitive?.contentOrNull?.let {
+                cookies["openid"] = it
+                cookies["psrf_wxopenid"] = it
+            }
+            data["psrf_wx_access_token"]?.jsonPrimitive?.contentOrNull?.let {
+                cookies["access_token"] = it
+                cookies["psrf_wx_access_token"] = it
+            }
+            data["psrf_wxrefresh_token"]?.jsonPrimitive?.contentOrNull?.let {
+                cookies["refresh_token"] = it
+                cookies["psrf_wxrefresh_token"] = it
+            }
 
             val rawAvatar =
                 data["headimgurl"]?.jsonPrimitive?.contentOrNull
@@ -176,3 +187,111 @@ private suspend fun LoginApiService.exchangeWeChatCode(code: String): Boolean =
             true
         }
     }
+
+/**
+ * 使用微信登录下发的 refresh_token 与 openid 刷新 musickey 鉴权凭证。
+ *
+ * @param musicId 微信用户标识
+ * @param musicKey 当前生效的旧 musickey
+ * @param refreshToken 微信授权长效刷新令牌
+ * @param openid 微信授权 openid 标识
+ * @return 刷新并写入新凭证成功返回 true，失败返回 false
+ */
+internal suspend fun LoginApiService.refreshWeChatLoginTokenImpl(
+    musicId: String,
+    musicKey: String,
+    refreshToken: String,
+    openid: String = "",
+): Boolean =
+    withContext(Dispatchers.IO) {
+        try {
+            val numericUin = musicId.trimStart('o').toLongOrNull() ?: 0L
+            val paramObj =
+                buildJsonObject {
+                    put("openid", openid)
+                    put("refresh_token", refreshToken)
+                    put("str_musicid", musicId)
+                    if (numericUin > 0L) put("musicid", numericUin)
+                    put("musickey", musicKey)
+                    put("unionid", "")
+                    put("refresh_key", "")
+                    put("loginMode", 2)
+                }
+            val commObj =
+                buildJsonObject {
+                    put("ct", 11)
+                    put("cv", 14090008)
+                    put("v", 14090008)
+                    put("chid", "10003505")
+                    put("tmeAppID", "qqmusic")
+                    put("tmeLoginType", 1)
+                }
+            val payload =
+                buildJsonObject {
+                    put("comm", commObj)
+                    put(
+                        "req_0",
+                        buildJsonObject {
+                            put("module", "music.login.LoginServer")
+                            put("method", "Login")
+                            put("param", paramObj)
+                        },
+                    )
+                }.toString()
+
+            val request =
+                Request
+                    .Builder()
+                    .url("https://u.y.qq.com/cgi-bin/musicu.fcg")
+                    .post(payload.toRequestBody(LoginApiService.JSON_TYPE))
+                    .header("User-Agent", "QQMusic 14090008(android 14)")
+                    .build()
+
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) return@withContext false
+                val json = resp.body.string()
+                val jsonElement = Json.parseToJsonElement(json).jsonObject
+                val req0 = jsonElement["req_0"]?.jsonObject ?: return@withContext false
+                if (req0["code"]?.jsonPrimitive?.intOrNull != 0) return@withContext false
+
+                val data = req0["data"]?.jsonObject ?: return@withContext false
+                val newMusicKey = data["musickey"]?.jsonPrimitive?.contentOrNull ?: return@withContext false
+                if (newMusicKey.isEmpty()) return@withContext false
+
+                val cookies = UserSession.profile.cookies.toMutableMap()
+                cookies["musickey"] = newMusicKey
+                cookies["qm_keyst"] = newMusicKey
+                cookies["qqmusic_key"] = newMusicKey
+                val newRefreshToken =
+                    data["refresh_token"]?.jsonPrimitive?.contentOrNull
+                        ?: data["psrf_wxrefresh_token"]?.jsonPrimitive?.contentOrNull
+                        ?: refreshToken
+                if (newRefreshToken.isNotEmpty()) {
+                    cookies["refresh_token"] = newRefreshToken
+                    cookies["psrf_wxrefresh_token"] = newRefreshToken
+                }
+                data["openid"]?.jsonPrimitive?.contentOrNull?.let {
+                    cookies["openid"] = it
+                    cookies["psrf_wxopenid"] = it
+                }
+                data["access_token"]?.jsonPrimitive?.contentOrNull?.let {
+                    cookies["access_token"] = it
+                    cookies["psrf_wx_access_token"] = it
+                }
+
+                UserSession.update(
+                    uin = UserSession.profile.uin,
+                    nick = UserSession.profile.nick,
+                    musicKey = newMusicKey,
+                    cookies = cookies.toMap(),
+                    avatarUrl = UserSession.profile.avatarUrl,
+                    isVip = UserSession.profile.isVip,
+                )
+                true
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            false
+        }
+    }
+
