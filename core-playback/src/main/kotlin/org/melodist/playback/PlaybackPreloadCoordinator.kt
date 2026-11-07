@@ -117,7 +117,8 @@ class PlaybackPreloadCoordinator(
 
                 // 在线歌曲：若本地已有完整缓存，直接跳过网络预取
                 val rawTargetTier = getPreferredTier()
-                val targetTier = clampCellularTier(rawTargetTier, nextSong)
+                val targetTier =
+                    PlaybackSourceResolver.clampCodecSupportedTier(clampCellularTier(rawTargetTier, nextSong), nextSong)
                 val higherStereoTier = MelodistCacheManager.findHigherOrEqualStereoCachedTier(nextSong.songMid, targetTier)
                 if (higherStereoTier != null) {
                     Log.d("MelodistPlayback", "Next song already cached locally ($higherStereoTier) for ${nextSong.name}, skip prefetch")

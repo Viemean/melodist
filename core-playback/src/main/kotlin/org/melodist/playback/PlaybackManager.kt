@@ -1212,6 +1212,7 @@ object PlaybackManager {
             exoPlayer?.clearMediaItems()
             _currentTier.value = forceTier ?: _preferredTier.value
             _isPlaying.value = true
+            _isLoading.value = false
             _isTransitioning.value = false
             savePlaybackState()
             loadLyricsForSong(effectiveSong)
@@ -1422,7 +1423,6 @@ object PlaybackManager {
      */
     fun play() {
         if (playbackInterceptor?.onInterceptResume() == true) return
-        if (_isLoading.value) return
         val currSong = _currentSong.value
         if (currSong != null && ListenTogetherManager.isInRoom && isLocalOrWebDavSong(currSong)) {
             notifyUser("请退出一起听后再播放哦")
