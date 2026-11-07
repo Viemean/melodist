@@ -106,6 +106,7 @@ object PlaybackManager {
     private val exoPlayer: ExoPlayer? get() = playerPipeline.player
     private var playJob: Job? = null
     private var lyricLoadJob: Job? = null
+    private var retryJob: Job? = null
 
     private val remoteStateHolder = PlaybackRemoteStateHolder()
     val isRemoteActive: StateFlow<Boolean> = remoteStateHolder.isRemoteActive
@@ -333,18 +334,20 @@ object PlaybackManager {
             Log.w("MelodistPlayback", "Playback failure for ${curr.name} (retry $currentSongRetryCount/2): $errorMsg")
             _errorMessage.value = "网络加载波动，正在等待重试 ($currentSongRetryCount/2)..."
             _isLoading.value = true
-            scope.launch {
-                delay(3000L)
-                val targetSong = _currentSong.value
-                if (targetSong?.songMid == curr.songMid) {
-                    val custom = lastCustomStreamArgs
-                    if (custom != null && custom.first.songMid == curr.songMid) {
-                        playCustomStream(custom.first, custom.second, custom.third, seekToMs = _currentPositionMs.value)
-                    } else {
-                        playSong(curr, forceTier = _currentTier.value, seekToMs = _currentPositionMs.value)
+            retryJob?.cancel()
+            retryJob =
+                scope.launch {
+                    delay(3000L)
+                    val targetSong = _currentSong.value
+                    if (targetSong?.songMid == curr.songMid) {
+                        val custom = lastCustomStreamArgs
+                        if (custom != null && custom.first.songMid == curr.songMid) {
+                            playCustomStream(custom.first, custom.second, custom.third, seekToMs = _currentPositionMs.value)
+                        } else {
+                            playSong(curr, forceTier = _currentTier.value, seekToMs = _currentPositionMs.value)
+                        }
                     }
                 }
-            }
             return
         }
 
@@ -1167,6 +1170,7 @@ object PlaybackManager {
             }
         }
         playJob?.cancel()
+        retryJob?.cancel()
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
 
@@ -1422,6 +1426,7 @@ object PlaybackManager {
      * 恢复或启动当前音频回放。
      */
     fun play() {
+        retryJob?.cancel()
         if (playbackInterceptor?.onInterceptResume() == true) return
         val currSong = _currentSong.value
         if (currSong != null && ListenTogetherManager.isInRoom && isLocalOrWebDavSong(currSong)) {
@@ -1430,7 +1435,10 @@ object PlaybackManager {
         }
         val player = exoPlayer ?: return
         if (!player.isPlaying) {
-            if (player.playbackState == androidx.media3.common.Player.STATE_IDLE && currSong != null) {
+            if (playJob?.isActive == true) {
+                player.playWhenReady = true
+                appContext?.let { startPlaybackService(it) }
+            } else if (player.playbackState == androidx.media3.common.Player.STATE_IDLE && currSong != null) {
                 playSong(currSong, seekToMs = _currentPositionMs.value)
             } else if (player.currentMediaItem == null && currSong != null) {
                 playSong(currSong, seekToMs = _currentPositionMs.value)
@@ -1486,6 +1494,7 @@ object PlaybackManager {
         }
         consecutiveErrorCount = 0
         playJob?.cancel()
+        retryJob?.cancel()
         switchQualityJob?.cancel()
         _isSwitchingQuality.value = false
 
