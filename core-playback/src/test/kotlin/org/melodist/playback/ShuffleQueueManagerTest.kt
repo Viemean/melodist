@@ -112,4 +112,50 @@ class ShuffleQueueManagerTest {
         assertEquals(10, manager.shuffledIndices.size)
         assertEquals((0 until 10).toSet(), manager.shuffledIndices.toSet())
     }
+
+    @Test
+    fun `test appendItems extends shuffled queue without disturbing played history`() {
+        val manager = ShuffleQueueManager()
+        val songs10 = createDummySongs(10)
+        manager.reset(totalCount = 10, currentOriginalIndex = 0, songs = songs10)
+
+        // 播放 7 首歌，指针到达 7，此时距离 10 仅剩 3 首（isNearEnd 应为 true）
+        for (i in 1..7) {
+            manager.next(songs10)
+        }
+        assertEquals(7, manager.pointer)
+        assertTrue(manager.isNearEnd)
+
+        val historyBeforeAppend = manager.shuffledIndices.take(8)
+
+        // 追加 5 首新歌，总数变为 15
+        val songs15 = createDummySongs(15)
+        manager.appendItems(oldSize = 10, newSize = 15, songs = songs15)
+
+        assertEquals(15, manager.shuffledIndices.size)
+        assertEquals((0 until 15).toSet(), manager.shuffledIndices.toSet())
+        // 验证已有历史完全不变
+        assertEquals(historyBeforeAppend, manager.shuffledIndices.take(8))
+        // 扩容后剩余曲目数量增加，isNearEnd 应变为 false
+        org.junit.jupiter.api.Assertions
+            .assertFalse(manager.isNearEnd)
+    }
+
+    @Test
+    fun `test getVisibleIndices returns songs up to pointer plus two`() {
+        val manager = ShuffleQueueManager()
+        val songs = createDummySongs(10)
+        manager.reset(totalCount = 10, currentOriginalIndex = 3, songs = songs)
+
+        // pointer = 0，应截取前 2 项（当前曲 + 下一首）
+        val initialVisible = manager.getVisibleIndices()
+        assertEquals(2, initialVisible.size)
+        assertEquals(manager.shuffledIndices.take(2), initialVisible)
+
+        // 推进一首，pointer = 1，应截取前 3 项（上一首 + 当前曲 + 下一首）
+        manager.next(songs)
+        val nextVisible = manager.getVisibleIndices()
+        assertEquals(3, nextVisible.size)
+        assertEquals(manager.shuffledIndices.take(3), nextVisible)
+    }
 }

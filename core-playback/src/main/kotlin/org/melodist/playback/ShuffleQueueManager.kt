@@ -16,8 +16,20 @@ class ShuffleQueueManager(
     private var _pointer: Int = 0
     val pointer: Int get() = _pointer
 
+    val isNearEnd: Boolean get() = _shuffledIndices.isNotEmpty() && _pointer >= _shuffledIndices.size - 3
+    val isAtEnd: Boolean get() = _shuffledIndices.isNotEmpty() && _pointer >= _shuffledIndices.size - 1
+
     val currentOriginalIndex: Int?
         get() = _shuffledIndices.getOrNull(_pointer)
+
+    /**
+     * 获取当前已播及下一首预告的索引切片（截取至 pointer + 2）
+     */
+    fun getVisibleIndices(): List<Int> {
+        if (_shuffledIndices.isEmpty()) return emptyList()
+        val takeCount = (_pointer + 2).coerceAtMost(_shuffledIndices.size)
+        return _shuffledIndices.take(takeCount)
+    }
 
     /**
      * 以当前播放歌曲为首项，生成一个完整的洗牌队列
@@ -105,6 +117,32 @@ class ShuffleQueueManager(
         if (_shuffledIndices.size == 1) return _shuffledIndices[0]
         val prevPointer = if (_pointer - 1 < 0) _shuffledIndices.size - 1 else _pointer - 1
         return _shuffledIndices.getOrNull(prevPointer)
+    }
+
+    /**
+     * 将新追加的歌曲索引打乱后拼接至洗牌队列尾部，保持已有播放历史与指针。
+     */
+    fun appendItems(
+        oldSize: Int,
+        newSize: Int,
+        songs: List<Song> = emptyList(),
+    ) {
+        if (newSize <= oldSize) return
+        if (_shuffledIndices.size != oldSize) {
+            reset(newSize, currentOriginalIndex ?: 0, songs)
+            return
+        }
+        val newIndices = (oldSize until newSize).toMutableList()
+        for (i in newIndices.size - 1 downTo 1) {
+            val j = random.nextInt(i + 1)
+            val temp = newIndices[i]
+            newIndices[i] = newIndices[j]
+            newIndices[j] = temp
+        }
+        if (songs.size == newSize) {
+            smoothArtistClustering(newIndices, songs)
+        }
+        _shuffledIndices.addAll(newIndices)
     }
 
     /**

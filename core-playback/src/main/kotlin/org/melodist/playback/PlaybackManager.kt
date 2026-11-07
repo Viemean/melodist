@@ -1266,7 +1266,7 @@ object PlaybackManager {
         val foundIndex = list.indexOfFirst { it.songMid == song.songMid }
         if (foundIndex != -1) {
             queueManager.setCurrentIndex(foundIndex)
-            if (!queueManager.isRadioMode.value && queueManager.loopMode.value == PlaybackLoopMode.Shuffle) {
+            if (queueManager.loopMode.value == PlaybackLoopMode.Shuffle) {
                 queueManager.shuffleQueue.syncTo(foundIndex, list.size, list)
             }
         }
@@ -1937,6 +1937,15 @@ object PlaybackManager {
      * 获取下一首即将播放的歌曲（用于滑动预览），不推进播放状态
      */
     fun getNextSong(): Song? = queueManager.getNextSong(remoteStateHolder.isRemoteActive.value, remoteStateHolder.remoteNextSong.value)
+
+    /**
+     * 获取电台模式下的动态展示队列（已播历史 + 当前曲 + 下一首预告）
+     */
+    fun getRadioDisplayPlaylist(): List<Song> =
+        queueManager.getRadioDisplayPlaylist(
+            isRemoteActive = remoteStateHolder.isRemoteActive.value,
+            remoteNextSong = remoteStateHolder.remoteNextSong.value,
+        )
 
     /**
      * 顺次循环切换播放模式（顺序循环 -> 单曲循环 -> 随机播放）。

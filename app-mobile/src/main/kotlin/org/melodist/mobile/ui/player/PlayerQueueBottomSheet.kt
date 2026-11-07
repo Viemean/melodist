@@ -75,28 +75,25 @@ fun PlayerQueueBottomSheet(
     val playlist by PlaybackManager.playlist.collectAsState()
     val currentSong by PlaybackManager.currentSong.collectAsState()
     val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
+    val loopMode by PlaybackManager.loopMode.collectAsState()
     val paginationSource by PlaybackManager.paginationSource.collectAsState()
     val isLoadingMoreForQueue by PlaybackManager.isLoadingMoreForQueue.collectAsState()
 
     var isRecommendingSimilar by remember { mutableStateOf(false) }
 
-    val activeIndex =
-        remember(playlist, currentSong) {
-            val found = playlist.indexOfFirst { it.songMid == currentSong?.songMid }
-            if (found >= 0) found else 0
-        }
-
     val displayPlaylist =
-        remember(playlist, isRadioMode, activeIndex) {
+        remember(playlist, isRadioMode, currentSong, loopMode) {
             if (isRadioMode) {
-                if (playlist.isEmpty()) {
-                    emptyList()
-                } else {
-                    playlist.take(activeIndex + 2)
-                }
+                PlaybackManager.getRadioDisplayPlaylist()
             } else {
                 playlist
             }
+        }
+
+    val activeIndex =
+        remember(displayPlaylist, currentSong) {
+            val found = displayPlaylist.indexOfFirst { it.songMid == currentSong?.songMid }
+            if (found >= 0) found else 0
         }
 
     val listState = rememberLazyListState()

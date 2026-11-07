@@ -123,7 +123,7 @@ class PlaybackQueueManager(
     fun setCurrentIndex(index: Int) {
         pendingNextSongMid = null
         _currentIndex.value = index
-        if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
+        if (_loopMode.value == PlaybackLoopMode.Shuffle) {
             val list = _playlist.value
             if (list.isNotEmpty() && index in list.indices) {
                 shuffleQueue.syncTo(index, list.size, list)
@@ -166,9 +166,7 @@ class PlaybackQueueManager(
         pendingNextSongMid = null
         if (songs.isNotEmpty() && startIndex in songs.indices) {
             _currentIndex.value = startIndex
-            if (isRadio) {
-                _loopMode.value = PlaybackLoopMode.ListRepeat
-            } else if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
                 shuffleQueue.reset(songs.size, startIndex, songs)
             }
             onPlaySongRequest(songs[startIndex], forceTier, initialSeekToMs)
@@ -258,7 +256,13 @@ class PlaybackQueueManager(
         val source = _paginationSource.value ?: return
         if (!source.hasMore || source.isLoadingMore || _isLoadingMoreForQueue.value) return
         val currentList = _playlist.value
-        if (currentList.isNotEmpty() && _currentIndex.value >= currentList.size - 3) {
+        val isNearEnd =
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+                shuffleQueue.isNearEnd
+            } else {
+                _currentIndex.value >= currentList.size - 3
+            }
+        if (currentList.isNotEmpty() && isNearEnd) {
             scope.launch(Dispatchers.IO) {
                 loadMoreForQueue()
             }
@@ -303,10 +307,11 @@ class PlaybackQueueManager(
         val existingMids = current.map { it.songMid }.toSet()
         val toAdd = newSongs.filter { it.songMid.isNotBlank() && !existingMids.contains(it.songMid) }
         if (toAdd.isNotEmpty()) {
+            val oldSize = current.size
             val updated = current + toAdd
             _playlist.value = updated
-            if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
-                shuffleQueue.syncTo(_currentIndex.value, updated.size, updated)
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+                shuffleQueue.appendItems(oldSize, updated.size, updated)
             }
             onStateChanged()
         }
@@ -471,7 +476,6 @@ class PlaybackQueueManager(
      * 按顺序轮转切换循环模式（列表循环 -> 单曲循环 -> 随机播放）。
      */
     fun cycleLoopMode() {
-        if (_isRadioMode.value) return
         val newMode =
             when (_loopMode.value) {
                 PlaybackLoopMode.ListRepeat -> PlaybackLoopMode.SingleRepeat
@@ -492,7 +496,13 @@ class PlaybackQueueManager(
     fun checkPrefetchRadioSongs() {
         if (!_isRadioMode.value || isFetchingMoreRadio) return
         val currentList = _playlist.value
-        if (_currentIndex.value >= currentList.size - 3) {
+        val isNearEnd =
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+                shuffleQueue.isNearEnd
+            } else {
+                _currentIndex.value >= currentList.size - 3
+            }
+        if (isNearEnd) {
             isFetchingMoreRadio = true
             scope.launch(Dispatchers.IO) {
                 try {
@@ -529,6 +539,10 @@ class PlaybackQueueManager(
         val list = _playlist.value
         if (list.isEmpty()) return null
         if (_isRadioMode.value) {
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+                val peeked = shuffleQueue.peekPrevious()
+                return if (peeked != null && peeked in list.indices) list[peeked] else null
+            }
             val prevIndex = _currentIndex.value - 1
             return if (prevIndex in list.indices) list[prevIndex] else null
         }
@@ -597,6 +611,10 @@ class PlaybackQueueManager(
         }
 
         if (_isRadioMode.value) {
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+                val peeked = shuffleQueue.peekNext()
+                return if (peeked != null && peeked in list.indices) list[peeked] else null
+            }
             val nextIndex = _currentIndex.value + 1
             return if (nextIndex in list.indices) list[nextIndex] else null
         }
@@ -634,6 +652,40 @@ class PlaybackQueueManager(
                 }
             }
         return if (nextIndex in list.indices) list[nextIndex] else null
+    }
+
+    /**
+     * 获取电台模式下的动态展示队列（截取已播历史 + 当前曲 + 下一首预告）
+     *
+     * @param isRemoteActive 是否处于跨端遥控活动状态
+     * @param remoteNextSong 远端同步的下一首曲目实体
+     */
+    fun getRadioDisplayPlaylist(
+        isRemoteActive: Boolean = false,
+        remoteNextSong: Song? = null,
+    ): List<Song> {
+        val list = _playlist.value
+        if (list.isEmpty()) return emptyList()
+        if (!_isRadioMode.value) return list
+
+        if (isRemoteActive) {
+            val cur = _currentIndex.value
+            val historyAndCurrent = if (cur in list.indices) list.take(cur + 1) else list.take(1)
+            return if (remoteNextSong != null && historyAndCurrent.none { it.songMid == remoteNextSong.songMid }) {
+                historyAndCurrent + remoteNextSong
+            } else {
+                historyAndCurrent
+            }
+        }
+
+        if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+            val indices = shuffleQueue.getVisibleIndices()
+            if (indices.isNotEmpty()) {
+                return indices.mapNotNull { list.getOrNull(it) }
+            }
+        }
+        val safeIndex = _currentIndex.value.coerceAtLeast(0)
+        return list.take(safeIndex + 2)
     }
 
     /**
@@ -712,7 +764,7 @@ class PlaybackQueueManager(
             val pendingIndex = list.indexOfFirst { it.songMid == pendingMid }
             if (pendingIndex != -1) {
                 _currentIndex.value = pendingIndex
-                if (!_isRadioMode.value && _loopMode.value == PlaybackLoopMode.Shuffle) {
+                if (_loopMode.value == PlaybackLoopMode.Shuffle) {
                     shuffleQueue.syncTo(pendingIndex, list.size, list)
                 }
                 onPlaySongRequest(list[pendingIndex], null, 0L)
@@ -723,6 +775,37 @@ class PlaybackQueueManager(
 
         if (_isRadioMode.value) {
             checkPrefetchRadioSongs()
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+                if (!shuffleQueue.isAtEnd) {
+                    val nextIndex = shuffleQueue.next(list)
+                    if (nextIndex in list.indices) {
+                        _currentIndex.value = nextIndex
+                        onPlaySongRequest(list[nextIndex], null, 0L)
+                        return
+                    }
+                }
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val moreSongs = apiService.getGuessRecommendSongs(count = 15)
+                        withContext(Dispatchers.Main) {
+                            if (moreSongs.isNotEmpty()) {
+                                appendPlaylist(moreSongs)
+                            }
+                            val nextIndex = shuffleQueue.next(_playlist.value)
+                            val updated = _playlist.value
+                            if (nextIndex in updated.indices) {
+                                _currentIndex.value = nextIndex
+                                onPlaySongRequest(updated[nextIndex], null, 0L)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        Log.w("PlaybackQueueManager", "Operation failed", e)
+                    }
+                }
+                return
+            }
+
             val nextIndex = _currentIndex.value + 1
             if (nextIndex in list.indices) {
                 _currentIndex.value = nextIndex
@@ -790,6 +873,14 @@ class PlaybackQueueManager(
         if (list.isEmpty()) return
 
         if (_isRadioMode.value) {
+            if (_loopMode.value == PlaybackLoopMode.Shuffle) {
+                val prevIndex = shuffleQueue.previous()
+                if (prevIndex in list.indices) {
+                    _currentIndex.value = prevIndex
+                    onPlaySongRequest(list[prevIndex], null, 0L)
+                }
+                return
+            }
             val prevIndex = (_currentIndex.value - 1).coerceAtLeast(0)
             if (prevIndex in list.indices) {
                 _currentIndex.value = prevIndex

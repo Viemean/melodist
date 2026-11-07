@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.HeartBroken
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
@@ -55,7 +54,6 @@ fun PlayerControlBar(
     onTogglePlayPause: () -> Unit,
     onToggleLoopMode: () -> Unit,
     onOpenQueue: () -> Unit,
-    onDislikeClick: () -> Unit = {},
     isMuted: Boolean = false,
     isLandscape: Boolean = false,
     modifier: Modifier = Modifier,
@@ -145,15 +143,9 @@ fun PlayerControlBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (isLandscape) Arrangement.SpaceEvenly else Arrangement.SpaceBetween,
     ) {
-        // 循环模式 / 不喜欢按键
+        // 循环模式按键
         FilledTonalIconButton(
-            onClick = {
-                if (isRadioMode) {
-                    onDislikeClick()
-                } else {
-                    onToggleLoopMode()
-                }
-            },
+            onClick = onToggleLoopMode,
             enabled = true,
             interactionSource = loopInteractionSource,
             shape = auxButtonShape,
@@ -171,7 +163,7 @@ fun PlayerControlBar(
                     },
         ) {
             AnimatedContent(
-                targetState = if (isRadioMode) null else loopMode,
+                targetState = loopMode,
                 transitionSpec = {
                     (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.78f))
                         .togetherWith(fadeOut(animationSpec = tween(140)) + scaleOut(targetScale = 0.78f))
@@ -180,16 +172,12 @@ fun PlayerControlBar(
             ) { mode ->
                 Icon(
                     imageVector =
-                        if (mode == null) {
-                            Icons.Rounded.HeartBroken
-                        } else {
-                            when (mode) {
-                                PlaybackLoopMode.ListRepeat -> Icons.Rounded.Repeat
-                                PlaybackLoopMode.SingleRepeat -> Icons.Rounded.RepeatOne
-                                PlaybackLoopMode.Shuffle -> Icons.Rounded.Shuffle
-                            }
+                        when (mode) {
+                            PlaybackLoopMode.ListRepeat -> Icons.Rounded.Repeat
+                            PlaybackLoopMode.SingleRepeat -> Icons.Rounded.RepeatOne
+                            PlaybackLoopMode.Shuffle -> Icons.Rounded.Shuffle
                         },
-                    contentDescription = if (isRadioMode) "不喜欢" else loopMode.label,
+                    contentDescription = loopMode.label,
                     tint = contentPrimary.copy(alpha = 0.85f),
                     modifier = Modifier.size(auxIconSize.coerceAtLeast(1.dp)),
                 )

@@ -144,7 +144,6 @@ fun FullPlayerSheet(
     val isRadioMode by PlaybackManager.isRadioMode.collectAsState()
     val isMuted by PlaybackManager.isMuted.collectAsState()
     var displayMode by remember { mutableStateOf(PlayerDisplayMode.Cover) }
-    var showDislikeConfirmDialog by remember { mutableStateOf(false) }
 
     val isFavSupported = remember(song) { PlaybackManager.isSongFavoriteSupported(song) }
     val isFavorite =
@@ -953,41 +952,11 @@ fun FullPlayerSheet(
                             },
                             onToggleLoopMode = onToggleLoopMode,
                             onOpenQueue = { showQueueSheet = true },
-                            onDislikeClick = { showDislikeConfirmDialog = true },
                             isLandscape = false,
                         )
                     }
                 }
             }
-        }
-
-        // 不喜欢歌曲二次确认弹窗
-        if (showDislikeConfirmDialog && song != null) {
-            AlertDialog(
-                onDismissRequest = { showDislikeConfirmDialog = false },
-                title = { Text("不喜欢这首歌曲？") },
-                text = { Text("将跳过《${song.name}》并自动为你播放下一首。") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showDislikeConfirmDialog = false
-                            val curIdx = PlaybackManager.currentIndex.value
-                            if (curIdx >= 0) {
-                                PlaybackManager.removeFromPlaylist(curIdx)
-                            } else {
-                                PlaybackManager.playNext()
-                            }
-                        },
-                    ) {
-                        Text("确定", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDislikeConfirmDialog = false }) {
-                        Text("取消")
-                    }
-                },
-            )
         }
 
         // 音质选择弹窗
