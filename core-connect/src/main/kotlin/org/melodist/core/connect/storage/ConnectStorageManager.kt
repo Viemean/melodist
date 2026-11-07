@@ -88,6 +88,14 @@ class ConnectStorageManager(
         return _pairedDevicesFlow.value.any { it.token == token }
     }
 
+    fun isDeviceTokenValid(
+        deviceId: String,
+        token: String,
+    ): Boolean {
+        if (token.isBlank()) return false
+        return _pairedDevicesFlow.value.any { it.id == deviceId && it.token == token }
+    }
+
     fun savePairedDevice(device: ConnectDevice) {
         val current = _pairedDevicesFlow.value.toMutableList()
         current.removeAll { isSameEndpoint(it, device) }

@@ -165,6 +165,7 @@ class TvConnectServer(
 
     fun acceptPairRequest(requestId: String) {
         val request = pendingRequests.remove(requestId) ?: return
+        if (!request.socket.isOpen) return
         storageManager.savePairedDevice(request.device)
         activeClients[request.socket] = request.device
         _connectedDeviceFlow.value = request.device
@@ -305,6 +306,7 @@ class TvConnectServer(
             remote: Boolean,
         ) {
             android.util.Log.i("MelodistConnectServer", "Client socket closed: code=$code, reason=$reason, remote=$remote")
+            pendingRequests.entries.removeIf { it.value.socket == conn }
             val device = activeClients.remove(conn)
             if (device != null && _connectedDeviceFlow.value?.id == device.id) {
                 _connectedDeviceFlow.value = activeClients.values.firstOrNull()
@@ -343,6 +345,15 @@ class TvConnectServer(
                 return
             }
 
+        val isPreAuthAction =
+            msg.action == ConnectActions.PING ||
+                msg.action == ConnectActions.PAIR_REQUEST ||
+                msg.action == ConnectActions.DISCONNECT
+        if (!isPreAuthAction && !activeClients.containsKey(conn)) {
+            Log.w("MelodistConnectServer", "Dropped unauthenticated action: ${msg.action}")
+            return
+        }
+
         when (msg.action) {
             ConnectActions.PING -> {
                 sendAction(conn, ConnectActions.PONG)
@@ -358,9 +369,7 @@ class TvConnectServer(
 
             ConnectActions.PAIR_REQUEST -> {
                 val req = msg.decodeData<PairRequestPayload>(json) ?: return
-                val isTrusted =
-                    storageManager.isDevicePaired(req.device.id) &&
-                        storageManager.isTokenTrusted(req.device.token)
+                val isTrusted = storageManager.isDeviceTokenValid(req.device.id, req.device.token)
 
                 if (isTrusted) {
                     activeClients[conn] = req.device
@@ -395,8 +404,8 @@ class TvConnectServer(
             }
 
             ConnectActions.DISCONNECT -> {
-                activeClients.remove(conn)
-                if (_connectedDeviceFlow.value?.id == msg.payload) {
+                val removed = activeClients.remove(conn)
+                if (removed != null && _connectedDeviceFlow.value?.id == removed.id) {
                     _connectedDeviceFlow.value = activeClients.values.firstOrNull()
                 }
                 try {

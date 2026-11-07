@@ -90,11 +90,20 @@ class MobileConnectClient(
             encodeDefaults = true
         }
 
+    @Volatile
     private var activeSocket: WebSocket? = null
+
+    @Volatile
     private var currentTarget: ConnectDevice? = null
+
+    @Volatile
     private var isManualDisconnect = false
+
+    @Volatile
     private var wasPairedSuccessfully = false
     private var lastPinCode: String = ""
+
+    @Volatile
     private var reconnectAttempt = 0
     private val maxReconnectAttempts = 5
     private var reconnectJob: Job? = null
@@ -147,7 +156,6 @@ class MobileConnectClient(
                         response: Response,
                     ) {
                         android.util.Log.i("MelodistConnectClient", "Connected to $url successfully")
-                        reconnectAttempt = 0
                         reconnectJob?.cancel()
                         reconnectJob = null
                         _connectionState.value = MobileConnectionState.Connected
@@ -174,6 +182,7 @@ class MobileConnectClient(
                         code: Int,
                         reason: String,
                     ) {
+                        if (webSocket !== activeSocket) return
                         android.util.Log.i("MelodistConnectClient", "WebSocket closed: $code, reason: $reason")
                         handleDisconnectionOrScheduleReconnect(targetDevice, isFailure = false, errorMsg = null)
                     }
@@ -183,6 +192,7 @@ class MobileConnectClient(
                         t: Throwable,
                         response: Response?,
                     ) {
+                        if (webSocket !== activeSocket) return
                         val isUnreachable =
                             t is java.net.ConnectException ||
                                 t is java.net.SocketTimeoutException ||
@@ -477,6 +487,7 @@ class MobileConnectClient(
                     storageManager.savePairedDevice(updated)
                     storageManager.setLastConnectedDevice(updated)
                     wasPairedSuccessfully = true
+                    reconnectAttempt = 0
                     _connectionState.value = MobileConnectionState.Paired(updated)
                     requestPlayerState()
                     requestQueueState()
