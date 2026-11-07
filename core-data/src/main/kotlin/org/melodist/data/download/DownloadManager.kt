@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -158,6 +160,7 @@ object DownloadManager {
             prefs = app.getSharedPreferences(DownloadStorageStore.PREF_NAME, Context.MODE_PRIVATE)
             _completedTasks.value = DownloadStorageStore.loadCompletedTasks(prefs, app)
             _activeTasks.value = DownloadStorageStore.loadActiveTasks(prefs)
+            scheduleNextDownloads()
         }
     }
 
@@ -188,26 +191,34 @@ object DownloadManager {
         val existing = findExistingFile(song, targetTier)
         if (existing != null) {
             _toastEvent.tryEmit("文件已存在：${existing.name}")
-            if (_completedTasks.value.none { it.id == taskId }) {
-                val completedTask =
-                    DownloadTask(
-                        id = taskId,
-                        song = song,
-                        tier = targetTier,
-                        status = DownloadStatus.Completed,
-                        progress = 1f,
-                        downloadedBytes = existing.length(),
-                        totalBytes = existing.length(),
-                        filePath = existing.absolutePath,
-                    )
-                val remaining =
-                    DownloadStorageStore.prunePreviousCopies(
-                        song.songMid,
-                        existing.absolutePath,
-                        _completedTasks.value,
-                        appContext,
-                    )
-                _completedTasks.value = listOf(completedTask) + remaining
+            var needSave = false
+            _completedTasks.update { current ->
+                if (current.none { it.id == taskId }) {
+                    needSave = true
+                    val completedTask =
+                        DownloadTask(
+                            id = taskId,
+                            song = song,
+                            tier = targetTier,
+                            status = DownloadStatus.Completed,
+                            progress = 1f,
+                            downloadedBytes = existing.length(),
+                            totalBytes = existing.length(),
+                            filePath = existing.absolutePath,
+                        )
+                    val remaining =
+                        DownloadStorageStore.prunePreviousCopies(
+                            song.songMid,
+                            existing.absolutePath,
+                            current,
+                            appContext,
+                        )
+                    listOf(completedTask) + remaining
+                } else {
+                    current
+                }
+            }
+            if (needSave) {
                 saveCompletedTasks()
             }
             return
@@ -226,7 +237,7 @@ object DownloadManager {
                 status = DownloadStatus.Pending,
             )
 
-        _activeTasks.value = _activeTasks.value.filter { it.id != taskId } + initialTask
+        _activeTasks.update { current -> current.filter { it.id != taskId } + initialTask }
         saveActiveTasks()
         _toastEvent.tryEmit("已添加至下载队列: ${song.name}")
 
@@ -247,10 +258,11 @@ object DownloadManager {
         for (task in tasksToStart) {
             updateActiveTask(task.id, persist = true) { it.copy(status = DownloadStatus.Downloading) }
             val job =
-                scope.launch {
+                scope.launch(start = CoroutineStart.LAZY) {
                     executeDownload(task)
                 }
             activeJobs[task.id] = job
+            job.start()
         }
     }
 
@@ -454,11 +466,16 @@ object DownloadManager {
                     ) ||
                     !coroutineContext.isActive
 
+            val myJob = coroutineContext[Job]
+            val ownsTask = activeJobs[task.id] === myJob
+
             if (isCancelled) {
-                val cur = _activeTasks.value.find { it.id == task.id }
-                if (cur != null && cur.status == DownloadStatus.Downloading) {
-                    updateActiveTask(task.id, persist = true) {
-                        it.copy(status = DownloadStatus.Paused, speedBytesPerSec = 0L)
+                if (ownsTask) {
+                    val cur = _activeTasks.value.find { it.id == task.id }
+                    if (cur != null && cur.status == DownloadStatus.Downloading) {
+                        updateActiveTask(task.id, persist = true) {
+                            it.copy(status = DownloadStatus.Paused, speedBytesPerSec = 0L)
+                        }
                     }
                 }
                 if (activeTempFile != null && activeTempFile.exists() && _activeTasks.value.none { it.id == task.id }) {
@@ -497,12 +514,16 @@ object DownloadManager {
             }
             _toastEvent.tryEmit("下载失败: $errorDesc")
         } finally {
-            activeCalls.remove(task.id)
-            activeJobs.remove(task.id)
-            val current = _activeTasks.value.find { it.id == task.id }
-            if (current != null && current.status == DownloadStatus.Downloading) {
-                updateActiveTask(task.id, persist = true) {
-                    it.copy(status = DownloadStatus.Paused, speedBytesPerSec = 0L)
+            val myJob = coroutineContext[Job]
+            val ownsTask = activeJobs[task.id] === myJob
+            if (ownsTask) {
+                activeCalls.remove(task.id)
+                activeJobs.remove(task.id)
+                val current = _activeTasks.value.find { it.id == task.id }
+                if (current != null && current.status == DownloadStatus.Downloading) {
+                    updateActiveTask(task.id, persist = true) {
+                        it.copy(status = DownloadStatus.Paused, speedBytesPerSec = 0L)
+                    }
                 }
             }
             scheduleNextDownloads()
@@ -572,16 +593,18 @@ object DownloadManager {
                 filePath = file.absolutePath,
             )
 
-        _activeTasks.value = _activeTasks.value.filter { it.id != taskId }
+        _activeTasks.update { list -> list.filter { it.id != taskId } }
         saveActiveTasks()
-        val remaining =
-            DownloadStorageStore.prunePreviousCopies(
-                song.songMid,
-                file.absolutePath,
-                _completedTasks.value,
-                appContext,
-            )
-        _completedTasks.value = listOf(completedTask) + remaining
+        _completedTasks.update { current ->
+            val remaining =
+                DownloadStorageStore.prunePreviousCopies(
+                    song.songMid,
+                    file.absolutePath,
+                    current,
+                    appContext,
+                )
+            listOf(completedTask) + remaining
+        }
         saveCompletedTasks()
 
         _toastEvent.tryEmit("下载完成: ${file.name}")
@@ -592,10 +615,11 @@ object DownloadManager {
         persist: Boolean = false,
         transform: (DownloadTask) -> DownloadTask,
     ) {
-        _activeTasks.value =
-            _activeTasks.value.map {
+        _activeTasks.update { list ->
+            list.map {
                 if (it.id == taskId) transform(it) else it
             }
+        }
         if (persist) {
             saveActiveTasks()
         }
@@ -635,7 +659,7 @@ object DownloadManager {
         activeJobs[taskId]?.cancel()
         activeJobs.remove(taskId)
         val task = _activeTasks.value.find { it.id == taskId }
-        _activeTasks.value = _activeTasks.value.filter { it.id != taskId }
+        _activeTasks.update { list -> list.filter { it.id != taskId } }
         saveActiveTasks()
         if (task != null) {
             val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
@@ -656,14 +680,15 @@ object DownloadManager {
             job.cancel()
         }
         activeJobs.clear()
-        _activeTasks.value =
-            _activeTasks.value.map { task ->
+        _activeTasks.update { list ->
+            list.map { task ->
                 if (task.status == DownloadStatus.Downloading || task.status == DownloadStatus.Pending) {
                     task.copy(status = DownloadStatus.Paused, speedBytesPerSec = 0L)
                 } else {
                     task
                 }
             }
+        }
         saveActiveTasks()
     }
 
@@ -671,14 +696,15 @@ object DownloadManager {
      * 恢复所有已暂停或失败的下载任务重新进入队列。
      */
     fun resumeAll() {
-        _activeTasks.value =
-            _activeTasks.value.map { task ->
+        _activeTasks.update { list ->
+            list.map { task ->
                 if (task.status == DownloadStatus.Paused || task.status == DownloadStatus.Failed) {
                     task.copy(status = DownloadStatus.Pending, errorMessage = null, speedBytesPerSec = 0L)
                 } else {
                     task
                 }
             }
+        }
         saveActiveTasks()
         scheduleNextDownloads()
     }
@@ -697,7 +723,7 @@ object DownloadManager {
         activeJobs.clear()
 
         val tasksToClean = _activeTasks.value
-        _activeTasks.value = emptyList()
+        _activeTasks.update { emptyList() }
         saveActiveTasks()
 
         val targetDir = AppSettingsManager.getEffectiveDownloadDirectory()
@@ -720,7 +746,7 @@ object DownloadManager {
             val lrc = File(task.filePath.substringBeforeLast(".") + ".lrc")
             if (lrc.exists()) lrc.delete()
         }
-        _completedTasks.value = _completedTasks.value.filter { it.id != taskId }
+        _completedTasks.update { list -> list.filter { it.id != taskId } }
         saveCompletedTasks()
     }
 
@@ -739,7 +765,7 @@ object DownloadManager {
                 val lrc = File(filePath.substringBeforeLast(".") + ".lrc")
                 if (lrc.exists()) lrc.delete()
             }
-            _completedTasks.value = _completedTasks.value.filter { it.filePath != filePath }
+            _completedTasks.update { list -> list.filter { it.filePath != filePath } }
             saveCompletedTasks()
         }
     }
@@ -763,7 +789,7 @@ object DownloadManager {
                     }
                 }
             }
-            _completedTasks.value = _completedTasks.value.filter { it.song.songMid != songMid }
+            _completedTasks.update { list -> list.filter { it.song.songMid != songMid } }
             saveCompletedTasks()
         }
     }

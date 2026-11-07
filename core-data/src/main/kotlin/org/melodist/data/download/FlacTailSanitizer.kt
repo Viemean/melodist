@@ -53,14 +53,19 @@ object FlacTailSanitizer {
                 val buffer = ByteArray(tailSize)
                 raf.readFully(buffer)
 
-                // 从后向前寻找最后一个 FLAC 帧同步头
+                // 从后向前寻找最后一个合法的 FLAC 帧同步头
                 var lastSyncIndexInTail = -1
-                for (i in tailSize - 2 downTo 0) {
+                for (i in tailSize - 4 downTo 0) {
                     val b0 = buffer[i].toInt() and 0xFF
                     val b1 = buffer[i + 1].toInt() and 0xFF
-                    if (b0 == 0xFF && (b1 and 0xFC) == 0xF8) {
-                        lastSyncIndexInTail = i
-                        break
+                    if (b0 == 0xFF && (b1 and 0xFE) == 0xF8) {
+                        val b2 = buffer[i + 2].toInt() and 0xFF
+                        val blockSizeStrategy = (b2 ushr 4) and 0x0F
+                        val sampleRateStrategy = b2 and 0x0F
+                        if (blockSizeStrategy != 0 && blockSizeStrategy != 0x0F && sampleRateStrategy != 0x0F) {
+                            lastSyncIndexInTail = i
+                            break
+                        }
                     }
                 }
 

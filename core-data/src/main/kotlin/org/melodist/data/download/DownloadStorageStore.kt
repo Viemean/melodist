@@ -181,15 +181,19 @@ internal object DownloadStorageStore {
         context: Context?,
     ): List<DownloadTask> {
         val seenMids = mutableSetOf<String>()
+        val keptPaths = mutableSetOf<String>()
         val kept = mutableListOf<DownloadTask>()
         val obsoletePaths = mutableListOf<String>()
 
         for (task in tasks) {
             val mid = task.song.songMid
-            if (mid.isNotBlank() && seenMids.add(mid)) {
+            if (mid.isBlank() || seenMids.add(mid)) {
                 kept.add(task)
-            } else {
                 if (task.filePath.isNotBlank()) {
+                    keptPaths.add(task.filePath)
+                }
+            } else {
+                if (task.filePath.isNotBlank() && task.filePath !in keptPaths) {
                     val f = File(task.filePath)
                     if (f.exists()) {
                         f.delete()

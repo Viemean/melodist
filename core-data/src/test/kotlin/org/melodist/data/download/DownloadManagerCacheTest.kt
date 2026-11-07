@@ -135,4 +135,26 @@ class DownloadManagerCacheTest {
         DownloadManager.cancelAll()
         assertTrue(DownloadManager.activeTasks.value.isEmpty())
     }
+
+    @Test
+    fun `deduplicateCompletedTasks does not delete file if duplicate task references same path`() {
+        val tempDir = File(System.getProperty("java.io.tmpdir"), "melodist_dedup_test_${System.currentTimeMillis()}")
+        tempDir.mkdirs()
+        try {
+            val audioFile = File(tempDir, "shared_song.flac").apply { writeBytes(ByteArray(1024)) }
+            val lrcFile = File(tempDir, "shared_song.lrc").apply { writeText("[00:00.00]test") }
+
+            val song = Song(songMid = "test_mid_shared", songId = 999L, name = "测试", singer = "歌手")
+            val task1 = DownloadTask(id = "task_sq", song = song, tier = AudioQualityTier.SQ, filePath = audioFile.absolutePath)
+            val task2 = DownloadTask(id = "task_hq", song = song, tier = AudioQualityTier.HQ, filePath = audioFile.absolutePath)
+
+            val kept = DownloadStorageStore.deduplicateCompletedTasks(listOf(task1, task2), prefs = null, context = null)
+            assertEquals(1, kept.size)
+            assertEquals("task_sq", kept[0].id)
+            assertTrue(audioFile.exists())
+            assertTrue(lrcFile.exists())
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
 }
