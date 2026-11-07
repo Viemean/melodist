@@ -278,7 +278,10 @@ fun NewVersionTvDialog(
 
                     Button(
                         onClick = {
-                            val targetUrl = newVersion.browserUrl ?: newVersion.downloadUrl ?: "${UpdateChecker.REPO_WEB_URL}/releases"
+                            val targetUrl =
+                                newVersion.browserUrl?.takeIf { it.isNotBlank() }
+                                    ?: newVersion.downloadUrl?.takeIf { it.isNotBlank() }
+                                    ?: "${UpdateChecker.REPO_WEB_URL}/releases"
                             val intent =
                                 Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -288,6 +291,9 @@ fun NewVersionTvDialog(
                             } catch (e: Exception) {
                                 if (e is CancellationException) throw e
                                 Log.w("NewVersionTvDialog", "Operation failed", e)
+                                android.widget.Toast
+                                    .makeText(context, "未找到可用的浏览器", android.widget.Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         },
                         shape =

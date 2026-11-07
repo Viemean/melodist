@@ -191,13 +191,8 @@ object MonetColorExtractor {
         if (url.isBlank()) return DefaultSurfaceColor
         colorCache.get(url)?.let { return it }
 
-        val seed = extractSeedFromUrl(context, url)
-        val color =
-            if (seed != null) {
-                resolveTvMonetColors(seed).surfaceColor
-            } else {
-                DefaultSurfaceColor
-            }
+        val seed = extractSeedFromUrl(context, url) ?: return DefaultSurfaceColor
+        val color = resolveTvMonetColors(seed).surfaceColor
         colorCache.put(url, color)
         return color
     }

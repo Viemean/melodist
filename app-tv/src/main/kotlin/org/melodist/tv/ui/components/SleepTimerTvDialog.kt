@@ -57,6 +57,7 @@ fun SleepTimerTvDialog(
     val remainingSeconds by SleepTimerManager.remainingSeconds.collectAsState()
     val isWaitingForSongEnd by SleepTimerManager.isWaitingForSongEnd.collectAsState()
 
+    val firstFocusRequester = remember { FocusRequester() }
     var showCustomInputDialog by remember { mutableStateOf(false) }
 
     Dialog(
@@ -122,14 +123,17 @@ fun SleepTimerTvDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    listOf(15, 30, 60, 90).forEach { mins ->
+                    listOf(15, 30, 60, 90).forEachIndexed { index, mins ->
                         val isSelected = isTimerActive && selectedMinutes == mins
                         TimerPresetOptionItem(
                             title = "$mins",
                             subtitle = if (isSelected) "当前设定" else "分钟",
                             isSelected = isSelected,
                             accentColor = accentColor,
-                            modifier = Modifier.weight(1f),
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .then(if (index == 0) Modifier.focusRequester(firstFocusRequester) else Modifier),
                             onClick = {
                                 if (isSelected) {
                                     SleepTimerManager.cancelTimer()
@@ -194,6 +198,14 @@ fun SleepTimerTvDialog(
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        try {
+            firstFocusRequester.requestFocus()
+        } catch (_: Exception) {
         }
     }
 
