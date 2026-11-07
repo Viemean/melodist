@@ -118,6 +118,7 @@ object AppUpdateDownloader {
                     val response = httpClient.newCall(request).execute()
                     if (!response.isSuccessful) {
                         lastErrorMessage = "HTTP ${response.code}"
+                        response.close()
                         continue
                     }
                     val body = response.body
@@ -142,6 +143,28 @@ object AppUpdateDownloader {
                             }
                             output.flush()
                         }
+                    }
+
+                    val sizeOk = totalBytes <= 0L || bytesDownloaded == totalBytes
+                    val isZip =
+                        tmpApk.exists() && tmpApk.length() >= 4L &&
+                            try {
+                                tmpApk.inputStream().use { s ->
+                                    val m = ByteArray(4)
+                                    s.read(m) == 4 &&
+                                        m[0] == 0x50.toByte() &&
+                                        m[1] == 0x4B.toByte() &&
+                                        m[2] == 0x03.toByte() &&
+                                        m[3] == 0x04.toByte()
+                                }
+                            } catch (_: Exception) {
+                                false
+                            }
+
+                    if (!sizeOk || !isZip) {
+                        tmpApk.delete()
+                        lastErrorMessage = "安装包校验失败 (非有效 APK 或内容损坏)"
+                        continue
                     }
 
                     if (tmpApk.exists() && tmpApk.length() > 0) {

@@ -50,4 +50,21 @@ class AppUpdateDownloaderTest {
         org.junit.jupiter.api.Assertions
             .assertEquals(listOf(nonGithubUrl), nonGithubCandidates)
     }
+
+    @Test
+    fun testApkZipMagicValidation() {
+        val validZipBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04, 0x14, 0x00)
+        val htmlErrorBytes = "<html>502 Bad Gateway</html>".toByteArray(Charsets.UTF_8)
+
+        fun isValidApk(bytes: ByteArray): Boolean {
+            if (bytes.size < 4) return false
+            return bytes[0] == 0x50.toByte() &&
+                bytes[1] == 0x4B.toByte() &&
+                bytes[2] == 0x03.toByte() &&
+                bytes[3] == 0x04.toByte()
+        }
+
+        assertTrue(isValidApk(validZipBytes))
+        assertFalse(isValidApk(htmlErrorBytes))
+    }
 }

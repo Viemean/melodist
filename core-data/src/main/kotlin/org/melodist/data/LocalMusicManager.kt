@@ -763,7 +763,7 @@ object LocalMusicManager {
         val hash = md5(file.absolutePath)
         val mod = file.lastModified()
         val size = file.length()
-        val baseCoverKey = "${hash}_${size}_$mod"
+        val baseCoverKey = if (mod > 0L) "${hash}_$mod" else hash
 
         try {
             if (!oldCoverPath.isNullOrBlank()) {
@@ -774,7 +774,7 @@ object LocalMusicManager {
             }
             File(folder, "cover_$hash.webp").takeIf { it.exists() }?.delete()
             File(folder, "cover_$hash.jpg").takeIf { it.exists() }?.delete()
-            File(folder, "${hash}_$mod.webp").takeIf { it.exists() }?.delete()
+            File(folder, "cover_${hash}_$mod.webp").takeIf { it.exists() }?.delete()
         } catch (_: Exception) {
         }
 
