@@ -45,29 +45,24 @@ suspend fun MusicApiService.getLyrics(
                     val lyricField = data?.get("lyric")?.jsonPrimitive?.contentOrNull
                     val transField = data?.get("trans")?.jsonPrimitive?.contentOrNull
 
+                    fun isHexCipher(s: String) = s.length > 100 && s.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+
                     if (!lyricField.isNullOrBlank()) {
-                        // 若返回为加密 hex (crypt=1 长度较大且全为 16 进制字符)，通过 QrcDecoder 解密
-                        if (lyricField.length > 100 && lyricField.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) {
-                            val decodedQrc = QrcDecoder.decodeQrc(lyricField)
-                            if (decodedQrc.isNotBlank()) {
-                                rawLyric = decodedQrc
+                        rawLyric =
+                            if (isHexCipher(lyricField)) {
+                                QrcDecoder.decodeQrc(lyricField)
+                            } else {
+                                decodeBase64(lyricField)
                             }
-                        }
-                        if (rawLyric.isBlank()) {
-                            rawLyric = decodeBase64(lyricField)
-                        }
                     }
 
                     if (!transField.isNullOrBlank()) {
-                        if (transField.length > 100 && transField.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) {
-                            val decodedTrans = QrcDecoder.decodeQrc(transField)
-                            if (decodedTrans.isNotBlank()) {
-                                rawTrans = decodedTrans
+                        rawTrans =
+                            if (isHexCipher(transField)) {
+                                QrcDecoder.decodeQrc(transField)
+                            } else {
+                                decodeBase64(transField).ifBlank { transField }
                             }
-                        }
-                        if (rawTrans.isBlank()) {
-                            rawTrans = decodeBase64(transField).ifBlank { transField }
-                        }
                     }
                 }
 

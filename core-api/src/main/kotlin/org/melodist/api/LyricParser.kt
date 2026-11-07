@@ -302,8 +302,8 @@ object LyricParser {
 
         // 增强 LRC 格式（括号起始）：(start,dur)文本 如 "(0,300)旋(300,200)律(500,400)家"
         // QRC 格式（文本起始）：文本(start,dur) 如 "蝉(25961,245)の(26206,403)"
-        val isLeadingStyle = afterTimestamp.startsWith("(")
         val timeTagRegex = Regex("""\((\d+),(\d+)\)""")
+        val isLeadingStyle = timeTagRegex.find(afterTimestamp)?.range?.first == 0
 
         if (isLeadingStyle) {
             val leadingMatches = QRC_WORD_REGEX.findAll(afterTimestamp).toList()
@@ -311,13 +311,15 @@ object LyricParser {
                 val text = afterTimestamp.trim()
                 return if (text.isNotEmpty()) LyricLine(lineTimestampMs, text) else null
             }
+            val firstStart = leadingMatches.first().groupValues[1].toLongOrNull() ?: 0L
+            val isAbsolute = firstStart >= lineTimestampMs
             val words = mutableListOf<WordSpan>()
             val fullTextBuilder = StringBuilder()
             for (wm in leadingMatches) {
                 val offsetOrAbsStart = wm.groupValues[1].toLongOrNull() ?: 0L
                 val dur = wm.groupValues[2].toLongOrNull() ?: 0L
                 val word = wm.groupValues[3]
-                val relOffset = if (offsetOrAbsStart >= lineTimestampMs) offsetOrAbsStart - lineTimestampMs else offsetOrAbsStart
+                val relOffset = if (isAbsolute) (offsetOrAbsStart - lineTimestampMs).coerceAtLeast(0L) else offsetOrAbsStart
                 words.add(WordSpan(word = word, offsetMs = relOffset, durationMs = dur))
                 fullTextBuilder.append(word)
             }
@@ -332,6 +334,8 @@ object LyricParser {
                 val text = afterTimestamp.trim()
                 return if (text.isNotEmpty()) LyricLine(lineTimestampMs, text) else null
             }
+            val firstStart = tagMatches.first().groupValues[1].toLongOrNull() ?: 0L
+            val isAbsolute = firstStart >= lineTimestampMs
             val words = mutableListOf<WordSpan>()
             val fullTextBuilder = StringBuilder()
             var lastEnd = 0
@@ -339,7 +343,7 @@ object LyricParser {
                 val word = afterTimestamp.substring(lastEnd, tm.range.first)
                 val offsetOrAbsStart = tm.groupValues[1].toLongOrNull() ?: 0L
                 val dur = tm.groupValues[2].toLongOrNull() ?: 0L
-                val relOffset = if (offsetOrAbsStart >= lineTimestampMs) offsetOrAbsStart - lineTimestampMs else offsetOrAbsStart
+                val relOffset = if (isAbsolute) (offsetOrAbsStart - lineTimestampMs).coerceAtLeast(0L) else offsetOrAbsStart
                 if (word.isNotEmpty()) {
                     words.add(WordSpan(word = word, offsetMs = relOffset, durationMs = dur))
                     fullTextBuilder.append(word)

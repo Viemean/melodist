@@ -396,7 +396,11 @@ internal suspend fun LoginApiService.refreshQQLoginTokenImpl(
             val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
             val cleanMusicId = musicId.trimStart('o').ifEmpty { UserSession.profile.uin.trimStart('o') }
             val currentKey = musicKey.ifEmpty { UserSession.profile.musicKey }
-            val currentRefreshToken = refreshToken.ifEmpty { UserSession.profile.cookies["refresh_token"] ?: UserSession.profile.cookies["psrf_qqrefresh_token"] ?: "" }
+            val currentRefreshToken =
+                refreshToken.ifEmpty {
+                    UserSession.profile.cookies["refresh_token"] ?: UserSession.profile.cookies["psrf_qqrefresh_token"]
+                        ?: ""
+                }
 
             val paramObj =
                 buildJsonObject {
@@ -673,7 +677,7 @@ internal suspend fun LoginApiService.refreshByExistingMusicKeyImpl(
                 cookies["musickey"] = newMusicKey
                 cookies["qqmusic_version"] = "17"
                 cookies["qqmusic_miniversion"] = "70"
-                cookies["tmeLoginType"] = "2"
+                if (cookies["tmeLoginType"].isNullOrEmpty()) cookies["tmeLoginType"] = "2"
                 if (!newOpenid.isNullOrEmpty()) cookies["psrf_qqopenid"] = newOpenid
                 if (!newAccessToken.isNullOrEmpty()) cookies["psrf_qqaccess_token"] = newAccessToken
                 if (!unionid.isNullOrEmpty()) cookies["psrf_qqunionid"] = unionid

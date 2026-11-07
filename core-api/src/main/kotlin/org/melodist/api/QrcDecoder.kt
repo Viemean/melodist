@@ -250,8 +250,8 @@ object QrcDecoder {
             tripleDesCrypt(encrypted, i * 8, cachedDecryptSchedule, decrypted, i * 8)
         }
 
+        val inflater = Inflater()
         return try {
-            val inflater = Inflater()
             inflater.setInput(decrypted)
             val outputStream = ByteArrayOutputStream(decrypted.size * 2)
             val buffer = ByteArray(4096)
@@ -265,10 +265,11 @@ object QrcDecoder {
                 val count = inflater.inflate(buffer)
                 if (count > 0) outputStream.write(buffer, 0, count)
             }
-            inflater.end()
             outputStream.toString("UTF-8")
         } catch (_: Exception) {
             ""
+        } finally {
+            inflater.end()
         }
     }
 

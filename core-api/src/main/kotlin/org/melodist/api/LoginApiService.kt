@@ -123,7 +123,7 @@ class LoginApiService(
 
                 val refreshKey = cookies["refresh_key"].orEmpty()
                 val rawLoginType =
-                    cookies["tmeLoginType"]?.toIntOrNull()
+                    cookies["tmeLoginType"]?.toIntOrNull()?.takeIf { it in listOf(1, 2) }
                         ?: if (isWeChat) 1 else 2
                 val refreshToken =
                     cookies["refresh_token"]
@@ -141,7 +141,7 @@ class LoginApiService(
                         cookies["psrf_qqaccess_token"] ?: cookies["access_token"].orEmpty()
                     }
 
-                // 1. 统一账户网关续签通道 (覆盖官方 App 扫码、微信扫码与 QQ 互联扫码)
+                // 统一账户网关续签通道 (覆盖官方 App 扫码、微信扫码与 QQ 互联扫码)
                 if (!refreshToken.isNullOrEmpty() && currentUin.isNotEmpty()) {
                     val refreshed =
                         refreshOfficialAppToken(
@@ -156,7 +156,7 @@ class LoginApiService(
                     if (refreshed) return@withLock true
                 }
 
-                // 2. 微信登录专有换票重试
+                // 微信登录专有换票重试
                 if (isWeChat && !refreshToken.isNullOrEmpty() && currentUin.isNotEmpty()) {
                     val refreshed =
                         refreshWeChatLoginToken(
@@ -168,7 +168,7 @@ class LoginApiService(
                     if (refreshed) return@withLock true
                 }
 
-                // 3. QQ 互联 OAuth 降级换票兜底 (非微信账号且具备 openid 与 accessToken)
+                // QQ 互联 OAuth 降级换票兜底 (非微信账号且具备 openid 与 accessToken)
                 if (!isWeChat && openid.isNotEmpty() && accessToken.isNotEmpty()) {
                     val qqRefreshToken = cookies["psrf_qqrefresh_token"] ?: cookies["refresh_token"].orEmpty()
                     val refreshed =
@@ -180,6 +180,16 @@ class LoginApiService(
                             musicKey = currentKey,
                         )
                     if (refreshed) return@withLock true
+                }
+
+                // 使用现有 musickey 申请续期
+                if (currentUin.isNotEmpty() && currentKey.isNotEmpty()) {
+                    if (refreshByExistingMusicKey(currentUin, currentKey)) return@withLock true
+                }
+
+                // 基于 p_skey 重新走 OAuth 换票
+                if (!cookies["p_skey"].isNullOrEmpty() || !cookies["skey"].isNullOrEmpty()) {
+                    if (exchangeOAuthForMusicKey(cookies)) return@withLock true
                 }
 
                 false

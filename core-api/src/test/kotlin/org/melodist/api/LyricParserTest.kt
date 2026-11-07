@@ -325,4 +325,22 @@ class LyricParserTest {
         assertEquals(1, lines.size)
         assertEquals("ぶれない", lines[0].text)
     }
+
+    @Test
+    fun `parseSingleLine handles literal leading parenthesis in text-leading style`() {
+        val qrcLine = "[1000,800]((1000,200)Oh(1200,300))(1500,100)"
+        val line = LyricParser.parseQrcLine(qrcLine)
+        assertNotNull(line)
+        assertEquals("(Oh)", line!!.text)
+        assertEquals(3, line.words.size)
+        assertEquals("(", line.words[0].word)
+        assertEquals(0L, line.words[0].offsetMs)
+        assertEquals(200L, line.words[0].durationMs)
+        assertEquals("Oh", line.words[1].word)
+        assertEquals(200L, line.words[1].offsetMs)
+        assertEquals(300L, line.words[1].durationMs)
+        assertEquals(")", line.words[2].word)
+        assertEquals(500L, line.words[2].offsetMs)
+        assertEquals(100L, line.words[2].durationMs)
+    }
 }

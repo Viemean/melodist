@@ -324,19 +324,25 @@ suspend fun LoginApiService.refreshPlaybackCredentialsImpl(creds: PlaybackCreden
             cookies["refresh_token"]
                 ?: if (isWeChat) cookies["psrf_wxrefresh_token"] else cookies["psrf_qqrefresh_token"]
 
-        // 1. 统一账户网关续签 (覆盖官方 App 扫码、微信扫码与 QQ 互联扫码)
+        // 统一账户网关续签 (覆盖官方 App 扫码、微信扫码与 QQ 互联扫码)
         if (!refreshToken.isNullOrEmpty() && musicId.isNotBlank()) {
             val refreshed = refreshOfficialPlaybackCredentials(creds, musicId, refreshToken)
             if (refreshed != null) return@withContext refreshed
         }
 
-        // 2. QQ 互联 OAuth 换票降级兜底
+        // QQ 互联 OAuth 换票降级兜底
         val openid = if (!isWeChat) cookies["psrf_qqopenid"] ?: cookies["openid"] else null
         val accessToken = if (!isWeChat) cookies["psrf_qqaccess_token"] ?: cookies["access_token"] else null
         val qqRefreshToken = if (!isWeChat) cookies["psrf_qqrefresh_token"] ?: cookies["refresh_token"] else null
 
         if (!openid.isNullOrEmpty() && !accessToken.isNullOrEmpty()) {
             val refreshed = refreshQQPlaybackCredentials(creds, openid, accessToken, qqRefreshToken.orEmpty())
+            if (refreshed != null) return@withContext refreshed
+        }
+
+        // 使用现有 musickey 申请续期
+        if (musicId.isNotBlank() && currentMusicKey.isNotBlank()) {
+            val refreshed = refreshByExistingMusicPlaybackCredentials(creds, musicId, currentMusicKey)
             if (refreshed != null) return@withContext refreshed
         }
 
@@ -368,7 +374,14 @@ internal suspend fun LoginApiService.refreshOfficialPlaybackCredentials(
                     cookies["psrf_qqaccess_token"] ?: cookies["access_token"].orEmpty()
                 }
             val loginType = cookies["tmeLoginType"]?.toIntOrNull() ?: if (isWeChat) 1 else 2
-            val actualLoginType = if (loginType in listOf(1, 2)) loginType else if (isWeChat) 1 else 2
+            val actualLoginType =
+                if (loginType in listOf(1, 2)) {
+                    loginType
+                } else if (isWeChat) {
+                    1
+                } else {
+                    2
+                }
 
             val paramObj =
                 buildJsonObject {
