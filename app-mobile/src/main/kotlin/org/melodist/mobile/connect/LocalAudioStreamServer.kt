@@ -126,6 +126,10 @@ class LocalAudioStreamServer(
                             return
                         }
                         val decodedPath = Uri.decode(pathParam)
+                        if (isPathRestricted(decodedPath)) {
+                            sendNotFound(output)
+                            return
+                        }
                         val file = File(decodedPath)
                         if (!file.exists() || !file.canRead()) {
                             sendNotFound(output)
@@ -141,6 +145,10 @@ class LocalAudioStreamServer(
                             return
                         }
                         val decodedPath = Uri.decode(pathParam)
+                        if (isPathRestricted(decodedPath)) {
+                            sendNotFound(output)
+                            return
+                        }
                         val file = File(decodedPath)
                         if (!file.exists() || !file.canRead()) {
                             sendNotFound(output)
@@ -168,6 +176,10 @@ class LocalAudioStreamServer(
                             return
                         }
                         val decodedUrl = Uri.decode(urlParam)
+                        if (!isProxyUrlAllowed(decodedUrl)) {
+                            sendNotFound(output)
+                            return
+                        }
                         serveHttpProxy(decodedUrl, rangeHeader, output)
                     }
 
@@ -201,7 +213,7 @@ class LocalAudioStreamServer(
                 val parts = rangeVal.split("-")
                 start = parts.getOrNull(0)?.toLongOrNull() ?: 0L
                 val endPart = parts.getOrNull(1)?.filter { it.isDigit() }?.toLongOrNull()
-                end = endPart ?: (fileLength - 1)
+                end = (endPart ?: (fileLength - 1)).coerceAtMost(fileLength - 1)
             }
         }
 
@@ -213,7 +225,7 @@ class LocalAudioStreamServer(
         }
 
         val contentLength = end - start + 1
-        val isPartial = !rangeHeader.isNullOrBlank()
+        val isPartial = !rangeHeader.isNullOrBlank() && rangeHeader.startsWith("bytes=")
 
         val ext = file.extension.lowercase()
         val mimeType =
@@ -416,6 +428,27 @@ class LocalAudioStreamServer(
             }
         }
         return headers
+    }
+
+    private fun isPathRestricted(path: String): Boolean {
+        if (path.contains("..")) return true
+        val normalized = path.replace('\\', '/')
+        if (normalized.contains("/shared_prefs/") || normalized.contains("/databases/")) return true
+        return false
+    }
+
+    private fun isProxyUrlAllowed(url: String): Boolean {
+        val uri =
+            try {
+                Uri.parse(url)
+            } catch (_: Exception) {
+                return false
+            }
+        val scheme = uri.scheme?.lowercase() ?: return false
+        if (scheme != "http" && scheme != "https") return false
+        val host = uri.host?.lowercase() ?: return false
+        if (host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "0.0.0.0") return false
+        return true
     }
 
     private fun extractQueryParam(
