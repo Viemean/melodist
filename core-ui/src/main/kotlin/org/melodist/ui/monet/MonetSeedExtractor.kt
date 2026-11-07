@@ -6,20 +6,28 @@ import androidx.palette.graphics.Palette
 
 object MonetSeedExtractor {
     fun extractFromBitmap(bitmap: Bitmap): MonetSeed {
-        val readableBitmap =
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+        val isHardware =
+            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
                 bitmap.config == Bitmap.Config.HARDWARE
-            ) {
-                bitmap.copy(Bitmap.Config.ARGB_8888, false)
-            } else {
-                bitmap
-            } ?: bitmap
-
-        val palette = Palette.from(readableBitmap).generate()
-        if (readableBitmap !== bitmap) {
-            readableBitmap.recycle()
+        val readableBitmap =
+            if (isHardware) bitmap.copy(Bitmap.Config.ARGB_8888, false) else bitmap
+        if (readableBitmap == null) {
+            return MonetSeed(
+                hue = 215f,
+                saturation = 0.22f,
+                lightness = 0.50f,
+                accentHue = 165f,
+                accentSaturation = 0.60f,
+                accentLightness = 0.50f,
+                isMonochrome = true,
+            )
         }
-        return extractFromPalette(palette)
+
+        try {
+            return extractFromPalette(Palette.from(readableBitmap).generate())
+        } finally {
+            if (readableBitmap !== bitmap) readableBitmap.recycle()
+        }
     }
 
     fun extractFromPalette(palette: Palette): MonetSeed {
@@ -76,19 +84,21 @@ object MonetSeedExtractor {
             isMonochrome = true
         }
 
-        val accentSwatch = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: selectedSwatch
+        val accentSwatch =
+            listOfNotNull(palette.vibrantSwatch, palette.lightVibrantSwatch, selectedSwatch)
+                .firstOrNull { isValidColor(it) }
         val accentHsl = FloatArray(3)
         val accentHue: Float
         val accentSat: Float
         val accentLit: Float
 
-        if (accentSwatch != null && isValidColor(accentSwatch)) {
+        if (accentSwatch != null) {
             ColorUtils.colorToHSL(accentSwatch.rgb, accentHsl)
             accentHue = accentHsl[0]
             accentSat = accentHsl[1]
             accentLit = accentHsl[2]
         } else {
-            accentHue = if (sat < 0.20f) 165f else hue
+            accentHue = if (isMonochrome) 165f else hue
             accentSat = 0.60f
             accentLit = 0.50f
         }
