@@ -142,6 +142,7 @@ data class AppSettings(
     // 播放与歌词
     val showBilingualLyrics: Boolean = true,
     val enableWordByWordAnim: Boolean = true,
+    val keepScreenOnOnLyrics: Boolean = false,
     val lyricFontSize: LyricFontSize = LyricFontSize.Normal,
     val customLyricFontSizeSp: Int = 30,
     // OLED 屏保与显示保护
@@ -194,6 +195,7 @@ object AppSettingsManager {
     private const val KEY_IGNORE_EMBEDDED_LYRICS = "ignore_embedded_lyrics"
     private const val KEY_BILINGUAL_TRANS = "bilingual_translation"
     private const val KEY_WORD_ANIM = "word_animation"
+    private const val KEY_KEEP_SCREEN_ON_ON_LYRICS = "keep_screen_on_on_lyrics"
     private const val KEY_LYRIC_FONT_SIZE = "lyric_font_size"
     private const val KEY_CUSTOM_LYRIC_FONT_SIZE = "custom_lyric_font_size"
     private const val KEY_SCREENSAVER_TIMEOUT = "screensaver_timeout"
@@ -258,6 +260,7 @@ object AppSettingsManager {
         val ignoreEmbedded = p.getBoolean(KEY_IGNORE_EMBEDDED_LYRICS, false)
         val bilingual = p.getBoolean(KEY_BILINGUAL_TRANS, true)
         val wordAnim = p.getBoolean(KEY_WORD_ANIM, true)
+        val keepScreenOn = p.getBoolean(KEY_KEEP_SCREEN_ON_ON_LYRICS, false)
         val fontName = p.getString(KEY_LYRIC_FONT_SIZE, LyricFontSize.Normal.name) ?: LyricFontSize.Normal.name
         val font =
             try {
@@ -312,6 +315,7 @@ object AppSettingsManager {
                 ignoreEmbeddedLyrics = ignoreEmbedded,
                 showBilingualLyrics = bilingual,
                 enableWordByWordAnim = wordAnim,
+                keepScreenOnOnLyrics = keepScreenOn,
                 lyricFontSize = font,
                 customLyricFontSizeSp = customFontSize,
                 screenSaverTimeout = timeout,
@@ -433,6 +437,13 @@ object AppSettingsManager {
     }
 
     fun updateWordByWordAnim(enable: Boolean) = setEnableWordByWordAnimation(enable)
+
+    fun setKeepScreenOnOnLyrics(enable: Boolean) {
+        _settings.value = _settings.value.copy(keepScreenOnOnLyrics = enable)
+        prefs?.edit()?.putBoolean(KEY_KEEP_SCREEN_ON_ON_LYRICS, enable)?.apply()
+    }
+
+    fun updateKeepScreenOnOnLyrics(enable: Boolean) = setKeepScreenOnOnLyrics(enable)
 
     fun setLyricFontSize(size: LyricFontSize) {
         _settings.value = _settings.value.copy(lyricFontSize = size)

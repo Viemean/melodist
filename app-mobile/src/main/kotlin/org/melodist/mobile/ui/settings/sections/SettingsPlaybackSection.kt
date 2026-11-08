@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.SignalCellularAlt
+import androidx.compose.material.icons.rounded.StayCurrentPortrait
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Usb
@@ -169,6 +170,14 @@ fun SettingsPlaybackSection(
                     onCheckedChange = { AppSettingsManager.updateIgnoreEmbeddedLyrics(it) },
                 )
             }
+
+            SettingsSwitchRow(
+                icon = Icons.Rounded.StayCurrentPortrait,
+                title = "歌词界面阻止熄屏",
+                subtitle = "浏览歌词时保持屏幕常亮",
+                checked = settings.keepScreenOnOnLyrics,
+                onCheckedChange = { AppSettingsManager.setKeepScreenOnOnLyrics(it) },
+            )
 
             SettingsClickableRow(
                 icon = Icons.Rounded.Palette,

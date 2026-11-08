@@ -1,5 +1,9 @@
 package org.melodist.mobile.ui.lyrics
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.WindowManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -24,6 +28,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -37,7 +42,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.buildAnnotatedString
@@ -69,6 +76,25 @@ fun MobileLyricsView(
     transColor: Color = Color.White.copy(alpha = 0.60f),
     song: Song? = null,
 ) {
+    val settings by AppSettingsManager.settings.collectAsState()
+    val keepScreenOn = settings.keepScreenOnOnLyrics
+    val context = LocalContext.current
+    val view = LocalView.current
+
+    DisposableEffect(keepScreenOn) {
+        if (keepScreenOn) {
+            view.keepScreenOn = true
+            val window = context.findActivity()?.window
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            onDispose {
+                view.keepScreenOn = false
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        } else {
+            onDispose {}
+        }
+    }
+
     if (lyrics.isEmpty()) {
         Box(
             modifier = modifier.fillMaxSize(),
@@ -84,7 +110,6 @@ fun MobileLyricsView(
         return
     }
 
-    val settings by AppSettingsManager.settings.collectAsState()
     val baseFontSize = settings.effectiveLyricTitleSp.sp
     val baseLineHeight = (settings.effectiveLyricTitleSp * 1.38f).sp
     val transFontSize = settings.effectiveLyricSubSp.sp
@@ -339,3 +364,10 @@ private fun LyricLineItem(
         }
     }
 }
+
+private tailrec fun Context.findActivity(): Activity? =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
