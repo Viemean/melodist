@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.DatagramPacket
@@ -201,7 +202,7 @@ object DlnaDiscoveryManager {
         }
     }
 
-    private fun resolveControlUrl(
+    internal fun resolveControlUrl(
         location: String,
         rawCu: String,
         xml: String,
@@ -211,18 +212,18 @@ object DlnaDiscoveryManager {
         }
         val urlBase = extractFirstMatch(urlBaseRegex, xml)?.takeIf { it.isNotBlank() }
         val baseLoc = urlBase ?: location
-        return try {
-            URI(baseLoc).resolve(rawCu).toString()
-        } catch (_: Exception) {
-            val uri = URI(baseLoc)
-            val portPart = if (uri.port > 0) ":${uri.port}" else ""
-            val hostPart = "${uri.scheme}://${uri.host}$portPart"
-            if (rawCu.startsWith("/")) {
-                "$hostPart$rawCu"
-            } else {
-                val basePath = uri.path?.takeIf { it.isNotBlank() }?.let { if (it.endsWith("/")) it else "$it/" } ?: "/"
-                "$hostPart$basePath$rawCu"
-            }
+        val resolved = baseLoc.toHttpUrlOrNull()?.resolve(rawCu)
+        if (resolved != null) {
+            return resolved.toString()
+        }
+        val uri = URI(baseLoc)
+        val portPart = if (uri.port > 0) ":${uri.port}" else ""
+        val hostPart = "${uri.scheme}://${uri.host}$portPart"
+        return if (rawCu.startsWith("/")) {
+            "$hostPart$rawCu"
+        } else {
+            val basePath = uri.path?.takeIf { it.isNotBlank() }?.let { if (it.endsWith("/")) it else "$it/" } ?: "/"
+            "$hostPart$basePath$rawCu"
         }
     }
 
