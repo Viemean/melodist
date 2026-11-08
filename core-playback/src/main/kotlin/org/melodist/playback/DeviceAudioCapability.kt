@@ -12,6 +12,9 @@ object DeviceAudioCapability {
     private var isInitialized = false
 
     @Volatile
+    private var isTelevision = false
+
+    @Volatile
     private var supportsDolby = false
 
     @Volatile
@@ -23,9 +26,14 @@ object DeviceAudioCapability {
     @Volatile
     private var supportsSurround71 = false
 
+    @Volatile
+    var isRemotePlaybackActive: () -> Boolean = { PlaybackManager.isRemoteActive.value }
+
     fun init(context: Context) {
         if (isInitialized) return
         isInitialized = true
+
+        isTelevision = PlaybackSourceResolver.isTelevision(context)
 
         try {
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -58,7 +66,7 @@ object DeviceAudioCapability {
                     if (m == "audio/eac3" || m == "audio/eac3-joc" || m == "audio/ac4" || m == "audio/ac3") {
                         supportsDolby = true
                     }
-                    if (m == "audio/vnd.dts" || m == "audio/vnd.dts.hd" || m == "audio/vnd.dts.uhd") {
+                    if (isTelevision && (m == "audio/vnd.dts" || m == "audio/vnd.dts.hd" || m == "audio/vnd.dts.uhd")) {
                         supportsDts = true
                     }
                 }
@@ -71,17 +79,23 @@ object DeviceAudioCapability {
         }
 
         // 同步通知网关层过滤不支持的音质探测请求
-        QualityTierFilter.isTierSupported = { isTierSupported(it) }
+        QualityTierFilter.isTierSupported = { tier ->
+            if (isRemotePlaybackActive()) {
+                true
+            } else {
+                isTierSupported(tier)
+            }
+        }
     }
 
     fun isDolbySupported(): Boolean = supportsDolby
 
-    fun isDtsSupported(): Boolean = supportsDts
+    fun isDtsSupported(): Boolean = isTelevision && supportsDts
 
     fun isTierSupported(tier: AudioQualityTier): Boolean =
         when (tier) {
             AudioQualityTier.Dolby -> supportsDolby
-            AudioQualityTier.DtsX -> supportsDts
+            AudioQualityTier.DtsX -> isTelevision && supportsDts
             AudioQualityTier.Master, AudioQualityTier.HiRes, AudioQualityTier.SQ -> AudioCodecDetector.isFlacSupported
             else -> true
         }
@@ -97,7 +111,13 @@ object DeviceAudioCapability {
             }
 
             AudioQualityTier.DtsX -> {
-                if (supportsDts) Pair(true, null) else Pair(false, "设备缺少 DTS 音频硬件解码支持")
+                if (!isTelevision) {
+                    Pair(false, "移动设备暂不支持 DTS:X 格式")
+                } else if (supportsDts) {
+                    Pair(true, null)
+                } else {
+                    Pair(false, "设备缺少 DTS 音频硬件解码支持")
+                }
             }
 
             AudioQualityTier.Master, AudioQualityTier.HiRes, AudioQualityTier.SQ -> {

@@ -119,6 +119,9 @@ object MobileConnectManager {
         server.start()
 
         setupPlaybackInterceptor()
+        org.melodist.playback.DeviceAudioCapability.isRemotePlaybackActive = {
+            PlaybackManager.isRemoteActive.value || isTvOnline
+        }
 
         scope.launch {
             client.connectionState.collect { _connectionState.value = it }
