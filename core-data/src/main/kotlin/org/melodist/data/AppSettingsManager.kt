@@ -588,7 +588,7 @@ object AppSettingsManager {
                                 imgBytes += calculateDirSize(file)
                             }
 
-                            "matched_lyrics", "lyrics" -> {
+                            "matched_lyrics", "lyrics", "cached_lyrics", "lyric_offsets.json" -> {
                                 lyricsBytes += calculateDirSize(file)
                             }
 
@@ -638,9 +638,19 @@ object AppSettingsManager {
                 val imageCleared = imageCacheClearAction?.invoke() ?: true
 
                 val cacheDir = ctx.cacheDir
-                val preservedFolders = setOf("covers", "local_covers", "lyrics", "matched_lyrics")
+                val preservedFolders =
+                    setOf(
+                        "covers",
+                        "local_covers",
+                        "lyrics",
+                        "matched_lyrics",
+                        "cached_lyrics",
+                        "media_cache",
+                        "image_cache",
+                    )
+                val preservedFiles = setOf("lyric_offsets.json")
                 cacheDir.listFiles()?.forEach { file ->
-                    if (!preservedFolders.contains(file.name)) {
+                    if (!preservedFolders.contains(file.name) && !preservedFiles.contains(file.name)) {
                         deleteRecursively(file)
                     }
                 }
@@ -649,6 +659,9 @@ object AppSettingsManager {
                 File(cacheDir, "webdav").mkdirs()
                 File(cacheDir, "lyrics").mkdirs()
                 File(cacheDir, "matched_lyrics").mkdirs()
+                File(cacheDir, "cached_lyrics").mkdirs()
+                File(cacheDir, "image_cache").mkdirs()
+                File(cacheDir, "media_cache").mkdirs()
                 LocalMusicManager.onCacheCleared()
                 WebDavManager.onCacheCleared()
                 LocalMusicManager.healMissingCovers()
@@ -674,9 +687,19 @@ object AppSettingsManager {
                 val imageCleared = imageCacheClearAction?.invoke() ?: true
 
                 val cacheDir = ctx.cacheDir
-                val preservedFolders = setOf("covers", "local_covers", "lyrics", "matched_lyrics")
+                val preservedFolders =
+                    setOf(
+                        "covers",
+                        "local_covers",
+                        "lyrics",
+                        "matched_lyrics",
+                        "cached_lyrics",
+                        "media_cache",
+                        "image_cache",
+                    )
+                val preservedFiles = setOf("lyric_offsets.json")
                 cacheDir.listFiles()?.forEach { file ->
-                    if (!preservedFolders.contains(file.name)) {
+                    if (!preservedFolders.contains(file.name) && !preservedFiles.contains(file.name)) {
                         deleteRecursively(file)
                     }
                 }
@@ -685,6 +708,7 @@ object AppSettingsManager {
                 File(cacheDir, "webdav").mkdirs()
                 File(cacheDir, "lyrics").mkdirs()
                 File(cacheDir, "matched_lyrics").mkdirs()
+                File(cacheDir, "cached_lyrics").mkdirs()
                 File(cacheDir, "image_cache").mkdirs()
                 File(cacheDir, "media_cache").mkdirs()
                 cleanStaleInstallers()

@@ -1,5 +1,6 @@
 package org.melodist.playback
 
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -261,4 +262,15 @@ class MelodistCacheManagerTest {
         assertFalse(MelodistCacheManager.isKeyFullyCached(""))
         assertFalse(MelodistCacheManager.isKeyFullyCached("non_existent_key"))
     }
+
+    @Test
+    fun `clearAllCache resets cached song tiers`() =
+        runBlocking {
+            MelodistCacheManager.recordCachedSongTier("test_song_001", org.melodist.model.AudioQualityTier.SQ)
+            assertEquals(org.melodist.model.AudioQualityTier.SQ, MelodistCacheManager.getCachedSongTier("test_song_001"))
+
+            MelodistCacheManager.clearAllCache()
+
+            assertEquals(null, MelodistCacheManager.getCachedSongTier("test_song_001"))
+        }
 }

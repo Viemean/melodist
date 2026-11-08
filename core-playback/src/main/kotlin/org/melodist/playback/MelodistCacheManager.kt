@@ -796,7 +796,12 @@ object MelodistCacheManager : MediaCacheExporter {
      */
     suspend fun clearAllCache(): Boolean =
         withContext(Dispatchers.IO) {
-            val cache = simpleCache ?: return@withContext false
+            val cache =
+                simpleCache ?: run {
+                    cachedSongTiers.clear()
+                    saveStatsAsync()
+                    return@withContext false
+                }
             try {
                 val keys = cache.keys.toList()
                 for (key in keys) {
@@ -807,6 +812,8 @@ object MelodistCacheManager : MediaCacheExporter {
                         Log.w(TAG, "Failed to remove cache resource for key: $key", e)
                     }
                 }
+                cachedSongTiers.clear()
+                saveStatsAsync()
                 Log.i(TAG, "Cleared media cache, remaining space: ${formatBytes(cache.cacheSpace)}")
                 true
             } catch (e: Exception) {
