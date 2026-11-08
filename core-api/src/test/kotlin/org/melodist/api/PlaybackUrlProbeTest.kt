@@ -51,56 +51,12 @@ class PlaybackUrlProbeTest {
 
         val fallbackCandidates =
             when (preferredTier) {
-                AudioQualityTier.Master -> {
-                    listOf(
-                        AudioQualityTier.Dolby,
-                        AudioQualityTier.DtsX,
-                        AudioQualityTier.Atmos,
-                        AudioQualityTier.Premium,
-                        AudioQualityTier.HiRes,
-                        AudioQualityTier.SQ,
-                        AudioQualityTier.HQ,
-                        AudioQualityTier.Standard,
-                    )
-                }
-
-                AudioQualityTier.Dolby -> {
-                    listOf(
-                        AudioQualityTier.DtsX,
-                        AudioQualityTier.Atmos,
-                        AudioQualityTier.Premium,
-                        AudioQualityTier.HiRes,
-                        AudioQualityTier.SQ,
-                        AudioQualityTier.HQ,
-                        AudioQualityTier.Standard,
-                    )
-                }
-
-                AudioQualityTier.DtsX -> {
-                    listOf(
-                        AudioQualityTier.Dolby,
-                        AudioQualityTier.Atmos,
-                        AudioQualityTier.Premium,
-                        AudioQualityTier.HiRes,
-                        AudioQualityTier.SQ,
-                        AudioQualityTier.HQ,
-                        AudioQualityTier.Standard,
-                    )
-                }
-
-                AudioQualityTier.Atmos -> {
-                    listOf(
-                        AudioQualityTier.Dolby,
-                        AudioQualityTier.DtsX,
-                        AudioQualityTier.Premium,
-                        AudioQualityTier.HiRes,
-                        AudioQualityTier.SQ,
-                        AudioQualityTier.HQ,
-                        AudioQualityTier.Standard,
-                    )
-                }
-
-                AudioQualityTier.Premium -> {
+                AudioQualityTier.Master,
+                AudioQualityTier.Dolby,
+                AudioQualityTier.DtsX,
+                AudioQualityTier.Atmos,
+                AudioQualityTier.Premium,
+                -> {
                     listOf(
                         AudioQualityTier.HiRes,
                         AudioQualityTier.SQ,

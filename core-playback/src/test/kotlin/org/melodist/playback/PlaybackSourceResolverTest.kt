@@ -79,10 +79,10 @@ class PlaybackSourceResolverTest {
 
     @Test
     fun `getFallbackTier degrades quality step by step`() {
-        assertEquals(AudioQualityTier.Dolby, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Master))
-        assertEquals(AudioQualityTier.DtsX, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Dolby))
-        assertEquals(AudioQualityTier.Atmos, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.DtsX))
-        assertEquals(AudioQualityTier.Premium, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Atmos))
+        assertEquals(AudioQualityTier.HiRes, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Master))
+        assertEquals(AudioQualityTier.HiRes, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Dolby))
+        assertEquals(AudioQualityTier.HiRes, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.DtsX))
+        assertEquals(AudioQualityTier.HiRes, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Atmos))
         assertEquals(AudioQualityTier.HiRes, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.Premium))
         assertEquals(AudioQualityTier.SQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.HiRes))
         assertEquals(AudioQualityTier.HQ, PlaybackSourceResolver.getFallbackTier(AudioQualityTier.SQ))

@@ -149,14 +149,19 @@ object PlaybackSourceResolver {
 
     fun getFallbackTier(current: AudioQualityTier): AudioQualityTier? =
         when (current) {
-            AudioQualityTier.Master -> AudioQualityTier.Dolby
-            AudioQualityTier.Dolby -> AudioQualityTier.DtsX
-            AudioQualityTier.DtsX -> AudioQualityTier.Atmos
-            AudioQualityTier.Atmos -> AudioQualityTier.Premium
-            AudioQualityTier.Premium -> AudioQualityTier.HiRes
+            AudioQualityTier.Master,
+            AudioQualityTier.Dolby,
+            AudioQualityTier.DtsX,
+            AudioQualityTier.Atmos,
+            AudioQualityTier.Premium,
+            -> AudioQualityTier.HiRes
+
             AudioQualityTier.HiRes -> AudioQualityTier.SQ
+
             AudioQualityTier.SQ -> AudioQualityTier.HQ
+
             AudioQualityTier.HQ -> AudioQualityTier.Standard
+
             AudioQualityTier.Standard -> null
         }
 
