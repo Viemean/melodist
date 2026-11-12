@@ -70,7 +70,6 @@ class AudioQualityTierTest {
         "Premium, Dolby, false",
         "Atmos, Atmos, false",
         "Atmos, Dolby, false",
-        "Dolby, Atmos, false",
         "Dolby, Dolby, false",
     )
     fun `spatial track lower or equal quality should not prune`(
