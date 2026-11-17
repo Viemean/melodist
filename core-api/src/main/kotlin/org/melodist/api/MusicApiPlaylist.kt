@@ -12,6 +12,8 @@ import org.melodist.model.Song
  * 歌单生命周期与资产管理扩展
  */
 
+private val EXPIRED_AUTH_CODES = setOf(1000, 2000, 104400, 104401)
+
 suspend fun MusicApiService.getFavoriteSongsDetail(
     page: Int = 1,
     pageSize: Int = 50,
@@ -48,8 +50,8 @@ suspend fun MusicApiService.getFavoriteSongsDetail(
                     ?.jsonPrimitive
                     ?.intOrNull ?: 0
 
-            if (rootCode == 2000 || favCode == 2000) {
-                ApiLogger.i("MusicApiPlaylist", "getFavoriteSongsDetail: token expired (code 2000), refreshing...")
+            if (rootCode in EXPIRED_AUTH_CODES || favCode in EXPIRED_AUTH_CODES) {
+                ApiLogger.i("MusicApiPlaylist", "getFavoriteSongsDetail: token expired, refreshing...")
                 if (LoginApiService().forceRefreshMusicKey()) {
                     uin = UserSession.profile.uin.ifBlank { "0" }
                     authst = UserSession.profile.musicKey
@@ -128,8 +130,8 @@ suspend fun MusicApiService.getPlaylists(excludeMyFavorite: Boolean = true): Lis
                     ?.jsonPrimitive
                     ?.intOrNull ?: 0
 
-            if (rootCode == 2000 || selfCode == 2000 || favCode == 2000) {
-                ApiLogger.i("MusicApiPlaylist", "getPlaylists: token expired (code 2000), refreshing...")
+            if (rootCode in EXPIRED_AUTH_CODES || selfCode in EXPIRED_AUTH_CODES || favCode in EXPIRED_AUTH_CODES) {
+                ApiLogger.i("MusicApiPlaylist", "getPlaylists: token expired, refreshing...")
                 if (LoginApiService().forceRefreshMusicKey()) {
                     uin = UserSession.profile.uin.ifBlank { "0" }
                     respJson = postGateway(buildPlaylistsPayload(uin))

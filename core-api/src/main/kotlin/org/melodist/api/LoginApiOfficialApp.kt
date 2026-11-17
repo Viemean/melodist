@@ -209,7 +209,7 @@ internal suspend fun LoginApiService.refreshOfficialAppTokenImpl(
     withContext(Dispatchers.IO) {
         try {
             val numericUin = musicId.trimStart('o').toLongOrNull() ?: 0L
-            val actualLoginType = if (loginType in listOf(1, 2)) loginType else 2
+            val actualLoginType = if (loginType in listOf(1, 2, 6)) loginType else 2
             val paramObj =
                 buildJsonObject {
                     put("musicid", numericUin)

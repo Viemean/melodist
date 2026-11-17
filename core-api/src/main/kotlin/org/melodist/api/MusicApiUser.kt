@@ -52,28 +52,54 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             var respJson = postGateway(buildProfilePayload(uin, authst, loginType))
             var root = Json.parseToJsonElement(respJson).jsonObject
 
-            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
-            val profileCode =
+            var rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            var profileCode =
                 root["profile"]
                     ?.jsonObject
                     ?.get("code")
                     ?.jsonPrimitive
                     ?.intOrNull ?: 0
-            val vipCode =
+            var vipCode =
                 root["vip"]
                     ?.jsonObject
                     ?.get("code")
                     ?.jsonPrimitive
                     ?.intOrNull ?: 0
+            var vipData = root["vip"]?.jsonObject?.get("data")?.jsonObject
 
-            if (rootCode == 2000 || profileCode == 2000 || vipCode == 2000) {
-                ApiLogger.i("MusicApiUser", "Detected expired credentials (code 2000), attempting auto refresh...")
+            val expiredCodes = setOf(1000, 2000, 104400, 104401)
+            val isCodeExpired = rootCode in expiredCodes || profileCode in expiredCodes || vipCode in expiredCodes
+
+            val idObj = vipData?.get("identity")?.jsonObject
+            val isGuestVipResponse =
+                (idObj?.get("level")?.jsonPrimitive?.intOrNull ?: 0) == 0 &&
+                    (vipData?.get("userinfo")?.jsonObject?.get("music_level")?.jsonPrimitive?.intOrNull ?: 0) == 0 &&
+                    idObj?.get("overdate")?.jsonPrimitive?.contentOrNull.isNullOrBlank() &&
+                    idObj?.get("HugeVipEnd")?.jsonPrimitive?.contentOrNull.isNullOrBlank()
+            val isSilentDowngrade = UserSession.profile.isVip && isGuestVipResponse
+
+            if (isCodeExpired || isSilentDowngrade) {
+                ApiLogger.i("MusicApiUser", "Detected expired credentials (code=$vipCode, silentDowngrade=$isSilentDowngrade), attempting auto refresh...")
                 if (LoginApiService().forceRefreshMusicKey()) {
                     uin = UserSession.profile.uin
                     authst = UserSession.profile.musicKey
                     loginType = UserSession.loginType
                     respJson = postGateway(buildProfilePayload(uin, authst, loginType))
                     root = Json.parseToJsonElement(respJson).jsonObject
+                    rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+                    profileCode =
+                        root["profile"]
+                            ?.jsonObject
+                            ?.get("code")
+                            ?.jsonPrimitive
+                            ?.intOrNull ?: 0
+                    vipCode =
+                        root["vip"]
+                            ?.jsonObject
+                            ?.get("code")
+                            ?.jsonPrimitive
+                            ?.intOrNull ?: 0
+                    vipData = root["vip"]?.jsonObject?.get("data")?.jsonObject
                 }
             }
 
@@ -118,7 +144,6 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             }
 
             // VIP 与绿钻信息
-            val vipData = root["vip"]?.jsonObject?.get("data")?.jsonObject
             if (vipData != null) {
                 val svipRoot = vipData["svip"]?.jsonPrimitive?.intOrNull ?: 0
                 val identity = vipData["identity"]?.jsonObject
@@ -177,43 +202,56 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                     val isCpLover = cpLoverFlag > 0
                     val isGroupVip = groupVipFlag > 0
 
-                    newProfile.isVip = isGreen || isHuge || isSvip || isCpLover || isGroupVip
-                    newProfile.isHugeVip = isHuge
-                    newProfile.isSvip = isSvip
-                    newProfile.isYearVip = isYear
-                    newProfile.isCpLover = isCpLover
-                    newProfile.cpLoverExpireAt = cpLoverEnd
-                    newProfile.isGroupVip = isGroupVip
-                    newProfile.groupVipExpireAt = groupVipEnd
-                    newProfile.vipLevel = level
-                    newProfile.nextVipLevel = nextLevel
-                    newProfile.vipUpgradePercent = upgradePct
-                    newProfile.vipUpgradeDays = upgradeDays
-                    newProfile.hugeVipExpireAt = hugeExpire
-                    newProfile.svipExpireAt = svipEnd
-                    newProfile.greenVipExpireAt = greenEnd
-                    newProfile.vipExpireAt =
-                        when {
-                            isSvip && svipEnd.isNotBlank() -> svipEnd
-                            isHuge && hugeExpire.isNotBlank() -> hugeExpire
-                            isGreen && greenEnd.isNotBlank() -> greenEnd
-                            else -> cpLoverEnd.ifBlank { groupVipEnd.ifBlank { overdate } }
-                        }
-                    changed = true
+                    val resolvedIsVip = isGreen || isHuge || isSvip || isCpLover || isGroupVip
+                    val isGuestResult =
+                        !resolvedIsVip &&
+                            level == 0 &&
+                            overdate.isBlank() &&
+                            (vipData["userinfo"]?.jsonObject?.get("music_level")?.jsonPrimitive?.intOrNull ?: 0) == 0
+
+                    if (!isGuestResult || !UserSession.profile.isVip) {
+                        newProfile.isVip = resolvedIsVip
+                        newProfile.isHugeVip = isHuge
+                        newProfile.isSvip = isSvip
+                        newProfile.isYearVip = isYear
+                        newProfile.isCpLover = isCpLover
+                        newProfile.cpLoverExpireAt = cpLoverEnd
+                        newProfile.isGroupVip = isGroupVip
+                        newProfile.groupVipExpireAt = groupVipEnd
+                        newProfile.vipLevel = level
+                        newProfile.nextVipLevel = nextLevel
+                        newProfile.vipUpgradePercent = upgradePct
+                        newProfile.vipUpgradeDays = upgradeDays
+                        newProfile.hugeVipExpireAt = hugeExpire
+                        newProfile.svipExpireAt = svipEnd
+                        newProfile.greenVipExpireAt = greenEnd
+                        newProfile.vipExpireAt =
+                            when {
+                                isSvip && svipEnd.isNotBlank() -> svipEnd
+                                isHuge && hugeExpire.isNotBlank() -> hugeExpire
+                                isGreen && greenEnd.isNotBlank() -> greenEnd
+                                else -> cpLoverEnd.ifBlank { groupVipEnd.ifBlank { overdate } }
+                            }
+                        changed = true
+                    }
                 }
 
                 val userInfo = vipData["userinfo"]?.jsonObject
                 if (userInfo != null) {
-                    newProfile.musicLevel = userInfo["music_level"]?.jsonPrimitive?.intOrNull ?: 0
-                    newProfile.musicScore = userInfo["score"]?.jsonPrimitive?.intOrNull ?: 0
-                    changed = true
+                    val mLevel = userInfo["music_level"]?.jsonPrimitive?.intOrNull ?: 0
+                    val mScore = userInfo["score"]?.jsonPrimitive?.intOrNull ?: 0
+                    if (mLevel > 0 || mScore > 0 || !UserSession.profile.isVip) {
+                        newProfile.musicLevel = mLevel
+                        newProfile.musicScore = mScore
+                        changed = true
+                    }
                 }
             }
 
             if (changed) {
                 UserSession.profile = newProfile
             }
-            changed
+            true
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiUser", "refreshCurrentUserProfile failed", e)

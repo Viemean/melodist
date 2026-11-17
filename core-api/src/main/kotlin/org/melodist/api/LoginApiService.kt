@@ -123,7 +123,7 @@ class LoginApiService(
 
                 val refreshKey = cookies["refresh_key"].orEmpty()
                 val rawLoginType =
-                    cookies["tmeLoginType"]?.toIntOrNull()?.takeIf { it in listOf(1, 2) }
+                    cookies["tmeLoginType"]?.toIntOrNull()?.takeIf { it in listOf(1, 2, 6) }
                         ?: if (isWeChat) 1 else 2
                 val refreshToken =
                     cookies["refresh_token"]

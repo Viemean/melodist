@@ -1,7 +1,9 @@
 package org.melodist.api
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import org.melodist.model.AudioQualityTier
@@ -266,6 +268,12 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                     ApiLogger.i("MusicApiPlayback", "probeSongQualities: VIP track detected without valid URL, attempting token renewal...")
                     val renewed = LoginApiService().forceRefreshMusicKey()
                     if (renewed) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                refreshCurrentUserProfile()
+                            } catch (_: Exception) {
+                            }
+                        }
                         return@withContext probeSongQualitiesInternal(songMid, mediaMid, canRetryWithRenew = false)
                     }
                 }
@@ -481,6 +489,12 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                 ApiLogger.i("MusicApiPlayback", "getPlayUrl: VIP tracks available but no valid VIP URL obtained, attempting token renewal...")
                 val refreshed = LoginApiService().forceRefreshMusicKey()
                 if (refreshed) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            refreshCurrentUserProfile()
+                        } catch (_: Exception) {
+                        }
+                    }
                     return@withContext getPlayUrlInternal(songMid, mediaMid, preferredTier, canRetryWithRenew = false)
                 }
             }
