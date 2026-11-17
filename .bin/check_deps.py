@@ -6,6 +6,9 @@ Melodist 项目依赖更新检查与同步工具。
 """
 
 import argparse
+import json
+import re
+import subprocess
 import urllib.request
 import xml.etree.ElementTree as ET
 from packaging.version import parse as parse_version
@@ -13,6 +16,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TOML_PATH = PROJECT_ROOT / "gradle" / "libs.versions.toml"
+WRAPPER_PROPS_PATH = PROJECT_ROOT / "gradle" / "wrapper" / "gradle-wrapper.properties"
 
 DEPENDENCY_MAP = {
     "agp": [
@@ -240,20 +244,95 @@ def fetch_versions(url):
         return []
 
 
+def check_gradle_wrapper():
+    current_version = None
+    if WRAPPER_PROPS_PATH.exists():
+        with open(WRAPPER_PROPS_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("distributionUrl"):
+                    m = re.search(r"gradle-([0-9.]+)-bin\.zip", line)
+                    if m:
+                        current_version = m.group(1)
+                    break
+    if not current_version:
+        return None
+
+    try:
+        req = urllib.request.Request(
+            "https://services.gradle.org/versions/all",
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            releases = [
+                v
+                for v in data
+                if not v.get("snapshot") and not v.get("nightly") and not v.get("broken")
+            ]
+            stables = [
+                v["version"]
+                for v in releases
+                if not v.get("rcFor") and "milestone" not in v["version"]
+            ]
+            all_vers = [v["version"] for v in releases]
+
+            parsed_stables = []
+            for v in stables:
+                try:
+                    parsed_stables.append((parse_version(v), v))
+                except Exception:
+                    pass
+            parsed_stables.sort(key=lambda x: x[0])
+            latest_stable = parsed_stables[-1][1] if parsed_stables else current_version
+
+            parsed_all = []
+            for v in all_vers:
+                try:
+                    parsed_all.append((parse_version(v), v))
+                except Exception:
+                    pass
+            parsed_all.sort(key=lambda x: x[0])
+            latest_all = parsed_all[-1][1] if parsed_all else current_version
+
+            curr_pv = parse_version(current_version)
+            latest_pv = parse_version(latest_all)
+
+            if current_version == latest_all:
+                status = "Latest"
+            elif current_version == latest_stable:
+                status = "Latest Stable"
+            elif latest_pv > curr_pv:
+                status = f"Update Available -> {latest_all}"
+            else:
+                status = "Up-to-date"
+
+            return current_version, latest_stable, latest_all, status
+    except Exception:
+        return current_version, "Query Failed", "Query Failed", "Query Failed"
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Check and update Gradle version catalog dependencies."
+        description="Check and update Gradle version catalog dependencies and wrapper."
     )
     parser.add_argument(
         "--update",
         action="store_true",
-        help="Automatically write latest versions into libs.versions.toml",
+        help="Automatically write latest versions into libs.versions.toml and update wrapper",
     )
     args = parser.parse_args()
 
     current_versions = parse_toml_versions()
     results = []
     updates = {}
+
+    wrapper_info = check_gradle_wrapper()
+    wrapper_update = None
+    if wrapper_info:
+        w_curr, w_stable, w_latest, w_status = wrapper_info
+        if "Update Available" in w_status:
+            wrapper_update = w_latest
+        results.append(("gradle-wrapper", w_curr, w_stable, w_latest, w_status))
 
     for key, curr in current_versions.items():
         if key not in DEPENDENCY_MAP:
@@ -328,6 +407,17 @@ def main():
         with open(TOML_PATH, "w", encoding="utf-8") as f:
             f.writelines(new_lines)
         print("Updated gradle/libs.versions.toml successfully.")
+
+    if args.update and wrapper_update:
+        print(f"\nUpdating Gradle Wrapper to {wrapper_update}...")
+        gradlew = PROJECT_ROOT / "gradlew"
+        if gradlew.exists():
+            subprocess.run(
+                [str(gradlew), "wrapper", "--gradle-version", wrapper_update],
+                cwd=PROJECT_ROOT,
+                check=True,
+            )
+            print(f"Updated Gradle Wrapper to {wrapper_update} successfully.")
 
 
 if __name__ == "__main__":
