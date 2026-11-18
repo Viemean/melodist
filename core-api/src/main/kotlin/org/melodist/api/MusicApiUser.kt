@@ -73,9 +73,24 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
             val idObj = vipData?.get("identity")?.jsonObject
             val isGuestVipResponse =
                 (idObj?.get("level")?.jsonPrimitive?.intOrNull ?: 0) == 0 &&
-                    (vipData?.get("userinfo")?.jsonObject?.get("music_level")?.jsonPrimitive?.intOrNull ?: 0) == 0 &&
-                    idObj?.get("overdate")?.jsonPrimitive?.contentOrNull.isNullOrBlank() &&
-                    idObj?.get("HugeVipEnd")?.jsonPrimitive?.contentOrNull.isNullOrBlank()
+                    (
+                        vipData
+                            ?.get("userinfo")
+                            ?.jsonObject
+                            ?.get("music_level")
+                            ?.jsonPrimitive
+                            ?.intOrNull ?: 0
+                    ) == 0 &&
+                    idObj
+                        ?.get("overdate")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .isNullOrBlank() &&
+                    idObj
+                        ?.get("HugeVipEnd")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .isNullOrBlank()
             val isSilentDowngrade = UserSession.profile.isVip && isGuestVipResponse
 
             if (isCodeExpired || isSilentDowngrade) {
@@ -207,7 +222,13 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                         !resolvedIsVip &&
                             level == 0 &&
                             overdate.isBlank() &&
-                            (vipData["userinfo"]?.jsonObject?.get("music_level")?.jsonPrimitive?.intOrNull ?: 0) == 0
+                            (
+                                vipData["userinfo"]
+                                    ?.jsonObject
+                                    ?.get("music_level")
+                                    ?.jsonPrimitive
+                                    ?.intOrNull ?: 0
+                            ) == 0
 
                     if (!isGuestResult || !UserSession.profile.isVip) {
                         newProfile.isVip = resolvedIsVip

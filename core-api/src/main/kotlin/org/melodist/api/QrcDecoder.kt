@@ -1,3 +1,5 @@
+@file:Suppress("ktlint")
+
 package org.melodist.api
 
 import java.io.ByteArrayOutputStream

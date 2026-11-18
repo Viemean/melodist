@@ -12,3 +12,10 @@ ktlint_standard_function-naming = disabled
 ktlint_standard_filename = disabled
 ktlint_standard_package-name = disabled
 ktlint_standard_no-wildcard-imports = disabled
+
+# 密码学与底层信号处理算法文件豁免格式化
+[**/QrcDecoder.kt]
+ktlint_standard = disabled
+
+[**/acr/**]
+ktlint_standard = disabled
