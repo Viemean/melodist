@@ -446,13 +446,17 @@ private suspend fun MusicApiService.deletePlaylistInternal(
                 """.trimIndent()
             } else {
                 val dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId
+                val uin = UserSession.profile.uin.ifBlank { "0" }
                 """
                 {
                   "comm": $comm,
                   "deleteFavPlayList": {
                     "module": "music.musicasset.PlaylistFavWrite",
                     "method": "CancelFavPlaylist",
-                    "param": { "dirId": $dissId }
+                    "param": {
+                      "uin": "$uin",
+                      "v_playlistId": [$dissId]
+                    }
                   }
                 }
                 """.trimIndent()
@@ -465,13 +469,20 @@ private suspend fun MusicApiService.deletePlaylistInternal(
             val key = if (playlist.isCreated) "deletePlayList" else "deleteFavPlayList"
             val obj = root[key]?.jsonObject
             val code = obj?.get("code")?.jsonPrimitive?.intOrNull ?: rootCode
-            if (code == 0) {
+            val dataObj = obj?.get("data")?.jsonObject
+            val result = dataObj?.get("result")?.jsonPrimitive?.intOrNull ?: 0
+            val dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId
+            val failedList =
+                dataObj?.get("v_failedPlaylistId")?.jsonArray?.mapNotNull { it.jsonPrimitive.longOrNull } ?: emptyList()
+
+            if (code == 0 && result == 0 && (playlist.isCreated || dissId !in failedList)) {
                 true
-            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
-                ApiLogger.i("MusicApiPlaylist", "deletePlaylist returned auth error $code, refreshing music key")
+            } else if ((code == 1000 || code == 10000 || code == 80105 || result == 1000 || result == 10000 || result == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "deletePlaylist returned auth error code=$code, result=$result, refreshing music key")
                 ensureMusicKeySafe(forceRefresh = true)
                 deletePlaylistInternal(playlist, canRetryWithRenew = false)
             } else {
+                ApiLogger.w("MusicApiPlaylist", "deletePlaylist failed: code=$code, result=$result, failedList=$failedList, resp=$respJson")
                 false
             }
         } catch (e: Exception) {
@@ -674,6 +685,7 @@ private suspend fun MusicApiService.collectPlaylistInternal(
         if (!UserSession.isLoggedIn || dissId <= 0L) return@withContext false
         ensureMusicKeySafe()
         val comm = MusicApiService.buildAppCommJson()
+        val uin = UserSession.profile.uin.ifBlank { "0" }
         val payload =
             """
             {
@@ -681,7 +693,10 @@ private suspend fun MusicApiService.collectPlaylistInternal(
               "addFavPlayList": {
                 "module": "music.musicasset.PlaylistFavWrite",
                 "method": "FavPlaylist",
-                "param": { "dirId": $dissId }
+                "param": {
+                  "uin": "$uin",
+                  "v_playlistId": [$dissId]
+                }
               }
             }
             """.trimIndent()
@@ -692,13 +707,19 @@ private suspend fun MusicApiService.collectPlaylistInternal(
             val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
             val obj = root["addFavPlayList"]?.jsonObject
             val code = obj?.get("code")?.jsonPrimitive?.intOrNull ?: rootCode
-            if (code == 0) {
+            val dataObj = obj?.get("data")?.jsonObject
+            val result = dataObj?.get("result")?.jsonPrimitive?.intOrNull ?: 0
+            val failedList =
+                dataObj?.get("v_failedPlaylistId")?.jsonArray?.mapNotNull { it.jsonPrimitive.longOrNull } ?: emptyList()
+
+            if (code == 0 && result == 0 && dissId !in failedList) {
                 true
-            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
-                ApiLogger.i("MusicApiPlaylist", "collectPlaylist returned auth error $code, refreshing music key")
+            } else if ((code == 1000 || code == 10000 || code == 80105 || result == 1000 || result == 10000 || result == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiPlaylist", "collectPlaylist returned auth error code=$code, result=$result, refreshing music key")
                 ensureMusicKeySafe(forceRefresh = true)
                 collectPlaylistInternal(dissId, canRetryWithRenew = false)
             } else {
+                ApiLogger.w("MusicApiPlaylist", "collectPlaylist failed: dissId=$dissId, code=$code, result=$result, failedList=$failedList, resp=$respJson")
                 false
             }
         } catch (e: Exception) {

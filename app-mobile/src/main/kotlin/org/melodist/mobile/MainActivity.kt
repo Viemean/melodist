@@ -3,12 +3,15 @@ package org.melodist.mobile
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -99,6 +102,13 @@ class MainActivity : ComponentActivity() {
         org.melodist.data.AppSettingsManager
             .init(this)
         UserLibraryCacheManager.init(this)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                UserLibraryCacheManager.eventFlow.collect { message ->
+                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
         PlaybackManager.init(this)
         FavoriteArtistsManager.init(this)
         WebDavManager.init(this)

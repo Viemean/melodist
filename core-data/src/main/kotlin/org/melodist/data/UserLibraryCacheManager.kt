@@ -8,8 +8,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -18,6 +21,8 @@ import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.addAlbumToFavorite
+import org.melodist.api.collectPlaylist
+import org.melodist.api.deletePlaylist
 import org.melodist.api.getFavoriteAlbums
 import org.melodist.api.getFavoriteSongsDetail
 import org.melodist.api.getPlaylistSongs
@@ -72,6 +77,9 @@ object UserLibraryCacheManager {
 
     private val _isFavSongsLoading = MutableStateFlow(false)
     val isFavSongsLoading: StateFlow<Boolean> = _isFavSongsLoading.asStateFlow()
+
+    private val _eventFlow = MutableSharedFlow<String>(extraBufferCapacity = 64)
+    val eventFlow: SharedFlow<String> = _eventFlow.asSharedFlow()
 
     private var cacheFile: File? = null
     private var favSongsCacheFile: File? = null
@@ -579,19 +587,128 @@ object UserLibraryCacheManager {
         _libraryFlow.value = updatedData
         saveToDisk(updatedData)
 
+        val opUin = UserSession.profile.uin
         scope.launch {
-            if (!UserSession.isLoggedIn) return@launch
+            if (!UserSession.isLoggedIn || UserSession.profile.uin != opUin) return@launch
             try {
-                if (isFavorited) {
-                    MusicApiService().addAlbumToFavorite(album.mid)
-                } else {
-                    MusicApiService().removeAlbumFromFavorite(album.mid)
+                val success =
+                    if (isFavorited) {
+                        MusicApiService().addAlbumToFavorite(album.mid)
+                    } else {
+                        MusicApiService().removeAlbumFromFavorite(album.mid)
+                    }
+                if (!UserSession.isLoggedIn || UserSession.profile.uin != opUin) return@launch
+                if (!success) {
+                    Log.w("UserLibraryData", "Album favorite toggle failed on server, rolling back local cache")
+                    val rollbackData = _libraryFlow.value
+                    val rollbackAlbums = rollbackData.favoriteAlbums.toMutableList()
+                    if (isFavorited) {
+                        rollbackAlbums.removeAll { it.mid == album.mid }
+                    } else {
+                        if (rollbackAlbums.none { it.mid == album.mid }) {
+                            rollbackAlbums.add(0, album)
+                        }
+                    }
+                    val reverted = rollbackData.copy(favoriteAlbums = rollbackAlbums)
+                    _libraryFlow.value = reverted
+                    saveToDisk(reverted)
+                    _eventFlow.tryEmit(if (isFavorited) "专辑收藏失败，已恢复" else "取消收藏专辑失败，已恢复")
+                    return@launch
                 }
                 delay(1500)
-                loadLibrary(MusicApiService(), forceRefresh = true)
+                if (UserSession.profile.uin == opUin) {
+                    loadLibrary(MusicApiService(), forceRefresh = true)
+                }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
+                if (UserSession.profile.uin != opUin) return@launch
                 Log.w("UserLibraryData", "Operation failed", e)
+                _eventFlow.tryEmit(if (isFavorited) "专辑收藏失败，已恢复" else "取消收藏专辑失败，已恢复")
+            }
+        }
+    }
+
+    /**
+     * 响应歌单收藏状态反转事件，同步更新本地收藏歌单列表与云端资产。
+     *
+     * @param playlist 歌单对象
+     * @param isFavorited 变更后的收藏状态
+     */
+    fun onPlaylistFavoriteToggled(
+        playlist: Playlist,
+        isFavorited: Boolean,
+    ) {
+        val currentData = _libraryFlow.value
+        val currentPlaylists = currentData.playlists.toMutableList()
+        val dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId
+        if (isFavorited) {
+            val exists =
+                currentPlaylists.any {
+                    (playlist.tid > 0L && it.tid == playlist.tid) ||
+                        (playlist.dirId > 0L && it.dirId == playlist.dirId) ||
+                        (dissId > 0L && (it.tid == dissId || it.dirId == dissId))
+                }
+            if (!exists) {
+                currentPlaylists.add(0, playlist.copy(isFav = true))
+            }
+        } else {
+            currentPlaylists.removeAll {
+                (playlist.tid > 0L && it.tid == playlist.tid) ||
+                    (playlist.dirId > 0L && it.dirId == playlist.dirId) ||
+                    (dissId > 0L && (it.tid == dissId || it.dirId == dissId))
+            }
+        }
+        val updatedData = currentData.copy(playlists = currentPlaylists)
+        _libraryFlow.value = updatedData
+        saveToDisk(updatedData)
+
+        val opUin = UserSession.profile.uin
+        scope.launch {
+            if (!UserSession.isLoggedIn || UserSession.profile.uin != opUin) return@launch
+            try {
+                val success =
+                    if (isFavorited) {
+                        MusicApiService().collectPlaylist(playlist)
+                    } else {
+                        MusicApiService().deletePlaylist(playlist)
+                    }
+                if (!UserSession.isLoggedIn || UserSession.profile.uin != opUin) return@launch
+                if (!success) {
+                    Log.w("UserLibraryData", "Favorite toggle failed on server, rolling back local cache")
+                    val rollbackData = _libraryFlow.value
+                    val rollbackPlaylists = rollbackData.playlists.toMutableList()
+                    if (isFavorited) {
+                        rollbackPlaylists.removeAll {
+                            (playlist.tid > 0L && it.tid == playlist.tid) ||
+                                (playlist.dirId > 0L && it.dirId == playlist.dirId) ||
+                                (dissId > 0L && (it.tid == dissId || it.dirId == dissId))
+                        }
+                    } else {
+                        val exists =
+                            rollbackPlaylists.any {
+                                (playlist.tid > 0L && it.tid == playlist.tid) ||
+                                    (playlist.dirId > 0L && it.dirId == playlist.dirId) ||
+                                    (dissId > 0L && (it.tid == dissId || it.dirId == dissId))
+                            }
+                        if (!exists) {
+                            rollbackPlaylists.add(0, playlist.copy(isFav = true))
+                        }
+                    }
+                    val reverted = rollbackData.copy(playlists = rollbackPlaylists)
+                    _libraryFlow.value = reverted
+                    saveToDisk(reverted)
+                    _eventFlow.tryEmit(if (isFavorited) "歌单收藏失败，已恢复" else "取消收藏歌单失败，已恢复")
+                    return@launch
+                }
+                delay(1500)
+                if (UserSession.profile.uin == opUin) {
+                    loadLibrary(MusicApiService(), forceRefresh = true)
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                if (UserSession.profile.uin != opUin) return@launch
+                Log.w("UserLibraryData", "Operation failed", e)
+                _eventFlow.tryEmit(if (isFavorited) "歌单收藏失败，已恢复" else "取消收藏歌单失败，已恢复")
             }
         }
     }

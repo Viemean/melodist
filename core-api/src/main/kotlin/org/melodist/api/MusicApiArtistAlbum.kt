@@ -380,14 +380,21 @@ suspend fun MusicApiService.getSingerSongList(
  * @param albumMid 专辑 MID 字符串
  * @return 操作成功返回 `true`；未登录、参数为空或网关调用失败返回 `false`
  */
-suspend fun MusicApiService.addAlbumToFavorite(albumMid: String): Boolean =
+suspend fun MusicApiService.addAlbumToFavorite(albumMid: String): Boolean = addAlbumToFavoriteInternal(albumMid, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.addAlbumToFavoriteInternal(
+    albumMid: String,
+    canRetryWithRenew: Boolean,
+): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || albumMid.isBlank()) return@withContext false
+        ensureMusicKeySafe()
+        val comm = MusicApiService.buildAppCommJson()
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val payload =
             """
             {
-              "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "" },
+              "comm": $comm,
               "fav_album": {
                 "module": "music.musicasset.AlbumFavWrite",
                 "method": "FavAlbum",
@@ -397,13 +404,20 @@ suspend fun MusicApiService.addAlbumToFavorite(albumMid: String): Boolean =
             """.trimIndent()
 
         try {
-            val respJson = postGateway(payload)
+            val respJson = postAppGateway(payload, customCookieHeader = "")
             val root = Json.parseToJsonElement(respJson).jsonObject
-            root["fav_album"]
-                ?.jsonObject
-                ?.get("code")
-                ?.jsonPrimitive
-                ?.intOrNull == 0
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val obj = root["fav_album"]?.jsonObject
+            val code = obj?.get("code")?.jsonPrimitive?.intOrNull ?: rootCode
+            if (code == 0) {
+                true
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiArtistAlbum", "addAlbumToFavorite returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                addAlbumToFavoriteInternal(albumMid, canRetryWithRenew = false)
+            } else {
+                false
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiArtistAlbum", "addAlbumToFavorite failed: albumMid=$albumMid", e)
@@ -417,14 +431,21 @@ suspend fun MusicApiService.addAlbumToFavorite(albumMid: String): Boolean =
  * @param albumMid 专辑 MID 字符串
  * @return 操作成功返回 `true`；未登录、参数为空或网关调用失败返回 `false`
  */
-suspend fun MusicApiService.removeAlbumFromFavorite(albumMid: String): Boolean =
+suspend fun MusicApiService.removeAlbumFromFavorite(albumMid: String): Boolean = removeAlbumFromFavoriteInternal(albumMid, canRetryWithRenew = true)
+
+private suspend fun MusicApiService.removeAlbumFromFavoriteInternal(
+    albumMid: String,
+    canRetryWithRenew: Boolean,
+): Boolean =
     withContext(Dispatchers.IO) {
         if (!UserSession.isLoggedIn || albumMid.isBlank()) return@withContext false
+        ensureMusicKeySafe()
+        val comm = MusicApiService.buildAppCommJson()
         val uin = UserSession.profile.uin.ifBlank { "0" }
         val payload =
             """
             {
-              "comm": { "uin": "$uin", "format": "json", "ct": 19, "cv": 1, "authst": "" },
+              "comm": $comm,
               "cancel_album": {
                 "module": "music.musicasset.AlbumFavWrite",
                 "method": "CancelFavAlbum",
@@ -434,13 +455,20 @@ suspend fun MusicApiService.removeAlbumFromFavorite(albumMid: String): Boolean =
             """.trimIndent()
 
         try {
-            val respJson = postGateway(payload)
+            val respJson = postAppGateway(payload, customCookieHeader = "")
             val root = Json.parseToJsonElement(respJson).jsonObject
-            root["cancel_album"]
-                ?.jsonObject
-                ?.get("code")
-                ?.jsonPrimitive
-                ?.intOrNull == 0
+            val rootCode = root["code"]?.jsonPrimitive?.intOrNull ?: 0
+            val obj = root["cancel_album"]?.jsonObject
+            val code = obj?.get("code")?.jsonPrimitive?.intOrNull ?: rootCode
+            if (code == 0) {
+                true
+            } else if ((code == 1000 || code == 10000 || code == 80105) && canRetryWithRenew) {
+                ApiLogger.i("MusicApiArtistAlbum", "removeAlbumFromFavorite returned auth error $code, refreshing music key")
+                ensureMusicKeySafe(forceRefresh = true)
+                removeAlbumFromFavoriteInternal(albumMid, canRetryWithRenew = false)
+            } else {
+                false
+            }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             ApiLogger.w("MusicApiArtistAlbum", "removeAlbumFromFavorite failed: albumMid=$albumMid", e)

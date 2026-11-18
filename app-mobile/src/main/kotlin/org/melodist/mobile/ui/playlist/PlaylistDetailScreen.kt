@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
@@ -67,6 +68,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
+import org.melodist.api.UserSession
 import org.melodist.api.deleteSongsFromPlaylist
 import org.melodist.api.getPlaylistSongs
 import org.melodist.data.MillionRecommendManager
@@ -95,6 +97,21 @@ fun PlaylistDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val apiService = remember { MusicApiService() }
+
+    val libraryData by UserLibraryCacheManager.libraryFlow.collectAsState()
+    val isFavorite =
+        remember(libraryData.playlists, playlist.dirId, playlist.tid) {
+            val dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId
+            libraryData.playlists.any {
+                (playlist.tid > 0L && it.tid == playlist.tid) ||
+                    (playlist.dirId > 0L && it.dirId == playlist.dirId) ||
+                    (dissId > 0L && (it.tid == dissId || it.dirId == dissId))
+            }
+        }
+    val canFavorite =
+        remember(playlist.isMyFavorite, playlist.isMillionRecommend, playlist.isCreated) {
+            !playlist.isMyFavorite && !playlist.isMillionRecommend && !playlist.isCreated
+        }
 
     var songs by remember {
         mutableStateOf<List<Song>>(
@@ -408,6 +425,32 @@ fun PlaylistDetailScreen(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = "返回",
                             )
+                        }
+                    },
+                    actions = {
+                        if (canFavorite) {
+                            IconButton(
+                                onClick = {
+                                    if (!UserSession.isLoggedIn) {
+                                        Toast.makeText(context, "请先登录", Toast.LENGTH_SHORT).show()
+                                        return@IconButton
+                                    }
+                                    val newFav = !isFavorite
+                                    UserLibraryCacheManager.onPlaylistFavoriteToggled(playlist, newFav)
+                                    Toast
+                                        .makeText(
+                                            context,
+                                            if (newFav) "已收藏歌单" else "已取消收藏歌单",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = if (isFavorite) "取消收藏" else "收藏歌单",
+                                    tint = if (isFavorite) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
                     },
                 )
