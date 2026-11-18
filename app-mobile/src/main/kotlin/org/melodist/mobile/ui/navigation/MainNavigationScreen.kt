@@ -7,8 +7,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -74,6 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -376,19 +381,30 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
 
     val pageBackAnimatable = remember { Animatable(0f) }
     var isPageBackActive by remember { mutableStateOf(false) }
+    var isPredictiveBackCommit by remember { mutableStateOf(false) }
     var backSwipeEdge by remember { mutableIntStateOf(BackEventCompat.EDGE_LEFT) }
-    var settingsBackProgress by remember { mutableFloatStateOf(0f) }
+    val settingsBackAnimatable = remember { Animatable(0f) }
+    var isSettingsPredictiveBackCommit by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showSettingsScreen) {
+        if (!showSettingsScreen && isSettingsPredictiveBackCommit) {
+            isSettingsPredictiveBackCommit = false
+            settingsBackAnimatable.snapTo(0f)
+        }
+    }
 
     PredictiveBackHandler(enabled = showSettingsScreen) { progressFlow ->
         try {
             progressFlow.collect { backEvent ->
-                settingsBackProgress = backEvent.progress
+                val dragRatio = FastOutSlowInEasing.transform(backEvent.progress) * 0.38f
+                settingsBackAnimatable.snapTo(dragRatio)
             }
+            isSettingsPredictiveBackCommit = true
+            settingsBackAnimatable.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
             showSettingsScreen = false
         } catch (_: CancellationException) {
-            settingsBackProgress = 0f
-        } finally {
-            settingsBackProgress = 0f
+            isSettingsPredictiveBackCommit = false
+            settingsBackAnimatable.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
         }
     }
 
@@ -404,11 +420,15 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
         try {
             isPageBackActive = true
             progressFlow.collect { backEvent ->
-                pageBackAnimatable.snapTo(backEvent.progress)
+                val dragRatio = FastOutSlowInEasing.transform(backEvent.progress) * 0.60f
+                pageBackAnimatable.snapTo(dragRatio)
                 backSwipeEdge = backEvent.swipeEdge
             }
+            isPredictiveBackCommit = true
+            pageBackAnimatable.animateTo(1f, tween(200, easing = FastOutSlowInEasing))
             navController.navigateBack()
         } catch (_: CancellationException) {
+            isPredictiveBackCommit = false
             pageBackAnimatable.animateTo(0f, tween(180, easing = FastOutSlowInEasing))
         } finally {
             pageBackAnimatable.snapTo(0f)
@@ -458,6 +478,12 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
             }
         }
 
+    LaunchedEffect(activeScreen) {
+        if (isPredictiveBackCommit) {
+            isPredictiveBackCommit = false
+        }
+    }
+
     CompositionLocalProvider(LocalAppNavigation provides navController) {
         Box(modifier = modifier.fillMaxSize()) {
             PlayerContainer(
@@ -468,18 +494,14 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     // 预测返回手势底层预览
                     if (isPageBackActive && previousScreen != null) {
+                        val progress = pageBackAnimatable.value
                         Box(
                             modifier =
                                 Modifier
                                     .fillMaxSize()
                                     .graphicsLayer {
-                                        val progress = pageBackAnimatable.value
-                                        val scale = 0.92f + (progress * 0.08f)
-                                        scaleX = scale
-                                        scaleY = scale
-                                        alpha = 0.6f + (progress * 0.4f)
-                                        val sign = if (backSwipeEdge == BackEventCompat.EDGE_RIGHT) 1f else -1f
-                                        translationX = sign * size.width * (1f - progress) * 0.08f
+                                        translationX = -size.width * 0.28f * (1f - progress)
+                                        alpha = 1f
                                     },
                         ) {
                             RenderAppScreen(
@@ -547,10 +569,18 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                                 chipScrollState = chipScrollState,
                                 coroutineScope = coroutineScope,
                             )
+                            if (progress < 1f) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.22f * (1f - progress))),
+                                )
+                            }
                         }
                     }
 
-                    // 顶层页面跟随手势缩放与位移
+                    // 顶层页面跟随手势向右视差滑开
                     Box(
                         modifier =
                             Modifier
@@ -558,46 +588,48 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                                 .graphicsLayer {
                                     val progress = pageBackAnimatable.value
                                     if (isPageBackActive && progress > 0f) {
-                                        val scale = 1f - (progress * 0.08f)
-                                        scaleX = scale
-                                        scaleY = scale
-                                        val sign = if (backSwipeEdge == BackEventCompat.EDGE_RIGHT) -1f else 1f
-                                        translationX = sign * size.width * (progress * 0.35f)
-                                        shape = RoundedCornerShape((progress * 24).dp)
+                                        translationX = size.width * progress
+                                        val cornerFactor = (progress / 0.60f).coerceIn(0f, 1f)
+                                        shape = RoundedCornerShape((cornerFactor * 24).dp)
                                         clip = true
+                                        shadowElevation = (cornerFactor * 16).dp.toPx()
                                     }
-                                },
+                                }.background(MaterialTheme.colorScheme.background),
                     ) {
                         AnimatedContent(
                             targetState = activeScreen,
                             transitionSpec = {
-                                val isForward = targetState.depth >= initialState.depth
-                                if (isForward) {
-                                    (
-                                        slideInHorizontally(
-                                            initialOffsetX = { fullWidth -> fullWidth },
-                                            animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                        ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                                    ) togetherWith
-                                        (
-                                            slideOutHorizontally(
-                                                targetOffsetX = { fullWidth -> -fullWidth / 3 },
-                                                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                            ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
-                                        )
+                                if (isPredictiveBackCommit) {
+                                    EnterTransition.None togetherWith ExitTransition.None
                                 } else {
-                                    (
-                                        slideInHorizontally(
-                                            initialOffsetX = { fullWidth -> -fullWidth / 3 },
-                                            animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                        ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing))
-                                    ) togetherWith
+                                    val isForward = targetState.depth >= initialState.depth
+                                    if (isForward) {
                                         (
-                                            slideOutHorizontally(
-                                                targetOffsetX = { fullWidth -> fullWidth },
+                                            slideInHorizontally(
+                                                initialOffsetX = { fullWidth -> fullWidth },
                                                 animationSpec = tween(300, easing = FastOutSlowInEasing),
-                                            ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
-                                        )
+                                            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                                        ) togetherWith
+                                            (
+                                                slideOutHorizontally(
+                                                    targetOffsetX = { fullWidth -> -fullWidth / 3 },
+                                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                                ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                                            )
+                                    } else {
+                                        (
+                                            slideInHorizontally(
+                                                initialOffsetX = { fullWidth -> -fullWidth / 3 },
+                                                animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                            ) + fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                                        ) togetherWith
+                                            (
+                                                slideOutHorizontally(
+                                                    targetOffsetX = { fullWidth -> fullWidth },
+                                                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                                                ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                                            )
+                                    }
                                 }
                             },
                             label = "main_screen_transition",
@@ -706,20 +738,27 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
 
             AnimatedVisibility(
                 visible = showSettingsScreen,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                enter =
+                    slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                    ),
+                exit =
+                    if (isSettingsPredictiveBackCommit) {
+                        ExitTransition.None
+                    } else {
+                        slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(250, easing = FastOutSlowInEasing),
+                        )
+                    },
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            if (settingsBackProgress > 0f) {
-                                val scale = 1f - (settingsBackProgress * 0.08f)
-                                scaleX = scale
-                                scaleY = scale
-                                translationY = size.height * (settingsBackProgress * 0.15f)
-                                shape = RoundedCornerShape((settingsBackProgress * 28).dp)
-                                clip = true
-                                alpha = 1f - (settingsBackProgress * 0.2f)
+                            val progress = settingsBackAnimatable.value
+                            if (progress > 0f) {
+                                translationY = size.height * progress
                             }
                         },
             ) {
