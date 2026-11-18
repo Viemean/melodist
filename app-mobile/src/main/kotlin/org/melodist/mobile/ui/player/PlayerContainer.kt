@@ -139,10 +139,11 @@ fun PlayerContainer(
         PredictiveBackHandler(enabled = isBackEnabled) { progressFlow ->
             try {
                 progressFlow.collect { backEvent ->
+                    val easedProgress = FastOutSlowInEasing.transform(backEvent.progress)
                     val targetOffset =
                         when (activeDirection) {
-                            SheetExpandDirection.BottomToTop -> screenHeightPx * backEvent.progress * 0.25f
-                            SheetExpandDirection.TopToBottom -> -screenHeightPx + (screenHeightPx * (1f - backEvent.progress) * 0.25f)
+                            SheetExpandDirection.BottomToTop -> screenHeightPx * easedProgress * 0.38f
+                            SheetExpandDirection.TopToBottom -> -screenHeightPx + (screenHeightPx * (1f - easedProgress) * 0.38f)
                         }
                     sheetOffsetY.snapTo(targetOffset)
                 }
