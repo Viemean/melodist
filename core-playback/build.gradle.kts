@@ -6,9 +6,13 @@ plugins {
 android {
     namespace = "org.melodist.core.playback"
     compileSdk = 37
+    ndkVersion = libs.versions.ndk.get()
 
     defaultConfig {
         minSdk = 26
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
         externalNativeBuild {
             cmake {
                 arguments("-DANDROID_STL=none")
