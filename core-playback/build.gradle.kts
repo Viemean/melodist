@@ -9,6 +9,17 @@ android {
 
     defaultConfig {
         minSdk = 26
+        externalNativeBuild {
+            cmake {
+                arguments("-DANDROID_STL=none")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path("src/main/cpp/CMakeLists.txt")
+        }
     }
 
     compileOptions {
