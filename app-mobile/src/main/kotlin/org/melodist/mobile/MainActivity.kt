@@ -101,6 +101,10 @@ class MainActivity : ComponentActivity() {
         }
         org.melodist.data.AppSettingsManager
             .init(this)
+        org.melodist.mobile.usb.UsbAttachComponentManager.setEnabled(
+            this,
+            org.melodist.data.AppSettingsManager.settings.value.enableUsbBitPerfect,
+        )
         UserLibraryCacheManager.init(this)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -158,16 +162,70 @@ class MainActivity : ComponentActivity() {
         }
 
         handleIncomingIntent(intent)
+        checkAndRequestUsbAudioPermission()
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIncomingIntent(intent)
+        checkAndRequestUsbAudioPermission()
+    }
+
+    private var isUsbPermissionRequestInProgress = false
+    private var lastDeclinedDeviceId: Int? = null
+
+    internal fun checkAndRequestUsbAudioPermission(forcePrompt: Boolean = false) {
+        if (!org.melodist.data.AppSettingsManager.settings.value.enableUsbBitPerfect) return
+        val usbAudio =
+            org.melodist.playback.usb.UsbAudioDevice
+                .getInstance(this)
+        val dac =
+            usbAudio.findUsbAudioDevice() ?: run {
+                lastDeclinedDeviceId = null
+                return
+            }
+        if (!usbAudio.hasPermission(dac)) {
+            if (!forcePrompt && (isUsbPermissionRequestInProgress || dac.deviceId == lastDeclinedDeviceId)) {
+                return
+            }
+            isUsbPermissionRequestInProgress = true
+            usbAudio.requestPermission(dac) { granted ->
+                isUsbPermissionRequestInProgress = false
+                if (granted) {
+                    lastDeclinedDeviceId = null
+                    usbAudio.openDevice(dac)
+                    org.melodist.playback.PlaybackManager.updateUsbBitPerfectStatus(
+                        isConnected = true,
+                        deviceName = dac.productName ?: "USB 音频设备",
+                    )
+                    org.melodist.playback.PlaybackManager
+                        .reloadAudioPipeline()
+                } else {
+                    lastDeclinedDeviceId = dac.deviceId
+                    usbAudio.closeDevice()
+                    org.melodist.playback.PlaybackManager
+                        .onUsbDeviceDisconnected()
+                    org.melodist.playback.PlaybackManager
+                        .reloadAudioPipeline()
+                }
+            }
+        } else {
+            lastDeclinedDeviceId = null
+            usbAudio.openDevice(dac)
+            org.melodist.playback.PlaybackManager.updateUsbBitPerfectStatus(
+                isConnected = true,
+                deviceName = dac.productName ?: "USB 音频设备",
+            )
+            org.melodist.playback.PlaybackManager
+                .reloadAudioPipeline()
+        }
     }
 
     private fun handleIncomingIntent(intent: android.content.Intent?) {
         if (intent == null) return
+        org.melodist.playback.usb.UsbAudioPermissionHelper
+            .handleIntent(this, intent)
         if (handleExternalAudioIntent(intent)) return
         handleListenTogetherIntent(intent)
     }

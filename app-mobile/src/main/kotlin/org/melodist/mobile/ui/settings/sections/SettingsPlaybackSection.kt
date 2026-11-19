@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Palette
@@ -61,19 +62,41 @@ fun SettingsPlaybackSection(
     settings: AppSettings,
     modifier: Modifier = Modifier,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var showQualityDialog by remember { mutableStateOf(false) }
     var showCellularQualityDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
 
-    val activeUsbDevice by PlaybackManager.activeUsbDeviceName.collectAsState()
+    val usbBitPerfectStatus by PlaybackManager.usbBitPerfectStatus.collectAsState()
     val isFloatOutputSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
-    val usbSubtitle =
+    val floatSubtitle =
         if (!isFloatOutputSupported) {
             "当前系统版本低于 Android 10，不受支持"
-        } else if (settings.enableUsbExclusive && !activeUsbDevice.isNullOrBlank()) {
-            "已连接: $activeUsbDevice"
         } else {
             "以 32-bit 浮点处理输出，实际听感可能不会提升"
+        }
+
+    val usbSubtitle =
+        when {
+            !settings.enableUsbBitPerfect || !usbBitPerfectStatus.isConnected -> {
+                "可能无法兼容全部设备"
+            }
+
+            usbBitPerfectStatus.isStreaming && usbBitPerfectStatus.sampleRate > 0 -> {
+                val rateFormatted =
+                    if (usbBitPerfectStatus.sampleRate >= 1000) {
+                        val khz = usbBitPerfectStatus.sampleRate / 1000.0
+                        if (khz % 1.0 == 0.0) "${khz.toInt()}kHz" else "${khz}kHz"
+                    } else {
+                        "${usbBitPerfectStatus.sampleRate}Hz"
+                    }
+                val bitDepthStr = if (usbBitPerfectStatus.bitDepth > 0) "${usbBitPerfectStatus.bitDepth}bit / " else ""
+                "已连接: ${usbBitPerfectStatus.deviceName ?: "USB 音频设备"} ($bitDepthStr$rateFormatted)"
+            }
+
+            else -> {
+                "已连接: ${usbBitPerfectStatus.deviceName ?: "USB 音频设备"}"
+            }
         }
 
     Column(modifier = modifier) {
@@ -94,15 +117,40 @@ fun SettingsPlaybackSection(
             )
 
             SettingsSwitchRow(
-                icon = Icons.Rounded.Usb,
+                icon = Icons.Rounded.GraphicEq,
                 title = "32Bit浮点通道输出",
-                subtitle = usbSubtitle,
+                subtitle = floatSubtitle,
                 checked = isFloatOutputSupported && settings.enableUsbExclusive,
                 enabled = isFloatOutputSupported,
                 onCheckedChange = { AppSettingsManager.setEnableUsbExclusive(it) },
             )
 
-            val context = androidx.compose.ui.platform.LocalContext.current
+            SettingsSwitchRow(
+                icon = Icons.Rounded.Usb,
+                title = "USB独占输出",
+                subtitle = usbSubtitle,
+                checked = settings.enableUsbBitPerfect,
+                onCheckedChange = {
+                    AppSettingsManager.setEnableUsbBitPerfect(it)
+                    org.melodist.mobile.usb.UsbAttachComponentManager
+                        .setEnabled(context, it)
+                    if (it && context is org.melodist.mobile.MainActivity) {
+                        context.checkAndRequestUsbAudioPermission(forcePrompt = true)
+                    }
+                },
+            )
+
+            SettingsSwitchRow(
+                icon = Icons.Rounded.GraphicEq,
+                title = "USB DAC音量控制",
+                subtitle = "开启后可使用手机音量键调节输出到 DAC 的音量",
+                checked = settings.enableUsbVolumeControl,
+                enabled = settings.enableUsbBitPerfect,
+                onCheckedChange = {
+                    AppSettingsManager.setEnableUsbVolumeControl(it)
+                },
+            )
+
             var isBatteryWhitelisted by remember {
                 val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
                 mutableStateOf(pm?.isIgnoringBatteryOptimizations(context.packageName) == true)
