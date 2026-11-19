@@ -86,6 +86,7 @@ android {
         }
         jniLibs {
             useLegacyPackaging = false
+            excludes += "**/libmelodist_usb_audio.so"
         }
         resources {
             excludes +=
