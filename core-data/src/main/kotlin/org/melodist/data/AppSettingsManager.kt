@@ -137,6 +137,8 @@ data class AppSettings(
     val cellularQualityTier: AudioQualityTier = AudioQualityTier.HQ,
     val enableAudioPassthrough: Boolean = false,
     val enableUsbExclusive: Boolean = false,
+    val enableUsbBitPerfect: Boolean = false,
+    val enableUsbVolumeControl: Boolean = true,
     val enableAutoMatchLyrics: Boolean = true,
     val ignoreEmbeddedLyrics: Boolean = false,
     // 播放与歌词
@@ -190,6 +192,8 @@ object AppSettingsManager {
     private const val KEY_CELLULAR_TIER = "cellular_quality_tier"
     private const val KEY_AUDIO_PASSTHROUGH = "audio_passthrough"
     private const val KEY_USB_EXCLUSIVE = "usb_exclusive"
+    private const val KEY_USB_BIT_PERFECT = "usb_bit_perfect"
+    private const val KEY_USB_VOLUME_CONTROL = "usb_volume_control"
     private const val KEY_ATMOS_PASSTHROUGH = "atmos_passthrough"
     private const val KEY_AUTO_MATCH_LYRICS = "auto_match_lyrics"
     private const val KEY_IGNORE_EMBEDDED_LYRICS = "ignore_embedded_lyrics"
@@ -224,6 +228,8 @@ object AppSettingsManager {
 
     var onAudioPassthroughChangedListener: ((Boolean) -> Unit)? = null
     var onUsbExclusiveChangedListener: ((Boolean) -> Unit)? = null
+    var onUsbBitPerfectChangedListener: ((Boolean) -> Unit)? = null
+    var onUsbVolumeControlChangedListener: ((Boolean) -> Unit)? = null
 
     fun init(context: Context) {
         if (prefs == null) {
@@ -256,6 +262,13 @@ object AppSettingsManager {
             } else {
                 false
             }
+        val usbBitPerfect =
+            if (p.contains(KEY_USB_BIT_PERFECT)) {
+                p.getBoolean(KEY_USB_BIT_PERFECT, false)
+            } else {
+                false
+            }
+        val usbVolumeControl = p.getBoolean(KEY_USB_VOLUME_CONTROL, true)
         val autoLyrics = p.getBoolean(KEY_AUTO_MATCH_LYRICS, true)
         val ignoreEmbedded = p.getBoolean(KEY_IGNORE_EMBEDDED_LYRICS, false)
         val bilingual = p.getBoolean(KEY_BILINGUAL_TRANS, true)
@@ -311,6 +324,8 @@ object AppSettingsManager {
                 cellularQualityTier = cellTier,
                 enableAudioPassthrough = passthrough,
                 enableUsbExclusive = usbExclusive,
+                enableUsbBitPerfect = usbBitPerfect,
+                enableUsbVolumeControl = usbVolumeControl,
                 enableAutoMatchLyrics = autoLyrics,
                 ignoreEmbeddedLyrics = ignoreEmbedded,
                 showBilingualLyrics = bilingual,
@@ -409,6 +424,22 @@ object AppSettingsManager {
     }
 
     fun updateUsbExclusive(enable: Boolean) = setEnableUsbExclusive(enable)
+
+    fun setEnableUsbBitPerfect(enable: Boolean) {
+        _settings.value = _settings.value.copy(enableUsbBitPerfect = enable)
+        prefs?.edit()?.putBoolean(KEY_USB_BIT_PERFECT, enable)?.apply()
+        onUsbBitPerfectChangedListener?.invoke(enable)
+    }
+
+    fun updateUsbBitPerfect(enable: Boolean) = setEnableUsbBitPerfect(enable)
+
+    fun setEnableUsbVolumeControl(enable: Boolean) {
+        _settings.value = _settings.value.copy(enableUsbVolumeControl = enable)
+        prefs?.edit()?.putBoolean(KEY_USB_VOLUME_CONTROL, enable)?.apply()
+        onUsbVolumeControlChangedListener?.invoke(enable)
+    }
+
+    fun updateUsbVolumeControl(enable: Boolean) = setEnableUsbVolumeControl(enable)
 
     fun setEnableAutoMatchLyrics(enable: Boolean) {
         _settings.value = _settings.value.copy(enableAutoMatchLyrics = enable)

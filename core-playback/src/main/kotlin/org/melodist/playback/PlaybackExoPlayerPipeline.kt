@@ -76,10 +76,44 @@ class PlaybackExoPlayerPipeline(
         Log.i("MelodistPlayback", "Player pipeline reset with updated audio configuration (restoreMediaItem=$restoreMediaItem)")
     }
 
-    fun reloadAudioPipeline() {
+    fun resetPlayerPipelineWithDeviceCleanup(usbAudioDevice: org.melodist.playback.usb.UsbAudioDevice) {
+        val context = getContext() ?: return
+        val p = exoPlayer
+        val pos = p?.currentPosition ?: 0L
+        val wasPlaying = p?.playWhenReady == true
+        val item = p?.currentMediaItem
+
+        p?.release()
+        exoPlayer = null
+
+        try {
+            usbAudioDevice.closeDevice()
+        } catch (e: Exception) {
+            Log.w("MelodistPlayback", "Failed to close USB device during pipeline reset", e)
+        }
+
+        exoPlayer =
+            buildExoPlayer(context).apply {
+                if (item != null) {
+                    setMediaItem(item, pos)
+                    prepare()
+                    if (wasPlaying) {
+                        play()
+                    }
+                }
+            }
+        onPlayerCreated(exoPlayer!!)
+        updateUsbExclusiveRouting()
+        Log.i("MelodistPlayback", "Player pipeline reset with device cleanup complete (wasPlaying=$wasPlaying)")
+    }
+
+    fun reloadAudioPipeline(forcePause: Boolean = false) {
         val p = exoPlayer ?: return
         val pos = p.currentPosition
-        val wasPlaying = p.isPlaying
+        val wasPlaying = !forcePause && p.playWhenReady
+        if (!wasPlaying) {
+            p.pause()
+        }
         val item = p.currentMediaItem ?: return
         p.setMediaItem(item, pos)
         p.prepare()
@@ -97,7 +131,7 @@ class PlaybackExoPlayerPipeline(
         usbRouter.updateUsbExclusiveRouting(
             context = getContext(),
             player = exoPlayer,
-            isUsbExclusive = AppSettingsManager.settings.value.enableUsbExclusive,
+            isUsbExclusive = AppSettingsManager.settings.value.enableUsbBitPerfect,
             targetRate = targetRate,
             channelCount = channelCount,
             pcmEncoding = pcmEncoding,

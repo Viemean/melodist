@@ -1,10 +1,7 @@
 package org.melodist.playback
 
-import android.content.Context
-import android.media.AudioManager
 import androidx.media3.common.C
 import androidx.media3.common.Tracks
-import org.melodist.data.AppSettingsManager
 import org.melodist.model.AudioQualityTier
 import org.melodist.model.QualityOption
 import org.melodist.model.Song
@@ -23,15 +20,11 @@ data class ResolvedAudioTrack(
 )
 
 /**
- * 音轨参数解析与 USB Bit-Perfect 混音器配置协调器。
+ * 音轨参数解析协调器。
  */
-class PlaybackAudioTrackResolver(
-    private val usbRouter: UsbAudioRouter,
-    private val getContext: () -> Context?,
-    private val onReloadAudioPipelineRequest: () -> Unit,
-) {
+class PlaybackAudioTrackResolver {
     /**
-     * 解析 ExoPlayer 当前选中的音频流轨道并更新物理硬件混音状态。
+     * 解析 ExoPlayer 当前选中的音频流轨道并推导物理规格。
      *
      * @param tracks 当前媒体流轨道信息
      * @param currentSong 当前播放曲目
@@ -78,25 +71,8 @@ class PlaybackAudioTrackResolver(
 
                 if (sRate <= 0) continue
 
-                val isUsbExclusive = AppSettingsManager.settings.value.enableUsbExclusive
-                if (isUsbExclusive) {
-                    val context = getContext()
-                    val audioManager = context?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-                    val usbDevice = usbRouter.findUsbAudioDevice(audioManager)
-                    if (audioManager != null && usbDevice != null) {
-                        val needReload =
-                            usbRouter.configureBitPerfectMixer(
-                                audioManager = audioManager,
-                                usbDevice = usbDevice,
-                                targetRate = sRate,
-                                channelCount = channels,
-                                pcmEncoding = format.pcmEncoding,
-                            )
-                        if (needReload) {
-                            onReloadAudioPipelineRequest()
-                        }
-                    }
-                }
+                // In USB Bit-Perfect mode, UsbAudioSink handles hardware sample rate configuration directly via UAC2.
+                // Avoid calling configureBitPerfectMixer to prevent conflicts with native usbdevfs access.
 
                 val detectedTier =
                     AudioQualityTier.inferFromAudioFormat(

@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class UsbAudioRouter(
-    private val onDeviceStateChanged: (needReload: Boolean) -> Unit,
+    private val onDeviceStateChanged: (isAdded: Boolean) -> Unit,
 ) {
     private val _activeUsbDeviceName = MutableStateFlow<String?>(null)
     val activeUsbDeviceName: StateFlow<String?> = _activeUsbDeviceName.asStateFlow()
@@ -36,7 +36,7 @@ class UsbAudioRouter(
             override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) {
                 val hasUsb = removedDevices?.any { isUsbAudioDevice(it) } == true
                 if (hasUsb) {
-                    onDeviceStateChanged(true)
+                    onDeviceStateChanged(false)
                 }
             }
         }
@@ -217,29 +217,34 @@ class UsbAudioRouter(
             "updateUsbExclusiveRouting: isUsbExclusive=$isUsbExclusive, usbAudioDevice=${usbAudioDevice?.productName}",
         )
 
-        if (isUsbExclusive && usbAudioDevice != null) {
+        if (usbAudioDevice != null) {
             val devName = usbAudioDevice.productName?.toString()?.ifBlank { null } ?: "USB 音频设备"
-            _activeUsbDeviceName.value = "$devName (32-bit Float)"
-            player?.setPreferredAudioDevice(usbAudioDevice)
-            configureBitPerfectMixer(audioManager, usbAudioDevice, targetRate, channelCount, pcmEncoding)
+            val hasDirectPermission =
+                context.let {
+                    val dev =
+                        org.melodist.playback.usb.UsbAudioDevice
+                            .getInstance(it)
+                    val d = dev.findUsbAudioDevice()
+                    d != null && dev.hasPermission(d)
+                }
+            if (hasDirectPermission) {
+                PlaybackManager.updateUsbBitPerfectStatus(
+                    isConnected = true,
+                    deviceName = devName,
+                )
+            }
+            if (isUsbExclusive && hasDirectPermission) {
+                _activeUsbDeviceName.value = "$devName (Bit-Perfect)"
+            } else {
+                _activeUsbDeviceName.value = null
+            }
+            player?.setPreferredAudioDevice(null)
         } else {
+            PlaybackManager.onUsbDeviceDisconnected()
             _activeUsbDeviceName.value = null
             player?.setPreferredAudioDevice(null)
             configuredMixerSampleRate = 0
             configuredMixerEncoding = 0
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && usbAudioDevice != null) {
-                try {
-                    val mediaAttributes =
-                        android.media.AudioAttributes
-                            .Builder()
-                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                            .build()
-                    audioManager.clearPreferredMixerAttributes(mediaAttributes, usbAudioDevice)
-                } catch (e: Exception) {
-                    Log.w("MelodistPlayback", "Failed to clear preferred mixer attributes", e)
-                }
-            }
         }
     }
 }

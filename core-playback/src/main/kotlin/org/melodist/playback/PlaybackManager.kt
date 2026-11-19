@@ -486,22 +486,61 @@ object PlaybackManager {
 
     private val usbRouter =
         UsbAudioRouter(
-            onDeviceStateChanged = { needReload ->
-                val isUsbExclusive = org.melodist.data.AppSettingsManager.settings.value.enableUsbExclusive
-                updateUsbExclusiveRouting()
-                if (needReload && isUsbExclusive && exoPlayer?.isPlaying == true) {
-                    reloadAudioPipeline()
+            onDeviceStateChanged = { isAdded ->
+                val isUsbBitPerfect = org.melodist.data.AppSettingsManager.settings.value.enableUsbBitPerfect
+                if (isAdded) {
+                    updateUsbExclusiveRouting()
+                    if (isUsbBitPerfect && exoPlayer?.isPlaying == true) {
+                        reloadAudioPipeline()
+                    }
+                } else {
+                    pause()
+                    onUsbDeviceDisconnected()
+                    updateUsbExclusiveRouting()
+                    reloadAudioPipeline(forcePause = true)
                 }
             },
         )
     val activeUsbDeviceName: StateFlow<String?> = usbRouter.activeUsbDeviceName
 
-    private val audioTrackResolver by lazy {
-        PlaybackAudioTrackResolver(
-            usbRouter = usbRouter,
-            getContext = { appContext },
-            onReloadAudioPipelineRequest = { reloadAudioPipeline() },
+    private val _usbBitPerfectStatus =
+        MutableStateFlow(
+            org.melodist.playback.usb
+                .UsbBitPerfectStatus(),
         )
+    val usbBitPerfectStatus: StateFlow<org.melodist.playback.usb.UsbBitPerfectStatus> = _usbBitPerfectStatus.asStateFlow()
+
+    fun updateUsbBitPerfectStatus(
+        isConnected: Boolean,
+        deviceName: String? = null,
+        sampleRate: Int = 0,
+        bitDepth: Int = 0,
+        isStreaming: Boolean = false,
+    ) {
+        val current = _usbBitPerfectStatus.value
+        _usbBitPerfectStatus.value =
+            org.melodist.playback.usb.UsbBitPerfectStatus(
+                isConnected = isConnected,
+                deviceName = deviceName ?: current.deviceName,
+                sampleRate = if (sampleRate > 0) sampleRate else current.sampleRate,
+                bitDepth = if (bitDepth > 0) bitDepth else current.bitDepth,
+                isStreaming = isStreaming,
+            )
+    }
+
+    fun onUsbDeviceDisconnected() {
+        _usbBitPerfectStatus.value =
+            org.melodist.playback.usb.UsbBitPerfectStatus(
+                isConnected = false,
+                deviceName = null,
+                sampleRate = 0,
+                bitDepth = 0,
+                isStreaming = false,
+            )
+    }
+
+    private val audioTrackResolver by lazy {
+        PlaybackAudioTrackResolver()
     }
 
     private val probeHealer by lazy {
@@ -864,8 +903,35 @@ object PlaybackManager {
             }
         }
         usbRouter.register(context)
-        org.melodist.data.AppSettingsManager.onUsbExclusiveChangedListener = {
-            resetPlayerPipeline()
+        org.melodist.data.AppSettingsManager.onUsbExclusiveChangedListener = { enabled ->
+            val usbAudio =
+                org.melodist.playback.usb.UsbAudioDevice
+                    .getInstance(context)
+            if (!enabled) {
+                if (usbAudio.isOpened) {
+                    resetPlayerPipelineWithDeviceCleanup(usbAudio)
+                    updateUsbBitPerfectStatus(isConnected = false, isStreaming = false)
+                } else {
+                    resetPlayerPipeline()
+                }
+            } else if (usbAudio.findUsbAudioDevice() != null) {
+                resetPlayerPipeline()
+            }
+        }
+        org.melodist.data.AppSettingsManager.onUsbBitPerfectChangedListener = { enabled ->
+            val usbAudio =
+                org.melodist.playback.usb.UsbAudioDevice
+                    .getInstance(context)
+            if (!enabled) {
+                if (usbAudio.isOpened) {
+                    resetPlayerPipelineWithDeviceCleanup(usbAudio)
+                    updateUsbBitPerfectStatus(isConnected = false, isStreaming = false)
+                } else {
+                    resetPlayerPipeline()
+                }
+            } else if (usbAudio.findUsbAudioDevice() != null) {
+                resetPlayerPipeline()
+            }
         }
         if (exoPlayer == null) {
             playerPipeline.buildExoPlayer(context)
@@ -879,7 +945,10 @@ object PlaybackManager {
 
     fun resetPlayerPipeline(restoreMediaItem: Boolean = true) = playerPipeline.resetPlayerPipeline(restoreMediaItem)
 
-    fun reloadAudioPipeline() = playerPipeline.reloadAudioPipeline()
+    fun resetPlayerPipelineWithDeviceCleanup(usbAudioDevice: org.melodist.playback.usb.UsbAudioDevice) =
+        playerPipeline.resetPlayerPipelineWithDeviceCleanup(usbAudioDevice)
+
+    fun reloadAudioPipeline(forcePause: Boolean = false) = playerPipeline.reloadAudioPipeline(forcePause)
 
     fun updateUsbExclusiveRouting(
         targetRate: Int = 0,

@@ -32,6 +32,63 @@ class PlaybackService : MediaSessionService() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var wakeLock: android.os.PowerManager.WakeLock? = null
 
+    private val usbReceiver =
+        object : android.content.BroadcastReceiver() {
+            override fun onReceive(
+                context: android.content.Context,
+                intent: android.content.Intent,
+            ) {
+                when (intent.action) {
+                    android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                        val device =
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                intent.getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE, android.hardware.usb.UsbDevice::class.java)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                intent.getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE)
+                            }
+                        if (device != null) {
+                            PlaybackManager.pause()
+                            val usbAudio =
+                                org.melodist.playback.usb.UsbAudioDevice
+                                    .getInstance(context)
+                            usbAudio.onDeviceDetached(device)
+                            PlaybackManager.onUsbDeviceDisconnected()
+                            PlaybackManager.reloadAudioPipeline(forcePause = true)
+                        }
+                    }
+
+                    android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
+                        val usbAudio =
+                            org.melodist.playback.usb.UsbAudioDevice
+                                .getInstance(context)
+                        val dac = usbAudio.findUsbAudioDevice()
+                        if (dac != null) {
+                            if (usbAudio.hasPermission(dac)) {
+                                usbAudio.openDevice(dac)
+                                PlaybackManager.updateUsbBitPerfectStatus(
+                                    isConnected = true,
+                                    deviceName = dac.productName ?: "USB 音频设备",
+                                )
+                                PlaybackManager.reloadAudioPipeline()
+                            }
+                        }
+                    }
+
+                    android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY -> {
+                        PlaybackManager.pause()
+                    }
+
+                    android.content.Intent.ACTION_HEADSET_PLUG -> {
+                        val state = intent.getIntExtra("state", -1)
+                        if (state == 0) {
+                            PlaybackManager.pause()
+                        }
+                    }
+                }
+            }
+        }
+
     companion object {
         const val ACTION_TOGGLE_FAVORITE = "org.melodist.playback.ACTION_TOGGLE_FAVORITE"
         const val EXTRA_START_FOREGROUND = "org.melodist.playback.EXTRA_START_FOREGROUND"
@@ -173,6 +230,19 @@ class PlaybackService : MediaSessionService() {
                 }
             }
         }
+
+        val usbFilter =
+            android.content.IntentFilter().apply {
+                addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED)
+                addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED)
+                addAction(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+                addAction(android.content.Intent.ACTION_HEADSET_PLUG)
+            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(usbReceiver, usbFilter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(usbReceiver, usbFilter)
+        }
     }
 
     override fun onStartCommand(
@@ -263,6 +333,10 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(usbReceiver)
+        } catch (_: Exception) {
+        }
         PlaybackManager.legacyMetadataSyncCallback = null
         PlaybackManager.flushActivePlaybackSession()
         updateWakeLock(false)

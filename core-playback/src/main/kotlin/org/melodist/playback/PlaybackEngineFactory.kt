@@ -28,8 +28,9 @@ object PlaybackEngineFactory {
                 enableAudioTrackPlaybackParams: Boolean,
             ): AudioSink? {
                 val settings = AppSettingsManager.settings.value
-                val isExclusive = settings.enableUsbExclusive
-                val isPassthrough = settings.enableAudioPassthrough || isExclusive
+                val isFloatOutput = settings.enableUsbExclusive
+                val isBitPerfect = settings.enableUsbBitPerfect
+                val isPassthrough = settings.enableAudioPassthrough || isBitPerfect
 
                 @Suppress("DEPRECATION")
                 val audioCapabilities =
@@ -40,7 +41,7 @@ object PlaybackEngineFactory {
                     }
 
                 val supportsFloatOutput = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q
-                val shouldEnableFloat = (isExclusive || enableFloatOutput) && supportsFloatOutput
+                val shouldEnableFloat = (isFloatOutput || enableFloatOutput) && supportsFloatOutput
 
                 @Suppress("DEPRECATION")
                 val builder =
@@ -49,8 +50,18 @@ object PlaybackEngineFactory {
                         .setAudioCapabilities(audioCapabilities)
                         .setAudioProcessors(emptyArray())
                         .setEnableFloatOutput(shouldEnableFloat)
-                        .setEnableAudioTrackPlaybackParams(if (isExclusive) false else enableAudioTrackPlaybackParams)
-                return builder.build()
+                        .setEnableAudioTrackPlaybackParams(if (isBitPerfect) false else enableAudioTrackPlaybackParams)
+                val defaultSink = builder.build()
+                return if (isBitPerfect) {
+                    org.melodist.playback.usb.UsbAudioSink(
+                        defaultSink,
+                        context,
+                        org.melodist.playback.usb
+                            .UsbAudioSinkConfig(bitPerfectEnabled = true),
+                    )
+                } else {
+                    defaultSink
+                }
             }
         }.apply {
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
