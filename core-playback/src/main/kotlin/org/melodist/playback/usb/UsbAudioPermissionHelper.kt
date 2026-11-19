@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
+import android.os.Build
 import android.util.Log
 
 /**
@@ -37,7 +38,13 @@ object UsbAudioPermissionHelper {
     ): UsbDevice? {
         if (intent.action != UsbManager.ACTION_USB_DEVICE_ATTACHED) return null
 
-        val device = intent.getParcelableExtra<UsbDevice>(UsbManager.EXTRA_DEVICE) ?: return null
+        val device =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+            } ?: return null
         Log.i(TAG, "USB_DEVICE_ATTACHED: ${device.productName}")
 
         val usbAudioDevice = UsbAudioDevice.getInstance(context)

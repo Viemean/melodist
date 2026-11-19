@@ -109,12 +109,11 @@ class PlaybackService : MediaSessionService() {
                         .build()
                 val isFav = isCurrentSongFavorite()
 
-                @Suppress("DEPRECATION")
                 val result =
                     MediaSession.ConnectionResult
-                        .AcceptedResultBuilder(session)
+                        .AcceptedResultBuilder(session, controller)
                         .setAvailableSessionCommands(sessionCommands)
-                        .setCustomLayout(listOf(createFavoriteButton(isFav)))
+                        .setMediaButtonPreferences(listOf(createFavoriteButton(isFav)))
                         .build()
                 return result
             }
@@ -162,14 +161,12 @@ class PlaybackService : MediaSessionService() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
 
-        val isFav = isCurrentSongFavorite()
         val session =
             MediaSession
                 .Builder(this, forwarding)
                 .setId("MelodistPlaybackSession")
                 .setSessionActivity(sessionActivity)
                 .setCallback(sessionCallback)
-                .setCustomLayout(listOf(createFavoriteButton(isFav)))
                 .build()
         mediaSession = session
         addSession(session)
@@ -178,7 +175,7 @@ class PlaybackService : MediaSessionService() {
             combine(PlaybackManager.currentSong, PlaybackManager.favoriteSongMids) { song, favs ->
                 song != null && favs.contains(song.songMid)
             }.distinctUntilChanged().collect { isFavState ->
-                mediaSession?.setCustomLayout(listOf(createFavoriteButton(isFavState)))
+                mediaSession?.setMediaButtonPreferences(listOf(createFavoriteButton(isFavState)))
             }
         }
 
