@@ -271,7 +271,8 @@ private suspend fun MusicApiService.probeSongQualitiesInternal(
                         CoroutineScope(Dispatchers.IO).launch {
                             try {
                                 refreshCurrentUserProfile()
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                ApiLogger.w("MusicApiPlayback", "Background profile refresh failed during quality probe", e)
                             }
                         }
                         return@withContext probeSongQualitiesInternal(songMid, mediaMid, canRetryWithRenew = false)
@@ -492,7 +493,8 @@ private suspend fun MusicApiService.getPlayUrlInternal(
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
                             refreshCurrentUserProfile()
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            ApiLogger.w("MusicApiPlayback", "Background profile refresh failed during play URL retrieval", e)
                         }
                     }
                     return@withContext getPlayUrlInternal(songMid, mediaMid, preferredTier, canRetryWithRenew = false)
