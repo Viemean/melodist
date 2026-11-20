@@ -60,8 +60,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import org.melodist.api.CommentCountCache
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
+import org.melodist.api.getCommentCount
 import org.melodist.data.ArtistAlbumCacheManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
@@ -70,11 +72,13 @@ import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.MediaDescriptionCard
 import org.melodist.mobile.ui.components.MediaInfoBottomSheet
 import org.melodist.mobile.ui.components.RotatingCardCoordinator
+import org.melodist.mobile.ui.components.SongCommentsBottomSheet
 import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
 import org.melodist.model.AlbumDetail
 import org.melodist.model.Artist
+import org.melodist.model.CommentTarget
 import org.melodist.model.PlaybackSourceContext
 import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
@@ -90,12 +94,14 @@ fun AlbumDetailScreen(
 ) {
     val navController = LocalAppNavigation.current
     val scope = rememberCoroutineScope()
+    val apiService = remember { MusicApiService() }
 
     val cachedDetail = remember(albumMid) { ArtistAlbumCacheManager.getCachedAlbumDetail(albumMid) }
     var albumDetail by remember(albumMid) { mutableStateOf(cachedDetail) }
     var isLoading by remember(albumMid) { mutableStateOf(cachedDetail == null) }
     var isRefreshing by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
+    var showCommentSheet by remember { mutableStateOf(false) }
     var showArtistSelectDialog by remember { mutableStateOf(false) }
 
     val listState = remember(albumMid) { RotatingCardCoordinator.getOrCreateLazyListState("album_$albumMid") }
@@ -104,6 +110,31 @@ fun AlbumDetailScreen(
     val artistName = albumDetail?.artist.orEmpty()
     val songs = albumDetail?.songs.orEmpty()
     val currentAlbumId = albumDetail?.id ?: songs.firstOrNull()?.albumId ?: 0L
+    val albumCommentTarget =
+        remember(currentAlbumId, displayName, artistName) {
+            if (currentAlbumId > 0L) {
+                CommentTarget.Album(
+                    albumId = currentAlbumId,
+                    albumName = displayName,
+                    artistName = artistName,
+                )
+            } else {
+                null
+            }
+        }
+
+    val initialCommentCount = remember(albumCommentTarget) { albumCommentTarget?.let { CommentCountCache.get(it) } }
+    var commentCount by remember(albumCommentTarget) { mutableStateOf(initialCommentCount) }
+
+    LaunchedEffect(albumCommentTarget) {
+        val target = albumCommentTarget
+        if (target != null) {
+            val count = apiService.getCommentCount(target)
+            if (count != null && count >= 0) {
+                commentCount = count
+            }
+        }
+    }
     val albumArtists =
         remember(songs, artistName) {
             val artistsInSongs = songs.flatMap { it.singerList }.distinctBy { if (it.mid.isNotBlank()) it.mid else it.name }
@@ -367,6 +398,13 @@ fun AlbumDetailScreen(
                                             title = if (hasDesc) "专辑简介" else "专辑信息",
                                             description = summaryText,
                                             onClick = { showDescriptionSheet = true },
+                                            commentCount = commentCount,
+                                            onCommentClick =
+                                                if (albumCommentTarget != null) {
+                                                    { showCommentSheet = true }
+                                                } else {
+                                                    null
+                                                },
                                         )
                                     }
 
@@ -475,6 +513,14 @@ fun AlbumDetailScreen(
                     Toast.makeText(context, "暂无歌手详情数据", Toast.LENGTH_SHORT).show()
                 }
             },
+        )
+    }
+
+    val currentTarget = albumCommentTarget
+    if (showCommentSheet && currentTarget != null) {
+        SongCommentsBottomSheet(
+            target = currentTarget,
+            onDismissRequest = { showCommentSheet = false },
         )
     }
 }

@@ -6,8 +6,37 @@ import kotlinx.serialization.json.*
 import okhttp3.FormBody
 import okhttp3.Request
 import org.melodist.model.CommentPage
+import org.melodist.model.CommentTarget
 import org.melodist.model.SongComment
 import java.io.IOException
+
+/**
+ * 通用评论区 API（支持歌曲、专辑、歌单）。
+ */
+suspend fun MusicApiService.getComments(
+    target: CommentTarget,
+    pageNum: Int = 0,
+    pageSize: Int = 25,
+    lastCommentSeqNo: String = "",
+): CommentPage? =
+    withContext(Dispatchers.IO) {
+        val actualId = target.bizId
+        if (actualId <= 0L) return@withContext null
+
+        val page = pageNum.coerceAtLeast(0)
+        val size = pageSize.coerceIn(1, 50)
+
+        // 优先使用支持图片富媒体与属地的现代网关接口
+        val modernResult = fetchModernComments(actualId, page, size, lastCommentSeqNo, bizType = target.bizType)
+        if (modernResult != null) return@withContext modernResult
+
+        // 降级使用传统全局 H5 评论接口 (仅单曲支持)
+        if (target.bizType == 1) {
+            fetchLegacyComments(actualId, page, size)
+        } else {
+            null
+        }
+    }
 
 /**
  * 歌曲评论区 API 扩展
@@ -30,22 +59,20 @@ suspend fun MusicApiService.getSongComments(
             }
         if (actualId <= 0L) return@withContext null
 
-        val page = pageNum.coerceAtLeast(0)
-        val size = pageSize.coerceIn(1, 50)
-
-        // 优先使用支持图片富媒体与属地的现代网关接口
-        val modernResult = fetchModernComments(actualId, page, size, lastCommentSeqNo)
-        if (modernResult != null) return@withContext modernResult
-
-        // 降级使用传统全局 H5 评论接口
-        fetchLegacyComments(actualId, page, size)
+        getComments(
+            target = CommentTarget.Song(org.melodist.model.Song(songId = actualId, songMid = songMid, name = "", singer = "")),
+            pageNum = pageNum,
+            pageSize = pageSize,
+            lastCommentSeqNo = lastCommentSeqNo,
+        )
     }
 
 private suspend fun MusicApiService.fetchModernComments(
-    songId: Long,
+    bizId: Long,
     page: Int,
     size: Int,
     lastCommentSeqNo: String = "",
+    bizType: Int = 1,
 ): CommentPage? {
     val payload =
         """
@@ -65,8 +92,8 @@ private suspend fun MusicApiService.fetchModernComments(
                 "module": "music.globalComment.CommentRead",
                 "method": "GetNewCommentList",
                 "param": {
-                    "BizType": 1,
-                    "BizId": "$songId",
+                    "BizType": $bizType,
+                    "BizId": "$bizId",
                     "LastCommentSeqNo": "$lastCommentSeqNo",
                     "PageSize": $size,
                     "PageNum": $page,
@@ -325,19 +352,25 @@ internal fun parseCommentElement(
 }
 
 /**
- * 歌曲评论数全局内存缓存（会话级 LRU 缓存，加速长按菜单与详情页即时展示）。
+ * 评论数全局内存缓存（会话级 LRU 缓存，加速长按菜单与详情页即时展示）。
  */
-object SongCommentCountCache {
-    private val cache = java.util.concurrent.ConcurrentHashMap<Long, Int>()
+object CommentCountCache {
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
-    fun get(songId: Long): Int? = cache[songId]
+    fun get(key: String): Int? = cache[key]
+
+    fun get(target: CommentTarget): Int? {
+        val bizId = target.bizId
+        if (bizId <= 0L) return null
+        return get("${target.bizType}_$bizId")
+    }
 
     fun put(
-        songId: Long,
+        key: String,
         count: Int,
     ) {
-        if (songId > 0L && count >= 0) {
-            cache[songId] = count
+        if (key.isNotBlank() && count >= 0) {
+            cache[key] = count
         }
     }
 
@@ -346,21 +379,38 @@ object SongCommentCountCache {
     }
 }
 
+object SongCommentCountCache {
+    fun get(songId: Long): Int? = CommentCountCache.get("1_$songId")
+
+    fun put(
+        songId: Long,
+        count: Int,
+    ) {
+        CommentCountCache.put("1_$songId", count)
+    }
+
+    fun clear() {
+        CommentCountCache.clear()
+    }
+}
+
 /**
- * 轻量获取单曲的评论总数（仅拉取统计数值，不携带任何评论列表内容）。
+ * 轻量获取目标的评论总数（仅拉取统计数值，不携带任何评论列表内容）。
  *
- * @param songId 歌曲数字 ID
+ * @param target 评论目标（歌曲/专辑/歌单）
  * @param forceRefresh 是否强制忽略缓存拉取远端
  * @return 评论总数，若失败或不存在则返回 null
  */
-suspend fun MusicApiService.getSongCommentCount(
-    songId: Long,
+suspend fun MusicApiService.getCommentCount(
+    target: CommentTarget,
     forceRefresh: Boolean = false,
 ): Int? =
     withContext(Dispatchers.IO) {
-        if (songId <= 0L) return@withContext null
+        val bizId = target.bizId
+        if (bizId <= 0L) return@withContext null
+        val cacheKey = "${target.bizType}_$bizId"
         if (!forceRefresh) {
-            val cached = SongCommentCountCache.get(songId)
+            val cached = CommentCountCache.get(cacheKey)
             if (cached != null) return@withContext cached
         }
         val payload =
@@ -379,8 +429,8 @@ suspend fun MusicApiService.getSongCommentCount(
                     "param": {
                         "request_list": [
                             {
-                                "biz_type": 1,
-                                "biz_id": "$songId"
+                                "biz_type": ${target.bizType},
+                                "biz_id": "$bizId"
                             }
                         ]
                     }
@@ -392,15 +442,31 @@ suspend fun MusicApiService.getSongCommentCount(
             val respJson = postGateway(payload)
             val count = parseCommentCountResponse(respJson)
             if (count != null) {
-                SongCommentCountCache.put(songId, count)
+                CommentCountCache.put(cacheKey, count)
             }
             count
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            ApiLogger.w("MusicApiComment", "getSongCommentCount failed for songId=$songId", e)
+            ApiLogger.w("MusicApiComment", "getCommentCount failed for target=$target", e)
             null
         }
     }
+
+/**
+ * 轻量获取单曲的评论总数（仅拉取统计数值，不携带任何评论列表内容）。
+ *
+ * @param songId 歌曲数字 ID
+ * @param forceRefresh 是否强制忽略缓存拉取远端
+ * @return 评论总数，若失败或不存在则返回 null
+ */
+suspend fun MusicApiService.getSongCommentCount(
+    songId: Long,
+    forceRefresh: Boolean = false,
+): Int? =
+    getCommentCount(
+        target = CommentTarget.Song(org.melodist.model.Song(songId = songId, name = "", singer = "")),
+        forceRefresh = forceRefresh,
+    )
 
 /**
  * 解析评论计数网关响应 JSON。
@@ -422,21 +488,21 @@ internal fun parseCommentCountResponse(responseStr: String): Int? {
 }
 
 /**
- * 发送歌曲评论或回复已有评论。
+ * 发送评论或回复已有评论。
  *
- * @param songId 歌曲数字 ID
+ * @param target 评论目标（歌曲/专辑/歌单）
  * @param content 评论文本内容
  * @param replyCommentId 若为回复评论则传入目标评论 ID，若发表主评论则为 null
  * @return 成功返回新生成的评论 ID，失败返回异常 Result
  */
-suspend fun MusicApiService.sendSongComment(
-    songId: Long,
+suspend fun MusicApiService.sendComment(
+    target: CommentTarget,
     content: String,
     replyCommentId: String? = null,
 ): Result<String> =
     withContext(Dispatchers.IO) {
-        if (songId <= 0L) {
-            return@withContext Result.failure(IllegalArgumentException("Invalid songId: $songId"))
+        if (target.id.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("Invalid target id: ${target.id}"))
         }
         val trimmed = content.trim()
         if (trimmed.isEmpty()) {
@@ -474,8 +540,8 @@ suspend fun MusicApiService.sendSongComment(
         val paramObj =
             buildJsonObject {
                 put("Content", trimmed)
-                put("BizType", 1)
-                put("BizId", songId.toString())
+                put("BizType", target.bizType)
+                put("BizId", target.id)
                 put("BizSubType", 2)
                 if (!replyCommentId.isNullOrBlank()) {
                     put("RepliedCmId", replyCommentId)
@@ -499,9 +565,9 @@ suspend fun MusicApiService.sendSongComment(
         var lastErrorMsg = "发布失败"
 
         try {
-            ApiLogger.i("MusicApiComment", "sendSongComment -> postGateway songId=$songId reply=$replyCommentId")
+            ApiLogger.i("MusicApiComment", "sendComment -> postGateway target=${target.bizType}:${target.id} reply=$replyCommentId")
             val respJson = postGateway(payload)
-            ApiLogger.i("MusicApiComment", "sendSongComment <- respJson: $respJson")
+            ApiLogger.i("MusicApiComment", "sendComment <- respJson: $respJson")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val targetReq = root["req_0"]?.jsonObject ?: root["req"]?.jsonObject
             if (targetReq != null) {
@@ -518,11 +584,11 @@ suspend fun MusicApiService.sendSongComment(
                     targetReq["msg"]?.jsonPrimitive?.contentOrNull
                         ?: targetReq["subcode"]?.jsonPrimitive?.contentOrNull
                         ?: "发布失败 (code: $code)"
-                ApiLogger.w("MusicApiComment", "sendSongComment gateway failed: code=$code, msg=$lastErrorMsg, fallback to H5 CGI")
+                ApiLogger.w("MusicApiComment", "sendComment gateway failed: code=$code, msg=$lastErrorMsg, fallback to H5 CGI")
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            ApiLogger.w("MusicApiComment", "sendSongComment gateway exception: ${e.message}, fallback to H5 CGI")
+            ApiLogger.w("MusicApiComment", "sendComment gateway exception: ${e.message}, fallback to H5 CGI")
             lastErrorMsg = e.message ?: "网络异常"
         }
 
@@ -543,8 +609,8 @@ suspend fun MusicApiService.sendSongComment(
                     .add("needNewCode", "0")
                     .add("cid", "205360772")
                     .add("reqtype", "2")
-                    .add("biztype", "1")
-                    .add("topid", songId.toString())
+                    .add("biztype", target.bizType.toString())
+                    .add("topid", target.id)
                     .add("cmd", cmd.toString())
                     .add("content", trimmed)
 
@@ -573,7 +639,7 @@ suspend fun MusicApiService.sendSongComment(
                     }
                     response.body.string()
                 }
-            ApiLogger.i("MusicApiComment", "sendSongComment H5 CGI resp: $h5Resp")
+            ApiLogger.i("MusicApiComment", "sendComment H5 CGI resp: $h5Resp")
 
             val h5Root = Json.parseToJsonElement(h5Resp).jsonObject
             val h5Code = h5Root["code"]?.jsonPrimitive?.intOrNull ?: -1
@@ -588,26 +654,53 @@ suspend fun MusicApiService.sendSongComment(
             Result.failure(IllegalStateException(h5Msg))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            ApiLogger.e("MusicApiComment", "sendSongComment H5 CGI failed", e)
+            ApiLogger.e("MusicApiComment", "sendComment H5 CGI failed", e)
             Result.failure(IllegalStateException(lastErrorMsg))
         }
     }
 
 /**
- * 点赞或取消点赞评论。
+ * 发送歌曲评论或回复已有评论。
  *
  * @param songId 歌曲数字 ID
+ * @param content 评论文本内容
+ * @param replyCommentId 若为回复评论则传入目标评论 ID，若发表主评论则为 null
+ * @return 成功返回新生成的评论 ID，失败返回异常 Result
+ */
+suspend fun MusicApiService.sendSongComment(
+    songId: Long,
+    content: String,
+    replyCommentId: String? = null,
+): Result<String> =
+    sendComment(
+        target =
+            CommentTarget.Song(
+                org.melodist.model.Song(
+                    songId = songId,
+                    name = "",
+                    singer = "",
+                    songMid = "",
+                ),
+            ),
+        content = content,
+        replyCommentId = replyCommentId,
+    )
+
+/**
+ * 点赞或取消点赞评论。
+ *
+ * @param target 评论目标（歌曲/专辑/歌单）
  * @param commentId 目标评论 ID
  * @param isPraise true 为点赞，false 为取消点赞
  * @return 成功返回 Result.success(Unit)，失败返回异常 Result
  */
-suspend fun MusicApiService.praiseSongComment(
-    songId: Long,
+suspend fun MusicApiService.praiseComment(
+    target: CommentTarget,
     commentId: String,
     isPraise: Boolean,
 ): Result<Unit> =
     withContext(Dispatchers.IO) {
-        if (songId <= 0L || commentId.isBlank()) {
+        if (target.id.isBlank() || commentId.isBlank()) {
             return@withContext Result.failure(IllegalArgumentException("参数错误"))
         }
 
@@ -619,13 +712,13 @@ suspend fun MusicApiService.praiseSongComment(
         val url =
             "https://c.y.qq.com/base/fcgi-bin/fcg_global_comment_praise_h5.fcg?" +
                 "g_tk=$gTk&loginUin=$uin&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8" +
-                "&notice=0&platform=yqq.json&needNewCode=0&cid=205360774&cmd=$cmd&reqtype=2&biztype=1" +
-                "&topid=$songId&commentid=$commentId"
+                "&notice=0&platform=yqq.json&needNewCode=0&cid=205360774&cmd=$cmd&reqtype=2&biztype=${target.bizType}" +
+                "&topid=${target.id}&commentid=$commentId"
 
         try {
-            ApiLogger.i("MusicApiComment", "praiseSongComment url=$url")
+            ApiLogger.i("MusicApiComment", "praiseComment url=$url")
             val respJson = getUrl(url)
-            ApiLogger.i("MusicApiComment", "praiseSongComment resp: $respJson")
+            ApiLogger.i("MusicApiComment", "praiseComment resp: $respJson")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val code = root["code"]?.jsonPrimitive?.intOrNull ?: -1
             if (code == 0) {
@@ -636,20 +729,47 @@ suspend fun MusicApiService.praiseSongComment(
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            ApiLogger.e("MusicApiComment", "praiseSongComment failed", e)
+            ApiLogger.e("MusicApiComment", "praiseComment failed", e)
             Result.failure(e)
         }
     }
 
 /**
- * 删除评论。
+ * 点赞或取消点赞评论（向下兼容重载）。
  *
  * @param songId 歌曲数字 ID
+ * @param commentId 目标评论 ID
+ * @param isPraise true 为点赞，false 为取消点赞
+ * @return 成功返回 Result.success(Unit)，失败返回异常 Result
+ */
+suspend fun MusicApiService.praiseSongComment(
+    songId: Long,
+    commentId: String,
+    isPraise: Boolean,
+): Result<Unit> =
+    praiseComment(
+        target =
+            CommentTarget.Song(
+                org.melodist.model.Song(
+                    songId = songId,
+                    name = "",
+                    singer = "",
+                    songMid = "",
+                ),
+            ),
+        commentId = commentId,
+        isPraise = isPraise,
+    )
+
+/**
+ * 删除评论。
+ *
+ * @param target 评论目标（歌曲/专辑/歌单）
  * @param commentId 待删除的评论 ID
  * @return 成功返回 Result.success(Unit)，失败返回异常 Result
  */
-suspend fun MusicApiService.deleteSongComment(
-    songId: Long,
+suspend fun MusicApiService.deleteComment(
+    target: CommentTarget,
     commentId: String,
 ): Result<Unit> =
     withContext(Dispatchers.IO) {
@@ -686,9 +806,9 @@ suspend fun MusicApiService.deleteSongComment(
         val paramObj =
             buildJsonObject {
                 put("CommentId", commentId)
-                if (songId > 0L) {
-                    put("BizType", 1)
-                    put("BizId", songId.toString())
+                if (target.id.isNotBlank()) {
+                    put("BizType", target.bizType)
+                    put("BizId", target.id)
                 }
             }
 
@@ -709,9 +829,9 @@ suspend fun MusicApiService.deleteSongComment(
         var lastErrorMsg = "删除失败"
 
         try {
-            ApiLogger.i("MusicApiComment", "deleteSongComment -> postGateway commentId=$commentId")
+            ApiLogger.i("MusicApiComment", "deleteComment -> postGateway commentId=$commentId target=${target.bizType}:${target.id}")
             val respJson = postGateway(payload)
-            ApiLogger.i("MusicApiComment", "deleteSongComment <- respJson: $respJson")
+            ApiLogger.i("MusicApiComment", "deleteComment <- respJson: $respJson")
             val root = Json.parseToJsonElement(respJson).jsonObject
             val targetReq = root["req_0"]?.jsonObject ?: root["req"]?.jsonObject
             if (targetReq != null) {
@@ -730,11 +850,11 @@ suspend fun MusicApiService.deleteSongComment(
                 lastErrorMsg =
                     targetReq["msg"]?.jsonPrimitive?.contentOrNull
                         ?: "删除失败 (code: $code, subCode: $subCode)"
-                ApiLogger.w("MusicApiComment", "deleteSongComment gateway failed: code=$code, subCode=$subCode, msg=$lastErrorMsg, fallback to H5 CGI")
+                ApiLogger.w("MusicApiComment", "deleteComment gateway failed: code=$code, subCode=$subCode, msg=$lastErrorMsg, fallback to H5 CGI")
             }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            ApiLogger.w("MusicApiComment", "deleteSongComment gateway exception: ${e.message}, fallback to H5 CGI")
+            ApiLogger.w("MusicApiComment", "deleteComment gateway exception: ${e.message}, fallback to H5 CGI")
             lastErrorMsg = e.message ?: "网络异常"
         }
 
@@ -754,8 +874,8 @@ suspend fun MusicApiService.deleteSongComment(
                     .add("needNewCode", "0")
                     .add("cid", "205360772")
                     .add("reqtype", "2")
-                    .add("biztype", "1")
-                    .add("topid", songId.toString())
+                    .add("biztype", target.bizType.toString())
+                    .add("topid", target.id)
                     .add("cmd", "3")
                     .add("commentid", commentId)
 
@@ -780,7 +900,7 @@ suspend fun MusicApiService.deleteSongComment(
                     }
                     response.body.string()
                 }
-            ApiLogger.i("MusicApiComment", "deleteSongComment H5 CGI resp: $h5Resp")
+            ApiLogger.i("MusicApiComment", "deleteComment H5 CGI resp: $h5Resp")
 
             val h5Root = Json.parseToJsonElement(h5Resp).jsonObject
             val h5Code = h5Root["code"]?.jsonPrimitive?.intOrNull ?: -1
@@ -791,7 +911,31 @@ suspend fun MusicApiService.deleteSongComment(
             Result.failure(IllegalStateException(h5Msg))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            ApiLogger.e("MusicApiComment", "deleteSongComment H5 CGI failed", e)
+            ApiLogger.e("MusicApiComment", "deleteComment H5 CGI failed", e)
             Result.failure(IllegalStateException(lastErrorMsg))
         }
     }
+
+/**
+ * 删除评论（向下兼容重载）。
+ *
+ * @param songId 歌曲数字 ID
+ * @param commentId 待删除的评论 ID
+ * @return 成功返回 Result.success(Unit)，失败返回异常 Result
+ */
+suspend fun MusicApiService.deleteSongComment(
+    songId: Long,
+    commentId: String,
+): Result<Unit> =
+    deleteComment(
+        target =
+            CommentTarget.Song(
+                org.melodist.model.Song(
+                    songId = songId,
+                    name = "",
+                    singer = "",
+                    songMid = "",
+                ),
+            ),
+        commentId = commentId,
+    )

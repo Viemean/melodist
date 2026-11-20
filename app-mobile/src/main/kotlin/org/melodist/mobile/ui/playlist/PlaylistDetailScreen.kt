@@ -67,9 +67,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.melodist.api.CommentCountCache
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.deleteSongsFromPlaylist
+import org.melodist.api.getCommentCount
 import org.melodist.api.getPlaylistDetail
 import org.melodist.api.getPlaylistSongs
 import org.melodist.data.MillionRecommendManager
@@ -79,9 +81,11 @@ import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.MediaDescriptionCard
 import org.melodist.mobile.ui.components.MediaInfoBottomSheet
 import org.melodist.mobile.ui.components.RotatingCardCoordinator
+import org.melodist.mobile.ui.components.SongCommentsBottomSheet
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.components.formatMediaCount
 import org.melodist.mobile.ui.components.landscapeNestedScroll
+import org.melodist.model.CommentTarget
 import org.melodist.model.CoverScenario
 import org.melodist.model.CoverUrlResolver
 import org.melodist.model.PlaybackSourceContext
@@ -176,6 +180,41 @@ fun PlaylistDetailScreen(
         mutableStateOf(initial)
     }
     var showDescriptionSheet by remember { mutableStateOf(false) }
+    var showCommentSheet by remember { mutableStateOf(false) }
+
+    val effectiveDissId =
+        remember(playlist.tid, playlist.dirId) {
+            when {
+                playlist.tid > 0L -> playlist.tid.toString()
+                playlist.dirId > 0L && playlist.dirId != 201L -> playlist.dirId.toString()
+                else -> ""
+            }
+        }
+    val playlistCommentTarget =
+        remember(effectiveDissId, currentPlaylist.name, currentPlaylist.creator) {
+            if (effectiveDissId.isNotBlank()) {
+                CommentTarget.Playlist(
+                    dissId = effectiveDissId,
+                    playlistName = currentPlaylist.name.ifBlank { playlist.name },
+                    creatorName = currentPlaylist.creator,
+                )
+            } else {
+                null
+            }
+        }
+
+    val initialCommentCount = remember(playlistCommentTarget) { playlistCommentTarget?.let { CommentCountCache.get(it) } }
+    var commentCount by remember(playlistCommentTarget) { mutableStateOf(initialCommentCount) }
+
+    LaunchedEffect(playlistCommentTarget) {
+        val target = playlistCommentTarget
+        if (target != null) {
+            val count = apiService.getCommentCount(target)
+            if (count != null && count >= 0) {
+                commentCount = count
+            }
+        }
+    }
 
     // Observe cached favorite songs for the isMyFavorite playlist
     val cachedFavSongs by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
@@ -801,6 +840,13 @@ fun PlaylistDetailScreen(
                                             title = "歌单简介",
                                             description = summaryText,
                                             onClick = { showDescriptionSheet = true },
+                                            commentCount = commentCount,
+                                            onCommentClick =
+                                                if (playlistCommentTarget != null) {
+                                                    { showCommentSheet = true }
+                                                } else {
+                                                    null
+                                                },
                                         )
                                     }
                                 }
@@ -894,6 +940,14 @@ fun PlaylistDetailScreen(
             description = displayDescription.trim().ifBlank { "暂无歌单简介信息" },
             descriptionLabel = "歌单简介：",
             onDismissRequest = { showDescriptionSheet = false },
+        )
+    }
+
+    val currentTarget = playlistCommentTarget
+    if (showCommentSheet && currentTarget != null) {
+        SongCommentsBottomSheet(
+            target = currentTarget,
+            onDismissRequest = { showCommentSheet = false },
         )
     }
 }

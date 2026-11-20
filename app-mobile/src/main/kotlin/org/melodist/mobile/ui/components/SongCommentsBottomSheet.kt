@@ -96,10 +96,15 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
+import org.melodist.api.deleteComment
 import org.melodist.api.deleteSongComment
+import org.melodist.api.getComments
 import org.melodist.api.getSongComments
+import org.melodist.api.praiseComment
 import org.melodist.api.praiseSongComment
+import org.melodist.api.sendComment
 import org.melodist.api.sendSongComment
+import org.melodist.model.CommentTarget
 import org.melodist.model.Song
 import org.melodist.model.SongComment
 import java.text.SimpleDateFormat
@@ -107,10 +112,16 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.absoluteValue
 
+/**
+ * 评论区通用弹窗抽屉组件（支持歌曲、专辑、歌单）。
+ *
+ * @param target 评论目标（歌曲/专辑/歌单）
+ * @param onDismissRequest 关闭抽屉回调
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongCommentsBottomSheet(
-    song: Song,
+    target: CommentTarget,
     onDismissRequest: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -118,8 +129,8 @@ fun SongCommentsBottomSheet(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
 
-    // 绑定打开弹窗时的目标歌曲 ID
-    val targetSong = remember { song }
+    // 绑定打开弹窗时的目标对象
+    val currentTarget = remember(target.id, target.bizType) { target }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val apiService = remember { MusicApiService() }
@@ -165,8 +176,8 @@ fun SongCommentsBottomSheet(
 
         scope.launch {
             val result =
-                apiService.praiseSongComment(
-                    songId = targetSong.songId,
+                apiService.praiseComment(
+                    target = currentTarget,
                     commentId = comment.commentId,
                     isPraise = newPraised,
                 )
@@ -206,8 +217,8 @@ fun SongCommentsBottomSheet(
         scope.launch {
             try {
                 val result =
-                    apiService.sendSongComment(
-                        songId = targetSong.songId,
+                    apiService.sendComment(
+                        target = currentTarget,
                         content = content,
                         replyCommentId = targetReply?.commentId,
                     )
@@ -253,8 +264,8 @@ fun SongCommentsBottomSheet(
         scope.launch {
             try {
                 val result =
-                    apiService.deleteSongComment(
-                        songId = targetSong.songId,
+                    apiService.deleteComment(
+                        target = currentTarget,
                         commentId = comment.commentId,
                     )
                 if (result.isSuccess) {
@@ -292,9 +303,8 @@ fun SongCommentsBottomSheet(
         scope.launch {
             try {
                 val pageResult =
-                    apiService.getSongComments(
-                        songId = targetSong.songId,
-                        songMid = targetSong.songMid,
+                    apiService.getComments(
+                        target = currentTarget,
                         pageNum = page,
                         pageSize = 25,
                         lastCommentSeqNo = if (isInitial) "" else lastCommentSeqNo,
@@ -351,7 +361,7 @@ fun SongCommentsBottomSheet(
         }
     }
 
-    LaunchedEffect(targetSong.songMid, targetSong.songId) {
+    LaunchedEffect(currentTarget.id, currentTarget.bizType) {
         loadComments(page = 0, isInitial = true)
     }
 
@@ -373,9 +383,22 @@ fun SongCommentsBottomSheet(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 6.dp),
             ) {
+                val titleText =
+                    when (currentTarget) {
+                        is CommentTarget.Song -> "歌曲评论"
+                        is CommentTarget.Album -> "专辑评论"
+                        is CommentTarget.Playlist -> "歌单评论"
+                    }
+                val subtitleText =
+                    if (currentTarget.subtitle.isNotBlank()) {
+                        "${currentTarget.title} · ${currentTarget.subtitle}"
+                    } else {
+                        currentTarget.title
+                    }
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "歌曲评论",
+                        text = titleText,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -391,7 +414,7 @@ fun SongCommentsBottomSheet(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${targetSong.name} · ${targetSong.singer.ifBlank { "未知歌手" }}",
+                    text = subtitleText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -726,8 +749,8 @@ fun SongCommentsBottomSheet(
         FullScreenImageViewer(
             imageUrl = imgUrl,
             title = "保存评论图片",
-            subTitle = "${targetSong.name} · 评论配图",
-            filePrefix = "comment_${targetSong.name}",
+            subTitle = "${currentTarget.title} · 评论配图",
+            filePrefix = "comment_${currentTarget.title}",
             saveTipText = "是否保存当前评论图片到系统相册？",
             onDismissRequest = { previewImageUrl = null },
         )
@@ -1184,6 +1207,23 @@ private fun CommentInputBottomBar(
             }
         }
     }
+}
+
+/**
+ * 歌曲评论区通用弹窗抽屉组件（向下兼容重载）。
+ *
+ * @param song 目标歌曲
+ * @param onDismissRequest 关闭抽屉回调
+ */
+@Composable
+fun SongCommentsBottomSheet(
+    song: Song,
+    onDismissRequest: () -> Unit,
+) {
+    SongCommentsBottomSheet(
+        target = CommentTarget.Song(song),
+        onDismissRequest = onDismissRequest,
+    )
 }
 
 private fun formatCount(count: Int): String =
