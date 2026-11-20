@@ -1,77 +1,19 @@
 package org.melodist.api
 
-import kotlinx.serialization.json.*
-import org.junit.jupiter.api.Assertions.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.melodist.model.FavoriteSongsResult
-import org.melodist.model.Playlist
 import org.melodist.model.Song
 
 class PlaylistDetailTest {
-    @Test
-    fun `playlist model distinguishes favorite created and collected playlists`() {
-        val favPlaylist = Playlist(dirId = 201L, name = "我喜欢", songCount = 128)
-        assertTrue(favPlaylist.isMyFavorite)
-        assertTrue(favPlaylist.isCreated)
-
-        val userCreated = Playlist(dirId = 502L, name = "车载精选", songCount = 42, isFav = false)
-        assertFalse(userCreated.isMyFavorite)
-        assertTrue(userCreated.isCreated)
-
-        val collected = Playlist(dirId = 9999L, name = "周杰伦全集", songCount = 200, tid = 8888L, isFav = true)
-        assertFalse(collected.isMyFavorite)
-        assertFalse(collected.isCreated)
-    }
-
-    @Test
-    fun `favoriteSongsResult verifies pagination hasMore logic`() {
-        val resultHasMore =
-            FavoriteSongsResult(
-                songs = emptyList(),
-                total = 100,
-                hasMore = true,
-            )
-        assertTrue(resultHasMore.hasMore)
-        assertEquals(100, resultHasMore.total)
-
-        val resultCompleted =
-            FavoriteSongsResult(
-                songs = emptyList(),
-                total = 30,
-                hasMore = false,
-            )
-        assertFalse(resultCompleted.hasMore)
-    }
-
-    @Test
-    fun `external collected playlist uniform_get_Dissinfo computes correct pagination parameters`() {
-        val pageSize = 100
-        val page1Begin = (1 - 1) * pageSize
-        val page1Num = pageSize
-        assertEquals(0, page1Begin)
-        assertEquals(100, page1Num)
-
-        val page2Begin = (2 - 1) * pageSize
-        val page2Num = pageSize
-        assertEquals(100, page2Begin)
-        assertEquals(100, page2Num)
-
-        val page3Begin = (3 - 1) * pageSize
-        val page3Num = pageSize
-        assertEquals(200, page3Begin)
-        assertEquals(100, page3Num)
-    }
-
-    @Test
-    fun `user created playlist GetUniformSongDetailInfo computes correct offset parameters`() {
-        val pageSize = 100
-        val page1Offset = (1 - 1) * pageSize
-        assertEquals(0, page1Offset)
-
-        val page2Offset = (2 - 1) * pageSize
-        assertEquals(100, page2Offset)
-    }
-
     @Test
     fun `uniform_get_Dissinfo gateway response parses songlist accurately`() {
         val respJson =

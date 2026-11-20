@@ -32,6 +32,29 @@ class MelodistCacheManagerTest {
     }
 
     @Test
+    fun `calculateAdaptiveCacheQuotaBytes clamps with custom profile quota overrides`(
+        @TempDir tempDir: File,
+    ) {
+        val customQuota = 500L * 1024 * 1024
+        val calculated = MelodistCacheManager.calculateAdaptiveCacheQuotaBytes(tempDir, maxLimit = customQuota)
+        assertTrue(calculated <= customQuota)
+
+        // 验证传入更严格的配额上限时有效截断
+        val tinyQuota = 10L * 1024 * 1024
+        val capped = MelodistCacheManager.calculateAdaptiveCacheQuotaBytes(tempDir, maxLimit = tinyQuota)
+        assertEquals(tinyQuota, capped)
+    }
+
+    @Test
+    fun `cache eviction routines handle uninitialized state safely`() {
+        MelodistCacheManager.evictIncompleteCacheAsync("non_existent_mid")
+        MelodistCacheManager.evictIncompleteCacheAsync("non_existent_mid", org.melodist.model.AudioQualityTier.SQ)
+        MelodistCacheManager.pruneLowerTierCacheAsync("non_existent_mid", org.melodist.model.AudioQualityTier.SQ)
+        assertEquals(0L, MelodistCacheManager.getCacheSizeBytes())
+        assertEquals(0, MelodistCacheManager.getCachedKeyCount())
+    }
+
+    @Test
     fun `calculateAdaptiveCacheQuotaBytes gracefully handles nonexistent path`() {
         val nonExistent = File("/path/to/nonexistent/directory/test")
         val fallback = MelodistCacheManager.calculateAdaptiveCacheQuotaBytes(nonExistent)
