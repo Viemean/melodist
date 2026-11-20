@@ -1,10 +1,6 @@
 package org.melodist.api
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.melodist.model.FavoriteSongsResult
@@ -125,6 +121,85 @@ class PlaylistDetailTest {
         assertEquals("歌曲A", songs[0].name)
         assertEquals("002B", songs[1].songMid)
         assertEquals("歌曲B", songs[1].name)
+    }
+
+    @Test
+    fun `uniform_get_Dissinfo parses complete metadata accurately`() {
+        val respJson =
+            """
+            {
+              "req_diss": {
+                "code": 0,
+                "data": {
+                  "dirinfo": {
+                    "id": 7774259544,
+                    "title": "Yorushika | 让夜鹿治愈你的心",
+                    "picurl": "https://qpic.y.qq.com/cover.jpg",
+                    "desc": "治愈长简介测试",
+                    "listennum": 1042431,
+                    "ordernum": 10003,
+                    "songnum": 55,
+                    "host_nick": "夜鹿作者",
+                    "tag": [
+                      { "id": 169, "name": "日语" },
+                      { "id": 116, "name": "治愈" }
+                    ],
+                    "creator": {
+                      "nick": "夜鹿创建者"
+                    }
+                  },
+                  "total_song_num": 55,
+                  "songlist": []
+                }
+              }
+            }
+            """.trimIndent()
+
+        val root = Json.parseToJsonElement(respJson).jsonObject
+        val reqDissData = root["req_diss"]?.jsonObject?.get("data")?.jsonObject
+        val dirinfo = reqDissData?.get("dirinfo")?.jsonObject
+        assertNotNull(dirinfo)
+
+        val title =
+            dirinfo
+                ?.get("title")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                .orEmpty()
+        val desc =
+            dirinfo
+                ?.get("desc")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                .orEmpty()
+        val creator =
+            dirinfo
+                ?.get("creator")
+                ?.jsonObject
+                ?.get("nick")
+                ?.jsonPrimitive
+                ?.contentOrNull
+                ?: dirinfo
+                    ?.get("host_nick")
+                    ?.jsonPrimitive
+                    ?.contentOrNull
+                    .orEmpty()
+        val tags =
+            dirinfo
+                ?.get("tag")
+                ?.jsonArray
+                ?.mapNotNull {
+                    it.jsonObject["name"]?.jsonPrimitive?.contentOrNull
+                }.orEmpty()
+        val playCount = dirinfo?.get("listennum")?.jsonPrimitive?.longOrNull ?: 0L
+        val favCount = dirinfo?.get("ordernum")?.jsonPrimitive?.longOrNull ?: 0L
+
+        assertEquals("Yorushika | 让夜鹿治愈你的心", title)
+        assertEquals("治愈长简介测试", desc)
+        assertEquals("夜鹿创建者", creator)
+        assertEquals(listOf("日语", "治愈"), tags)
+        assertEquals(1042431L, playCount)
+        assertEquals(10003L, favCount)
     }
 
     @Test

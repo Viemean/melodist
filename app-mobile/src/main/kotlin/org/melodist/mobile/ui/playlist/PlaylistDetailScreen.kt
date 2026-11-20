@@ -70,12 +70,16 @@ import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
 import org.melodist.api.UserSession
 import org.melodist.api.deleteSongsFromPlaylist
+import org.melodist.api.getPlaylistDetail
 import org.melodist.api.getPlaylistSongs
 import org.melodist.data.MillionRecommendManager
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.MediaDescriptionCard
+import org.melodist.mobile.ui.components.MediaInfoBottomSheet
 import org.melodist.mobile.ui.components.SongListDeleteType
+import org.melodist.mobile.ui.components.formatMediaCount
 import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.model.CoverScenario
 import org.melodist.model.CoverUrlResolver
@@ -154,7 +158,21 @@ fun PlaylistDetailScreen(
     }
     var syncJob by remember { mutableStateOf<Job?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
-    var isDescriptionExpanded by remember { mutableStateOf(false) }
+    var currentPlaylist by remember(playlist) {
+        val cached = UserLibraryCacheManager.getCachedPlaylistMetadata(playlist.dirId, playlist.tid)
+        val initial =
+            if (cached != null) {
+                cached.copy(
+                    name = playlist.name.ifBlank { cached.name },
+                    picUrl = playlist.picUrl.ifBlank { cached.picUrl },
+                    songCount = if (playlist.songCount > 0) playlist.songCount else cached.songCount,
+                )
+            } else {
+                playlist
+            }
+        mutableStateOf(initial)
+    }
+    var showDescriptionSheet by remember { mutableStateOf(false) }
 
     // Observe cached favorite songs for the isMyFavorite playlist
     val cachedFavSongs by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
@@ -225,7 +243,7 @@ fun PlaylistDetailScreen(
             val cached = UserLibraryCacheManager.getCachedPlaylistSongs(playlist.dirId, playlist.tid)
             if (!cached.isNullOrEmpty()) {
                 songs = cached
-                totalCount = if (playlist.songCount > 0) playlist.songCount else cached.size
+                totalCount = if (currentPlaylist.songCount > 0) currentPlaylist.songCount else cached.size
                 hasMore = false
                 isLoading = false
             }
@@ -234,23 +252,59 @@ fun PlaylistDetailScreen(
                 if (cached.isNullOrEmpty()) {
                     isLoading = true
                 }
-                val fetched =
+                val detailResult =
                     withContext(Dispatchers.IO) {
-                        UserLibraryCacheManager.loadPlaylistSongs(
-                            apiService = apiService,
+                        apiService.getPlaylistDetail(
                             dirId = playlist.dirId,
                             tid = playlist.tid,
                             isFav = playlist.isFav,
-                            forceRefresh = false,
-                            targetTotalCount = playlist.songCount,
+                            page = 1,
+                            pageSize = 100,
                         )
                     }
-                if (fetched.isNotEmpty()) {
-                    songs = fetched
-                    totalCount = if (playlist.songCount > 0) playlist.songCount else fetched.size
-                    hasMore = false
+                if (detailResult != null) {
+                    currentPlaylist = detailResult.playlist
+                    UserLibraryCacheManager.saveCachedPlaylistMetadata(detailResult.playlist)
+                    if (detailResult.songs.isNotEmpty()) {
+                        songs = detailResult.songs
+                        totalCount = if (detailResult.playlist.songCount > 0) detailResult.playlist.songCount else detailResult.songs.size
+                        hasMore = false
+                        UserLibraryCacheManager.savePlaylistSongsCache(
+                            playlist.dirId,
+                            playlist.tid,
+                            detailResult.songs,
+                            detailResult.songs.size,
+                        )
+                    }
+                } else {
+                    val fetched =
+                        withContext(Dispatchers.IO) {
+                            UserLibraryCacheManager.loadPlaylistSongs(
+                                apiService = apiService,
+                                dirId = playlist.dirId,
+                                tid = playlist.tid,
+                                isFav = playlist.isFav,
+                                forceRefresh = false,
+                                targetTotalCount = playlist.songCount,
+                            )
+                        }
+                    if (fetched.isNotEmpty()) {
+                        songs = fetched
+                        totalCount = if (currentPlaylist.songCount > 0) currentPlaylist.songCount else fetched.size
+                        hasMore = false
+                    }
                 }
                 isLoading = false
+            } else {
+                scope.launch(Dispatchers.IO) {
+                    val detail = apiService.getPlaylistDetail(playlist.dirId, playlist.tid, playlist.isFav, page = 1, pageSize = 1)
+                    if (detail != null) {
+                        withContext(Dispatchers.Main) {
+                            currentPlaylist = detail.playlist
+                            UserLibraryCacheManager.saveCachedPlaylistMetadata(detail.playlist)
+                        }
+                    }
+                }
             }
         }
     }
@@ -488,21 +542,47 @@ fun PlaylistDetailScreen(
                 } else {
                     scope.launch {
                         isRefreshing = true
-                        val fetched =
+                        val detailResult =
                             withContext(Dispatchers.IO) {
-                                UserLibraryCacheManager.loadPlaylistSongs(
-                                    apiService = apiService,
+                                apiService.getPlaylistDetail(
                                     dirId = playlist.dirId,
                                     tid = playlist.tid,
                                     isFav = playlist.isFav,
-                                    forceRefresh = true,
-                                    targetTotalCount = playlist.songCount,
+                                    page = 1,
+                                    pageSize = 100,
                                 )
                             }
-                        if (fetched.isNotEmpty()) {
-                            songs = fetched
-                            totalCount = if (playlist.songCount > 0) playlist.songCount else fetched.size
-                            hasMore = false
+                        if (detailResult != null) {
+                            currentPlaylist = detailResult.playlist
+                            UserLibraryCacheManager.saveCachedPlaylistMetadata(detailResult.playlist)
+                            if (detailResult.songs.isNotEmpty()) {
+                                songs = detailResult.songs
+                                totalCount = if (detailResult.playlist.songCount > 0) detailResult.playlist.songCount else detailResult.songs.size
+                                hasMore = false
+                                UserLibraryCacheManager.savePlaylistSongsCache(
+                                    playlist.dirId,
+                                    playlist.tid,
+                                    detailResult.songs,
+                                    detailResult.songs.size,
+                                )
+                            }
+                        } else {
+                            val fetched =
+                                withContext(Dispatchers.IO) {
+                                    UserLibraryCacheManager.loadPlaylistSongs(
+                                        apiService = apiService,
+                                        dirId = playlist.dirId,
+                                        tid = playlist.tid,
+                                        isFav = playlist.isFav,
+                                        forceRefresh = true,
+                                        targetTotalCount = playlist.songCount,
+                                    )
+                                }
+                            if (fetched.isNotEmpty()) {
+                                songs = fetched
+                                totalCount = if (currentPlaylist.songCount > 0) currentPlaylist.songCount else fetched.size
+                                hasMore = false
+                            }
                         }
                         isLoading = false
                         isRefreshing = false
@@ -650,7 +730,7 @@ fun PlaylistDetailScreen(
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = playlist.name,
+                                            text = currentPlaylist.name.ifBlank { playlist.name },
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.Bold,
                                             maxLines = 2,
@@ -659,27 +739,19 @@ fun PlaylistDetailScreen(
 
                                         Spacer(modifier = Modifier.height(6.dp))
 
+                                        val metaInfo =
+                                            buildList {
+                                                if (currentPlaylist.creator.isNotBlank()) {
+                                                    add(currentPlaylist.creator)
+                                                }
+                                                add("${totalCount}首歌曲")
+                                            }.joinToString(" · ")
+
                                         Text(
-                                            text = "${totalCount}首歌曲",
+                                            text = metaInfo,
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-
-                                        val displayDescription =
-                                            playlist.description.ifBlank {
-                                                if (playlist.isMillionRecommend) millionResult.description.ifBlank { "每一首歌曲都超过百万收藏 · 每日更新" } else ""
-                                            }
-                                        if (displayDescription.isNotBlank()) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = displayDescription,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                                maxLines = if (isDescriptionExpanded) Int.MAX_VALUE else 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.clickable { isDescriptionExpanded = !isDescriptionExpanded },
-                                            )
-                                        }
 
                                         if (playlist.isCreated) {
                                             Text(
@@ -689,6 +761,41 @@ fun PlaylistDetailScreen(
                                                 modifier = Modifier.padding(top = 2.dp),
                                             )
                                         }
+                                    }
+                                }
+
+                                val displayDescription =
+                                    currentPlaylist.description.ifBlank {
+                                        if (playlist.isMillionRecommend) millionResult.description.ifBlank { "每一首歌曲都超过百万收藏 · 每日更新" } else ""
+                                    }
+
+                                val hasDescriptionOrDetails =
+                                    !playlist.isMyFavorite &&
+                                        (
+                                            displayDescription.isNotBlank() || currentPlaylist.creator.isNotBlank() || currentPlaylist.tags.isNotEmpty() ||
+                                                currentPlaylist.playCount > 0L
+                                        )
+
+                                AnimatedVisibility(
+                                    visible = hasDescriptionOrDetails,
+                                    enter = androidx.compose.animation.expandVertically() + fadeIn(),
+                                    exit = androidx.compose.animation.shrinkVertically() + fadeOut(),
+                                ) {
+                                    Column {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        val summaryText =
+                                            displayDescription.trim().ifBlank {
+                                                listOfNotNull(
+                                                    currentPlaylist.creator.takeIf { it.isNotBlank() }?.let { "作者: $it" },
+                                                    currentPlaylist.tags.takeIf { it.isNotEmpty() }?.joinToString(" · "),
+                                                    formatMediaCount(currentPlaylist.playCount).takeIf { it.isNotBlank() }?.let { "$it 播放" },
+                                                ).joinToString(" · ").ifBlank { "点击查看完整歌单详情" }
+                                            }
+                                        MediaDescriptionCard(
+                                            title = "歌单简介",
+                                            description = summaryText,
+                                            onClick = { showDescriptionSheet = true },
+                                        )
                                     }
                                 }
 
@@ -752,5 +859,35 @@ fun PlaylistDetailScreen(
                 )
             }
         }
+    }
+
+    if (showDescriptionSheet) {
+        val displayDescription =
+            currentPlaylist.description.ifBlank {
+                if (playlist.isMillionRecommend) millionResult.description.ifBlank { "每一首歌曲都超过百万收藏 · 每日更新" } else ""
+            }
+        val items =
+            buildList {
+                add("歌单：" to (currentPlaylist.name.ifBlank { playlist.name }))
+                if (currentPlaylist.creator.isNotBlank()) {
+                    add("作者：" to currentPlaylist.creator)
+                }
+                if (currentPlaylist.tags.isNotEmpty()) {
+                    add("标签：" to currentPlaylist.tags.joinToString(" · "))
+                }
+                if (currentPlaylist.playCount > 0L) {
+                    add("播放量：" to formatMediaCount(currentPlaylist.playCount))
+                }
+                if (currentPlaylist.favCount > 0L) {
+                    add("收藏量：" to formatMediaCount(currentPlaylist.favCount))
+                }
+            }
+        MediaInfoBottomSheet(
+            title = "歌单详情",
+            items = items,
+            description = displayDescription.trim().ifBlank { "暂无歌单简介信息" },
+            descriptionLabel = "歌单简介：",
+            onDismissRequest = { showDescriptionSheet = false },
+        )
     }
 }

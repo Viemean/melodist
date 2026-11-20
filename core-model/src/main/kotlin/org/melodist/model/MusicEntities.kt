@@ -62,6 +62,10 @@ data class Playlist(
     val picUrl: String = "",
     val description: String = "",
     val dirShow: Int = 1,
+    val creator: String = "",
+    val tags: List<String> = emptyList(),
+    val playCount: Long = 0L,
+    val favCount: Long = 0L,
 ) {
     val isPrivate: Boolean get() = dirShow == 2
     val isMyFavorite: Boolean get() = dirId == 201L || name == "我喜欢" || name == "我的喜欢"
@@ -79,6 +83,13 @@ data class Playlist(
     val detailCoverCandidates: List<String>
         get() = CoverUrlResolver.getCandidates(picUrl, CoverScenario.DETAIL)
 }
+
+@Serializable
+data class PlaylistDetailResult(
+    val playlist: Playlist,
+    val songs: List<Song> = emptyList(),
+    val totalSongNum: Int = 0,
+)
 
 @Serializable
 data class QualityOption(

@@ -85,6 +85,7 @@ object UserLibraryCacheManager {
     private var favSongsCacheFile: File? = null
     private var playlistCacheDir: File? = null
     private val playlistCacheMap = java.util.concurrent.ConcurrentHashMap<String, PlaylistSongsCache>()
+    private val playlistMetadataMemoryCache = TimedLruCache<String, Playlist>(100, 24 * 60 * 60 * 1000L)
     private var isObservingUser = false
     private var periodicRefreshJob: Job? = null
     private var favSongsCache = FavoriteSongsCache()
@@ -898,6 +899,35 @@ object UserLibraryCacheManager {
                 if (e is CancellationException) throw e
                 Log.e(TAG, "Failed to save playlist songs cache to disk: dirId=$dirId, tid=$tid", e)
             }
+        }
+    }
+
+    /**
+     * 获取缓存的歌单元数据对象。
+     *
+     * @param dirId 歌单目录 ID
+     * @param tid 歌单全局唯一 TID
+     * @return 命中缓存的 [Playlist] 实体，未命中返回 null
+     */
+    fun getCachedPlaylistMetadata(
+        dirId: Long,
+        tid: Long,
+    ): Playlist? {
+        val dissId = if (tid > 0L) tid else dirId
+        val key = "${dirId}_$dissId"
+        return playlistMetadataMemoryCache.get(key)
+            ?: _libraryFlow.value.playlists.find { (tid > 0L && it.tid == tid) || (dirId > 0L && it.dirId == dirId) }
+    }
+
+    /**
+     * 写入或更新歌单元数据缓存。
+     *
+     * @param playlist 待缓存的完整歌单实体
+     */
+    fun saveCachedPlaylistMetadata(playlist: Playlist) {
+        val dissId = if (playlist.tid > 0L) playlist.tid else playlist.dirId
+        if (playlist.dirId > 0L || dissId > 0L) {
+            playlistMetadataMemoryCache.put("${playlist.dirId}_$dissId", playlist)
         }
     }
 
