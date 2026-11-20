@@ -43,7 +43,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -80,7 +79,6 @@ import org.melodist.model.AlbumDetail
 import org.melodist.model.Artist
 import org.melodist.model.CommentTarget
 import org.melodist.model.PlaybackSourceContext
-import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -168,15 +166,6 @@ fun AlbumDetailScreen(
         }
 
     val context = LocalContext.current
-    DisposableEffect(coverUrl) {
-        onDispose {
-            if (coverUrl.isNotBlank()) {
-                val rawUrl = coverUrl.replace(Regex("R[0-9]+x[0-9]+"), "")
-                CoverMemoryManager.evictCoverFromMemory(context, rawUrl)
-                CoverMemoryManager.evictCoverFromMemory(context, coverUrl)
-            }
-        }
-    }
 
     suspend fun loadDetail(force: Boolean) {
         if (albumMid.isBlank()) return

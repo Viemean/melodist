@@ -44,7 +44,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -91,7 +90,6 @@ import org.melodist.model.CoverUrlResolver
 import org.melodist.model.PlaybackSourceContext
 import org.melodist.model.Playlist
 import org.melodist.model.Song
-import org.melodist.playback.CoverMemoryManager
 import org.melodist.playback.PlaybackManager
 import org.melodist.playback.QueuePaginationSource
 
@@ -229,17 +227,6 @@ fun PlaylistDetailScreen(
     val showTopBarTitle by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 200
-        }
-    }
-
-    DisposableEffect(playlist.picUrl) {
-        onDispose {
-            val url = playlist.picUrl
-            if (url.isNotBlank()) {
-                val rawUrl = url.replace(Regex("R[0-9]+x[0-9]+"), "")
-                CoverMemoryManager.evictCoverFromMemory(context, rawUrl)
-                CoverMemoryManager.evictCoverFromMemory(context, url)
-            }
         }
     }
 
