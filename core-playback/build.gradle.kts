@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "org.melodist.core.playback"
     compileSdk = 37
+    compileSdkMinor = 2
     ndkVersion = libs.versions.ndk.get()
 
     defaultConfig {

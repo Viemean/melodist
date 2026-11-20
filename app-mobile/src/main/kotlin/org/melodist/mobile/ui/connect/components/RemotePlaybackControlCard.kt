@@ -44,7 +44,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -239,10 +241,16 @@ fun RemotePlaybackControlCard(
                         currentPosSafe
                     }
                 val progressFraction = (displayPosition.toFloat() / durationSafe).coerceIn(0f, 1f)
+                val sliderState = rememberSliderState(progressFraction)
+                LaunchedEffect(progressFraction, isDraggingSlider) {
+                    if (!isDraggingSlider) {
+                        sliderState.value = progressFraction
+                    }
+                }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Slider(
-                        value = progressFraction,
+                        state = sliderState,
                         onValueChange = {
                             isDraggingSlider = true
                             draggingSliderValue = it

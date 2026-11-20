@@ -34,8 +34,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Reply
@@ -53,11 +56,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -131,7 +135,11 @@ fun SongCommentsBottomSheet(
 
     // 绑定打开弹窗时的目标对象
     val currentTarget = remember(target.id, target.bizType) { target }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState =
+        rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        )
     val scope = rememberCoroutineScope()
     val apiService = remember { MusicApiService() }
     val listState = rememberLazyListState()
@@ -150,7 +158,7 @@ fun SongCommentsBottomSheet(
     var isHotCommentsExpanded by remember { mutableStateOf(false) }
 
     var replyingTo by remember { mutableStateOf<SongComment?>(null) }
-    var inputText by remember { mutableStateOf("") }
+    val inputState = rememberTextFieldState()
     var isSending by remember { mutableStateOf(false) }
     var commentToDelete by remember { mutableStateOf<SongComment?>(null) }
     var isDeleting by remember { mutableStateOf(false) }
@@ -203,7 +211,7 @@ fun SongCommentsBottomSheet(
     }
 
     fun doSend() {
-        val content = inputText.trim()
+        val content = inputState.text.toString().trim()
         if (content.isEmpty()) return
         if (!UserSession.isLoggedIn) {
             Toast.makeText(context, "请先登录", Toast.LENGTH_SHORT).show()
@@ -225,7 +233,7 @@ fun SongCommentsBottomSheet(
                 if (result.isSuccess) {
                     val newCommentId = result.getOrNull().orEmpty().ifBlank { System.currentTimeMillis().toString() }
                     Toast.makeText(context, "发布成功", Toast.LENGTH_SHORT).show()
-                    inputText = ""
+                    inputState.clearText()
                     replyingTo = null
 
                     val newComment =
@@ -728,8 +736,7 @@ fun SongCommentsBottomSheet(
 
                 // 悬浮输入条：样式与 MiniPlayerBar 一致，半透明悬浮不挡字
                 CommentInputBottomBar(
-                    inputText = inputText,
-                    onInputTextChange = { inputText = it },
+                    inputState = inputState,
                     replyingTo = replyingTo,
                     onCancelReply = { replyingTo = null },
                     isSending = isSending,
@@ -1032,8 +1039,7 @@ private fun SongCommentItem(
  */
 @Composable
 private fun CommentInputBottomBar(
-    inputText: String,
-    onInputTextChange: (String) -> Unit,
+    inputState: TextFieldState,
     replyingTo: SongComment?,
     onCancelReply: () -> Unit,
     isSending: Boolean,
@@ -1133,7 +1139,7 @@ private fun CommentInputBottomBar(
                             .padding(end = 8.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    if (inputText.isEmpty()) {
+                    if (inputState.text.isEmpty()) {
                         Text(
                             text = if (replyingTo != null) "回复 @${replyingTo.nick}..." else "说点什么吧...",
                             style = MaterialTheme.typography.bodyMedium,
@@ -1143,8 +1149,7 @@ private fun CommentInputBottomBar(
                         )
                     }
                     BasicTextField(
-                        value = inputText,
-                        onValueChange = onInputTextChange,
+                        state = inputState,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -1152,6 +1157,7 @@ private fun CommentInputBottomBar(
                                 .onFocusChanged { focusState ->
                                     isFocused = focusState.isFocused
                                 },
+                        lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 3),
                         textStyle =
                             MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -1162,14 +1168,13 @@ private fun CommentInputBottomBar(
                             } else {
                                 SolidColor(Color.Transparent)
                             },
-                        maxLines = 3,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { onSend() }),
+                        onKeyboardAction = { onSend() },
                     )
                 }
 
                 // 右侧圆形动作按钮（同 MiniPlayerBar 播放按钮尺寸与布局）
-                val canSend = inputText.isNotBlank() && !isSending
+                val canSend = inputState.text.isNotBlank() && !isSending
                 Box(
                     modifier =
                         Modifier

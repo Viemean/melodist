@@ -21,8 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Clear
@@ -82,6 +85,7 @@ enum class SearchTab(
 }
 
 class SearchScreenState {
+    val queryState = TextFieldState()
     var query by mutableStateOf("")
     var currentTab by mutableStateOf(SearchTab.Song)
     var historyKeywords by mutableStateOf(SearchKeywordHistoryManager.getKeywords())
@@ -123,6 +127,7 @@ class SearchScreenState {
 
     fun clearSearch() {
         query = ""
+        queryState.clearText()
         hasSearched = false
         activeQuery = ""
         songResults = emptyList()
@@ -170,6 +175,13 @@ fun SearchScreen(
                 Log.w("SearchTab", "Operation failed", e)
             }
         }
+    }
+
+    LaunchedEffect(searchState.queryState) {
+        snapshotFlow { searchState.queryState.text }
+            .collect {
+                searchState.query = it.toString()
+            }
     }
 
     var query by searchState::query
@@ -479,26 +491,24 @@ fun SearchScreen(
                         }
 
                         BasicTextField(
-                            value = query,
-                            onValueChange = { query = it },
+                            state = searchState.queryState,
                             modifier =
                                 Modifier
                                     .weight(1f)
                                     .padding(horizontal = 6.dp)
                                     .focusRequester(focusRequester),
-                            singleLine = true,
+                            lineLimits = TextFieldLineLimits.SingleLine,
                             textStyle =
                                 MaterialTheme.typography.bodyMedium.copy(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions =
-                                KeyboardActions(
-                                    onSearch = { executeSearch(query, currentTab) },
-                                ),
-                            decorationBox = { innerTextField ->
-                                if (query.isEmpty()) {
+                            onKeyboardAction = {
+                                executeSearch(searchState.queryState.text.toString(), currentTab)
+                            },
+                            decorator = { innerTextField ->
+                                if (searchState.queryState.text.isEmpty()) {
                                     Text(
                                         text = "搜索歌曲、歌手或专辑...",
                                         style = MaterialTheme.typography.bodyMedium,
@@ -512,10 +522,7 @@ fun SearchScreen(
                         if (query.isNotEmpty()) {
                             IconButton(
                                 onClick = {
-                                    query = ""
-                                    hasSearched = false
-                                    activeQuery = ""
-                                    loadedTabs = emptySet()
+                                    searchState.clearSearch()
                                 },
                                 modifier = Modifier.size(36.dp),
                             ) {
@@ -580,7 +587,7 @@ fun SearchScreen(
                                         Modifier
                                             .clip(RoundedCornerShape(16.dp))
                                             .clickable {
-                                                query = keyword
+                                                searchState.queryState.setTextAndPlaceCursorAtEnd(keyword)
                                                 executeSearch(keyword, SearchTab.Song)
                                             },
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,

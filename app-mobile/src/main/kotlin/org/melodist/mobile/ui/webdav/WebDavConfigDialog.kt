@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import org.melodist.api.WebDavService
 import org.melodist.model.WebDavServer
 
+@Suppress("DEPRECATION")
 @Composable
 fun WebDavConfigDialog(
     initialServer: WebDavServer,

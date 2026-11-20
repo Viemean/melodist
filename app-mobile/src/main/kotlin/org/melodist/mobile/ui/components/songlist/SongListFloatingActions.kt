@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Close
@@ -40,6 +42,10 @@ import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -79,6 +85,24 @@ fun SongListFloatingActions(
     onLocateCurrentPlaying: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val filterQueryState = rememberTextFieldState(filterQuery)
+    val currentFilterQuery by rememberUpdatedState(filterQuery)
+    val currentOnFilterQueryChange by rememberUpdatedState(onFilterQueryChange)
+
+    LaunchedEffect(filterQuery) {
+        if (filterQueryState.text.toString() != filterQuery) {
+            filterQueryState.setTextAndPlaceCursorAtEnd(filterQuery)
+        }
+    }
+    LaunchedEffect(filterQueryState) {
+        snapshotFlow { filterQueryState.text }
+            .collect {
+                val currentText = it.toString()
+                if (currentText != currentFilterQuery) {
+                    currentOnFilterQueryChange(currentText)
+                }
+            }
+    }
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.8f),
@@ -116,17 +140,16 @@ fun SongListFloatingActions(
                                 modifier = Modifier.size(18.dp),
                             )
                             BasicTextField(
-                                value = filterQuery,
-                                onValueChange = onFilterQueryChange,
-                                singleLine = true,
+                                state = filterQueryState,
+                                lineLimits = TextFieldLineLimits.SingleLine,
                                 textStyle =
                                     MaterialTheme.typography.bodyMedium.copy(
                                         color = MaterialTheme.colorScheme.onSurface,
                                     ),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { onCollapseFilter() }),
-                                decorationBox = { innerTextField ->
+                                onKeyboardAction = { onCollapseFilter() },
+                                decorator = { innerTextField ->
                                     Box(
                                         modifier =
                                             Modifier
@@ -134,7 +157,7 @@ fun SongListFloatingActions(
                                                 .padding(horizontal = 6.dp),
                                         contentAlignment = Alignment.CenterStart,
                                     ) {
-                                        if (filterQuery.isEmpty()) {
+                                        if (filterQueryState.text.isEmpty()) {
                                             Text(
                                                 text = "过滤曲目...",
                                                 style = MaterialTheme.typography.bodyMedium,

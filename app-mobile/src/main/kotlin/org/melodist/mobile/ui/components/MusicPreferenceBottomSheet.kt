@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +41,11 @@ import java.time.format.DateTimeFormatter
 fun MusicPreferenceBottomSheet(onDismissRequest: () -> Unit) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState =
+        rememberBottomSheetState(
+            initialValue = SheetValue.Hidden,
+            enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+        )
 
     val currentPreference by UserMusicPreferenceManager.preferenceFlow.collectAsState()
     val isLoading by UserMusicPreferenceManager.isLoadingFlow.collectAsState()
@@ -481,11 +487,21 @@ private fun PreferenceSliderRow(
                 )
             }
 
+            val sliderState =
+                rememberSliderState(
+                    value = score.toFloat(),
+                    steps = 9,
+                    trackRange = 0f..100f,
+                )
+            LaunchedEffect(score) {
+                if (sliderState.value.toInt() != score) {
+                    sliderState.value = score.toFloat()
+                }
+            }
+
             Slider(
-                value = score.toFloat(),
+                state = sliderState,
                 onValueChange = { onScoreChanged(it.toInt()) },
-                valueRange = 0f..100f,
-                steps = 9,
                 modifier = Modifier.fillMaxWidth().height(32.dp),
             )
         }

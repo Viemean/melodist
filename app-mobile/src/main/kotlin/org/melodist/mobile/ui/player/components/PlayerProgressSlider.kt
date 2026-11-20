@@ -16,8 +16,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -60,6 +62,12 @@ fun PlayerProgressSlider(
             sliderPositionMs.coerceIn(0L, durationSafe)
         }
     val progressFraction = (currentPosSafe.toFloat() / durationSafe).coerceIn(0f, 1f)
+    val sliderState = remember { SliderState(progressFraction) }
+    LaunchedEffect(progressFraction) {
+        if (!isDraggingSlider) {
+            sliderState.value = progressFraction
+        }
+    }
     // 磁盘缓存比例
     val actualCacheFraction = if (isFromCache) 1f else fileCacheFraction.coerceIn(0f, 1f)
 
@@ -93,7 +101,7 @@ fun PlayerProgressSlider(
         }
 
         Slider(
-            value = progressFraction,
+            state = sliderState,
             onValueChange = {
                 isDraggingSlider = true
                 draggingSliderValue = it
@@ -105,8 +113,8 @@ fun PlayerProgressSlider(
             },
             interactionSource = interactionSource,
             colors = sliderColors,
-            thumb = {},
-            track = {
+            thumb = { _ -> },
+            track = { _ ->
                 val density = LocalDensity.current
                 val isPressed by interactionSource.collectIsPressedAsState()
                 val isEngaged = isPressed || isDraggingSlider

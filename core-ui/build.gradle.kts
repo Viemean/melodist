@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "org.melodist.core.ui"
     compileSdk = 37
+    compileSdkMinor = 2
 
     defaultConfig {
         minSdk = 26

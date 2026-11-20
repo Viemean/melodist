@@ -33,7 +33,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -370,14 +372,24 @@ fun SettingsPlaybackSection(
                             }
                         }
 
+                        val lyricSliderState =
+                            rememberSliderState(
+                                value = customSp.toFloat(),
+                                steps = 33,
+                                trackRange = 14f..48f,
+                            )
+                        LaunchedEffect(customSp) {
+                            if (lyricSliderState.value.toInt() != customSp) {
+                                lyricSliderState.value = customSp.toFloat()
+                            }
+                        }
+
                         Slider(
-                            value = customSp.toFloat(),
+                            state = lyricSliderState,
                             onValueChange = {
                                 customSp = it.toInt().coerceIn(14, 48)
                                 AppSettingsManager.setCustomLyricFontSize(customSp)
                             },
-                            valueRange = 14f..48f,
-                            steps = 33,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
