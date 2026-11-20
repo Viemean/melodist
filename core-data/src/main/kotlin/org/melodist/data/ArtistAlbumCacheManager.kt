@@ -86,6 +86,8 @@ object ArtistAlbumCacheManager {
         }
     }
 
+    fun getCachedAlbumDetail(albumMid: String): AlbumDetail? = albumDetailCache.get(albumMid)
+
     suspend fun getAlbumDetail(
         albumMid: String,
         forceRefresh: Boolean = false,

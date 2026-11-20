@@ -78,6 +78,7 @@ import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.MediaDescriptionCard
 import org.melodist.mobile.ui.components.MediaInfoBottomSheet
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.components.formatMediaCount
 import org.melodist.mobile.ui.components.landscapeNestedScroll
@@ -117,18 +118,20 @@ fun PlaylistDetailScreen(
             !playlist.isMyFavorite && !playlist.isMillionRecommend && !playlist.isCreated
         }
 
-    var songs by remember {
-        mutableStateOf<List<Song>>(
+    val cachedInitialSongs =
+        remember(playlist.dirId, playlist.tid) {
             if (playlist.isMyFavorite) {
                 UserLibraryCacheManager.favoriteSongsFlow.value
             } else if (playlist.isMillionRecommend) {
                 MillionRecommendManager.resultFlow.value.songs
             } else {
-                emptyList()
-            },
-        )
+                UserLibraryCacheManager.getCachedPlaylistSongs(playlist.dirId, playlist.tid).orEmpty()
+            }
+        }
+    var songs by remember(playlist.dirId, playlist.tid) {
+        mutableStateOf<List<Song>>(cachedInitialSongs)
     }
-    var isLoading by remember {
+    var isLoading by remember(playlist.dirId, playlist.tid) {
         mutableStateOf(
             if (playlist.isMyFavorite) {
                 UserLibraryCacheManager.favoriteSongsFlow.value.isEmpty()
@@ -136,7 +139,7 @@ fun PlaylistDetailScreen(
                 MillionRecommendManager.resultFlow.value.songs
                     .isEmpty()
             } else {
-                false
+                cachedInitialSongs.isEmpty()
             },
         )
     }
@@ -180,7 +183,10 @@ fun PlaylistDetailScreen(
     val millionResult by MillionRecommendManager.resultFlow.collectAsState()
     val isMillionLoading by MillionRecommendManager.isLoadingFlow.collectAsState()
 
-    val listState = rememberLazyListState()
+    val listState =
+        remember(playlist.dirId, playlist.tid) {
+            RotatingCardCoordinator.getOrCreateLazyListState("playlist_${playlist.dirId}_${playlist.tid}")
+        }
     val showTopBarTitle by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 200

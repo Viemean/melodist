@@ -74,6 +74,7 @@ import org.melodist.api.setPlaylistPrivacy
 import org.melodist.data.UserLibraryCacheManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CreatePlaylistDialog
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.mobile.ui.library.components.FavoriteAlbumsCard
 import org.melodist.mobile.ui.library.components.FavoriteMusicCard
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
@@ -158,7 +159,9 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .nestedScroll(nestedScrollConnection),
     ) {
+        val listState = remember { RotatingCardCoordinator.getOrCreateLazyListState("library_content_list") }
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding =
                 PaddingValues(
@@ -170,8 +173,10 @@ fun LibraryScreen(
             item(key = "library_hero_cards_row") {
                 val screenWidth = LocalConfiguration.current.screenWidthDp.dp
                 val cardWidth = (screenWidth - 44.dp).coerceIn(280.dp, 360.dp)
+                val heroCardsScrollState = remember { RotatingCardCoordinator.getOrCreateLazyListState("library_hero_cards_row") }
 
                 LazyRow(
+                    state = heroCardsScrollState,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),

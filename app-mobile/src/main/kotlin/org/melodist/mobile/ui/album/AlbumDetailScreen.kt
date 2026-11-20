@@ -69,6 +69,7 @@ import org.melodist.mobile.ui.components.ArtistSelectDialog
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.components.MediaDescriptionCard
 import org.melodist.mobile.ui.components.MediaInfoBottomSheet
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.mobile.ui.components.landscapeNestedScroll
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
@@ -90,13 +91,14 @@ fun AlbumDetailScreen(
     val navController = LocalAppNavigation.current
     val scope = rememberCoroutineScope()
 
-    var albumDetail by remember { mutableStateOf<AlbumDetail?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    val cachedDetail = remember(albumMid) { ArtistAlbumCacheManager.getCachedAlbumDetail(albumMid) }
+    var albumDetail by remember(albumMid) { mutableStateOf(cachedDetail) }
+    var isLoading by remember(albumMid) { mutableStateOf(cachedDetail == null) }
     var isRefreshing by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
     var showArtistSelectDialog by remember { mutableStateOf(false) }
 
-    val listState = rememberLazyListState()
+    val listState = remember(albumMid) { RotatingCardCoordinator.getOrCreateLazyListState("album_$albumMid") }
 
     val displayName = albumDetail?.name ?: albumName.ifBlank { "专辑详情" }
     val artistName = albumDetail?.artist.orEmpty()

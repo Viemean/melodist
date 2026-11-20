@@ -18,6 +18,7 @@ import kotlinx.coroutines.isActive
 import org.melodist.api.UserSession
 import org.melodist.data.AppLifecycleManager
 import org.melodist.data.MillionRecommendManager
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Playlist
 import org.melodist.model.RotatingCandidatePool
@@ -44,36 +45,27 @@ fun MillionRecommendCard(
 
     // 提取前 50 首本地缓存作为候选池并进行洗牌
     val pool50 = remember(songs) { songs.take(50) }
-    var shuffledList by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var currentIndex by remember { mutableIntStateOf(0) }
+    val rotationState = remember { RotatingCardCoordinator.getOrCreate<Song>("million_recommend") }
+    var activeSongState by remember { mutableStateOf(rotationState.currentItem) }
 
     LaunchedEffect(pool50) {
-        if (pool50.isNotEmpty()) {
-            shuffledList = RotatingCandidatePool.createShuffledQueue(pool50, lastItem = shuffledList.lastOrNull())
-            currentIndex = 0
-        } else {
-            shuffledList = emptyList()
-            currentIndex = 0
+        if (rotationState.updateSource(pool50)) {
+            activeSongState = rotationState.currentItem
         }
     }
 
     // 15 秒无序轮播，配置 4 秒初始错峰相位
-    LaunchedEffect(shuffledList, isForeground) {
-        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+    LaunchedEffect(isForeground, pool50) {
+        if (!isForeground || pool50.size <= 1) return@LaunchedEffect
         delay(PHASE_OFFSET_MS)
         while (isActive) {
             delay(ROTATION_INTERVAL_MS)
-            val nextIndex = currentIndex + 1
-            if (nextIndex < shuffledList.size) {
-                currentIndex = nextIndex
-            } else {
-                shuffledList = RotatingCandidatePool.createShuffledQueue(pool50, lastItem = shuffledList.lastOrNull())
-                currentIndex = 0
-            }
+            rotationState.advance()
+            activeSongState = rotationState.currentItem
         }
     }
 
-    val activeSong = shuffledList.getOrNull(currentIndex) ?: songs.firstOrNull()
+    val activeSong = activeSongState ?: songs.firstOrNull()
     val activeCoverUrl = activeSong?.coverUrl?.takeIf { it.isNotBlank() } ?: coverUrl
 
     val openPlaylistDetail: () -> Unit = {

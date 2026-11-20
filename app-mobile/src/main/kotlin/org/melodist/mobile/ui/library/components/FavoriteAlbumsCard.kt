@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.melodist.data.AppLifecycleManager
 import org.melodist.data.UserLibraryCacheManager
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.mobile.ui.discover.HeroRecommendCard
 import org.melodist.model.Album
 import org.melodist.model.RotatingCandidatePool
@@ -32,42 +33,27 @@ fun FavoriteAlbumsCard(
     val favoriteAlbums = libraryData.favoriteAlbums
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
-    // 5 最新 + 25 随机构建候选池
-    val candidatePool =
-        remember(favoriteAlbums) {
-            RotatingCandidatePool.buildCandidatePool(favoriteAlbums, fixedCount = 5, randomCount = 25)
-        }
+    val rotationState = remember { RotatingCardCoordinator.getOrCreate<Album>("favorite_albums") }
+    var activeAlbum by remember { mutableStateOf(rotationState.currentItem) }
 
-    var shuffledList by remember { mutableStateOf<List<Album>>(emptyList()) }
-    var currentDisplayIndex by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(candidatePool) {
-        if (candidatePool.isNotEmpty()) {
-            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-            currentDisplayIndex = 0
-        } else {
-            shuffledList = emptyList()
-            currentDisplayIndex = 0
+    LaunchedEffect(favoriteAlbums) {
+        if (rotationState.updateSource(favoriteAlbums, fixedCount = 5, randomCount = 25)) {
+            activeAlbum = rotationState.currentItem
         }
     }
 
     // 15 秒无序轮播定时器（错峰 4 秒，前台时执行）
-    LaunchedEffect(shuffledList, isForeground) {
-        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+    LaunchedEffect(isForeground, favoriteAlbums) {
+        if (!isForeground || favoriteAlbums.size <= 1) return@LaunchedEffect
         delay(ALBUM_PHASE_OFFSET_MS)
         while (isActive) {
             delay(ALBUM_ROTATION_INTERVAL_MS)
-            val nextIndex = currentDisplayIndex + 1
-            if (nextIndex < shuffledList.size) {
-                currentDisplayIndex = nextIndex
-            } else {
-                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-                currentDisplayIndex = 0
-            }
+            rotationState.advance()
+            activeAlbum = rotationState.currentItem
         }
     }
 
-    val displayAlbum = shuffledList.getOrNull(currentDisplayIndex) ?: favoriteAlbums.firstOrNull()
+    val displayAlbum = activeAlbum ?: favoriteAlbums.firstOrNull()
 
     HeroRecommendCard(
         badgeText = "收藏专辑",

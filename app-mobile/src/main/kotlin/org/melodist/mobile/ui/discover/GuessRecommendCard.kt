@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -20,7 +19,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.melodist.data.AppLifecycleManager
 import org.melodist.data.GuessRecommendManager
-import org.melodist.model.RotatingCandidatePool
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.model.Song
 import org.melodist.playback.PlaybackManager
 
@@ -38,33 +37,21 @@ fun GuessRecommendCard(
     val currentSong by PlaybackManager.currentSong.collectAsState()
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
-    var shuffledList by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var currentIndex by remember { mutableIntStateOf(0) }
+    val rotationState = remember { RotatingCardCoordinator.getOrCreate<Song>("guess_recommend") }
+    var activeSongState by remember { mutableStateOf(rotationState.currentItem) }
 
-    // 初始化与列表更新时重新构建打乱的候选队列
     LaunchedEffect(guessSongs) {
-        if (guessSongs.isNotEmpty()) {
-            shuffledList = RotatingCandidatePool.createShuffledQueue(guessSongs, lastItem = shuffledList.lastOrNull())
-            currentIndex = 0
-        } else {
-            shuffledList = emptyList()
-            currentIndex = 0
+        if (rotationState.updateSource(guessSongs)) {
+            activeSongState = rotationState.currentItem
         }
     }
 
-    // 20 秒纯内存无序轮播定时器，在一轮轮完后重新洗牌，0网络请求
-    LaunchedEffect(shuffledList, isRadioMode, isForeground) {
-        if (isRadioMode || !isForeground || shuffledList.size <= 1) return@LaunchedEffect
+    LaunchedEffect(isRadioMode, isForeground, guessSongs) {
+        if (isRadioMode || !isForeground || guessSongs.size <= 1) return@LaunchedEffect
         while (isActive) {
             delay(ROTATION_INTERVAL_MS)
-            val nextIndex = currentIndex + 1
-            if (nextIndex < shuffledList.size) {
-                currentIndex = nextIndex
-            } else {
-                // 本轮候选已全部轮播完毕，在当前内存池中重新洗牌并重置索引，不触发任何网络请求
-                shuffledList = RotatingCandidatePool.createShuffledQueue(guessSongs, lastItem = shuffledList.lastOrNull())
-                currentIndex = 0
-            }
+            rotationState.advance()
+            activeSongState = rotationState.currentItem
         }
     }
 
@@ -72,7 +59,7 @@ fun GuessRecommendCard(
         if (isRadioMode && currentSong != null) {
             currentSong
         } else {
-            shuffledList.getOrNull(currentIndex) ?: guessSongs.firstOrNull()
+            activeSongState ?: guessSongs.firstOrNull()
         }
     val isCurrentRadioPlaying = isRadioMode && isPlaying
 
@@ -83,7 +70,7 @@ fun GuessRecommendCard(
         if (isRadioMode && currentSong != null) {
             PlaybackManager.togglePlayPause()
         } else {
-            val listToPlay = if (shuffledList.isNotEmpty()) shuffledList else guessSongs
+            val listToPlay = rotationState.shuffledQueue.ifEmpty { guessSongs }
             if (listToPlay.isNotEmpty()) {
                 val startIndex =
                     if (activeSong != null) {

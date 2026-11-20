@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.melodist.data.AppLifecycleManager
 import org.melodist.data.UserLibraryCacheManager
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.mobile.ui.discover.HeroRecommendCard
 import org.melodist.model.RotatingCandidatePool
 import org.melodist.model.Song
@@ -33,52 +34,35 @@ fun FavoriteMusicCard(
     val favoriteSongs by UserLibraryCacheManager.favoriteSongsFlow.collectAsState()
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
-    // 5 最新 + 25 随机构建 30 首候选池
-    val candidatePool =
-        remember(favoriteSongs) {
-            RotatingCandidatePool.buildCandidatePool(favoriteSongs, fixedCount = 5, randomCount = 25)
-        }
+    val rotationState = remember { RotatingCardCoordinator.getOrCreate<Song>("favorite_music") }
+    var activeSong by remember { mutableStateOf(rotationState.currentItem) }
 
-    var shuffledList by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var currentDisplayIndex by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(candidatePool) {
-        if (candidatePool.isNotEmpty()) {
-            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-            currentDisplayIndex = 0
-        } else {
-            shuffledList = emptyList()
-            currentDisplayIndex = 0
+    LaunchedEffect(favoriteSongs) {
+        if (rotationState.updateSource(favoriteSongs, fixedCount = 5, randomCount = 25)) {
+            activeSong = rotationState.currentItem
         }
     }
 
-    // 15 秒无序轮播定时器（前台时执行）
-    LaunchedEffect(shuffledList, isForeground) {
-        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+    LaunchedEffect(isForeground, favoriteSongs) {
+        if (!isForeground || favoriteSongs.size <= 1) return@LaunchedEffect
         while (isActive) {
             delay(SONG_ROTATION_INTERVAL_MS)
-            val nextIndex = currentDisplayIndex + 1
-            if (nextIndex < shuffledList.size) {
-                currentDisplayIndex = nextIndex
-            } else {
-                // 当前轮循环完毕，重新洗牌
-                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-                currentDisplayIndex = 0
-            }
+            rotationState.advance()
+            activeSong = rotationState.currentItem
         }
     }
 
-    val activeSong: Song? = shuffledList.getOrNull(currentDisplayIndex) ?: favoriteSongs.firstOrNull()
-    val activeCoverUrl = activeSong?.coverUrl.orEmpty()
+    val currentSong: Song? = activeSong ?: favoriteSongs.firstOrNull()
+    val activeCoverUrl = currentSong?.coverUrl.orEmpty()
 
     val triggerPlay: () -> Unit = {
         if (favoriteSongs.isNotEmpty()) {
             val startIndex =
-                if (activeSong != null) {
+                if (currentSong != null) {
                     val index =
                         favoriteSongs.indexOfFirst {
-                            (it.songId > 0 && it.songId == activeSong.songId) ||
-                                (it.songMid.isNotBlank() && it.songMid == activeSong.songMid)
+                            (it.songId > 0 && it.songId == currentSong.songId) ||
+                                (it.songMid.isNotBlank() && it.songMid == currentSong.songMid)
                         }
                     if (index >= 0) index else 0
                 } else {
@@ -99,10 +83,10 @@ fun FavoriteMusicCard(
     HeroRecommendCard(
         badgeText = "我的喜欢",
         subtitleText = "共 $effectiveTotalCount 首",
-        title = activeSong?.name ?: "我喜欢的音乐",
+        title = currentSong?.name ?: "我喜欢的音乐",
         caption =
-            if (activeSong != null) {
-                "${activeSong.singer} · ${activeSong.album.ifBlank { "单曲" }}"
+            if (currentSong != null) {
+                "${currentSong.singer} · ${currentSong.album.ifBlank { "单曲" }}"
             } else {
                 "点亮红心，收藏你挚爱的旋律"
             },

@@ -38,6 +38,7 @@ import org.melodist.data.GuessRecommendManager
 import org.melodist.data.MillionRecommendManager
 import org.melodist.data.RecommendFeedManager
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.playback.PlaybackManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,8 +98,10 @@ fun DiscoverScreen(
                 CircularProgressIndicator()
             }
         } else {
+            val listState = remember { RotatingCardCoordinator.getOrCreateLazyListState("discover_song_list") }
             CommonSongList(
                 songs = songs,
+                state = listState,
                 contentPadding =
                     PaddingValues(
                         top = 2.dp,
@@ -108,8 +111,10 @@ fun DiscoverScreen(
                     item(key = "discover_hero_carousel") {
                         val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
                         val cardWidth = (screenWidth - 44.dp).coerceIn(280.dp, 360.dp)
+                        val carouselScrollState = remember { RotatingCardCoordinator.getOrCreateLazyListState("discover_hero_carousel") }
 
                         androidx.compose.foundation.lazy.LazyRow(
+                            state = carouselScrollState,
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),

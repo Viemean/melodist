@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +46,7 @@ import org.melodist.api.UserSession
 import org.melodist.data.AppLifecycleManager
 import org.melodist.data.RecentPlaybackManager
 import org.melodist.mobile.ui.components.CommonSongList
+import org.melodist.mobile.ui.components.RotatingCardCoordinator
 import org.melodist.mobile.ui.components.SongListDeleteType
 import org.melodist.mobile.ui.discover.HeroRecommendCard
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
@@ -77,8 +77,10 @@ fun RecentPlaybackScreen(
         onRefresh = { RecentPlaybackManager.syncFromCloud(force = true) },
         modifier = modifier.fillMaxSize(),
     ) {
+        val listState = remember { RotatingCardCoordinator.getOrCreateLazyListState("recent_playback_song_list") }
         CommonSongList(
             songs = recentSongs,
+            state = listState,
             deleteType = SongListDeleteType.RecentHistory,
             showLocalBadge = true,
             showWebDavBadge = true,
@@ -103,7 +105,10 @@ fun RecentPlaybackScreen(
                             }
                         }
 
+                    val heroCardsScrollState = remember { RotatingCardCoordinator.getOrCreateLazyListState("recent_hero_cards_row") }
+
                     LazyRow(
+                        state = heroCardsScrollState,
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -242,41 +247,26 @@ private fun RecentAlbumsHeroCard(
 ) {
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
-    // 5 最新 + 25 随机构建候选池
-    val candidatePool =
-        remember(recentAlbums) {
-            RotatingCandidatePool.buildCandidatePool(recentAlbums, fixedCount = 5, randomCount = 25)
-        }
+    val rotationState = remember { RotatingCardCoordinator.getOrCreate<RecentAlbumItem>("recent_albums") }
+    var activeAlbumState by remember { mutableStateOf(rotationState.currentItem) }
 
-    var shuffledList by remember { mutableStateOf<List<RecentAlbumItem>>(emptyList()) }
-    var currentDisplayIndex by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(candidatePool) {
-        if (candidatePool.isNotEmpty()) {
-            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-            currentDisplayIndex = 0
-        } else {
-            shuffledList = emptyList()
-            currentDisplayIndex = 0
+    LaunchedEffect(recentAlbums) {
+        if (rotationState.updateSource(recentAlbums, fixedCount = 5, randomCount = 25)) {
+            activeAlbumState = rotationState.currentItem
         }
     }
 
     // 15 秒无序轮播定时器（前台时执行，相位 0s）
-    LaunchedEffect(shuffledList, isForeground) {
-        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+    LaunchedEffect(isForeground, recentAlbums) {
+        if (!isForeground || recentAlbums.size <= 1) return@LaunchedEffect
         while (isActive) {
             delay(ROTATION_INTERVAL_MS)
-            val nextIndex = currentDisplayIndex + 1
-            if (nextIndex < shuffledList.size) {
-                currentDisplayIndex = nextIndex
-            } else {
-                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-                currentDisplayIndex = 0
-            }
+            rotationState.advance()
+            activeAlbumState = rotationState.currentItem
         }
     }
 
-    val activeAlbum = shuffledList.getOrNull(currentDisplayIndex) ?: recentAlbums.firstOrNull()
+    val activeAlbum = activeAlbumState ?: recentAlbums.firstOrNull()
 
     HeroRecommendCard(
         badgeText = "最近专辑",
@@ -312,42 +302,27 @@ private fun RecentPlaylistsHeroCard(
 ) {
     val isForeground by AppLifecycleManager.isForeground.collectAsState()
 
-    // 5 最新 + 25 随机构建候选池
-    val candidatePool =
-        remember(playlists) {
-            RotatingCandidatePool.buildCandidatePool(playlists, fixedCount = 5, randomCount = 25)
-        }
+    val rotationState = remember { RotatingCardCoordinator.getOrCreate<RecentPlaylistItem>("recent_playlists") }
+    var activePlaylistState by remember { mutableStateOf(rotationState.currentItem) }
 
-    var shuffledList by remember { mutableStateOf<List<RecentPlaylistItem>>(emptyList()) }
-    var currentDisplayIndex by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(candidatePool) {
-        if (candidatePool.isNotEmpty()) {
-            shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-            currentDisplayIndex = 0
-        } else {
-            shuffledList = emptyList()
-            currentDisplayIndex = 0
+    LaunchedEffect(playlists) {
+        if (rotationState.updateSource(playlists, fixedCount = 5, randomCount = 25)) {
+            activePlaylistState = rotationState.currentItem
         }
     }
 
     // 15 秒无序轮播定时器（前台时执行，错峰 4s）
-    LaunchedEffect(shuffledList, isForeground) {
-        if (!isForeground || shuffledList.size <= 1) return@LaunchedEffect
+    LaunchedEffect(isForeground, playlists) {
+        if (!isForeground || playlists.size <= 1) return@LaunchedEffect
         delay(PLAYLIST_PHASE_OFFSET_MS)
         while (isActive) {
             delay(ROTATION_INTERVAL_MS)
-            val nextIndex = currentDisplayIndex + 1
-            if (nextIndex < shuffledList.size) {
-                currentDisplayIndex = nextIndex
-            } else {
-                shuffledList = RotatingCandidatePool.createShuffledQueue(candidatePool, lastItem = shuffledList.lastOrNull())
-                currentDisplayIndex = 0
-            }
+            rotationState.advance()
+            activePlaylistState = rotationState.currentItem
         }
     }
 
-    val activePlaylist = shuffledList.getOrNull(currentDisplayIndex) ?: playlists.firstOrNull()
+    val activePlaylist = activePlaylistState ?: playlists.firstOrNull()
 
     HeroRecommendCard(
         badgeText = "最近歌单",
