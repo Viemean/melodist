@@ -192,7 +192,7 @@ class PlaybackUrlProbeTest {
     }
 
     @Test
-    fun `probe meteor fallback search lyrics`() =
+    fun `online songs without official lyrics do not perform fallback search`() =
         kotlinx.coroutines.runBlocking {
             val api = MusicApiService()
             val songs = api.search("メテオ ヰ世界情緒")
@@ -200,9 +200,15 @@ class PlaybackUrlProbeTest {
             assertNotNull(targetSong)
 
             val lyrics = api.getLyrics(targetSong!!.songMid, targetSong.songId, songName = targetSong.name, singer = targetSong.singer)
+            assertTrue(lyrics.isEmpty())
+        }
+
+    @Test
+    fun `non-online track without mid falls back to search matching`() =
+        kotlinx.coroutines.runBlocking {
+            val api = MusicApiService()
+            val lyrics = api.getLyrics("", 0L, songName = "七里香", singer = "周杰伦")
             assertTrue(lyrics.isNotEmpty())
-            println("Resolved lyrics count for ${targetSong.name}: ${lyrics.size}")
-            println("First line: ${lyrics.first().text}, trans=${lyrics.first().transText}")
         }
 
     @Test

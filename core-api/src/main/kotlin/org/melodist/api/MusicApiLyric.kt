@@ -92,8 +92,9 @@ suspend fun MusicApiService.getLyrics(
             }
         }
 
-        // 若本曲未提供有效歌词（code 24001），通过歌名与歌手检索匹配歌词
-        if (rawLyric.isBlank() && songName.isNotBlank()) {
+        // 仅对未提供明确 songMid/songId 的非在线曲目，在无歌词时尝试通过歌名与歌手检索匹配
+        val isOnlineTrack = songMid.isNotBlank() || songId > 0L
+        if (!isOnlineTrack && rawLyric.isBlank() && songName.isNotBlank()) {
             try {
                 val cleanTitle = songName.replace(Regex("""\s*[\(\[（【].*?[\)\]）】]"""), "").trim().ifBlank { songName.trim() }
                 val cleanSinger =
