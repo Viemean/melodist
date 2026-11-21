@@ -253,10 +253,7 @@ class McpPlaybackHandlerImpl : McpPlaybackHandler {
             }
         }
 
-    override suspend fun getPlaybackStatus(
-        queueOffset: Int,
-        queueLimit: Int,
-    ): Result<JsonObject> =
+    override suspend fun getPlaybackStatus(): Result<JsonObject> =
         withContext(Dispatchers.Main) {
             try {
                 val currentSong = PlaybackManager.currentSong.value
@@ -265,11 +262,7 @@ class McpPlaybackHandlerImpl : McpPlaybackHandler {
                 val durMs = PlaybackManager.durationMs.value
                 val loopMode = PlaybackManager.loopMode.value
                 val queue = PlaybackManager.playlist.value
-
-                val total = queue.size
-                val safeOffset = queueOffset.coerceIn(0, total)
-                val safeLimit = queueLimit.coerceIn(1, 100)
-                val slicedQueue = queue.drop(safeOffset).take(safeLimit)
+                val currentIndex = PlaybackManager.currentIndex.value
 
                 val json =
                     buildJsonObject {
@@ -294,9 +287,34 @@ class McpPlaybackHandlerImpl : McpPlaybackHandler {
                                 buildJsonObject {}
                             },
                         )
+                        put("queueTotal", queue.size)
+                        put("currentIndex", currentIndex)
+                    }
+                Result.success(json)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    override suspend fun getPlaybackQueue(
+        offset: Int,
+        limit: Int,
+    ): Result<JsonObject> =
+        withContext(Dispatchers.Main) {
+            try {
+                val queue = PlaybackManager.playlist.value
+                val currentIndex = PlaybackManager.currentIndex.value
+                val total = queue.size
+                val safeOffset = offset.coerceIn(0, total)
+                val safeLimit = limit.coerceIn(1, 100)
+                val slicedQueue = queue.drop(safeOffset).take(safeLimit)
+
+                val json =
+                    buildJsonObject {
                         put("queueTotal", total)
-                        put("queueOffset", safeOffset)
-                        put("queueLimit", safeLimit)
+                        put("currentIndex", currentIndex)
+                        put("offset", safeOffset)
+                        put("limit", safeLimit)
                         put(
                             "queue",
                             buildJsonArray {
@@ -305,8 +323,11 @@ class McpPlaybackHandlerImpl : McpPlaybackHandler {
                                         buildJsonObject {
                                             put("index", safeOffset + idx)
                                             put("songMid", s.songMid)
+                                            put("songId", s.songId)
                                             put("title", s.name)
                                             put("singer", s.singer)
+                                            put("album", s.album)
+                                            put("durationSeconds", s.durationSeconds)
                                         },
                                     )
                                 }

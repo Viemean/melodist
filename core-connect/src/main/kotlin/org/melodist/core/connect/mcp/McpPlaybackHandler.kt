@@ -14,9 +14,11 @@ interface McpPlaybackHandler {
         mode: String?,
     ): Result<String>
 
-    suspend fun getPlaybackStatus(
-        queueOffset: Int = 0,
-        queueLimit: Int = 50,
+    suspend fun getPlaybackStatus(): Result<JsonObject>
+
+    suspend fun getPlaybackQueue(
+        offset: Int = 0,
+        limit: Int = 50,
     ): Result<JsonObject>
 
     suspend fun getPlaybackHistory(

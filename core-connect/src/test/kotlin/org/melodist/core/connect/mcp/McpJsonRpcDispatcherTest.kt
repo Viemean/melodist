@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -31,10 +32,7 @@ class McpJsonRpcDispatcherTest {
                 mode: String?,
             ): Result<String> = Result.success("Controlled $action $mode")
 
-            override suspend fun getPlaybackStatus(
-                queueOffset: Int,
-                queueLimit: Int,
-            ): Result<JsonObject> =
+            override suspend fun getPlaybackStatus(): Result<JsonObject> =
                 Result.success(
                     buildJsonObject {
                         put("isPlaying", true)
@@ -42,6 +40,33 @@ class McpJsonRpcDispatcherTest {
                         put("durationMs", 240000)
                         put("loopMode", "ListRepeat")
                         put("loopModeLabel", "列表循环")
+                        put("queueTotal", 5)
+                        put("currentIndex", 0)
+                    },
+                )
+
+            override suspend fun getPlaybackQueue(
+                offset: Int,
+                limit: Int,
+            ): Result<JsonObject> =
+                Result.success(
+                    buildJsonObject {
+                        put("queueTotal", 5)
+                        put("currentIndex", 0)
+                        put("offset", offset)
+                        put("limit", limit)
+                        put(
+                            "queue",
+                            buildJsonArray {
+                                add(
+                                    buildJsonObject {
+                                        put("index", 0)
+                                        put("songMid", "004Z8Ihr0JIu5s")
+                                        put("title", "Test Song")
+                                    },
+                                )
+                            },
+                        )
                     },
                 )
 
@@ -112,6 +137,46 @@ class McpJsonRpcDispatcherTest {
             val resp = Json.parseToJsonElement(respStr!!).jsonObject
             val tools = resp["result"]?.jsonObject?.get("tools")?.jsonArray
             assertNotNull(tools)
-            assertEquals(10, tools!!.size)
+            assertEquals(11, tools!!.size)
+            val toolNames = tools.map { it.jsonObject["name"]?.jsonPrimitive?.content }
+            assertTrue(toolNames.contains("get_playback_status"))
+            assertTrue(toolNames.contains("get_playback_queue"))
+        }
+
+    @Test
+    fun `get_playback_queue tool returns queue slice`() =
+        runBlocking {
+            val req =
+                """
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "get_playback_queue",
+                        "arguments": {
+                            "offset": 0,
+                            "limit": 10
+                        }
+                    }
+                }
+                """.trimIndent()
+
+            val respStr = dispatcher.dispatch(req)
+            assertNotNull(respStr)
+
+            val resp = Json.parseToJsonElement(respStr!!).jsonObject
+            val result = resp["result"]?.jsonObject
+            assertNotNull(result)
+            assertEquals(false, result!!["isError"]?.jsonPrimitive?.booleanOrNull)
+
+            val content = result["content"]?.jsonArray
+            assertNotNull(content)
+            val text = content!![0].jsonObject["text"]?.jsonPrimitive?.content
+            assertNotNull(text)
+            val queueData = Json.parseToJsonElement(text!!).jsonObject
+            assertEquals(5, queueData["queueTotal"]?.jsonPrimitive?.intOrNull)
+            assertEquals(0, queueData["currentIndex"]?.jsonPrimitive?.intOrNull)
+            assertNotNull(queueData["queue"]?.jsonArray)
         }
 }

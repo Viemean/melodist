@@ -215,6 +215,10 @@ class McpJsonRpcDispatcher(
                     handleGetPlaybackStatus(args)
                 }
 
+                "get_playback_queue" -> {
+                    handleGetPlaybackQueue(args)
+                }
+
                 "get_recommendations" -> {
                     handleGetRecommendations(args)
                 }
@@ -847,15 +851,34 @@ class McpJsonRpcDispatcher(
     }
 
     private suspend fun handleGetPlaybackStatus(args: JsonObject): McpToolResult {
-        val queueOffset = args["queueOffset"]?.jsonPrimitive?.intOrNull ?: 0
-        val queueLimit = args["queueLimit"]?.jsonPrimitive?.intOrNull ?: 50
-        val result = playbackHandler.getPlaybackStatus(queueOffset, queueLimit)
+        val result = playbackHandler.getPlaybackStatus()
         return if (result.isSuccess) {
             val statusObj = result.getOrNull() ?: buildJsonObject {}
             McpToolResult(content = listOf(McpContent(text = json.encodeToString(statusObj))))
         } else {
             McpToolResult(
                 content = listOf(McpContent(text = "Failed to get playback status: ${result.exceptionOrNull()?.message}")),
+                isError = true,
+            )
+        }
+    }
+
+    private suspend fun handleGetPlaybackQueue(args: JsonObject): McpToolResult {
+        val offset =
+            args["offset"]?.jsonPrimitive?.intOrNull
+                ?: args["queueOffset"]?.jsonPrimitive?.intOrNull
+                ?: 0
+        val limit =
+            args["limit"]?.jsonPrimitive?.intOrNull
+                ?: args["queueLimit"]?.jsonPrimitive?.intOrNull
+                ?: 50
+        val result = playbackHandler.getPlaybackQueue(offset, limit)
+        return if (result.isSuccess) {
+            val queueObj = result.getOrNull() ?: buildJsonObject {}
+            McpToolResult(content = listOf(McpContent(text = json.encodeToString(queueObj))))
+        } else {
+            McpToolResult(
+                content = listOf(McpContent(text = "Failed to get playback queue: ${result.exceptionOrNull()?.message}")),
                 isError = true,
             )
         }
@@ -1281,7 +1304,24 @@ class McpJsonRpcDispatcher(
                     put("name", "get_playback_status")
                     put(
                         "description",
-                        "获取实时播放状态：当前曲目元数据、播放进度、暂停状态、循环模式及带分页的播放队列。",
+                        "获取实时播放状态：当前曲目元数据、播放进度、暂停状态、循环模式及队列总曲目数。注意：若需查看接下来的待播列表或详细队列内容，请调用 get_playback_queue。",
+                    )
+                    put(
+                        "inputSchema",
+                        buildJsonObject {
+                            put("type", "object")
+                            put("properties", buildJsonObject {})
+                        },
+                    )
+                },
+            )
+
+            add(
+                buildJsonObject {
+                    put("name", "get_playback_queue")
+                    put(
+                        "description",
+                        "获取当前播放器的待播列表/播放队列。仅在用户明确需要查看接下来播什么、待播列表或浏览队列内容时才按需调用。支持分页。",
                     )
                     put(
                         "inputSchema",
@@ -1291,14 +1331,14 @@ class McpJsonRpcDispatcher(
                                 "properties",
                                 buildJsonObject {
                                     put(
-                                        "queueOffset",
+                                        "offset",
                                         buildJsonObject {
                                             put("type", "integer")
                                             put("description", "播放队列切片起始下标（默认 0）")
                                         },
                                     )
                                     put(
-                                        "queueLimit",
+                                        "limit",
                                         buildJsonObject {
                                             put("type", "integer")
                                             put("description", "返回的队列项数量（默认 50，最大 100）")
@@ -1326,6 +1366,7 @@ class McpJsonRpcDispatcher(
                 "get_song_memory",
                 "control_playback",
                 "get_playback_status",
+                "get_playback_queue",
             )
     }
 }
