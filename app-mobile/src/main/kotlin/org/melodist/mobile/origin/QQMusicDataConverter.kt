@@ -61,6 +61,17 @@ object QQMusicDataConverter {
         }
 
     /**
+     * 将协议数值转换为播放循环模式。
+     */
+    fun convertQQModeToLoopMode(mode: Int): PlaybackLoopMode? =
+        when (mode) {
+            0 -> PlaybackLoopMode.ListRepeat
+            1 -> PlaybackLoopMode.SingleRepeat
+            2 -> PlaybackLoopMode.Shuffle
+            else -> null
+        }
+
+    /**
      * 解析音频封面真实 URI。
      */
     fun resolveCoverUri(

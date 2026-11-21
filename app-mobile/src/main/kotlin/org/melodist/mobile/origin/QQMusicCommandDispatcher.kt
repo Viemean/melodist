@@ -39,6 +39,9 @@ class QQMusicCommandDispatcher(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingLyricJob: Job? = null
 
+    @Volatile
+    private var lastSearchResults: List<Song> = emptyList()
+
     private fun runOnMain(block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             block()
@@ -72,7 +75,11 @@ class QQMusicCommandDispatcher(
                     }
                 }
 
-                "voicePlay", "voiceShortcut", "search", "playBySongName", "playByQuery" -> {
+                "search" -> {
+                    handleSearchSync(params)
+                }
+
+                "voicePlay", "voiceShortcut", "playBySongName", "playByQuery" -> {
                     handleVoicePlay(params)
                     Bundle().apply {
                         putInt("code", 0)
@@ -290,9 +297,8 @@ class QQMusicCommandDispatcher(
                     }
                 }
 
-                "setPlayMode" -> {
-                    runOnMain { PlaybackManager.cycleLoopMode() }
-                    Bundle().apply { putInt("code", 0) }
+                "setPlayMode", "setLoopMode", "switchPlayMode" -> {
+                    handleSetPlayMode(params)
                 }
 
                 else -> {
@@ -360,6 +366,11 @@ class QQMusicCommandDispatcher(
             return
         }
 
+        if (action == "search" && callback != null) {
+            handleSearchAsync(params, callback)
+            return
+        }
+
         val result = execute(action, params)
         if (callback != null) {
             try {
@@ -412,18 +423,41 @@ class QQMusicCommandDispatcher(
                         ?: favSongs.find { QQMusicDataConverter.resolveSongId(it) == id || it.songMid == id || it.songId.toString() == id }
                         ?: localSongs.find { QQMusicDataConverter.resolveSongId(it) == id || it.songMid == id || it.songId.toString() == id }
                         ?: downloadSongs.find { QQMusicDataConverter.resolveSongId(it) == id || it.songMid == id || it.songId.toString() == id }
+                        ?: lastSearchResults.find { QQMusicDataConverter.resolveSongId(it) == id || it.songMid == id || it.songId.toString() == id }
+
+                fun isSameSong(a: Song?, b: Song?): Boolean {
+                    if (a == null || b == null) return false
+                    return a.songMid == b.songMid ||
+                        QQMusicDataConverter.resolveSongId(a) == QQMusicDataConverter.resolveSongId(b)
+                }
 
                 if (!targetIdentifiers.isNullOrEmpty()) {
                     val matchedList = targetIdentifiers.mapNotNull { findSongByIdentifier(it) }
                     if (matchedList.isNotEmpty()) {
                         val safeIndex = index.coerceIn(0, matchedList.size - 1)
-                        PlaybackManager.setPlaylist(matchedList, startIndex = safeIndex)
+                        val currSong = PlaybackManager.currentSong.value
+                        val isPlayingCurrent = isSameSong(matchedList[safeIndex], currSong)
+                        val targetIndex =
+                            if (isPlayingCurrent && matchedList.size > 1) {
+                                (safeIndex + 1) % matchedList.size
+                            } else {
+                                safeIndex
+                            }
+                        PlaybackManager.setPlaylist(matchedList, startIndex = targetIndex)
                         return@runOnMain
                     }
                 }
 
                 if (index < currentPlaylist.size) {
-                    PlaybackManager.playSong(currentPlaylist[index])
+                    val currSong = PlaybackManager.currentSong.value
+                    val isPlayingCurrent = isSameSong(currentPlaylist[index], currSong)
+                    val targetIndex =
+                        if (isPlayingCurrent && currentPlaylist.size > 1) {
+                            (index + 1) % currentPlaylist.size
+                        } else {
+                            index
+                        }
+                    PlaybackManager.playSong(currentPlaylist[targetIndex])
                 }
             }
         }
@@ -670,6 +704,148 @@ class QQMusicCommandDispatcher(
             } catch (e: Exception) {
                 Log.e(TAG, "handleVoicePlay search failed for query=$query", e)
             }
+        }
+    }
+
+    private fun handleSetPlayMode(params: Bundle?): Bundle {
+        val rawMode = extractPlayModeFromParams(params)
+        val targetLoopMode = QQMusicDataConverter.convertQQModeToLoopMode(rawMode)
+        runOnMain {
+            if (targetLoopMode != null) {
+                PlaybackManager.setLoopMode(targetLoopMode)
+            } else {
+                PlaybackManager.cycleLoopMode()
+            }
+        }
+        val currentQQMode =
+            QQMusicDataConverter.convertLoopModeToQQMode(
+                targetLoopMode ?: PlaybackManager.loopMode.value,
+            )
+        return Bundle().apply {
+            putInt("code", 0)
+            putInt("data", currentQQMode)
+            putInt("playMode", currentQQMode)
+        }
+    }
+
+    private fun extractPlayModeFromParams(params: Bundle?): Int {
+        if (params == null) return -1
+        val keys = listOf("playMode", "mode", "data", "loopMode")
+        for (key in keys) {
+            if (!params.containsKey(key)) continue
+            val intVal = params.getInt(key, -1)
+            if (intVal in 0..2) return intVal
+            val strVal = params.getString(key)
+            val parsed = strVal?.toIntOrNull()
+            if (parsed != null && parsed in 0..2) return parsed
+        }
+        return -1
+    }
+
+    private fun handleSearchAsync(
+        params: Bundle?,
+        callback: IQQMusicApiCallback,
+    ) {
+        val query = extractSearchQuery(params)
+        scope.launch {
+            try {
+                val songs = performSongSearch(query)
+                val result = buildSearchResultBundle(songs)
+                callback.onReturn(result)
+            } catch (e: Exception) {
+                Log.e(TAG, "Search async failed for query=$query", e)
+                val result =
+                    Bundle().apply {
+                        putInt("code", 0)
+                        putString("data", "[]")
+                        putInt("count", 0)
+                        putBoolean("hasMore", false)
+                    }
+                try {
+                    callback.onReturn(result)
+                } catch (ce: Exception) {
+                    Log.e(TAG, "Callback invocation failed", ce)
+                }
+            }
+        }
+    }
+
+    private fun handleSearchSync(params: Bundle?): Bundle {
+        val query = extractSearchQuery(params)
+        val songs =
+            try {
+                runBlocking {
+                    performSongSearch(query)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Search sync failed for query=$query", e)
+                emptyList()
+            }
+        return buildSearchResultBundle(songs)
+    }
+
+    private suspend fun performSongSearch(query: String): List<Song> {
+        if (query.isBlank()) {
+            val fallback =
+                PlaybackManager.playlist.value.ifEmpty {
+                    UserLibraryCacheManager.favoriteSongsFlow.value
+                }
+            lastSearchResults = fallback
+            return fallback
+        }
+
+        val localMatches =
+            (
+                PlaybackManager.playlist.value +
+                    UserLibraryCacheManager.favoriteSongsFlow.value +
+                    LocalMusicManager.getScannedSongs()
+            ).filter { it.name.contains(query, ignoreCase = true) || it.singer.contains(query, ignoreCase = true) }
+                .distinctBy { it.songMid.ifBlank { it.songId.toString() } }
+
+        val onlineResults =
+            try {
+                withTimeoutOrNull(3500L) {
+                    MusicApiService().search(query, page = 1, pageSize = 30)
+                }.orEmpty()
+            } catch (e: Exception) {
+                Log.w(TAG, "Online search failed for query=$query", e)
+                emptyList()
+            }
+
+        val combined =
+            if (onlineResults.isNotEmpty()) {
+                (onlineResults + localMatches)
+                    .distinctBy { it.songMid.ifBlank { it.songId.toString() } }
+                    .take(30)
+            } else {
+                localMatches.take(30)
+            }
+        lastSearchResults = combined
+        return combined
+    }
+
+    private fun extractSearchQuery(params: Bundle?): String {
+        if (params == null) return ""
+        val keys = listOf("keyword", "search_key", "searchKey", "query", "songName", "song", "key", "content")
+        for (key in keys) {
+            val value = params.getString(key)
+            if (!value.isNullOrBlank()) {
+                return value.trim()
+            }
+        }
+        return ""
+    }
+
+    private fun buildSearchResultBundle(songs: List<Song>): Bundle {
+        val array = JSONArray()
+        for (song in songs) {
+            array.put(JSONObject(QQMusicDataConverter.buildSongJson(context, song)))
+        }
+        return Bundle().apply {
+            putInt("code", 0)
+            putString("data", array.toString())
+            putInt("count", array.length())
+            putBoolean("hasMore", false)
         }
     }
 
