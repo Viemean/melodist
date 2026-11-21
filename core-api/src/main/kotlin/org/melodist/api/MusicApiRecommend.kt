@@ -471,51 +471,6 @@ internal fun interleaveAndFilterRecommendations(
 }
 
 /**
- * 分页获取指定排行榜（如飙升榜、热歌榜、新歌榜）的歌曲列表。
- *
- * @param topId 榜单 ID（62: 飙升榜, 26: 热歌榜, 27: 新歌榜）
- * @param page 分页页码，从 1 起始
- * @param pageSize 每页拉取歌曲数量，默认 50
- * @return 榜单歌曲列表；请求失败或解析异常时返回空列表
- */
-suspend fun MusicApiService.getTopList(
-    topId: Int = 62, // 62: 飙升榜, 26: 热歌榜, 27: 新歌榜
-    page: Int = 1,
-    pageSize: Int = 50,
-): List<Song> =
-    withContext(Dispatchers.IO) {
-        val payload =
-            """
-            {
-              "comm": { "ct": 24, "cv": 0 },
-              "toplist": {
-                "module": "musicToplist.ToplistInfoServer",
-                "method": "GetDetail",
-                "param": { "topId": $topId, "offset": ${(page - 1) * pageSize}, "num": $pageSize, "period": "" }
-              }
-            }
-            """.trimIndent()
-
-        try {
-            val respJson = postGateway(payload)
-            val root = Json.parseToJsonElement(respJson).jsonObject
-            val songList =
-                root["toplist"]
-                    ?.jsonObject
-                    ?.get("data")
-                    ?.jsonObject
-                    ?.get("songInfoList")
-                    ?.jsonArray ?: return@withContext emptyList()
-
-            songList.mapNotNull { MusicApiService.parseSongFromElement(it) }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            ApiLogger.w("MusicApiRecommend", "getGuessRecommendSongs failed", e)
-            emptyList()
-        }
-    }
-
-/**
  * 根据歌曲数字 ID 列表批量拉取结构化的 [Song] 元数据。
  *
  * @param songIds 歌曲数字 ID 集合列表
