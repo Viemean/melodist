@@ -437,10 +437,23 @@ suspend fun MusicApiService.getPlaylistDetail(
                 val dirinfo = data["dirinfo"]?.jsonObject
                 val name =
                     dirinfo?.get("title")?.jsonPrimitive?.contentOrNull
-                        ?: dirinfo?.get("dirname")?.jsonPrimitive?.contentOrNull
+                        ?: dirinfo
+                            ?.get("dirname")
+                            ?.jsonPrimitive
+                            ?.contentOrNull
+                            .orEmpty()
+                val desc =
+                    dirinfo
+                        ?.get("desc")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
                         .orEmpty()
-                val desc = dirinfo?.get("desc")?.jsonPrimitive?.contentOrNull.orEmpty()
-                val picUrl = dirinfo?.get("picurl")?.jsonPrimitive?.contentOrNull.orEmpty()
+                val picUrl =
+                    dirinfo
+                        ?.get("picurl")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
 
                 val playlist =
                     Playlist(

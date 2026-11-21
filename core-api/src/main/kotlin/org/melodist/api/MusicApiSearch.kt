@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import org.melodist.model.Album
+import org.melodist.model.Artist
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 
@@ -178,6 +179,69 @@ suspend fun MusicApiService.searchPlaylists(
                         tid = dissIdLong,
                         isFav = true,
                         picUrl = pic,
+                    )
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+/**
+ * 搜索歌手 (search_type: 1)
+ */
+suspend fun MusicApiService.searchArtists(
+    query: String,
+    page: Int = 1,
+    pageSize: Int = 30,
+): List<Artist> =
+    withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        val escapedQuery = Json.encodeToString(query)
+        val payload =
+            """
+            {
+              "music.search.SearchCgiService": {
+                "module": "music.search.SearchCgiService",
+                "method": "DoSearchForQQMusicDesktop",
+                "param": {
+                  "query": $escapedQuery,
+                  "page_num": $page,
+                  "num_per_page": $pageSize,
+                  "search_type": 1
+                }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postAg1Gateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val svc = root["music.search.SearchCgiService"]?.jsonObject
+            val data = svc?.get("data")?.jsonObject
+            val body = data?.get("body")?.jsonObject
+            val singerObj = body?.get("singer")?.jsonObject
+            val singerList = singerObj?.get("list")?.jsonArray ?: return@withContext emptyList()
+
+            singerList.mapNotNull { element ->
+                try {
+                    val obj = element.jsonObject
+                    val mid = obj["singerMID"]?.jsonPrimitive?.contentOrNull ?: ""
+                    if (mid.isBlank()) return@mapNotNull null
+                    val id = obj["singerID"]?.jsonPrimitive?.longOrNull ?: 0L
+                    val name = obj["singerName"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val pic = obj["singerPic"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val songNum = obj["songNum"]?.jsonPrimitive?.intOrNull ?: 0
+                    val albumNum = obj["albumNum"]?.jsonPrimitive?.intOrNull ?: 0
+                    Artist(
+                        id = id,
+                        mid = mid,
+                        name = name,
+                        avatarUrl = pic,
+                        songCount = songNum,
+                        albumCount = albumNum,
                     )
                 } catch (_: Exception) {
                     null
