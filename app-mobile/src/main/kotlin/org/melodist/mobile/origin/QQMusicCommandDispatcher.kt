@@ -425,7 +425,10 @@ class QQMusicCommandDispatcher(
                         ?: downloadSongs.find { QQMusicDataConverter.resolveSongId(it) == id || it.songMid == id || it.songId.toString() == id }
                         ?: lastSearchResults.find { QQMusicDataConverter.resolveSongId(it) == id || it.songMid == id || it.songId.toString() == id }
 
-                fun isSameSong(a: Song?, b: Song?): Boolean {
+                fun isSameSong(
+                    a: Song?,
+                    b: Song?,
+                ): Boolean {
                     if (a == null || b == null) return false
                     return a.songMid == b.songMid ||
                         QQMusicDataConverter.resolveSongId(a) == QQMusicDataConverter.resolveSongId(b)

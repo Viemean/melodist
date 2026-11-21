@@ -131,6 +131,8 @@ class MainActivity : ComponentActivity() {
             .init(this)
         org.melodist.mobile.connect.MobileConnectManager
             .init(this)
+        org.melodist.mobile.mcp.McpServerManager
+            .init(this)
 
         if (UserSession.isLoggedIn) {
             lifecycleScope.launch(Dispatchers.IO) {

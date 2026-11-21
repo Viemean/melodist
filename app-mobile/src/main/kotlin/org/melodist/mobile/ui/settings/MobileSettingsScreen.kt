@@ -36,6 +36,7 @@ import org.melodist.mobile.ui.settings.sections.SettingsAboutSection
 import org.melodist.mobile.ui.settings.sections.SettingsAccountCard
 import org.melodist.mobile.ui.settings.sections.SettingsAppearanceSection
 import org.melodist.mobile.ui.settings.sections.SettingsCredentialsDialogs
+import org.melodist.mobile.ui.settings.sections.SettingsMcpSection
 import org.melodist.mobile.ui.settings.sections.SettingsPlaybackSection
 import org.melodist.mobile.ui.settings.sections.SettingsStorageSection
 
@@ -123,6 +124,11 @@ fun MobileSettingsScreen(
                         settings = settings,
                         cacheUsage = cacheUsage,
                     )
+                }
+
+                // 局域网 AI 联动 (MCP 服务)
+                item {
+                    SettingsMcpSection(settings = settings)
                 }
 
                 // 关于应用
