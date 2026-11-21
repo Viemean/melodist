@@ -117,7 +117,13 @@ class McpHttpServer(
                     val rawInput = BufferedInputStream(s.getInputStream())
                     val output = s.getOutputStream()
 
-                    val requestLine = readHttpLine(rawInput) ?: return
+                    val requestLine =
+                        try {
+                            readHttpLine(rawInput) ?: return
+                        } catch (e: HttpLineTooLongException) {
+                            writeResponse(output, 400, "Bad Request", "text/plain", "Bad Request: ${e.message}\n")
+                            return
+                        }
                     val parts = requestLine.split(" ")
                     if (parts.size < 2) return
 
@@ -125,7 +131,13 @@ class McpHttpServer(
                     val fullPath = parts[1]
 
                     val headers = mutableMapOf<String, String>()
-                    var headerLine = readHttpLine(rawInput)
+                    var headerLine =
+                        try {
+                            readHttpLine(rawInput)
+                        } catch (e: HttpLineTooLongException) {
+                            writeResponse(output, 431, "Request Header Fields Too Large", "text/plain", "Header Too Large: ${e.message}\n")
+                            return
+                        }
                     var headerCount = 0
                     while (!headerLine.isNullOrBlank()) {
                         headerCount++
@@ -139,7 +151,13 @@ class McpHttpServer(
                             val value = headerLine.substring(colon + 1).trim()
                             headers[key] = value
                         }
-                        headerLine = readHttpLine(rawInput)
+                        headerLine =
+                            try {
+                                readHttpLine(rawInput)
+                            } catch (e: HttpLineTooLongException) {
+                                writeResponse(output, 431, "Request Header Fields Too Large", "text/plain", "Header Too Large: ${e.message}\n")
+                                return
+                            }
                     }
 
                     if (method == "OPTIONS") {
@@ -158,13 +176,20 @@ class McpHttpServer(
                         return
                     }
 
+                    val contentLength = headers["content-length"]?.toIntOrNull() ?: 0
+                    if (contentLength > 2 * 1024 * 1024) {
+                        writeResponse(output, 413, "Payload Too Large", "text/plain", "Payload exceeds 2MB limit\n")
+                        return
+                    }
+
+                    val isKnownEndpoint = path == "/sse" || path == "/message" || path == "/messages" || path == "/ping"
+
                     when {
                         method == "GET" && path == "/sse" -> {
                             handleSseConnection(s, output)
                         }
 
                         method == "POST" && (path == "/message" || path == "/messages") -> {
-                            val contentLength = headers["content-length"]?.toIntOrNull() ?: 0
                             val body =
                                 if (contentLength > 0) {
                                     val buffer = ByteArray(contentLength)
@@ -184,6 +209,22 @@ class McpHttpServer(
 
                         method == "GET" && path == "/ping" -> {
                             writeResponse(output, 200, "OK", "application/json", "{\"status\":\"ok\"}")
+                        }
+
+                        isKnownEndpoint -> {
+                            val allow =
+                                when (path) {
+                                    "/sse", "/ping" -> "GET, OPTIONS"
+                                    else -> "POST, OPTIONS"
+                                }
+                            writeResponse(
+                                output,
+                                405,
+                                "Method Not Allowed",
+                                "text/plain",
+                                "Method $method not allowed for $path\n",
+                                extraHeaders = "Allow: $allow\r\n",
+                            )
                         }
 
                         else -> {
@@ -218,21 +259,24 @@ class McpHttpServer(
                 append("Access-Control-Allow-Origin: *\r\n")
                 append("\r\n")
             }
-        output.write(sseHeader.toByteArray(Charsets.UTF_8))
-        output.flush()
+        synchronized(output) {
+            output.write(sseHeader.toByteArray(Charsets.UTF_8))
+            output.flush()
 
-        // Send MCP endpoint event telling client where to send POST requests
-        val currentToken = authTokenProvider().trim()
-        val tokenParam = if (currentToken.isNotBlank()) "&token=$currentToken" else ""
-        val endpointEvent = "event: endpoint\r\ndata: /message?sessionId=$sessionId$tokenParam\r\n\r\n"
-        output.write(endpointEvent.toByteArray(Charsets.UTF_8))
-        output.flush()
+            val currentToken = authTokenProvider().trim()
+            val tokenParam = if (currentToken.isNotBlank()) "&token=$currentToken" else ""
+            val endpointEvent = "event: endpoint\r\ndata: /message?sessionId=$sessionId$tokenParam\r\n\r\n"
+            output.write(endpointEvent.toByteArray(Charsets.UTF_8))
+            output.flush()
+        }
 
         try {
             while (socket.isConnected && !socket.isClosed) {
                 delay(15000L)
-                output.write(": ping\r\n\r\n".toByteArray(Charsets.UTF_8))
-                output.flush()
+                synchronized(output) {
+                    output.write(": ping\r\n\r\n".toByteArray(Charsets.UTF_8))
+                    output.flush()
+                }
             }
         } catch (_: Exception) {
         } finally {
@@ -250,9 +294,18 @@ class McpHttpServer(
             sessionId?.let { sid ->
                 activeSessions[sid]?.let { sseOut ->
                     try {
-                        val sseData = "event: message\r\ndata: $response\r\n\r\n"
-                        sseOut.write(sseData.toByteArray(Charsets.UTF_8))
-                        sseOut.flush()
+                        val sseData =
+                            buildString {
+                                append("event: message\r\n")
+                                response.lines().forEach { line ->
+                                    append("data: ").append(line.trimEnd('\r')).append("\r\n")
+                                }
+                                append("\r\n")
+                            }
+                        synchronized(sseOut) {
+                            sseOut.write(sseData.toByteArray(Charsets.UTF_8))
+                            sseOut.flush()
+                        }
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to push message to SSE stream for sessionId=$sid", e)
                     }
@@ -260,7 +313,7 @@ class McpHttpServer(
             }
             writeResponse(output, 200, "OK", "application/json", response)
         } else {
-            writeResponse(output, 202, "Accepted", "text/plain", "Accepted")
+            writeResponse(output, 202, "Accepted", "text/plain", "Accepted\n")
         }
     }
 
@@ -303,6 +356,7 @@ class McpHttpServer(
         statusText: String,
         contentType: String,
         body: String,
+        extraHeaders: String = "",
     ) {
         val bytes = body.toByteArray(Charsets.UTF_8)
         val res =
@@ -311,6 +365,9 @@ class McpHttpServer(
                 append("Content-Type: $contentType; charset=utf-8\r\n")
                 append("Content-Length: ${bytes.size}\r\n")
                 append("Access-Control-Allow-Origin: *\r\n")
+                if (extraHeaders.isNotBlank()) {
+                    append(extraHeaders)
+                }
                 append("Connection: close\r\n")
                 append("\r\n")
             }
@@ -347,12 +404,16 @@ class McpHttpServer(
                 return String(bytes, 0, len, Charsets.UTF_8)
             }
             baos.write(b)
-            if (baos.size() > 8192) {
-                throw IOException("HTTP line length exceeded maximum limit of 8KB")
+            if (baos.size() > 32768) {
+                throw HttpLineTooLongException("HTTP line length exceeded maximum limit of 32KB")
             }
         }
         return String(baos.toByteArray(), Charsets.UTF_8)
     }
+
+    private class HttpLineTooLongException(
+        message: String,
+    ) : IOException(message)
 
     private fun findAvailablePort(startPort: Int): Int {
         for (port in startPort until (startPort + 10)) {

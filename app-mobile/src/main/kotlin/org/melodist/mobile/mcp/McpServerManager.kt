@@ -128,7 +128,7 @@ object McpServerManager {
     private fun startServerInternal(context: Context) {
         if (server?.isRunning() == true) return
 
-        val playbackHandler = McpPlaybackHandlerImpl(context)
+        val playbackHandler = McpPlaybackHandlerImpl()
         val dispatcher =
             McpJsonRpcDispatcher(
                 playbackHandler = playbackHandler,

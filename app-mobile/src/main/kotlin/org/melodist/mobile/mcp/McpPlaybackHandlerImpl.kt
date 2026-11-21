@@ -1,6 +1,5 @@
 package org.melodist.mobile.mcp
 
-import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
@@ -36,9 +35,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class McpPlaybackHandlerImpl(
-    private val context: Context,
-) : McpPlaybackHandler {
+class McpPlaybackHandlerImpl : McpPlaybackHandler {
     override suspend fun play(
         target: String,
         id: String,

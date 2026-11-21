@@ -12,6 +12,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -49,6 +50,7 @@ class McpJsonRpcDispatcher(
         Json {
             ignoreUnknownKeys = true
             isLenient = true
+            encodeDefaults = true
         }
 
     private fun formatSuccessResponse(
@@ -76,16 +78,38 @@ class McpJsonRpcDispatcher(
         )
 
     suspend fun dispatch(requestStr: String): String? {
-        val request =
+        val rawJson =
             try {
-                json.decodeFromString<JsonRpcRequest>(requestStr)
+                json.parseToJsonElement(requestStr)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to parse JSON-RPC request", e)
+                Log.w(TAG, "Failed to parse JSON syntax", e)
                 val err = JsonRpcError(code = -32700, message = "Parse error: ${e.message}")
                 return formatErrorResponse(null, err)
             }
 
-        val id = request.id
+        val jsonObj =
+            try {
+                rawJson.jsonObject
+            } catch (_: Exception) {
+                val err = JsonRpcError(code = -32600, message = "Invalid Request: root must be a JSON object")
+                return formatErrorResponse(null, err)
+            }
+
+        val id = jsonObj["id"]
+        val methodPrimitive = jsonObj["method"] as? JsonPrimitive
+        if (methodPrimitive == null || !methodPrimitive.isString || methodPrimitive.content.isBlank()) {
+            val err = JsonRpcError(code = -32600, message = "Invalid Request: 'method' string is required")
+            return formatErrorResponse(id, err)
+        }
+
+        val request =
+            try {
+                json.decodeFromJsonElement<JsonRpcRequest>(jsonObj)
+            } catch (e: Exception) {
+                val err = JsonRpcError(code = -32600, message = "Invalid Request: ${e.message}")
+                return formatErrorResponse(id, err)
+            }
+
         val isNotification = id == null || request.method.startsWith("notifications/")
 
         return when (request.method) {
@@ -139,6 +163,9 @@ class McpJsonRpcDispatcher(
 
                 if (toolName.isBlank()) {
                     val err = JsonRpcError(code = -32602, message = "Invalid params: 'name' is required in tools/call")
+                    formatErrorResponse(id, err)
+                } else if (!KNOWN_TOOLS.contains(toolName)) {
+                    val err = JsonRpcError(code = -32601, message = "Tool not found: $toolName")
                     formatErrorResponse(id, err)
                 } else {
                     val toolResult = handleToolCall(toolName, arguments)
@@ -1287,5 +1314,18 @@ class McpJsonRpcDispatcher(
 
     companion object {
         private const val TAG = "McpDispatcher"
+        private val KNOWN_TOOLS =
+            setOf(
+                "search_music",
+                "get_lyrics",
+                "set_favorite",
+                "play",
+                "get_recommendations",
+                "get_playback_history",
+                "get_listening_report",
+                "get_song_memory",
+                "control_playback",
+                "get_playback_status",
+            )
     }
 }
