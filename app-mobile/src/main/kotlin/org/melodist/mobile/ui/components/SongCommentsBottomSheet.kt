@@ -68,6 +68,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -103,6 +104,7 @@ import org.melodist.api.UserSession
 import org.melodist.api.deleteComment
 import org.melodist.api.deleteSongComment
 import org.melodist.api.getComments
+import org.melodist.api.getReplyComments
 import org.melodist.api.getSongComments
 import org.melodist.api.praiseComment
 import org.melodist.api.praiseSongComment
@@ -147,6 +149,7 @@ fun SongCommentsBottomSheet(
     val hotComments = remember { mutableStateListOf<SongComment>() }
     val normalComments = remember { mutableStateListOf<SongComment>() }
     val seenCommentIds = remember { mutableSetOf<String>() }
+    val subCommentStates = remember { mutableStateMapOf<String, SubCommentsState>() }
     var previewImageUrl by remember { mutableStateOf<String?>(null) }
     var totalCommentCount by remember { mutableIntStateOf(0) }
     var currentPage by remember { mutableIntStateOf(0) }
@@ -162,6 +165,62 @@ fun SongCommentsBottomSheet(
     var isSending by remember { mutableStateOf(false) }
     var commentToDelete by remember { mutableStateOf<SongComment?>(null) }
     var isDeleting by remember { mutableStateOf(false) }
+
+    fun loadSubComments(
+        rootCommentId: String,
+        isInitial: Boolean,
+    ) {
+        val state = subCommentStates.getOrPut(rootCommentId) { SubCommentsState() }
+        if (state.isLoading) return
+        state.isLoading = true
+        val pageToLoad = if (isInitial) 0 else state.currentPage + 1
+        val seqNoToUse = if (isInitial) "" else state.lastSeqNo
+
+        scope.launch {
+            try {
+                val res =
+                    apiService.getReplyComments(
+                        rootCommentId = rootCommentId,
+                        pageNum = pageToLoad,
+                        pageSize = 10,
+                        lastCommentSeqNo = seqNoToUse,
+                    )
+                if (res != null) {
+                    if (isInitial) {
+                        state.comments.clear()
+                        state.comments.addAll(res.comments)
+                    } else {
+                        state.comments.addAll(res.comments.filter { newCmt -> state.comments.none { it.commentId == newCmt.commentId } })
+                    }
+                    state.totalCount = res.totalCount
+                    state.hasMore = res.hasMore
+                    state.lastSeqNo = res.lastSeqNo
+                    state.currentPage = pageToLoad
+                } else {
+                    if (isInitial) {
+                        Toast.makeText(context, "加载回复失败", Toast.LENGTH_SHORT).show()
+                    }
+                    state.hasMore = false
+                }
+            } catch (_: Exception) {
+                state.hasMore = false
+            } finally {
+                state.isLoading = false
+            }
+        }
+    }
+
+    fun toggleSubComments(rootComment: SongComment) {
+        val state = subCommentStates.getOrPut(rootComment.commentId) { SubCommentsState() }
+        if (state.isExpanded) {
+            state.isExpanded = false
+            return
+        }
+        state.isExpanded = true
+        if (state.comments.isEmpty()) {
+            loadSubComments(rootComment.commentId, isInitial = true)
+        }
+    }
 
     fun togglePraise(comment: SongComment) {
         if (!UserSession.isLoggedIn) {
@@ -181,6 +240,7 @@ fun SongCommentsBottomSheet(
         }
         updateList(hotComments)
         updateList(normalComments)
+        subCommentStates.values.forEach { updateList(it.comments) }
 
         scope.launch {
             val result =
@@ -198,6 +258,7 @@ fun SongCommentsBottomSheet(
                 }
                 revertList(hotComments)
                 revertList(normalComments)
+                subCommentStates.values.forEach { revertList(it.comments) }
                 val msg = result.exceptionOrNull()?.message ?: "操作失败"
                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             }
@@ -249,10 +310,50 @@ fun SongCommentsBottomSheet(
                             isHot = false,
                             isSelf = true,
                         )
-                    seenCommentIds.add(newCommentId)
-                    normalComments.add(0, newComment)
-                    totalCommentCount++
-                    listState.animateScrollToItem(0)
+
+                    val rootId =
+                        when {
+                            targetReply == null -> {
+                                null
+                            }
+
+                            hotComments.any { it.commentId == targetReply.commentId } -> {
+                                targetReply.commentId
+                            }
+
+                            normalComments.any { it.commentId == targetReply.commentId } -> {
+                                targetReply.commentId
+                            }
+
+                            else -> {
+                                subCommentStates.entries
+                                    .firstOrNull { (_, state) ->
+                                        state.comments.any { it.commentId == targetReply.commentId }
+                                    }?.key
+                            }
+                        }
+
+                    if (rootId != null) {
+                        val state = subCommentStates.getOrPut(rootId) { SubCommentsState() }
+                        state.comments.add(newComment)
+                        state.isExpanded = true
+                        state.totalCount++
+
+                        fun incReply(list: MutableList<SongComment>) {
+                            val idx = list.indexOfFirst { it.commentId == rootId }
+                            if (idx != -1) {
+                                list[idx] = list[idx].copy(replyCnt = list[idx].replyCnt + 1)
+                            }
+                        }
+                        incReply(hotComments)
+                        incReply(normalComments)
+                        totalCommentCount++
+                    } else {
+                        seenCommentIds.add(newCommentId)
+                        normalComments.add(0, newComment)
+                        totalCommentCount++
+                        listState.animateScrollToItem(0)
+                    }
                 } else {
                     val msg = result.exceptionOrNull()?.message ?: "发布失败"
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -279,6 +380,21 @@ fun SongCommentsBottomSheet(
                 if (result.isSuccess) {
                     normalComments.removeAll { it.commentId == comment.commentId }
                     hotComments.removeAll { it.commentId == comment.commentId }
+                    subCommentStates.forEach { (rootId, state) ->
+                        val removed = state.comments.removeAll { it.commentId == comment.commentId }
+                        if (removed) {
+                            state.totalCount = (state.totalCount - 1).coerceAtLeast(0)
+
+                            fun decReply(list: MutableList<SongComment>) {
+                                val idx = list.indexOfFirst { it.commentId == rootId }
+                                if (idx != -1) {
+                                    list[idx] = list[idx].copy(replyCnt = (list[idx].replyCnt - 1).coerceAtLeast(0))
+                                }
+                            }
+                            decReply(hotComments)
+                            decReply(normalComments)
+                        }
+                    }
                     totalCommentCount = (totalCommentCount - 1).coerceAtLeast(0)
                     Toast.makeText(context, "评论已删除", Toast.LENGTH_SHORT).show()
                 } else {
@@ -304,6 +420,7 @@ fun SongCommentsBottomSheet(
             isError = false
             lastCommentSeqNo = ""
             isHotCommentsExpanded = false
+            subCommentStates.clear()
         } else {
             if (isLoading || isLoadingMore || !hasMore) return
             isLoadingMore = true
@@ -611,6 +728,9 @@ fun SongCommentsBottomSheet(
                                         onPraiseClick = ::togglePraise,
                                         onDeleteClick = { commentToDelete = it },
                                         onImageClick = { previewImageUrl = it },
+                                        subCommentsState = subCommentStates[comment.commentId],
+                                        onToggleSubComments = { toggleSubComments(comment) },
+                                        onLoadMoreSubComments = { loadSubComments(comment.commentId, isInitial = false) },
                                     )
                                 }
 
@@ -676,6 +796,9 @@ fun SongCommentsBottomSheet(
                                         onPraiseClick = ::togglePraise,
                                         onDeleteClick = { commentToDelete = it },
                                         onImageClick = { previewImageUrl = it },
+                                        subCommentsState = subCommentStates[comment.commentId],
+                                        onToggleSubComments = { toggleSubComments(comment) },
+                                        onLoadMoreSubComments = { loadSubComments(comment.commentId, isInitial = false) },
                                     )
                                 }
                             }
@@ -808,412 +931,6 @@ fun SongCommentsBottomSheet(
     }
 }
 
-@Composable
-private fun SongCommentItem(
-    comment: SongComment,
-    modifier: Modifier = Modifier,
-    onReplyClick: (SongComment) -> Unit = {},
-    onPraiseClick: (SongComment) -> Unit = {},
-    onDeleteClick: (SongComment) -> Unit = {},
-    onImageClick: ((String) -> Unit)? = null,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-    ) {
-        // 用户头像
-        if (comment.avatarUrl.isNotBlank()) {
-            AsyncImage(
-                model = comment.avatarUrl,
-                contentDescription = comment.nick,
-                contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier
-                        .size(36.dp)
-                        .clip(CircleShape),
-            )
-        } else {
-            Box(
-                modifier =
-                    Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Person,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            // 用户名与热评标签
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = comment.nick,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (comment.isHot) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                    ) {
-                        Text(
-                            text = "热评",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // 正文：长按选择复制
-            SelectionContainer {
-                Text(
-                    text = comment.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 20.sp,
-                )
-            }
-
-            // 评论配图
-            if (comment.picUrl.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                AsyncImage(
-                    model = comment.picUrl,
-                    contentDescription = "评论图片",
-                    contentScale = ContentScale.Crop,
-                    modifier =
-                        Modifier
-                            .widthIn(max = 220.dp)
-                            .heightIn(max = 200.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onImageClick?.invoke(comment.picUrl) },
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // 底部元信息与操作栏：时间属地（左）、回复与点赞按钮（右）
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                val timeText = if (comment.timeSec > 0L) formatTimestamp(comment.timeSec) else ""
-                val locText = comment.location.ifBlank { "" }
-                val metaText =
-                    when {
-                        timeText.isNotBlank() && locText.isNotBlank() -> "$timeText · 来自$locText"
-                        timeText.isNotBlank() -> timeText
-                        locText.isNotBlank() -> "来自$locText"
-                        else -> ""
-                    }
-                if (metaText.isNotBlank()) {
-                    Text(
-                        text = metaText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    // 自身评论展示删除按钮
-                    if (comment.isSelf) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier =
-                                Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable { onDeleteClick(comment) }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.DeleteOutline,
-                                contentDescription = "删除",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                modifier = Modifier.size(13.dp),
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "删除",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                            )
-                        }
-                    }
-
-                    // 回复按钮
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onReplyClick(comment) }
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Reply,
-                            contentDescription = "回复",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                            modifier = Modifier.size(13.dp),
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = "回复",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                        )
-                    }
-
-                    // 点赞按钮
-                    val isPraised = comment.isPraised
-                    val praiseCount = comment.praiseNum
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onPraiseClick(comment) }
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.ThumbUp,
-                            contentDescription = if (isPraised) "取消赞" else "点赞",
-                            tint =
-                                if (isPraised) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                                },
-                            modifier = Modifier.size(13.dp),
-                        )
-                        if (praiseCount > 0) {
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = formatCount(praiseCount),
-                                style = MaterialTheme.typography.labelSmall,
-                                color =
-                                    if (isPraised) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                                    },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * 带透明度的 Material 3 风格常驻评论输入底栏
- */
-@Composable
-private fun CommentInputBottomBar(
-    inputState: TextFieldState,
-    replyingTo: SongComment?,
-    onCancelReply: () -> Unit,
-    isSending: Boolean,
-    onSend: () -> Unit,
-    focusRequester: FocusRequester,
-    modifier: Modifier = Modifier,
-) {
-    val cardShape = RoundedCornerShape(16.dp)
-    var isFocused by remember { mutableStateOf(false) }
-
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-    ) {
-        // 回复目标标签（悬浮在卡片上方）
-        AnimatedVisibility(
-            visible = replyingTo != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
-            if (replyingTo != null) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f),
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    shadowElevation = 2.dp,
-                    modifier =
-                        Modifier
-                            .padding(bottom = 6.dp)
-                            .align(Alignment.Start),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Reply,
-                            contentDescription = null,
-                            modifier = Modifier.size(13.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "回复 @${replyingTo.nick}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .clickable { onCancelReply() },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = "取消回复",
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // 悬浮输入卡片（样式、边框、透明度、圆角与 MiniPlayerBar 一致）
-        Surface(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 54.dp, max = 110.dp),
-            shape = cardShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-            tonalElevation = 4.dp,
-            shadowElevation = 3.dp,
-        ) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // 输入区域
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    if (inputState.text.isEmpty()) {
-                        Text(
-                            text = if (replyingTo != null) "回复 @${replyingTo.nick}..." else "说点什么吧...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    BasicTextField(
-                        state = inputState,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester)
-                                .onFocusChanged { focusState ->
-                                    isFocused = focusState.isFocused
-                                },
-                        lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 3),
-                        textStyle =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                            ),
-                        cursorBrush =
-                            if (isFocused) {
-                                SolidColor(MaterialTheme.colorScheme.primary)
-                            } else {
-                                SolidColor(Color.Transparent)
-                            },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        onKeyboardAction = { onSend() },
-                    )
-                }
-
-                // 右侧圆形动作按钮（同 MiniPlayerBar 播放按钮尺寸与布局）
-                val canSend = inputState.text.isNotBlank() && !isSending
-                Box(
-                    modifier =
-                        Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (canSend) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                                },
-                            ).clickable(enabled = canSend) { onSend() },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isSending) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Send,
-                            contentDescription = "发送",
-                            modifier = Modifier.size(18.dp),
-                            tint =
-                                if (canSend) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                                },
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 /**
  * 歌曲评论区通用弹窗抽屉组件（向下兼容重载）。
  *
@@ -1230,18 +947,3 @@ fun SongCommentsBottomSheet(
         onDismissRequest = onDismissRequest,
     )
 }
-
-private fun formatCount(count: Int): String =
-    when {
-        count >= 100_000_000 -> "%.1f亿".format(count / 100_000_000.0)
-        count >= 10_000 -> "%.1f万".format(count / 10_000.0)
-        else -> count.toString()
-    }
-
-private fun formatTimestamp(timestampSec: Long): String =
-    try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        sdf.format(Date(timestampSec * 1000L))
-    } catch (_: Exception) {
-        ""
-    }

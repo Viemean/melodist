@@ -7,6 +7,7 @@ import okhttp3.FormBody
 import okhttp3.Request
 import org.melodist.model.CommentPage
 import org.melodist.model.CommentTarget
+import org.melodist.model.ReplyCommentPage
 import org.melodist.model.SongComment
 import java.io.IOException
 
@@ -65,6 +66,95 @@ suspend fun MusicApiService.getSongComments(
             pageSize = pageSize,
             lastCommentSeqNo = lastCommentSeqNo,
         )
+    }
+
+/**
+ * 获取指定主评论下的楼中楼回复列表。
+ *
+ * @param rootCommentId 主评论 ID (CmId)
+ * @param pageNum 页码，从 0 开始
+ * @param pageSize 每页条数
+ * @param lastCommentSeqNo 游标序号
+ * @param rankType 排序类型，1 为时间/默认排序
+ */
+suspend fun MusicApiService.getReplyComments(
+    rootCommentId: String,
+    pageNum: Int = 0,
+    pageSize: Int = 10,
+    lastCommentSeqNo: String = "",
+    rankType: Int = 1,
+): ReplyCommentPage? =
+    withContext(Dispatchers.IO) {
+        if (rootCommentId.isBlank()) return@withContext null
+        val page = pageNum.coerceAtLeast(0)
+        val size = pageSize.coerceIn(1, 50)
+
+        val payload =
+            """
+            {
+                "comm": {
+                    "cv": 4747474,
+                    "ct": 24,
+                    "format": "json",
+                    "inCharset": "utf-8",
+                    "outCharset": "utf-8",
+                    "notice": 0,
+                    "platform": "yqq.json",
+                    "needNewCode": 1,
+                    "uin": 0
+                },
+                "req": {
+                    "module": "music.globalComment.CommentRead",
+                    "method": "GetReplyCommentList",
+                    "param": {
+                        "RootCmId": "$rootCommentId",
+                        "LastCommentSeqNo": "$lastCommentSeqNo",
+                        "PageSize": $size,
+                        "LastRankScore": "",
+                        "RankType": $rankType,
+                        "PicEnable": 1,
+                        "PageNum": $page
+                    }
+                }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postGateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val reqObj = root["req"]?.jsonObject ?: return@withContext null
+            val code = reqObj["code"]?.jsonPrimitive?.intOrNull ?: -1
+            if (code != 0) return@withContext null
+
+            val dataObj = reqObj["data"]?.jsonObject ?: return@withContext null
+            val commentListObj = dataObj["CommentList"]?.jsonObject
+            val total = commentListObj?.get("Total")?.jsonPrimitive?.intOrNull ?: 0
+            val comments = mutableListOf<SongComment>()
+            commentListObj?.get("Comments")?.jsonArray?.forEach { elem ->
+                parseModernCommentElement(elem, isHot = false)?.let { comments.add(it) }
+            }
+            val hasMore = (commentListObj?.get("HasMore")?.jsonPrimitive?.intOrNull == 1) && comments.isNotEmpty()
+            val lastSeqNo =
+                comments.lastOrNull { it.seqNo.isNotBlank() }?.seqNo
+                    ?: commentListObj
+                        ?.get("Comments")
+                        ?.jsonArray
+                        ?.lastOrNull()
+                        ?.jsonObject
+                        ?.get("SeqNo")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        .orEmpty()
+
+            ReplyCommentPage(
+                totalCount = total,
+                comments = comments,
+                hasMore = hasMore,
+                lastSeqNo = lastSeqNo,
+            )
+        } catch (_: Exception) {
+            null
+        }
     }
 
 private suspend fun MusicApiService.fetchModernComments(
@@ -246,6 +336,12 @@ internal fun parseModernCommentElement(
 
     val timeSec = obj["PubTime"]?.jsonPrimitive?.longOrNull ?: 0L
     val praiseNum = obj["PraiseNum"]?.jsonPrimitive?.intOrNull ?: 0
+    val replyCnt =
+        obj["ReplyCnt"]?.jsonPrimitive?.intOrNull
+            ?: obj["SubCommentNum"]?.jsonPrimitive?.intOrNull
+            ?: obj["SubCommentTotal"]?.jsonPrimitive?.intOrNull
+            ?: obj["SubComments"]?.jsonArray?.size
+            ?: 0
     val isPraised =
         obj["IsPraise"]?.jsonPrimitive?.intOrNull == 1 ||
             obj["is_praised"]?.jsonPrimitive?.intOrNull == 1 ||
@@ -272,6 +368,7 @@ internal fun parseModernCommentElement(
         seqNo = seqNo,
         isPraised = isPraised,
         isSelf = isSelf,
+        replyCnt = replyCnt,
     )
 }
 
@@ -331,6 +428,10 @@ internal fun parseCommentElement(
 
     val timeSec = obj["time"]?.jsonPrimitive?.longOrNull ?: 0L
     val praiseNum = obj["praisenum"]?.jsonPrimitive?.intOrNull ?: 0
+    val replyCnt =
+        obj["middlecommentcontent"]?.jsonArray?.size
+            ?: obj["subcommenttotal"]?.jsonPrimitive?.intOrNull
+            ?: 0
     val isPraised =
         obj["ispraise"]?.jsonPrimitive?.intOrNull == 1 ||
             obj["is_praised"]?.jsonPrimitive?.intOrNull == 1
@@ -348,6 +449,7 @@ internal fun parseCommentElement(
         isHot = isHot,
         isPraised = isPraised,
         isSelf = isSelf,
+        replyCnt = replyCnt,
     )
 }
 

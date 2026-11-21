@@ -197,4 +197,43 @@ class MusicApiCommentTest {
         assertNotNull(comment)
         assertTrue(comment?.isSelf == true)
     }
+
+    @Test
+    fun `parseModernCommentElement correctly parses ReplyCnt`() {
+        val rawJson =
+            """
+            {
+              "CmId": "cmt_with_replies",
+              "Nick": "幻冬",
+              "Content": "怎么没翻译啊",
+              "ReplyCnt": 5
+            }
+            """.trimIndent()
+        val element = Json.parseToJsonElement(rawJson)
+        val comment = parseModernCommentElement(element, isHot = false)
+
+        assertNotNull(comment)
+        assertEquals(5, comment?.replyCnt)
+    }
+
+    @Test
+    fun `parseCommentElement correctly parses middlecommentcontent as replyCnt`() {
+        val rawJson =
+            """
+            {
+              "commentid": "legacy_cmt_with_replies",
+              "nick": "旧版听友",
+              "rootcommentcontent": "旧版楼中楼",
+              "middlecommentcontent": [
+                {"subcommentid": "sub_1", "subcommentcontent": "回复1"},
+                {"subcommentid": "sub_2", "subcommentcontent": "回复2"}
+              ]
+            }
+            """.trimIndent()
+        val element = Json.parseToJsonElement(rawJson)
+        val comment = parseCommentElement(element, isHot = false)
+
+        assertNotNull(comment)
+        assertEquals(2, comment?.replyCnt)
+    }
 }

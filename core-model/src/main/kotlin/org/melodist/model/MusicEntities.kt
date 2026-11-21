@@ -145,6 +145,15 @@ data class SongComment(
     val seqNo: String = "",
     val isPraised: Boolean = false,
     val isSelf: Boolean = false,
+    val replyCnt: Int = 0,
+)
+
+@Serializable
+data class ReplyCommentPage(
+    val totalCount: Int = 0,
+    val comments: List<SongComment> = emptyList(),
+    val hasMore: Boolean = false,
+    val lastSeqNo: String = "",
 )
 
 @Serializable
