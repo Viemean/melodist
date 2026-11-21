@@ -35,7 +35,8 @@ class UserLibraryCacheManagerTest {
 
         assertEquals(original, deserialized)
 
-        val withUnknownFields = """
+        val withUnknownFields =
+            """
             {
                 "playlists": [],
                 "favoriteCount": 10,
@@ -45,7 +46,7 @@ class UserLibraryCacheManagerTest {
                 "futureFieldString": "ignored",
                 "futureFieldInt": 999
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val parsedWithUnknown = json.decodeFromString(UserLibraryData.serializer(), withUnknownFields)
         assertEquals("10002", parsedWithUnknown.accountUin)

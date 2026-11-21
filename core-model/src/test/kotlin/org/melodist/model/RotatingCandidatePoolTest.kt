@@ -86,7 +86,8 @@ class RotatingCandidatePoolTest {
 
         // Calling updateSource with same 100 items should not re-sample or reset index
         val reUpdated = state.updateSource(list, fixedCount = 5, randomCount = 25)
-        org.junit.jupiter.api.Assertions.assertFalse(reUpdated)
+        org.junit.jupiter.api.Assertions
+            .assertFalse(reUpdated)
         assertEquals(1, state.currentIndex)
         assertEquals(current, state.currentItem)
     }

@@ -163,6 +163,11 @@ data class AppSettings(
     val colorTheme: AppColorTheme = AppColorTheme.Default,
     val customColorHex: String = "#1A73E8",
     val amoledDark: Boolean = false,
+    // 局域网 MCP (AI 联动) 服务
+    val enableMcpServer: Boolean = false,
+    val mcpAllowDelete: Boolean = false,
+    val mcpAuthToken: String = "",
+    val mcpServerPort: Int = 8090,
 ) {
     // 向后兼容旧字段引用
     val enableAtmosPassthrough: Boolean get() = enableAudioPassthrough
@@ -215,6 +220,10 @@ object AppSettingsManager {
     private const val KEY_COLOR_THEME = "color_theme"
     private const val KEY_CUSTOM_COLOR_HEX = "custom_color_hex"
     private const val KEY_AMOLED_DARK = "amoled_dark"
+    private const val KEY_ENABLE_MCP_SERVER = "enable_mcp_server"
+    private const val KEY_MCP_ALLOW_DELETE = "mcp_allow_delete"
+    private const val KEY_MCP_AUTH_TOKEN = "mcp_auth_token"
+    private const val KEY_MCP_SERVER_PORT = "mcp_server_port"
 
     private var prefs: SharedPreferences? = null
     private var appContext: Context? = null
@@ -317,6 +326,14 @@ object AppSettingsManager {
         val colorTheme = runCatching { AppColorTheme.valueOf(colorThemeName) }.getOrDefault(AppColorTheme.Default)
         val customColorHex = p.getString(KEY_CUSTOM_COLOR_HEX, "#1A73E8") ?: "#1A73E8"
         val amoledDark = p.getBoolean(KEY_AMOLED_DARK, false)
+        val enableMcp = p.getBoolean(KEY_ENABLE_MCP_SERVER, false)
+        val mcpAllowDelete = p.getBoolean(KEY_MCP_ALLOW_DELETE, false)
+        var mcpToken = p.getString(KEY_MCP_AUTH_TOKEN, "") ?: ""
+        if (mcpToken.isBlank()) {
+            mcpToken = generateSecureToken()
+            p.edit().putString(KEY_MCP_AUTH_TOKEN, mcpToken).apply()
+        }
+        val mcpPort = p.getInt(KEY_MCP_SERVER_PORT, 8090)
 
         _settings.value =
             AppSettings(
@@ -346,6 +363,10 @@ object AppSettingsManager {
                 colorTheme = colorTheme,
                 customColorHex = customColorHex,
                 amoledDark = amoledDark,
+                enableMcpServer = enableMcp,
+                mcpAllowDelete = mcpAllowDelete,
+                mcpAuthToken = mcpToken,
+                mcpServerPort = mcpPort,
             )
     }
 
@@ -567,6 +588,34 @@ object AppSettingsManager {
     fun setAmoledDark(enable: Boolean) {
         _settings.value = _settings.value.copy(amoledDark = enable)
         prefs?.edit()?.putBoolean(KEY_AMOLED_DARK, enable)?.apply()
+    }
+
+    private fun generateSecureToken(): String {
+        val chars = "0123456789abcdef"
+        val secureRandom = java.security.SecureRandom()
+        return (1..16).map { chars[secureRandom.nextInt(chars.length)] }.joinToString("")
+    }
+
+    fun setEnableMcpServer(enable: Boolean) {
+        _settings.value = _settings.value.copy(enableMcpServer = enable)
+        prefs?.edit()?.putBoolean(KEY_ENABLE_MCP_SERVER, enable)?.apply()
+    }
+
+    fun setMcpAllowDelete(allow: Boolean) {
+        _settings.value = _settings.value.copy(mcpAllowDelete = allow)
+        prefs?.edit()?.putBoolean(KEY_MCP_ALLOW_DELETE, allow)?.apply()
+    }
+
+    fun setMcpServerPort(port: Int) {
+        _settings.value = _settings.value.copy(mcpServerPort = port)
+        prefs?.edit()?.putInt(KEY_MCP_SERVER_PORT, port)?.apply()
+    }
+
+    fun regenerateMcpAuthToken(): String {
+        val newToken = generateSecureToken()
+        _settings.value = _settings.value.copy(mcpAuthToken = newToken)
+        prefs?.edit()?.putString(KEY_MCP_AUTH_TOKEN, newToken)?.apply()
+        return newToken
     }
 
     var mediaCacheSizeProvider: (() -> Long)? = null

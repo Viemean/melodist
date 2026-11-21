@@ -22,12 +22,13 @@ class RecentPlaybackManagerTest {
 
     @Test
     fun `legacy Song list JSON deserialization fallback functions correctly`() {
-        val legacyJson = """
+        val legacyJson =
+            """
             [
                 {"songMid": "mid_legacy_1", "name": "Legacy 1", "singer": "Artist 1"},
                 {"songMid": "mid_legacy_2", "name": "Legacy 2", "singer": "Artist 2"}
             ]
-        """.trimIndent()
+            """.trimIndent()
 
         val legacySongs = json.decodeFromString<List<Song>>(legacyJson)
         assertEquals(2, legacySongs.size)

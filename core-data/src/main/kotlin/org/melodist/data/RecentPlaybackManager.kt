@@ -59,6 +59,8 @@ object RecentPlaybackManager {
     private var historyFile: File? = null
     private var lastSyncTimeMs: Long = 0L
 
+    fun getRecentSongEntries(): List<RecentSongEntry> = synchronized(this) { recentEntries.toList() }
+
     fun init(context: Context) {
         val appContext = context.applicationContext
         historyFile = File(appContext.filesDir, FILE_NAME)
