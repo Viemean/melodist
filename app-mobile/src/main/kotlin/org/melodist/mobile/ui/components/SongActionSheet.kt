@@ -780,13 +780,15 @@ fun SongActionSheet(
                 )
             }
 
-            ActionSheetItem(
-                icon = Icons.Rounded.Info,
-                title = "查看歌曲信息",
-                onClick = {
-                    showSongInfoSheet = true
-                },
-            )
+            if (isFromPlayer || song.isLocal || localFilePath != null) {
+                ActionSheetItem(
+                    icon = Icons.Rounded.Info,
+                    title = "查看歌曲信息",
+                    onClick = {
+                        showSongInfoSheet = true
+                    },
+                )
+            }
 
             ActionSheetItem(
                 icon = Icons.Rounded.ContentCopy,
