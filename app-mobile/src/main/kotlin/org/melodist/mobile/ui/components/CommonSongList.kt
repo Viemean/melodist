@@ -406,8 +406,8 @@ fun CommonSongList(
             modifier = Modifier.align(Alignment.BottomEnd),
         )
 
-        // 超过 100 首歌曲时显示右侧快速滚动条
-        if (displaySongs.size >= 100) {
+        // 超过 50 首歌曲时显示右侧快速滚动条
+        if (displaySongs.size >= 50) {
             val headerCount = (state.layoutInfo.totalItemsCount - displaySongs.size).coerceAtLeast(0)
             SongListFastScroller(
                 listState = state,

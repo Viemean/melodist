@@ -61,7 +61,7 @@ fun SongListFastScroller(
     onDragStateChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (totalItems < 100) return
+    if (totalItems < 50) return
 
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -144,6 +144,15 @@ fun SongListFastScroller(
 
         val thumbOffsetY = activeFraction * maxTravelPx
 
+        var accumulatedDragOffsetY by remember { mutableFloatStateOf(0f) }
+
+        LaunchedEffect(scrollProgress, maxTravelPx) {
+            if (!isDragging) {
+                dragProgressFraction = scrollProgress
+                accumulatedDragOffsetY = scrollProgress * maxTravelPx
+            }
+        }
+
         // 索引指示气泡：沿 Y 轴动态跟随滑块手柄滑动
         val activeSong = currentSongProvider?.invoke(currentScrolledIndex)
         val initialLetter =
@@ -190,57 +199,55 @@ fun SongListFastScroller(
             }
         }
 
-        // 触摸热区
         val maxIndex = (totalItems - 1).coerceAtLeast(0)
-        Box(
-            modifier =
-                Modifier
-                    .width(36.dp)
-                    .fillMaxHeight()
-                    .pointerInput(totalItems, maxTravelPx) {
-                        detectVerticalDragGestures(
-                            onDragStart = { offset ->
-                                isDragging = true
-                                val frac = if (maxTravelPx > 0f) (offset.y / trackHeightPx).coerceIn(0f, 1f) else 0f
-                                dragProgressFraction = frac
-                                val target = (frac * maxIndex).roundToInt().coerceIn(0, maxIndex)
-                                currentScrolledIndex = target
-                                scope.launch {
-                                    listState.scrollToItem(headerCount + target)
-                                }
-                            },
-                            onVerticalDrag = { change, _ ->
-                                change.consume()
-                                val frac = if (maxTravelPx > 0f) (change.position.y / trackHeightPx).coerceIn(0f, 1f) else 0f
-                                dragProgressFraction = frac
-                                val target = (frac * maxIndex).roundToInt().coerceIn(0, maxIndex)
-                                currentScrolledIndex = target
-                                scope.launch {
-                                    listState.scrollToItem(headerCount + target)
-                                }
-                            },
-                            onDragEnd = {
-                                isDragging = false
-                            },
-                            onDragCancel = {
-                                isDragging = false
-                            },
-                        )
-                    },
-            contentAlignment = Alignment.TopEnd,
-        ) {
-            // 滑柄组件
-            Surface(
-                shape = CircleShape,
-                color = thumbColor,
-                shadowElevation = thumbElevation,
-                tonalElevation = thumbElevation,
+
+        if (isVisibleByActivity || isDragging) {
+            Box(
                 modifier =
                     Modifier
                         .offset { IntOffset(x = 0, y = thumbOffsetY.roundToInt()) }
-                        .padding(end = 4.dp)
-                        .size(width = thumbWidth, height = thumbHeightDp),
-            ) {}
+                        .size(width = 24.dp, height = thumbHeightDp)
+                        .pointerInput(totalItems, maxTravelPx) {
+                            detectVerticalDragGestures(
+                                onDragStart = {
+                                    dragProgressFraction = scrollProgress
+                                    accumulatedDragOffsetY = scrollProgress * maxTravelPx
+                                    isDragging = true
+                                    val target = (scrollProgress * maxIndex).roundToInt().coerceIn(0, maxIndex)
+                                    currentScrolledIndex = target
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    accumulatedDragOffsetY = (accumulatedDragOffsetY + dragAmount).coerceIn(0f, maxTravelPx)
+                                    val frac = if (maxTravelPx > 0f) accumulatedDragOffsetY / maxTravelPx else 0f
+                                    dragProgressFraction = frac
+                                    val target = (frac * maxIndex).roundToInt().coerceIn(0, maxIndex)
+                                    currentScrolledIndex = target
+                                    scope.launch {
+                                        listState.scrollToItem(headerCount + target)
+                                    }
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                },
+                            )
+                        },
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = thumbColor,
+                    shadowElevation = thumbElevation,
+                    tonalElevation = thumbElevation,
+                    modifier =
+                        Modifier
+                            .padding(end = 4.dp)
+                            .size(width = thumbWidth, height = thumbHeightDp),
+                ) {}
+            }
         }
     }
 }
