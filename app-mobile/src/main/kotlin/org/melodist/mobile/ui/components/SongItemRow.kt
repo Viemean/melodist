@@ -213,7 +213,7 @@ fun SongItemRow(
                     )
                 }
 
-            val currentCreds by PlaybackCredentialsManager.credentialsFlow.collectAsState()
+            val effectiveVipTier by PlaybackCredentialsManager.effectiveVipTierFlow.collectAsState()
             val currentRoom by ListenTogetherManager.currentRoom.collectAsState()
             val isBothVip by ListenTogetherManager.isBothVip.collectAsState()
             val isListenTogetherNonBothVip = currentRoom != null && !isBothVip
@@ -221,7 +221,7 @@ fun SongItemRow(
                 song.isVip &&
                     (
                         isListenTogetherNonBothVip ||
-                            PlaybackCredentialsManager.getEffectiveVipTier() == PlaybackVipTier.NONE
+                            effectiveVipTier == PlaybackVipTier.NONE
                     )
 
             Row(

@@ -240,4 +240,31 @@ class PlaybackCredentialsManagerTest {
         // 失效后应回退到 UserSession.profile 的普通用户等级
         assertEquals(PlaybackVipTier.NONE, PlaybackCredentialsManager.getEffectiveVipTier())
     }
+
+    @Test
+    fun `test effectiveVipTierFlow reactive updates`() {
+        assertEquals(PlaybackVipTier.NONE, PlaybackCredentialsManager.effectiveVipTierFlow.value)
+
+        // 凭证更新驱动有效等级变更
+        val creds =
+            PlaybackCredentials(
+                uin = "3001",
+                isVip = true,
+                vipExpireAt = "2099-01-01",
+            )
+        PlaybackCredentialsManager.setCredentials(creds)
+        assertEquals(PlaybackVipTier.GREEN, PlaybackCredentialsManager.effectiveVipTierFlow.value)
+
+        // 清理凭据后回退
+        PlaybackCredentialsManager.clearCredentials()
+        assertEquals(PlaybackVipTier.NONE, PlaybackCredentialsManager.effectiveVipTierFlow.value)
+
+        // 用户主登录资料更新驱动有效等级变更
+        UserSession.profile = UserProfile(uin = "3002", isSvip = true)
+        val start = System.currentTimeMillis()
+        while (PlaybackCredentialsManager.effectiveVipTierFlow.value != PlaybackVipTier.SVIP && System.currentTimeMillis() - start < 1000) {
+            Thread.sleep(10)
+        }
+        assertEquals(PlaybackVipTier.SVIP, PlaybackCredentialsManager.effectiveVipTierFlow.value)
+    }
 }

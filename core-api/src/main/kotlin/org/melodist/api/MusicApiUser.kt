@@ -186,16 +186,16 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
 
                     val isSvip =
                         hugeVip > 0 ||
-                            (hugeEnd.isNotBlank() && hugeEnd != "0") ||
+                            hugeEnd.isFutureDate() ||
                             twelve > 0 ||
-                            (twelveEnd.isNotBlank() && twelveEnd != "0") ||
+                            twelveEnd.isFutureDate() ||
                             superVip > 0
                     val isHuge =
                         eight > 0 ||
-                            (eightEnd.isNotBlank() && eightEnd != "0") ||
+                            eightEnd.isFutureDate() ||
                             svipRoot > 0 ||
                             svipId > 0
-                    val isGreen = vip > 0 || (lmEnd.isNotBlank() && lmEnd != "0")
+                    val isGreen = vip > 0 || lmEnd.isFutureDate()
                     val isYear =
                         (identity["yearflag"]?.jsonPrimitive?.intOrNull ?: 0) > 0 ||
                             (identity["yearffb"]?.jsonPrimitive?.intOrNull ?: 0) > 0
@@ -214,8 +214,8 @@ suspend fun MusicApiService.refreshCurrentUserProfile(): Boolean =
                     val groupVipFlag = identity["GroupVipFlag"]?.jsonPrimitive?.intOrNull ?: 0
                     val groupVipEnd = identity["GroupVipEnd"]?.jsonPrimitive?.contentOrNull.orEmpty()
 
-                    val isCpLover = cpLoverFlag > 0
-                    val isGroupVip = groupVipFlag > 0
+                    val isCpLover = cpLoverFlag > 0 || cpLoverEnd.isFutureDate()
+                    val isGroupVip = groupVipFlag > 0 || groupVipEnd.isFutureDate()
 
                     val resolvedIsVip = isGreen || isHuge || isSvip || isCpLover || isGroupVip
                     val isGuestResult =
@@ -311,3 +311,5 @@ fun normalizeHighResAvatar(
     }
     return url
 }
+
+private fun String.isFutureDate(): Boolean = PlaybackCredentialsManager.parseExpireTimestamp(this)?.let { it > System.currentTimeMillis() } == true

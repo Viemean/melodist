@@ -1,8 +1,12 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -60,8 +64,25 @@ val UserProfile.vipTier: PlaybackVipTier
         }
 
 object PlaybackCredentialsManager {
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
     private val _credentialsFlow = MutableStateFlow<PlaybackCredentials?>(null)
     val credentialsFlow: StateFlow<PlaybackCredentials?> = _credentialsFlow.asStateFlow()
+
+    private val _effectiveVipTierFlow = MutableStateFlow(getEffectiveVipTier())
+    val effectiveVipTierFlow: StateFlow<PlaybackVipTier> = _effectiveVipTierFlow.asStateFlow()
+
+    init {
+        scope.launch {
+            UserSession.profileFlow.collect {
+                updateEffectiveVipTier()
+            }
+        }
+    }
+
+    private fun updateEffectiveVipTier() {
+        _effectiveVipTierFlow.value = getEffectiveVipTier()
+    }
 
     val currentCredentials: PlaybackCredentials?
         get() = _credentialsFlow.value
@@ -71,10 +92,12 @@ object PlaybackCredentialsManager {
 
     fun setCredentials(creds: PlaybackCredentials?) {
         _credentialsFlow.value = creds
+        updateEffectiveVipTier()
     }
 
     fun clearCredentials() {
         _credentialsFlow.value = null
+        updateEffectiveVipTier()
     }
 
     // 鉴权 Cookie 精简白名单
@@ -532,13 +555,13 @@ object PlaybackCredentialsManager {
 
     fun fromJson(jsonStr: String?) {
         if (jsonStr.isNullOrBlank()) {
-            _credentialsFlow.value = null
+            clearCredentials()
             return
         }
         try {
-            _credentialsFlow.value = jsonHelper.decodeFromString<PlaybackCredentials>(jsonStr)
+            setCredentials(jsonHelper.decodeFromString<PlaybackCredentials>(jsonStr))
         } catch (_: Exception) {
-            _credentialsFlow.value = null
+            clearCredentials()
         }
     }
 }
