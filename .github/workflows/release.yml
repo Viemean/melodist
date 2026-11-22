@@ -95,7 +95,7 @@ jobs:
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           if [ -z "$TAG_NAME" ] || [ "$TAG_NAME" = "refs/heads/main" ]; then
-            TAG_NAME="v1.0.0"
+            TAG_NAME="$(git describe --tags --abbrev=0 2>/dev/null || echo 'v1.8.5')"
           fi
           CLEAN_VERSION="${TAG_NAME#v}"
           CLEAN_VERSION="${CLEAN_VERSION%-tv}"
@@ -129,6 +129,14 @@ jobs:
           fi
           
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload Build Artifacts to Action
+        uses: actions/upload-artifact@v4
+        with:
+          name: melodist-apks
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
