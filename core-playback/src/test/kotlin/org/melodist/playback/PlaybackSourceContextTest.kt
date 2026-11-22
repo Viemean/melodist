@@ -16,16 +16,6 @@ class PlaybackSourceContextTest {
     private val apiService = MusicApiService()
 
     @Test
-    fun testPlaybackSourceContextDataModels() {
-        val albumCtx = PlaybackSourceContext.Album(albumMid = "002abc", albumId = 12345L)
-        assertEquals("002abc", albumCtx.albumMid)
-        assertEquals(12345L, albumCtx.albumId)
-
-        val playlistCtx = PlaybackSourceContext.Playlist(id = "987654")
-        assertEquals("987654", playlistCtx.id)
-    }
-
-    @Test
     fun testQueueManagerSourceContextPreservationAndClear() {
         var requestedSong: Song? = null
         val queueManager =

@@ -80,8 +80,8 @@ class PlaybackQueuePrefetchTest {
             queueManager.setCurrentIndex(2)
 
             // 等待异步预拉取协程执行完成
-            for (i in 1..20) {
-                if (fakeSource.loadMoreCallCount > 0) break
+            repeat(20) {
+                if (fakeSource.loadMoreCallCount > 0) return@repeat
                 kotlinx.coroutines.delay(50)
             }
 

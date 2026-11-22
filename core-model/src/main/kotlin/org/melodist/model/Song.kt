@@ -54,10 +54,8 @@ data class Song(
     val rawCoverUrlOnly: String?
         get() = CoverUrlResolver.getRawUrlOnly(coverUrl, explicitRawUrl = rawCoverUrl.ifBlank { null })
 
-    fun resolvePlayerCoverCandidates(
-        isCellular: Boolean = false,
-        hasRawCache: Boolean = false,
-    ): List<String> = CoverUrlResolver.getCandidates(coverUrl, CoverScenario.PLAYER, isCellular = isCellular, explicitRawUrl = rawCoverUrl.ifBlank { null })
+    fun resolvePlayerCoverCandidates(isCellular: Boolean = false): List<String> =
+        CoverUrlResolver.getCandidates(coverUrl, CoverScenario.PLAYER, isCellular = isCellular, explicitRawUrl = rawCoverUrl.ifBlank { null })
 
     val rawCoverCandidates: List<String>
         get() = CoverUrlResolver.getCandidates(coverUrl, CoverScenario.FULLSCREEN_RAW, explicitRawUrl = rawCoverUrl.ifBlank { null })
