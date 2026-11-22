@@ -31,7 +31,7 @@ class RotatingCandidatePoolTest {
     @Test
     fun `createShuffledQueue avoids immediate duplicate with lastItem`() {
         val pool = listOf(1, 2, 3, 4, 5)
-        for (i in 1..20) {
+        repeat(20) {
             val shuffled = RotatingCandidatePool.createShuffledQueue(pool, lastItem = 1)
             assertEquals(5, shuffled.size)
             assertNotEquals(1, shuffled.first())

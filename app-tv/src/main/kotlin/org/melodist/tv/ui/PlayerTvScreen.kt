@@ -90,8 +90,6 @@ fun PlayerTvScreen(
     val isTimerActive by SleepTimerManager.isTimerActive.collectAsState()
     val errorMessage by PlaybackManager.errorMessage.collectAsState()
 
-    val scope = rememberCoroutineScope()
-    val apiService = remember { MusicApiService() }
     val favoriteSongMids by PlaybackManager.favoriteSongMids.collectAsState()
 
     LaunchedEffect(song) {

@@ -121,7 +121,6 @@ fun DiscoverScreen(
                         ) {
                             item(key = "hero_guess_card") {
                                 GuessRecommendCard(
-                                    onOpenPlayer = onOpenPlayer,
                                     modifier = Modifier.width(cardWidth),
                                 )
                             }
@@ -129,7 +128,6 @@ fun DiscoverScreen(
                             item(key = "hero_million_card") {
                                 MillionRecommendCard(
                                     onRequireLogin = onRequireLogin,
-                                    onOpenPlayer = onOpenPlayer,
                                     modifier = Modifier.width(cardWidth),
                                 )
                             }

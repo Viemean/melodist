@@ -43,7 +43,6 @@ fun RecommendShelfSection(
     shelves: List<RecommendShelf>,
     onSongClick: (song: Song, shelfSongs: List<Song>) -> Unit,
     modifier: Modifier = Modifier,
-    onPlayShelf: ((shelf: RecommendShelf) -> Unit)? = null,
 ) {
     if (shelves.isEmpty()) return
 

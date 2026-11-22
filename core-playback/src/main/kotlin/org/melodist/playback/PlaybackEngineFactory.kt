@@ -18,8 +18,6 @@ import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import org.melodist.data.AppSettingsManager
 
 object PlaybackEngineFactory {
-    private const val TAG = "PlaybackEngineFactory"
-
     fun createRenderersFactory(context: Context): DefaultRenderersFactory {
         return object : DefaultRenderersFactory(context.applicationContext) {
             override fun buildAudioSink(

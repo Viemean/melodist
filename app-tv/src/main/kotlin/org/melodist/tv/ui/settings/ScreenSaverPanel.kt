@@ -505,8 +505,6 @@ fun ScreenSaverOverlay(
         }
     }
 
-    val currentTime = if (hourStr.isNotBlank() && minuteStr.isNotBlank()) "$hourStr:$minuteStr" else "--:--"
-
     // 提取专辑主色与辅色
     val effectiveCoverUrl =
         remember(currentSong) {

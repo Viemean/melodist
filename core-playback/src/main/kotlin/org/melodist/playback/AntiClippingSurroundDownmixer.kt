@@ -56,7 +56,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
 
             val invScale = if (inputChannels >= 8) 0.35f else 0.45f
 
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val fl = inputBuffer.short.toFloat()
                 val fr = inputBuffer.short.toFloat()
                 val c = if (inputChannels >= 3) inputBuffer.short.toFloat() else 0f
@@ -68,7 +68,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
                 val sl = if (inputChannels >= 7) inputBuffer.short.toFloat() else 0f
                 val sr = if (inputChannels >= 8) inputBuffer.short.toFloat() else 0f
 
-                for (ch in 8 until inputChannels) {
+                repeat(inputChannels - 8) {
                     inputBuffer.short
                 }
 
@@ -87,7 +87,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val frameCount = remaining / 2
             val outputBytes = ByteArray(frameCount * 4)
             val outputBuffer = ByteBuffer.wrap(outputBytes).order(ByteOrder.LITTLE_ENDIAN)
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val sample = inputBuffer.short
                 outputBuffer.putShort(sample)
                 outputBuffer.putShort(sample)
@@ -106,7 +106,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val invScale = if (inputChannels >= 8) 0.35f else 0.45f
 
             var outIdx = 0
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val fl = readInt24(inputBuffer).toFloat()
                 val fr = readInt24(inputBuffer).toFloat()
                 val c = if (inputChannels >= 3) readInt24(inputBuffer).toFloat() else 0f
@@ -118,7 +118,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
                 val sl = if (inputChannels >= 7) readInt24(inputBuffer).toFloat() else 0f
                 val sr = if (inputChannels >= 8) readInt24(inputBuffer).toFloat() else 0f
 
-                for (ch in 8 until inputChannels) {
+                repeat(inputChannels - 8) {
                     skipBytes(inputBuffer, 3)
                 }
 
@@ -142,7 +142,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val frameCount = remaining / 3
             val outputBytes = ByteArray(frameCount * 6)
             var outIdx = 0
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val b0 = inputBuffer.get()
                 val b1 = inputBuffer.get()
                 val b2 = inputBuffer.get()
@@ -167,7 +167,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val outputBuffer = ByteBuffer.wrap(outputBytes).order(ByteOrder.LITTLE_ENDIAN)
             val invScale = if (inputChannels >= 8) 0.35f else 0.45f
 
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val fl = inputBuffer.int.toFloat()
                 val fr = inputBuffer.int.toFloat()
                 val c = if (inputChannels >= 3) inputBuffer.int.toFloat() else 0f
@@ -179,7 +179,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
                 val sl = if (inputChannels >= 7) inputBuffer.int.toFloat() else 0f
                 val sr = if (inputChannels >= 8) inputBuffer.int.toFloat() else 0f
 
-                for (ch in 8 until inputChannels) {
+                repeat(inputChannels - 8) {
                     inputBuffer.int
                 }
 
@@ -198,7 +198,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val frameCount = remaining / 4
             val outputBytes = ByteArray(frameCount * 8)
             val outputBuffer = ByteBuffer.wrap(outputBytes).order(ByteOrder.LITTLE_ENDIAN)
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val sample = inputBuffer.int
                 outputBuffer.putInt(sample)
                 outputBuffer.putInt(sample)
@@ -217,7 +217,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val invScale = if (inputChannels >= 8) 0.35f else 0.45f
 
             var outIdx = 0
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val fl = inputBuffer.float
                 val fr = inputBuffer.float
                 val c = if (inputChannels >= 3) inputBuffer.float else 0f
@@ -229,7 +229,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
                 val sl = if (inputChannels >= 7) inputBuffer.float else 0f
                 val sr = if (inputChannels >= 8) inputBuffer.float else 0f
 
-                for (ch in 8 until inputChannels) {
+                repeat(inputChannels - 8) {
                     inputBuffer.float
                 }
 
@@ -248,7 +248,7 @@ class AntiClippingSurroundDownmixer : BaseAudioProcessor() {
             val frameCount = remaining / 4
             val output = FloatArray(frameCount * 2)
             var outIdx = 0
-            for (f in 0 until frameCount) {
+            repeat(frameCount) {
                 val sample = inputBuffer.float
                 output[outIdx++] = sample
                 output[outIdx++] = sample

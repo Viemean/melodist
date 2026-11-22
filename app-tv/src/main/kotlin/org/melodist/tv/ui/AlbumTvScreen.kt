@@ -33,8 +33,6 @@ fun AlbumTvScreen(
     var selectedSongForDialog by remember { mutableStateOf<Song?>(null) }
 
     val currentPlayingSong by PlaybackManager.currentSong.collectAsState()
-    val scope = rememberCoroutineScope()
-    val apiService = remember { MusicApiService() }
 
     LaunchedEffect(albumMid) {
         if (albumMid.isNotBlank()) {

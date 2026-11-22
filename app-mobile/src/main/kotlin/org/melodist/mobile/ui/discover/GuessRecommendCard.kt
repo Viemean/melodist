@@ -26,10 +26,7 @@ import org.melodist.playback.PlaybackManager
 private const val ROTATION_INTERVAL_MS = 20_000L
 
 @Composable
-fun GuessRecommendCard(
-    onOpenPlayer: () -> Unit = {},
-    modifier: Modifier = Modifier,
-) {
+fun GuessRecommendCard(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     val guessSongs by GuessRecommendManager.songsFlow.collectAsState()
     val isPlaying by PlaybackManager.isPlaying.collectAsState()

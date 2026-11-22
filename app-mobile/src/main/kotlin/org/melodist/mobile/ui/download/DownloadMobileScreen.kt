@@ -69,8 +69,6 @@ fun DownloadMobileScreen(
     val activeTasks by DownloadManager.activeTasks.collectAsState()
     val completedTasks by DownloadManager.completedTasks.collectAsState()
 
-    var taskToDelete by remember { mutableStateOf<DownloadTask?>(null) }
-    var taskToShowDetail by remember { mutableStateOf<DownloadTask?>(null) }
     var showCancelAllDialog by remember { mutableStateOf(false) }
 
     // 监听全局 Toast 事件

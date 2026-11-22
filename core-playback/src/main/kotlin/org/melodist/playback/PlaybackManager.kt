@@ -18,7 +18,6 @@ import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import kotlinx.coroutines.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.json.Json
 import org.melodist.api.MusicApiService
 import org.melodist.api.PlaybackCredentialsManager
 import org.melodist.api.PlaybackVipTier
@@ -97,15 +96,8 @@ object PlaybackManager {
     private val apiService = MusicApiService()
     private var appContext: Context? = null
 
-    private val jsonHelper =
-        Json {
-            ignoreUnknownKeys = true
-            encodeDefaults = true
-        }
-
     private val exoPlayer: ExoPlayer? get() = playerPipeline.player
     private var playJob: Job? = null
-    private var lyricLoadJob: Job? = null
     private var retryJob: Job? = null
 
     private val remoteStateHolder = PlaybackRemoteStateHolder()
@@ -960,8 +952,6 @@ object PlaybackManager {
     fun onAudioPassthroughChanged(enabled: Boolean) {
         // 仅更新配置，在下一次起播时生效
     }
-
-    private fun startProgressLoop() = progressTracker.start()
 
     /**
      * 将当前播放队列、曲目索引与循环模式持久化保存至本地存储。

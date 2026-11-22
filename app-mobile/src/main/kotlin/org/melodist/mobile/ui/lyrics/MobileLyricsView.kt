@@ -74,7 +74,6 @@ fun MobileLyricsView(
     highlightColor: Color = MaterialTheme.colorScheme.primary,
     textColor: Color = Color.White.copy(alpha = 0.88f),
     transColor: Color = Color.White.copy(alpha = 0.60f),
-    song: Song? = null,
 ) {
     val settings by AppSettingsManager.settings.collectAsState()
     val keepScreenOn = settings.keepScreenOnOnLyrics

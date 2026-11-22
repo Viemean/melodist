@@ -85,7 +85,6 @@ import org.melodist.playback.PlaybackManager
 @Composable
 fun LibraryScreen(
     contentPadding: PaddingValues,
-    onRequireLogin: () -> Unit,
     onOpenPlaylist: (Playlist) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -103,7 +102,6 @@ fun LibraryScreen(
     val favoriteMids by PlaybackManager.favoriteSongMids.collectAsState()
 
     val libraryData by UserLibraryCacheManager.libraryFlow.collectAsState()
-    val isLoading by UserLibraryCacheManager.isLoadingFlow.collectAsState()
     val playlists = libraryData.playlists
     val favoriteCount = libraryData.favoriteCount
 
@@ -354,7 +352,6 @@ fun LibraryScreen(
                         )
                     }
                 }
-
 
                 val isShareable = playlist.tid > 0L && !playlist.isPrivate
                 val copyTextColor =

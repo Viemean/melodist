@@ -72,7 +72,6 @@ fun PlayerCoverCarousel(
     val dragOffsetX = remember { Animatable(0f) }
     var isDragging by remember { mutableStateOf(false) }
 
-    val currentSongState by rememberUpdatedState(currentSong)
     val currentPrevSong by rememberUpdatedState(prevSong)
     val currentNextSong by rememberUpdatedState(nextSong)
     val currentOnPlayNext by rememberUpdatedState(onPlayNext)

@@ -31,7 +31,6 @@ private const val PHASE_OFFSET_MS = 10_000L // 与猜你喜欢对半错峰 10 �
 @Composable
 fun MillionRecommendCard(
     onRequireLogin: () -> Unit,
-    onOpenPlayer: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val navController = LocalAppNavigation.current

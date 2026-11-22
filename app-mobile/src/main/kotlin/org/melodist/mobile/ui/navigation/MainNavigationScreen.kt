@@ -332,7 +332,6 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
     // 是否正在挂载无 UI 识别控制器
     var isAcrControllerActive by remember { mutableStateOf(false) }
 
-    val userProfile by UserSession.profileFlow.collectAsState()
     val isLoggedIn = UserSession.isLoggedIn
 
     LaunchedEffect(isLoggedIn) {
@@ -1142,7 +1141,6 @@ private fun RenderAppScreen(
                             HomeFilter.Library -> {
                                 LibraryScreen(
                                     contentPadding = innerPadding,
-                                    onRequireLogin = onOpenLogin,
                                     onOpenPlaylist = { playlist -> navController.navigateToPlaylist(playlist) },
                                 )
                             }

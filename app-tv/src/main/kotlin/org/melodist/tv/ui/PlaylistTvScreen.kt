@@ -597,7 +597,6 @@ fun PlaylistTvScreen(
     // 绑定当前歌单首首曲目信息
     val activePlaylist = userPlaylists.getOrNull(selectedPlaylistIndex)
     val activeAlbum = userAlbums.getOrNull(selectedAlbumIndex)
-    val playlistFirstSong = playlistSongs.firstOrNull()
 
     val resolvedTitle =
         when {
