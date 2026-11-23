@@ -119,11 +119,11 @@ fun RemotePlaybackControlCard(
                         text =
                             when (connectionState) {
                                 is MobileConnectionState.Paired -> connectionState.targetDevice.name
-                                is MobileConnectionState.Connecting -> "正在连接电视..."
+                                is MobileConnectionState.Connecting -> "正在连接设备..."
                                 is MobileConnectionState.Connected -> "正在握手认证..."
                                 is MobileConnectionState.Reconnecting -> "正在重连 (${connectionState.attempt}/${connectionState.maxAttempts})..."
                                 is MobileConnectionState.Error -> "连接失败"
-                                else -> "TV 远程控制板 (未连接)"
+                                else -> "远程控制板 (未连接)"
                             },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -414,7 +414,7 @@ fun RemotePlaybackControlCard(
             } else if (connectionState is MobileConnectionState.Paired) {
                 // 已连接但无曲目播放
                 Text(
-                    text = "TV 端当前暂无播放曲目，可通过手机选歌点播或接力",
+                    text = "远端设备当前暂无播放曲目，可通过手机选歌点播或接力",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 12.dp),
@@ -429,7 +429,7 @@ fun RemotePlaybackControlCard(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        text = "未连接电视设备，靠近同一 Wi-Fi 即可自动连接，或在下方设备列表中手动配对。",
+                        text = "未连接远程设备，靠近同一 Wi-Fi 即可自动连接，或在下方设备列表中手动配对。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

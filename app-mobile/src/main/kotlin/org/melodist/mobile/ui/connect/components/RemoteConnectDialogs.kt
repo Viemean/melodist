@@ -56,7 +56,7 @@ fun RemoteConnectDialogs(
             onQrDecoded = { qrText ->
                 val ok = MobileConnectManager.connectByQrJson(qrText)
                 if (ok) {
-                    Toast.makeText(context, "已识别电视配置，正在握手连接...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "已识别设备配置，正在握手连接...", Toast.LENGTH_SHORT).show()
                 } else {
                     val trimmed = qrText.trim()
                     if (trimmed.contains(".") && !trimmed.contains("{")) {
@@ -80,13 +80,13 @@ fun RemoteConnectDialogs(
 
         AlertDialog(
             onDismissRequest = onDismissManualInput,
-            title = { Text("手动连接电视") },
+            title = { Text("手动连接设备") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         value = manualHost,
                         onValueChange = { manualHost = it },
-                        label = { Text("电视 IP 地址 (例如 192.168.1.100 或 192.168.1.100:8765)") },
+                        label = { Text("设备 IP 地址 (例如 192.168.1.100 或 192.168.1.100:8765)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -145,7 +145,7 @@ fun RemoteConnectDialogs(
             title = { Text("输入配对码") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("请输入电视屏幕上显示的 6 位数字配对码：", style = MaterialTheme.typography.bodyMedium)
+                    Text("请输入远端设备屏幕上显示的 6 位数字配对码：", style = MaterialTheme.typography.bodyMedium)
                     OutlinedTextField(
                         value = pinInput,
                         onValueChange = { input ->

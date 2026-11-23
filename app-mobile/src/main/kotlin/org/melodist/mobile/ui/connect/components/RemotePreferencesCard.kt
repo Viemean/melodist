@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -29,7 +28,7 @@ import org.melodist.core.connect.model.RemoteControlMode
 import org.melodist.mobile.connect.MobileConnectManager
 
 /**
- * 远程互联偏好设置卡片组件（控制模式切换、本地静音开关与 TV 离线中转开关）
+ * 远程互联偏好设置卡片组件（控制模式切换、本地静音开关与中转媒体流开关）
  */
 @Composable
 fun RemotePreferencesCard(
@@ -95,7 +94,7 @@ fun RemotePreferencesCard(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "选歌与控制直接由 TV 播放响应",
+                            text = "选歌与控制直接由远端设备播放响应",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
                             color =
@@ -141,7 +140,7 @@ fun RemotePreferencesCard(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "手机本地播放，仅在手动投送时切至 TV",
+                            text = "手机本地播放，仅在手动投送时切至远端设备",
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
                             color =
@@ -157,7 +156,7 @@ fun RemotePreferencesCard(
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // 本地静音开关
             Row(
@@ -179,18 +178,18 @@ fun RemotePreferencesCard(
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // TV 离线模式开关
+            // 中转媒体流开关
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("TV 离线中转", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text("中转媒体流", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                     Text(
-                        "TV 无需访问外网，音频与数据由手机代理中转",
+                        "本机代理传输音频与数据",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

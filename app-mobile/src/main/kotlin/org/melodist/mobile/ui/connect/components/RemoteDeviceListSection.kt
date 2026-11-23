@@ -82,7 +82,7 @@ fun LazyListScope.remoteDeviceListSection(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "正在扫描局域网 TV 设备...\n请确保电视与手机处于相同 Wi-Fi 网络",
+                    text = "正在扫描局域网设备...\n请确保目标设备与手机处于相同 Wi-Fi 网络",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
