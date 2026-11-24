@@ -44,7 +44,6 @@ fun SettingsMcpSection(
 
     val isRunning by McpServerManager.isServerRunning.collectAsState()
     val serverUrl by McpServerManager.serverUrl.collectAsState()
-    val isSuspended by McpServerManager.isSuspendedNonWifi.collectAsState()
 
     var showRegenerateTokenDialog by remember { mutableStateOf(false) }
     var showConnectionGuideDialog by remember { mutableStateOf(false) }
@@ -58,8 +57,7 @@ fun SettingsMcpSection(
 
     val statusSubtitle =
         when {
-            !settings.enableMcpServer -> "允许外部 AI (Claude/Cursor) 检索曲库与无头播控"
-            isSuspended -> "已在非 Wi-Fi 环境下自动暂停，切回 Wi-Fi 后自动恢复"
+            !settings.enableMcpServer -> "允许外部服务控制检索音乐信息"
             isRunning -> "运行中: $serverUrl"
             else -> "正在启动服务..."
         }
@@ -83,7 +81,7 @@ fun SettingsMcpSection(
                         if (isRunning) {
                             "$fullUrl\n(点击查看连接配置指南)"
                         } else {
-                            "等待连接 Wi-Fi 局域网..."
+                            "服务未运行"
                         },
                     onClick = {
                         if (isRunning) {
@@ -159,7 +157,7 @@ fun SettingsMcpSection(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "方式二：请求头鉴权（分离配置）",
+                        text = "方式二：请求头鉴权",
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -194,6 +192,33 @@ fun SettingsMcpSection(
                         ) {
                             Text(text = "复制请求头")
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val loopbackUrl =
+                        if (settings.mcpAuthToken.isNotBlank()) {
+                            "http://127.0.0.1:${settings.mcpServerPort}/sse?token=${settings.mcpAuthToken}"
+                        } else {
+                            "http://127.0.0.1:${settings.mcpServerPort}/sse"
+                        }
+                    Text(
+                        text = "方式三：手机本机直连",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = loopbackUrl,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(
+                        onClick = {
+                            clipboard.setPrimaryClip(ClipData.newPlainText("loopbackUrl", loopbackUrl))
+                            Toast.makeText(context, "已复制本地回环 URL", Toast.LENGTH_SHORT).show()
+                        },
+                    ) {
+                        Text(text = "复制本机回环 URL")
                     }
                 }
             },

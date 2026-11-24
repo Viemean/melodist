@@ -34,8 +34,6 @@ object McpServerManager {
     private val _isSuspendedNonWifi = MutableStateFlow(false)
     val isSuspendedNonWifi: StateFlow<Boolean> = _isSuspendedNonWifi.asStateFlow()
 
-    private var isWifiConnected: Boolean = false
-
     fun init(context: Context) {
         if (appContext != null) return
         val app = context.applicationContext
@@ -52,7 +50,6 @@ object McpServerManager {
 
     private fun setupNetworkListener(context: Context) {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
-        isWifiConnected = checkCurrentWifi(cm)
 
         val request =
             NetworkRequest
@@ -64,64 +61,36 @@ object McpServerManager {
             request,
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
-                    val isWifi = checkCurrentWifi(cm)
-                    if (isWifi != isWifiConnected) {
-                        isWifiConnected = isWifi
-                        scope.launch {
-                            syncServerState(AppSettingsManager.settings.value.enableMcpServer)
-                        }
-                    }
+                    updateServerUrl()
                 }
 
                 override fun onLost(network: Network) {
-                    val isWifi = checkCurrentWifi(cm)
-                    if (isWifi != isWifiConnected) {
-                        isWifiConnected = isWifi
-                        scope.launch {
-                            syncServerState(AppSettingsManager.settings.value.enableMcpServer)
-                        }
-                    }
+                    updateServerUrl()
                 }
 
                 override fun onCapabilitiesChanged(
                     network: Network,
                     networkCapabilities: NetworkCapabilities,
                 ) {
-                    val isWifi = checkCurrentWifi(cm)
-                    if (isWifi != isWifiConnected) {
-                        isWifiConnected = isWifi
-                        scope.launch {
-                            syncServerState(AppSettingsManager.settings.value.enableMcpServer)
-                        }
-                    }
+                    updateServerUrl()
                 }
             },
         )
     }
 
-    private fun checkCurrentWifi(cm: ConnectivityManager): Boolean {
-        val activeNet = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(activeNet) ?: return false
-        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+    private fun updateServerUrl() {
+        val s = server ?: return
+        if (s.isRunning()) {
+            _serverUrl.value = s.serverUrl
+        }
     }
 
     private fun syncServerState(enabled: Boolean) {
         val ctx = appContext ?: return
         if (!enabled) {
             stopServerInternal()
-            _isSuspendedNonWifi.value = false
             return
         }
-
-        if (!isWifiConnected) {
-            Log.i(TAG, "Non-Wi-Fi network detected, suspending MCP server")
-            stopServerInternal()
-            _isSuspendedNonWifi.value = true
-            return
-        }
-
-        _isSuspendedNonWifi.value = false
         startServerInternal(ctx)
     }
 
@@ -166,7 +135,7 @@ object McpServerManager {
     fun restart() {
         val ctx = appContext ?: return
         stopServerInternal()
-        if (AppSettingsManager.settings.value.enableMcpServer && isWifiConnected) {
+        if (AppSettingsManager.settings.value.enableMcpServer) {
             startServerInternal(ctx)
         }
     }
