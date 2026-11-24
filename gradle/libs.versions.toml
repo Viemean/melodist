@@ -1,5 +1,5 @@
 [versions]
-agp = "9.6.0-alpha05"
+agp = "9.6.0-alpha06"
 ndk = "30.0.16248370"
 kotlin = "2.5.0-RC"
 kotlinx-coroutines = "1.11.0"
