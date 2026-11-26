@@ -114,12 +114,17 @@ fun MobileLyricsView(
     val transFontSize = settings.effectiveLyricSubSp.sp
     val transLineHeight = (settings.effectiveLyricSubSp * 1.30f).sp
 
+    val isUntimed = remember(lyrics) { lyrics.all { !it.isTimed } }
     val effectivePositionMs = currentPositionMs + lyricOffsetMs
 
     val activeIndex =
-        remember(lyrics, effectivePositionMs) {
-            val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
-            if (index == -1) 0 else index
+        remember(lyrics, effectivePositionMs, isUntimed) {
+            if (isUntimed) {
+                -1
+            } else {
+                val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
+                if (index == -1) 0 else index
+            }
         }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -129,12 +134,12 @@ fun MobileLyricsView(
 
         val estimatedItemHeight = with(density) { (settings.effectiveLyricTitleSp * 2.2f).dp.roundToPx() }
         val centerScrollOffset = -((viewportHeightPx - estimatedItemHeight) / 2)
-        val initialItemIndex = (activeIndex + 1).coerceIn(0, lyrics.size)
+        val initialItemIndex = if (isUntimed) 0 else (activeIndex + 1).coerceIn(0, lyrics.size)
 
         val listState =
             rememberLazyListState(
                 initialFirstVisibleItemIndex = initialItemIndex,
-                initialFirstVisibleItemScrollOffset = centerScrollOffset,
+                initialFirstVisibleItemScrollOffset = if (isUntimed) 0 else centerScrollOffset,
             )
         val isDragged by listState.interactionSource.collectIsDraggedAsState()
         var isUserInteracting by remember { mutableStateOf(false) }
@@ -179,8 +184,8 @@ fun MobileLyricsView(
             }
         }
 
-        LaunchedEffect(activeIndex, isUserInteracting) {
-            if (!isUserInteracting && activeIndex in lyrics.indices) {
+        LaunchedEffect(activeIndex, isUserInteracting, isUntimed) {
+            if (!isUntimed && !isUserInteracting && activeIndex in lyrics.indices) {
                 val targetIndex = activeIndex + 1
                 val layoutInfo = listState.layoutInfo
                 val viewportHeight = layoutInfo.viewportSize.height.takeIf { it > 0 } ?: viewportHeightPx
@@ -228,22 +233,49 @@ fun MobileLyricsView(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item(key = "top_spacer") {
-                Spacer(modifier = Modifier.height(halfHeight))
+                Spacer(modifier = Modifier.height(if (isUntimed) 12.dp else halfHeight))
+            }
+
+            if (isUntimed) {
+                item(key = "untimed_notice") {
+                    Text(
+                        text = "本歌词暂不支持滚动",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontSize = baseFontSize,
+                        lineHeight = baseLineHeight,
+                        fontWeight = FontWeight.Medium,
+                        color = textColor.copy(alpha = 0.65f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    )
+                }
             }
 
             itemsIndexed(
                 items = lyrics,
                 key = { index, line -> "${line.timestampMs}_$index" },
             ) { index, line ->
-                val isCurrent = index == activeIndex
+                val isCurrent = !isUntimed && index == activeIndex
                 val distance = abs(index - activeIndex)
                 val alpha by animateFloatAsState(
-                    targetValue = if (isCurrent) 1.0f else (0.76f - distance * 0.05f).coerceIn(0.50f, 0.76f),
+                    targetValue =
+                        when {
+                            isUntimed -> 1.0f
+                            isCurrent -> 1.0f
+                            else -> (0.76f - distance * 0.05f).coerceIn(0.50f, 0.76f)
+                        },
                     animationSpec = tween(300),
                     label = "lyric_alpha",
                 )
                 val scale by animateFloatAsState(
-                    targetValue = if (isCurrent) 1.05f else 0.96f,
+                    targetValue =
+                        if (isCurrent) {
+                            1.05f
+                        } else if (isUntimed) {
+                            1.0f
+                        } else {
+                            0.96f
+                        },
                     animationSpec = tween(300),
                     label = "lyric_scale",
                 )
@@ -263,15 +295,20 @@ fun MobileLyricsView(
                     transLineHeight = transLineHeight,
                     enableWordByWordAnim = settings.enableWordByWordAnim,
                     showBilingualLyrics = settings.showBilingualLyrics,
-                    onClick = {
-                        isUserInteracting = false
-                        onSeekTo((line.timestampMs - lyricOffsetMs).coerceAtLeast(0L))
-                    },
+                    onClick =
+                        if (isUntimed) {
+                            null
+                        } else {
+                            {
+                                isUserInteracting = false
+                                onSeekTo((line.timestampMs - lyricOffsetMs).coerceAtLeast(0L))
+                            }
+                        },
                 )
             }
 
             item(key = "bottom_spacer") {
-                Spacer(modifier = Modifier.height(halfHeight))
+                Spacer(modifier = Modifier.height(if (isUntimed) 24.dp else halfHeight))
             }
         }
     }
@@ -293,7 +330,7 @@ private fun LyricLineItem(
     transLineHeight: TextUnit,
     enableWordByWordAnim: Boolean,
     showBilingualLyrics: Boolean,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
 ) {
     val currentLineElapsedMs = if (isCurrent) (currentPositionMs - line.timestampMs).coerceAtLeast(0L) else 0L
 
@@ -319,7 +356,7 @@ private fun LyricLineItem(
                     this.alpha = alpha
                     scaleX = scale
                     scaleY = scale
-                }.clickable(onClick = onClick)
+                }.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

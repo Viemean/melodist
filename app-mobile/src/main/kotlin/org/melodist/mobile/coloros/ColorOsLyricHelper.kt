@@ -23,7 +23,7 @@ object ColorOsLyricHelper {
      */
     @Suppress("MagicNumber")
     fun formatLyricsToLrc(lyrics: List<LyricLine>): String {
-        if (lyrics.isEmpty()) return ""
+        if (lyrics.isEmpty() || lyrics.none { it.isTimed }) return ""
         val sb = StringBuilder(lyrics.size * 32)
         val firstLine = lyrics.firstOrNull()
         if (firstLine != null && firstLine.timestampMs > 1000L) {

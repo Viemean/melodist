@@ -343,4 +343,25 @@ class LyricParserTest {
         assertEquals(500L, line.words[2].offsetMs)
         assertEquals(100L, line.words[2].durationMs)
     }
+
+    @Test
+    fun `parseMergedLyrics falls back to untimed lyrics for plain text without timestamps`() {
+        val plain =
+            """
+            作词 : samayuzame
+            真っ赤な着物拵(こさ)えて
+            張子の虎の指を重ねたの
+            """.trimIndent()
+
+        val lines = LyricParser.parseMergedLyrics(plain, null)
+        assertEquals(3, lines.size)
+        assertTrue(lines.all { !it.isTimed && it.timestampMs == -1L })
+        assertEquals("真っ赤な着物拵(こさ)えて", lines[1].text)
+    }
+
+    @Test
+    fun `parseMergedLyrics still returns empty for untimed instrumental placeholder`() {
+        val placeholder = "此歌曲为没有填词的纯音乐，请您欣赏"
+        assertTrue(LyricParser.parseMergedLyrics(placeholder, null).isEmpty())
+    }
 }

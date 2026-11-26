@@ -157,7 +157,7 @@ object QQMusicDataConverter {
      * 将逐行歌词列表格式化为标准 LRC 文本。
      */
     fun formatLyricsToLrc(lyrics: List<LyricLine>): String {
-        if (lyrics.isEmpty()) return ""
+        if (lyrics.isEmpty() || lyrics.none { it.isTimed }) return ""
         val showBilingual = AppSettingsManager.settings.value.showBilingualLyrics
         val currentCachedLyrics = cachedLyricsList
         if (currentCachedLyrics === lyrics && cachedShowBilingual == showBilingual) {

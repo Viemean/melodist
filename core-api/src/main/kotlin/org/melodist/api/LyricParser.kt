@@ -166,7 +166,9 @@ object LyricParser {
         }
 
         val origItems = parseLrc(origLrc)
-        if (origItems.isEmpty()) return emptyList()
+        if (origItems.isEmpty()) {
+            return parseUntimedLyrics(origLrc)
+        }
         if (transItems.isEmpty()) {
             return mergeSingleLrcBilingual(origItems)
         }
@@ -220,6 +222,25 @@ object LyricParser {
         }
 
         return result
+    }
+
+    /**
+     * 解析无时间戳的纯文本静态歌词，若为纯音乐占位文案则返回空列表
+     */
+    fun parseUntimedLyrics(rawText: String?): List<LyricLine> {
+        if (rawText.isNullOrBlank()) return emptyList()
+        val lines =
+            rawText
+                .lines()
+                .mapNotNull { line ->
+                    val cleaned = line.trim().replace("&apos;", "’")
+                    if (cleaned.isEmpty() || cleaned == "//" || LRC_TAG_REGEX.containsMatchIn(cleaned)) {
+                        null
+                    } else {
+                        LyricLine(timestampMs = -1L, text = cleaned)
+                    }
+                }
+        return if (isPlaceholderLyrics(lines)) emptyList() else lines
     }
 
     private val QRC_MS_REGEX = Regex("""\[(\d+),(\d+)\]""")

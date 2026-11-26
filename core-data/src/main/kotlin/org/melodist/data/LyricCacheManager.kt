@@ -68,6 +68,11 @@ object LyricCacheManager {
 
         if (current.isEmpty()) return true
 
+        val candidateIsTimed = candidate.any { it.isTimed }
+        val currentIsTimed = current.any { it.isTimed }
+        if (candidateIsTimed && !currentIsTimed) return true
+        if (!candidateIsTimed && currentIsTimed) return false
+
         val candidateHasWords = candidate.any { it.isWordSynced }
         val currentHasWords = current.any { it.isWordSynced }
 

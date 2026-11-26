@@ -21,4 +21,7 @@ data class LyricLine(
 
     val isWordSynced: Boolean
         get() = words.isNotEmpty()
+
+    val isTimed: Boolean
+        get() = timestampMs >= 0L
 }

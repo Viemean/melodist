@@ -57,19 +57,28 @@ fun CenterAlignedKaraokeLyricsView(
         return
     }
 
+    val isUntimed = remember(lyrics) { lyrics.all { !it.isTimed } }
     val effectivePositionMs = currentPositionMs + lyricOffsetMs
 
     // 定位当前正在演唱的歌词行索引 (结合毫秒校准偏移量)
     val activeIndex =
-        remember(lyrics, effectivePositionMs) {
-            val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
-            if (index == -1) 0 else index
+        remember(lyrics, effectivePositionMs, isUntimed) {
+            if (isUntimed) {
+                -1
+            } else {
+                val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
+                if (index == -1) 0 else index
+            }
         }
 
     val initialIndex =
-        remember(songMid, lyrics) {
-            val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
-            if (index == -1) 0 else index
+        remember(songMid, lyrics, isUntimed) {
+            if (isUntimed) {
+                0
+            } else {
+                val index = lyrics.indexOfLast { it.timestampMs <= effectivePositionMs }
+                if (index == -1) 0 else index
+            }
         }
     val listState =
         remember(songMid.ifBlank { lyrics.firstOrNull()?.text.orEmpty() }) {
@@ -83,7 +92,7 @@ fun CenterAlignedKaraokeLyricsView(
         .collectAsState()
 
     // 居中滚动至当前行 / 接收接管端歌词滚动同步
-    LaunchedEffect(activeIndex, takeoverScroll) {
+    LaunchedEffect(activeIndex, takeoverScroll, isUntimed) {
         val takeover = takeoverScroll
         if (takeover != null && takeover.isUserScrolling) {
             if (takeover.lineIndex in lyrics.indices) {
@@ -92,7 +101,7 @@ fun CenterAlignedKaraokeLyricsView(
                     scrollOffset = -80,
                 )
             }
-        } else {
+        } else if (!isUntimed) {
             if (activeIndex in lyrics.indices) {
                 val currentVisibleIndex = listState.firstVisibleItemIndex
                 val distance = abs(activeIndex - currentVisibleIndex)
@@ -116,23 +125,41 @@ fun CenterAlignedKaraokeLyricsView(
         state = listState,
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(vertical = 120.dp),
+        contentPadding = if (isUntimed) PaddingValues(vertical = 24.dp) else PaddingValues(vertical = 120.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
+        if (isUntimed) {
+            item(key = "untimed_notice") {
+                Text(
+                    text = "本歌词暂不支持滚动",
+                    color = MelodistColors.TextMuted,
+                    fontSize = baseFontSize.sp,
+                    lineHeight = (baseFontSize * 1.42f).sp,
+                    fontWeight = FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                )
+            }
+        }
+
         itemsIndexed(
             items = lyrics,
             key = { index, line -> "${line.timestampMs}_$index" },
         ) { index, line ->
-            val isCurrent = index == activeIndex
+            val isCurrent = !isUntimed && index == activeIndex
             val distance = abs(index - activeIndex)
 
             val alpha =
-                when (distance) {
-                    0 -> 1.0f
-                    1 -> 0.86f
-                    2 -> 0.72f
-                    3 -> 0.58f
-                    else -> 0.44f
+                if (isUntimed) {
+                    1.0f
+                } else {
+                    when (distance) {
+                        0 -> 1.0f
+                        1 -> 0.86f
+                        2 -> 0.72f
+                        3 -> 0.58f
+                        else -> 0.44f
+                    }
                 }
 
             LyricLineItem(

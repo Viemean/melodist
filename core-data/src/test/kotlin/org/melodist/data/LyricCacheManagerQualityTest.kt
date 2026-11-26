@@ -72,4 +72,20 @@ class LyricCacheManagerQualityTest {
         assertTrue(LyricCacheManager.isBetterQuality(candidate = fullySynced, current = partiallySynced))
         assertFalse(LyricCacheManager.isBetterQuality(candidate = partiallySynced, current = fullySynced))
     }
+
+    @Test
+    fun testTimedLyricsPrioritizedOverUntimedLyrics() {
+        val untimedLyrics =
+            listOf(
+                LyricLine(timestampMs = -1L, text = "Line 1"),
+                LyricLine(timestampMs = -1L, text = "Line 2"),
+            )
+        val timedLyrics =
+            listOf(
+                LyricLine(timestampMs = 1000L, text = "Line 1"),
+            )
+
+        assertTrue(LyricCacheManager.isBetterQuality(candidate = timedLyrics, current = untimedLyrics))
+        assertFalse(LyricCacheManager.isBetterQuality(candidate = untimedLyrics, current = timedLyrics))
+    }
 }
