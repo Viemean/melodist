@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -71,12 +72,14 @@ import org.melodist.api.MusicApiService
 import org.melodist.api.getSearchSuggestions
 import org.melodist.api.search
 import org.melodist.api.searchAlbums
+import org.melodist.api.searchArtists
 import org.melodist.api.searchPlaylists
 import org.melodist.data.SearchKeywordHistoryManager
 import org.melodist.mobile.ui.components.AlbumArtImage
 import org.melodist.mobile.ui.components.CommonSongList
 import org.melodist.mobile.ui.navigation.LocalAppNavigation
 import org.melodist.model.Album
+import org.melodist.model.Artist
 import org.melodist.model.Playlist
 import org.melodist.model.Song
 import org.melodist.playback.QueuePaginationSource
@@ -87,6 +90,7 @@ enum class SearchTab(
     Song("歌曲"),
     Playlist("歌单"),
     Album("专辑"),
+    Artist("歌手"),
 }
 
 class SearchScreenState {
@@ -104,22 +108,29 @@ class SearchScreenState {
     val albumListState =
         androidx.compose.foundation.lazy
             .LazyListState()
+    val artistListState =
+        androidx.compose.foundation.lazy
+            .LazyListState()
 
     var songResults by mutableStateOf<List<Song>>(emptyList())
     var playlistResults by mutableStateOf<List<Playlist>>(emptyList())
     var albumResults by mutableStateOf<List<Album>>(emptyList())
+    var artistResults by mutableStateOf<List<Artist>>(emptyList())
 
     var songPage by mutableIntStateOf(1)
     var playlistPage by mutableIntStateOf(1)
     var albumPage by mutableIntStateOf(1)
+    var artistPage by mutableIntStateOf(1)
 
     var hasMoreSongs by mutableStateOf(true)
     var hasMorePlaylists by mutableStateOf(true)
     var hasMoreAlbums by mutableStateOf(true)
+    var hasMoreArtists by mutableStateOf(true)
 
     var isLoadingMoreSongs by mutableStateOf(false)
     var isLoadingMorePlaylists by mutableStateOf(false)
     var isLoadingMoreAlbums by mutableStateOf(false)
+    var isLoadingMoreArtists by mutableStateOf(false)
 
     var activeQuery by mutableStateOf("")
     var loadedTabs by mutableStateOf<Set<SearchTab>>(emptySet())
@@ -142,16 +153,20 @@ class SearchScreenState {
         songResults = emptyList()
         playlistResults = emptyList()
         albumResults = emptyList()
+        artistResults = emptyList()
         loadedTabs = emptySet()
         songPage = 1
         playlistPage = 1
         albumPage = 1
+        artistPage = 1
         hasMoreSongs = true
         hasMorePlaylists = true
         hasMoreAlbums = true
+        hasMoreArtists = true
         isLoadingMoreSongs = false
         isLoadingMorePlaylists = false
         isLoadingMoreAlbums = false
+        isLoadingMoreArtists = false
     }
 
     fun reset() {
@@ -194,8 +209,11 @@ fun SearchScreen(
     }
 
     LaunchedEffect(searchState.queryState) {
-        snapshotFlow { searchState.queryState.text.toString().trim() }
-            .debounce(250L)
+        snapshotFlow {
+            searchState.queryState.text
+                .toString()
+                .trim()
+        }.debounce(250L)
             .distinctUntilChanged()
             .collectLatest { trimmed ->
                 if (trimmed.isEmpty() || trimmed == searchState.activeQuery) {
@@ -206,7 +224,11 @@ fun SearchScreen(
                         withContext(Dispatchers.IO) {
                             apiService.getSearchSuggestions(trimmed)
                         }
-                    if (searchState.queryState.text.toString().trim() == trimmed && trimmed != searchState.activeQuery) {
+                    val currentTrimmed =
+                        searchState.queryState.text
+                            .toString()
+                            .trim()
+                    if (currentTrimmed == trimmed && trimmed != searchState.activeQuery) {
                         searchState.suggestions = result
                         searchState.showSuggestions = result.isNotEmpty()
                     }
@@ -221,22 +243,27 @@ fun SearchScreen(
     val songListState = searchState.songListState
     val playlistListState = searchState.playlistListState
     val albumListState = searchState.albumListState
+    val artistListState = searchState.artistListState
 
     var songResults by searchState::songResults
     var playlistResults by searchState::playlistResults
     var albumResults by searchState::albumResults
+    var artistResults by searchState::artistResults
 
     var songPage by searchState::songPage
     var playlistPage by searchState::playlistPage
     var albumPage by searchState::albumPage
+    var artistPage by searchState::artistPage
 
     var hasMoreSongs by searchState::hasMoreSongs
     var hasMorePlaylists by searchState::hasMorePlaylists
     var hasMoreAlbums by searchState::hasMoreAlbums
+    var hasMoreArtists by searchState::hasMoreArtists
 
     var isLoadingMoreSongs by searchState::isLoadingMoreSongs
     var isLoadingMorePlaylists by searchState::isLoadingMorePlaylists
     var isLoadingMoreAlbums by searchState::isLoadingMoreAlbums
+    var isLoadingMoreArtists by searchState::isLoadingMoreArtists
 
     var activeQuery by searchState::activeQuery
     var loadedTabs by searchState::loadedTabs
@@ -268,9 +295,11 @@ fun SearchScreen(
             songPage = 1
             playlistPage = 1
             albumPage = 1
+            artistPage = 1
             hasMoreSongs = true
             hasMorePlaylists = true
             hasMoreAlbums = true
+            hasMoreArtists = true
         }
 
         currentTab = targetTab
@@ -301,6 +330,13 @@ fun SearchScreen(
                             val list = apiService.searchAlbums(trimmed, page = 1, pageSize = 30)
                             albumResults = list
                             hasMoreAlbums = list.size >= 30
+                        }
+
+                        SearchTab.Artist -> {
+                            artistPage = 1
+                            val list = apiService.searchArtists(trimmed, page = 1, pageSize = 30)
+                            artistResults = list
+                            hasMoreArtists = list.size >= 30
                         }
                     }
                     loadedTabs = loadedTabs + targetTab
@@ -430,6 +466,37 @@ fun SearchScreen(
         }
     }
 
+    fun loadMoreArtists() {
+        if (isLoadingMoreArtists || !hasMoreArtists || isLoading || activeQuery.isBlank()) return
+        scope.launch {
+            isLoadingMoreArtists = true
+            val nextPage = artistPage + 1
+            val nextList =
+                withContext(Dispatchers.IO) {
+                    try {
+                        apiService.searchArtists(activeQuery, page = nextPage, pageSize = 30)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("SearchScreen", "Failed to load more artists for query: $activeQuery, page: $nextPage", e)
+                        emptyList()
+                    }
+                }
+            if (nextList.isEmpty()) {
+                hasMoreArtists = false
+            } else {
+                val existingMids = artistResults.map { it.mid.ifBlank { it.id.toString() } }.toSet()
+                val newUnique = nextList.filter { it.mid.ifBlank { it.id.toString() } !in existingMids }
+                if (newUnique.isEmpty() || nextList.size < 30) {
+                    hasMoreArtists = false
+                }
+                artistResults = artistResults + newUnique
+                artistPage = nextPage
+            }
+            isLoadingMoreArtists = false
+        }
+    }
+
     LaunchedEffect(songListState, hasMoreSongs, isLoadingMoreSongs, isLoading) {
         snapshotFlow {
             val layoutInfo = songListState.layoutInfo
@@ -465,6 +532,19 @@ fun SearchScreen(
         }.collect { shouldLoadMore ->
             if (shouldLoadMore && hasMoreAlbums && !isLoadingMoreAlbums && !isLoading && activeQuery.isNotBlank()) {
                 loadMoreAlbums()
+            }
+        }
+    }
+
+    LaunchedEffect(artistListState, hasMoreArtists, isLoadingMoreArtists, isLoading) {
+        snapshotFlow {
+            val layoutInfo = artistListState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleItemIndex >= totalItems - 4
+        }.collect { shouldLoadMore ->
+            if (shouldLoadMore && hasMoreArtists && !isLoadingMoreArtists && !isLoading && activeQuery.isNotBlank()) {
+                loadMoreArtists()
             }
         }
     }
@@ -687,7 +767,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "输入歌曲名、歌单或专辑开始搜索",
+                            text = "输入歌曲名、歌手、歌单或专辑开始搜索",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         )
@@ -989,6 +1069,115 @@ fun SearchScreen(
                                     }
                                     if (isLoadingMoreAlbums) {
                                         item(key = "album_load_more_indicator") {
+                                            Box(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 16.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(24.dp),
+                                                    strokeWidth = 2.dp,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        SearchTab.Artist -> {
+                            if (artistResults.isEmpty()) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "未找到相关歌手",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            } else {
+                                LazyColumn(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                    state = artistListState,
+                                    contentPadding =
+                                        PaddingValues(
+                                            top = 4.dp,
+                                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                        ),
+                                ) {
+                                    item(key = "search_artists_header") {
+                                        Row(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            val hintSuffix = if (hasMoreArtists) " · 下滑加载更多" else ""
+                                            Text(
+                                                text = "共找到 ${artistResults.size} 位歌手$hintSuffix",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    itemsIndexed(
+                                        artistResults,
+                                        key = { _, artist -> artist.mid.ifBlank { artist.id.toString() } },
+                                    ) { _, artist ->
+                                        Row(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable { navController.navigateToArtist(artist.mid, artist.name) }
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            AlbumArtImage(
+                                                coverUrl = artist.avatarUrl,
+                                                contentDescription = artist.name,
+                                                shape = CircleShape,
+                                                modifier = Modifier.size(52.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = artist.name,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                val subText =
+                                                    buildString {
+                                                        if (artist.songCount > 0) append("${artist.songCount} 首歌")
+                                                        if (artist.albumCount > 0) {
+                                                            if (isNotEmpty()) append(" · ")
+                                                            append("${artist.albumCount} 张专辑")
+                                                        }
+                                                    }
+                                                Text(
+                                                    text = subText.ifBlank { "歌手" },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                )
+                                            }
+                                        }
+                                    }
+                                    if (isLoadingMoreArtists) {
+                                        item(key = "artist_load_more_indicator") {
                                             Box(
                                                 modifier =
                                                     Modifier
