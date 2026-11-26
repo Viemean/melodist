@@ -180,6 +180,60 @@ class SearchScreenState {
     }
 }
 
+private class SearchSongPaginationSource(
+    private val searchState: SearchScreenState,
+    private val apiService: MusicApiService,
+    private val targetQuery: String,
+) : QueuePaginationSource {
+    override val hasMore: Boolean
+        get() = searchState.hasMoreSongs && searchState.activeQuery == targetQuery
+
+    override val isLoadingMore: Boolean
+        get() = searchState.isLoadingMoreSongs
+
+    override suspend fun loadMore(): List<Song> {
+        if (searchState.isLoadingMoreSongs ||
+            !searchState.hasMoreSongs ||
+            searchState.isLoading ||
+            targetQuery.isBlank() ||
+            searchState.activeQuery != targetQuery
+        ) {
+            return emptyList()
+        }
+        searchState.isLoadingMoreSongs = true
+        val nextPage = searchState.songPage + 1
+        val nextList =
+            withContext(Dispatchers.IO) {
+                try {
+                    apiService.search(targetQuery, page = nextPage, pageSize = 30)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("SearchScreen", "Failed to load more songs for query: $targetQuery, page: $nextPage", e)
+                    emptyList()
+                }
+            }
+        val newUnique =
+            if (nextList.isEmpty()) {
+                searchState.hasMoreSongs = false
+                emptyList()
+            } else {
+                val existingMids = searchState.songResults.map { it.songMid }.toSet()
+                val filtered = nextList.filter { it.songMid !in existingMids }
+                if (filtered.isEmpty() || nextList.size < 30) {
+                    searchState.hasMoreSongs = false
+                }
+                filtered
+            }
+        if (newUnique.isNotEmpty()) {
+            searchState.songResults = searchState.songResults + newUnique
+            searchState.songPage = nextPage
+        }
+        searchState.isLoadingMoreSongs = false
+        return newUnique
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 fun SearchScreen(
@@ -363,47 +417,13 @@ fun SearchScreen(
     }
 
     val searchQueuePaginationSource =
-        remember(activeQuery) {
+        remember(activeQuery, searchState, apiService) {
             if (activeQuery.isNotBlank()) {
-                object : QueuePaginationSource {
-                    override val hasMore: Boolean get() = hasMoreSongs
-                    override val isLoadingMore: Boolean get() = isLoadingMoreSongs
-
-                    override suspend fun loadMore(): List<Song> {
-                        if (isLoadingMoreSongs || !hasMoreSongs || isLoading || activeQuery.isBlank()) return emptyList()
-                        isLoadingMoreSongs = true
-                        val nextPage = songPage + 1
-                        val nextList =
-                            withContext(Dispatchers.IO) {
-                                try {
-                                    apiService.search(activeQuery, page = nextPage, pageSize = 30)
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    Log.w("SearchScreen", "Failed to load more songs for query: $activeQuery, page: $nextPage", e)
-                                    emptyList()
-                                }
-                            }
-                        val newUnique =
-                            if (nextList.isEmpty()) {
-                                hasMoreSongs = false
-                                emptyList()
-                            } else {
-                                val existingMids = songResults.map { it.songMid }.toSet()
-                                val filtered = nextList.filter { it.songMid !in existingMids }
-                                if (filtered.isEmpty() || nextList.size < 30) {
-                                    hasMoreSongs = false
-                                }
-                                filtered
-                            }
-                        if (newUnique.isNotEmpty()) {
-                            songResults = songResults + newUnique
-                            songPage = nextPage
-                        }
-                        isLoadingMoreSongs = false
-                        return newUnique
-                    }
-                }
+                SearchSongPaginationSource(
+                    searchState = searchState,
+                    apiService = apiService,
+                    targetQuery = activeQuery,
+                )
             } else {
                 null
             }
