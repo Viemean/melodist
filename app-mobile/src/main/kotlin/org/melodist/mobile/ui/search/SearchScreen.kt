@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.selectAll
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -58,6 +59,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -140,6 +142,7 @@ class SearchScreenState {
     var hasSearched by mutableStateOf(false)
     var suggestions by mutableStateOf<List<String>>(emptyList())
     var showSuggestions by mutableStateOf(false)
+    var focusAndSelectOnEntry by mutableStateOf(false)
 
     fun refreshHistoryKeywords() {
         historyKeywords = SearchKeywordHistoryManager.getKeywords()
@@ -187,18 +190,25 @@ fun SearchScreen(
 ) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val apiService = remember { MusicApiService() }
     val navController = LocalAppNavigation.current
 
-    LaunchedEffect(Unit) {
-        if (!searchState.hasSearched && searchState.query.isBlank()) {
+    LaunchedEffect(searchState.focusAndSelectOnEntry) {
+        if (searchState.focusAndSelectOnEntry || (!searchState.hasSearched && searchState.query.isBlank())) {
             kotlinx.coroutines.delay(120)
             try {
+                if (searchState.queryState.text.isNotEmpty()) {
+                    searchState.queryState.edit { selectAll() }
+                }
                 focusRequester.requestFocus()
+                keyboardController?.show()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.w("SearchTab", "Operation failed", e)
+            } finally {
+                searchState.focusAndSelectOnEntry = false
             }
         }
     }

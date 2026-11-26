@@ -525,7 +525,10 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                                 screen = previousScreen,
                                 innerPadding = innerPadding,
                                 navController = navController,
-                                onSearchClick = { isSearching = true },
+                                onSearchClick = {
+                                    searchScreenState.focusAndSelectOnEntry = true
+                                    isSearching = true
+                                },
                                 onBackFromSearch = {
                                     isSearching = false
                                     searchScreenState.reset()
@@ -657,7 +660,10 @@ fun MainNavigationScreen(modifier: Modifier = Modifier) {
                                     screen = targetScreen,
                                     innerPadding = innerPadding,
                                     navController = navController,
-                                    onSearchClick = { isSearching = true },
+                                    onSearchClick = {
+                                        searchScreenState.focusAndSelectOnEntry = true
+                                        isSearching = true
+                                    },
                                     onBackFromSearch = {
                                         isSearching = false
                                         searchScreenState.reset()
