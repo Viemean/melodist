@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -774,6 +776,26 @@ fun SearchScreen(
                     }
                 }
             } else {
+                val pagerState =
+                    rememberPagerState(
+                        initialPage = currentTab.ordinal,
+                        pageCount = { SearchTab.entries.size },
+                    )
+
+                LaunchedEffect(pagerState.settledPage, activeQuery) {
+                    val settledTab = SearchTab.entries[pagerState.settledPage]
+                    currentTab = settledTab
+                    if (activeQuery.isNotBlank() && settledTab !in loadedTabs) {
+                        executeSearch(activeQuery, settledTab)
+                    }
+                }
+
+                LaunchedEffect(currentTab) {
+                    if (pagerState.currentPage != currentTab.ordinal) {
+                        pagerState.animateScrollToPage(currentTab.ordinal)
+                    }
+                }
+
                 // 搜索结果顶部 Tab 选择栏（类似主页 FilterChip）
                 Row(
                     modifier =
@@ -784,11 +806,10 @@ fun SearchScreen(
                 ) {
                     SearchTab.entries.forEach { tab ->
                         FilterChip(
-                            selected = currentTab == tab,
+                            selected = pagerState.currentPage == tab.ordinal,
                             onClick = {
-                                currentTab = tab
-                                if (activeQuery.isNotBlank() && tab !in loadedTabs) {
-                                    executeSearch(activeQuery, tab)
+                                scope.launch {
+                                    pagerState.animateScrollToPage(tab.ordinal)
                                 }
                             },
                             label = { Text(tab.title) },
@@ -802,49 +823,110 @@ fun SearchScreen(
                     }
                 }
 
-                if (isLoading) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    when (currentTab) {
-                        SearchTab.Song -> {
-                            if (songResults.isEmpty()) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = "未找到相关歌曲",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                HorizontalPager(
+                    state = pagerState,
+                    beyondViewportPageCount = 1,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                ) { page ->
+                    val tab = SearchTab.entries[page]
+                    if ((isLoading && currentTab == tab) || (activeQuery.isNotBlank() && tab !in loadedTabs)) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        when (tab) {
+                            SearchTab.Song -> {
+                                if (songResults.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = "未找到相关歌曲",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                } else {
+                                    CommonSongList(
+                                        songs = songResults,
+                                        modifier = Modifier.fillMaxSize(),
+                                        state = songListState,
+                                        paginationSource = searchQueuePaginationSource,
+                                        contentPadding =
+                                            PaddingValues(
+                                                top = 4.dp,
+                                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                            ),
+                                        headerItems = {
+                                            item(key = "search_results_header") {
+                                                Row(
+                                                    modifier =
+                                                        Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    val hintSuffix = if (hasMoreSongs) " · 下滑加载更多" else ""
+                                                    Text(
+                                                        text = "共找到 ${songResults.size} 首歌曲$hintSuffix",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        footerItems = {
+                                            if (isLoadingMoreSongs) {
+                                                item(key = "song_load_more_indicator") {
+                                                    Box(
+                                                        modifier =
+                                                            Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(vertical = 16.dp),
+                                                        contentAlignment = Alignment.Center,
+                                                    ) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(24.dp),
+                                                            strokeWidth = 2.dp,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        },
                                     )
                                 }
-                            } else {
-                                CommonSongList(
-                                    songs = songResults,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    state = songListState,
-                                    paginationSource = searchQueuePaginationSource,
-                                    contentPadding =
-                                        PaddingValues(
-                                            top = 4.dp,
-                                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                        ),
-                                    headerItems = {
-                                        item(key = "search_results_header") {
+                            }
+
+                            SearchTab.Playlist -> {
+                                if (playlistResults.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = "未找到相关歌单",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        state = playlistListState,
+                                        contentPadding =
+                                            PaddingValues(
+                                                top = 4.dp,
+                                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                            ),
+                                    ) {
+                                        item(key = "search_playlists_header") {
                                             Row(
                                                 modifier =
                                                     Modifier
@@ -852,18 +934,50 @@ fun SearchScreen(
                                                         .padding(horizontal = 16.dp, vertical = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                val hintSuffix = if (hasMoreSongs) " · 下滑加载更多" else ""
+                                                val hintSuffix = if (hasMorePlaylists) " · 下滑加载更多" else ""
                                                 Text(
-                                                    text = "共找到 ${songResults.size} 首歌曲$hintSuffix",
+                                                    text = "共找到 ${playlistResults.size} 个歌单$hintSuffix",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
                                             }
                                         }
-                                    },
-                                    footerItems = {
-                                        if (isLoadingMoreSongs) {
-                                            item(key = "song_load_more_indicator") {
+                                        itemsIndexed(playlistResults, key = { _, pl -> pl.dirId }) { _, playlist ->
+                                            Row(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { navController.navigateToPlaylist(playlist) }
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                AlbumArtImage(
+                                                    coverUrl = playlist.thumbnailPicUrl,
+                                                    contentDescription = playlist.name,
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.size(52.dp),
+                                                )
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = playlist.name,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = "${playlist.songCount} 首歌曲",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        if (isLoadingMorePlaylists) {
+                                            item(key = "playlist_load_more_indicator") {
                                                 Box(
                                                     modifier =
                                                         Modifier
@@ -878,317 +992,207 @@ fun SearchScreen(
                                                 }
                                             }
                                         }
-                                    },
-                                )
-                            }
-                        }
-
-                        SearchTab.Playlist -> {
-                            if (playlistResults.isEmpty()) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = "未找到相关歌单",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+                                    }
                                 }
-                            } else {
-                                LazyColumn(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    state = playlistListState,
-                                    contentPadding =
-                                        PaddingValues(
-                                            top = 4.dp,
-                                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                        ),
-                                ) {
-                                    item(key = "search_playlists_header") {
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            val hintSuffix = if (hasMorePlaylists) " · 下滑加载更多" else ""
-                                            Text(
-                                                text = "共找到 ${playlistResults.size} 个歌单$hintSuffix",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
+                            }
+
+                            SearchTab.Album -> {
+                                if (albumResults.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = "未找到相关专辑",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                     }
-                                    itemsIndexed(playlistResults, key = { _, pl -> pl.dirId }) { _, playlist ->
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable { navController.navigateToPlaylist(playlist) }
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            AlbumArtImage(
-                                                coverUrl = playlist.thumbnailPicUrl,
-                                                contentDescription = playlist.name,
-                                                shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.size(52.dp),
-                                            )
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = playlist.name,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(
-                                                    text = "${playlist.songCount} 首歌曲",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                )
-                                            }
-                                        }
-                                    }
-                                    if (isLoadingMorePlaylists) {
-                                        item(key = "playlist_load_more_indicator") {
-                                            Box(
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        state = albumListState,
+                                        contentPadding =
+                                            PaddingValues(
+                                                top = 4.dp,
+                                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                            ),
+                                    ) {
+                                        item(key = "search_albums_header") {
+                                            Row(
                                                 modifier =
                                                     Modifier
                                                         .fillMaxWidth()
-                                                        .padding(vertical = 16.dp),
-                                                contentAlignment = Alignment.Center,
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(24.dp),
-                                                    strokeWidth = 2.dp,
+                                                val hintSuffix = if (hasMoreAlbums) " · 下滑加载更多" else ""
+                                                Text(
+                                                    text = "共找到 ${albumResults.size} 张专辑$hintSuffix",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
                                             }
                                         }
-                                    }
-                                }
-                            }
-                        }
-
-                        SearchTab.Album -> {
-                            if (albumResults.isEmpty()) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = "未找到相关专辑",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            } else {
-                                LazyColumn(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    state = albumListState,
-                                    contentPadding =
-                                        PaddingValues(
-                                            top = 4.dp,
-                                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                        ),
-                                ) {
-                                    item(key = "search_albums_header") {
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            val hintSuffix = if (hasMoreAlbums) " · 下滑加载更多" else ""
-                                            Text(
-                                                text = "共找到 ${albumResults.size} 张专辑$hintSuffix",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                    itemsIndexed(albumResults, key = { _, album -> album.mid.ifBlank { album.id.toString() } }) { _, album ->
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable { navController.navigateToAlbum(album.mid, album.name) }
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            AlbumArtImage(
-                                                coverUrl = album.coverUrl,
-                                                contentDescription = album.name,
-                                                shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.size(52.dp),
-                                            )
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = album.name,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
+                                        itemsIndexed(albumResults, key = { _, album -> album.mid.ifBlank { album.id.toString() } }) { _, album ->
+                                            Row(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { navController.navigateToAlbum(album.mid, album.name) }
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                AlbumArtImage(
+                                                    coverUrl = album.coverUrl,
+                                                    contentDescription = album.name,
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.size(52.dp),
                                                 )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                val subText =
-                                                    buildString {
-                                                        if (album.artist.isNotBlank()) append(album.artist)
-                                                        if (album.songCount > 0) {
-                                                            if (isNotEmpty()) append(" · ")
-                                                            append("${album.songCount} 首")
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = album.name,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    val subText =
+                                                        buildString {
+                                                            if (album.artist.isNotBlank()) append(album.artist)
+                                                            if (album.songCount > 0) {
+                                                                if (isNotEmpty()) append(" · ")
+                                                                append("${album.songCount} 首")
+                                                            }
                                                         }
-                                                    }
-                                                Text(
-                                                    text = subText.ifBlank { "专辑" },
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                )
+                                                    Text(
+                                                        text = subText.ifBlank { "专辑" },
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                    )
+                                                }
                                             }
                                         }
-                                    }
-                                    if (isLoadingMoreAlbums) {
-                                        item(key = "album_load_more_indicator") {
-                                            Box(
-                                                modifier =
-                                                    Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 16.dp),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(24.dp),
-                                                    strokeWidth = 2.dp,
-                                                )
+                                        if (isLoadingMoreAlbums) {
+                                            item(key = "album_load_more_indicator") {
+                                                Box(
+                                                    modifier =
+                                                        Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(vertical = 16.dp),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(24.dp),
+                                                        strokeWidth = 2.dp,
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        SearchTab.Artist -> {
-                            if (artistResults.isEmpty()) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = "未找到相关歌手",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            } else {
-                                LazyColumn(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                    state = artistListState,
-                                    contentPadding =
-                                        PaddingValues(
-                                            top = 4.dp,
-                                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
-                                        ),
-                                ) {
-                                    item(key = "search_artists_header") {
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            val hintSuffix = if (hasMoreArtists) " · 下滑加载更多" else ""
-                                            Text(
-                                                text = "共找到 ${artistResults.size} 位歌手$hintSuffix",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
+                            SearchTab.Artist -> {
+                                if (artistResults.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = "未找到相关歌手",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                     }
-                                    itemsIndexed(
-                                        artistResults,
-                                        key = { _, artist -> artist.mid.ifBlank { artist.id.toString() } },
-                                    ) { _, artist ->
-                                        Row(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable { navController.navigateToArtist(artist.mid, artist.name) }
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            AlbumArtImage(
-                                                coverUrl = artist.avatarUrl,
-                                                contentDescription = artist.name,
-                                                shape = CircleShape,
-                                                modifier = Modifier.size(52.dp),
-                                            )
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = artist.name,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                val subText =
-                                                    buildString {
-                                                        if (artist.songCount > 0) append("${artist.songCount} 首歌")
-                                                        if (artist.albumCount > 0) {
-                                                            if (isNotEmpty()) append(" · ")
-                                                            append("${artist.albumCount} 张专辑")
-                                                        }
-                                                    }
-                                                Text(
-                                                    text = subText.ifBlank { "歌手" },
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                )
-                                            }
-                                        }
-                                    }
-                                    if (isLoadingMoreArtists) {
-                                        item(key = "artist_load_more_indicator") {
-                                            Box(
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        state = artistListState,
+                                        contentPadding =
+                                            PaddingValues(
+                                                top = 4.dp,
+                                                bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                                            ),
+                                    ) {
+                                        item(key = "search_artists_header") {
+                                            Row(
                                                 modifier =
                                                     Modifier
                                                         .fillMaxWidth()
-                                                        .padding(vertical = 16.dp),
-                                                contentAlignment = Alignment.Center,
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(24.dp),
-                                                    strokeWidth = 2.dp,
+                                                val hintSuffix = if (hasMoreArtists) " · 下滑加载更多" else ""
+                                                Text(
+                                                    text = "共找到 ${artistResults.size} 位歌手$hintSuffix",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
+                                            }
+                                        }
+                                        itemsIndexed(
+                                            artistResults,
+                                            key = { _, artist -> artist.mid.ifBlank { artist.id.toString() } },
+                                        ) { _, artist ->
+                                            Row(
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { navController.navigateToArtist(artist.mid, artist.name) }
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                AlbumArtImage(
+                                                    coverUrl = artist.avatarUrl,
+                                                    contentDescription = artist.name,
+                                                    shape = CircleShape,
+                                                    modifier = Modifier.size(52.dp),
+                                                )
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = artist.name,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    val subText =
+                                                        buildString {
+                                                            if (artist.songCount > 0) append("${artist.songCount} 首歌")
+                                                            if (artist.albumCount > 0) {
+                                                                if (isNotEmpty()) append(" · ")
+                                                                append("${artist.albumCount} 张专辑")
+                                                            }
+                                                        }
+                                                    Text(
+                                                        text = subText.ifBlank { "歌手" },
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        if (isLoadingMoreArtists) {
+                                            item(key = "artist_load_more_indicator") {
+                                                Box(
+                                                    modifier =
+                                                        Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(vertical = 16.dp),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(24.dp),
+                                                        strokeWidth = 2.dp,
+                                                    )
+                                                }
                                             }
                                         }
                                     }
