@@ -53,7 +53,7 @@ object CryptoUtils {
             129.toByte(),
         )
 
-    private val PART1_INDEXES = intArrayOf(23, 14, 6, 36, 16, 40, 7, 19)
+    private val PART1_INDEXES = intArrayOf(23, 14, 6, 36, 16, 7, 19)
     private val PART2_INDEXES = intArrayOf(16, 1, 32, 12, 19, 27, 8, 5)
     private val SCRAMBLE_VALUES =
         byteArrayOf(
