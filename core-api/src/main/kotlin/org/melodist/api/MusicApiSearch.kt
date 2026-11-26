@@ -1,5 +1,6 @@
 package org.melodist.api
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -248,6 +249,62 @@ suspend fun MusicApiService.searchArtists(
                 }
             }
         } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+/**
+ * 获取搜索输入实时联想建议列表 (SmartBox)
+ */
+suspend fun MusicApiService.getSearchSuggestions(query: String): List<String> =
+    withContext(Dispatchers.IO) {
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return@withContext emptyList()
+        val escapedQuery = Json.encodeToString(trimmed)
+        val payload =
+            """
+            {
+              "comm": {
+                "ct": 24,
+                "cv": 0
+              },
+              "req_0": {
+                "module": "music.smartboxCgi.SmartBoxCgi",
+                "method": "GetSmartBoxResult",
+                "param": {
+                  "search_id": "${System.currentTimeMillis()}",
+                  "query": $escapedQuery,
+                  "num_per_page": 0,
+                  "page_idx": 0
+                }
+              }
+            }
+            """.trimIndent()
+
+        try {
+            val respJson = postGateway(payload)
+            val root = Json.parseToJsonElement(respJson).jsonObject
+            val items =
+                root["req_0"]
+                    ?.jsonObject
+                    ?.get("data")
+                    ?.jsonObject
+                    ?.get("items")
+                    ?.jsonArray
+                    ?: return@withContext emptyList()
+
+            items
+                .mapNotNull { element ->
+                    (element as? JsonObject)
+                        ?.get("hint")
+                        ?.jsonPrimitive
+                        ?.contentOrNull
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                }.distinct()
+                .take(10)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
             emptyList()
         }
     }

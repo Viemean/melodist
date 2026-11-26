@@ -61,9 +61,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.melodist.api.MusicApiService
+import org.melodist.api.getSearchSuggestions
 import org.melodist.api.search
 import org.melodist.api.searchAlbums
 import org.melodist.api.searchPlaylists
@@ -120,6 +125,8 @@ class SearchScreenState {
     var loadedTabs by mutableStateOf<Set<SearchTab>>(emptySet())
     var isLoading by mutableStateOf(false)
     var hasSearched by mutableStateOf(false)
+    var suggestions by mutableStateOf<List<String>>(emptyList())
+    var showSuggestions by mutableStateOf(false)
 
     fun refreshHistoryKeywords() {
         historyKeywords = SearchKeywordHistoryManager.getKeywords()
@@ -130,6 +137,8 @@ class SearchScreenState {
         queryState.clearText()
         hasSearched = false
         activeQuery = ""
+        suggestions = emptyList()
+        showSuggestions = false
         songResults = emptyList()
         playlistResults = emptyList()
         albumResults = emptyList()
@@ -151,7 +160,7 @@ class SearchScreenState {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, FlowPreview::class)
 @Composable
 fun SearchScreen(
     contentPadding: PaddingValues,
@@ -178,9 +187,30 @@ fun SearchScreen(
     }
 
     LaunchedEffect(searchState.queryState) {
-        snapshotFlow { searchState.queryState.text }
+        snapshotFlow { searchState.queryState.text.toString() }
             .collect {
-                searchState.query = it.toString()
+                searchState.query = it
+            }
+    }
+
+    LaunchedEffect(searchState.queryState) {
+        snapshotFlow { searchState.queryState.text.toString().trim() }
+            .debounce(250L)
+            .distinctUntilChanged()
+            .collectLatest { trimmed ->
+                if (trimmed.isEmpty() || trimmed == searchState.activeQuery) {
+                    searchState.suggestions = emptyList()
+                    searchState.showSuggestions = false
+                } else {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            apiService.getSearchSuggestions(trimmed)
+                        }
+                    if (searchState.queryState.text.toString().trim() == trimmed && trimmed != searchState.activeQuery) {
+                        searchState.suggestions = result
+                        searchState.showSuggestions = result.isNotEmpty()
+                    }
+                }
             }
     }
 
@@ -221,6 +251,8 @@ fun SearchScreen(
         if (trimmed.isBlank()) return
 
         focusManager.clearFocus()
+        searchState.showSuggestions = false
+        searchState.suggestions = emptyList()
         SearchKeywordHistoryManager.recordKeyword(trimmed)
         historyKeywords = SearchKeywordHistoryManager.getKeywords()
 
@@ -540,7 +572,50 @@ fun SearchScreen(
                 }
             }
 
-            if (!hasSearched) {
+            if (searchState.showSuggestions && searchState.suggestions.isNotEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding =
+                        PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 4.dp,
+                            bottom = contentPadding.calculateBottomPadding() + 16.dp,
+                        ),
+                ) {
+                    itemsIndexed(
+                        items = searchState.suggestions,
+                        key = { index, item -> "${index}_$item" },
+                    ) { _, suggestion ->
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        searchState.queryState.setTextAndPlaceCursorAtEnd(suggestion)
+                                        executeSearch(suggestion, currentTab)
+                                    }.padding(horizontal = 12.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = suggestion,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            } else if (!hasSearched) {
                 // 未发起搜索时展示搜索历史
                 if (historyKeywords.isNotEmpty()) {
                     Column(
