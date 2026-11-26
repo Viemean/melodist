@@ -110,9 +110,9 @@ fun MobileLyricsView(
     }
 
     val baseFontSize = settings.effectiveLyricTitleSp.sp
-    val baseLineHeight = (settings.effectiveLyricTitleSp * 1.38f).sp
+    val baseLineHeight = (settings.effectiveLyricTitleSp * 1.30f).sp
     val transFontSize = settings.effectiveLyricSubSp.sp
-    val transLineHeight = (settings.effectiveLyricSubSp * 1.40f).sp
+    val transLineHeight = (settings.effectiveLyricSubSp * 1.30f).sp
 
     val effectivePositionMs = currentPositionMs + lyricOffsetMs
 
@@ -225,7 +225,7 @@ fun MobileLyricsView(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = PaddingValues(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(22.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item(key = "top_spacer") {
                 Spacer(modifier = Modifier.height(halfHeight))
@@ -341,6 +341,7 @@ private fun LyricLineItem(
             Text(
                 text = line.text,
                 color = textColor,
+                style = MaterialTheme.typography.titleLarge,
                 fontSize = fontSize,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                 lineHeight = lineHeight,
@@ -350,7 +351,7 @@ private fun LyricLineItem(
         }
 
         if (showBilingualLyrics && line.hasTranslation) {
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = line.transText,
                 color = animatedTransColor,
