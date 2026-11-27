@@ -74,11 +74,11 @@ jobs:
             echo "build_tv=true" >> $GITHUB_OUTPUT
             echo "build_mobile=false" >> $GITHUB_OUTPUT
           elif [[ "$TAG_NAME" == *-mobile ]]; then
-            echo "tasks=:app-mobile:assembleRelease" >> $GITHUB_OUTPUT
+            echo "tasks=:app-mobile:assembleRelease :widget-originos:assembleRelease" >> $GITHUB_OUTPUT
             echo "build_tv=false" >> $GITHUB_OUTPUT
             echo "build_mobile=true" >> $GITHUB_OUTPUT
           else
-            echo "tasks=:app-tv:assembleRelease :app-mobile:assembleRelease" >> $GITHUB_OUTPUT
+            echo "tasks=:app-tv:assembleRelease :app-mobile:assembleRelease :widget-originos:assembleRelease" >> $GITHUB_OUTPUT
             echo "build_tv=true" >> $GITHUB_OUTPUT
             echo "build_mobile=true" >> $GITHUB_OUTPUT
           fi
@@ -125,6 +125,12 @@ jobs:
             ORIGINOS_DST="release-assets/melodist-mobile-originos-${CLEAN_VERSION}-${VERSION_CODE}.apk"
             if [ -f "$ORIGINOS_SRC" ]; then
               cp "$ORIGINOS_SRC" "$ORIGINOS_DST"
+            fi
+
+            WIDGET_SRC="widget-originos/build/outputs/apk/release/widget-originos-release.apk"
+            WIDGET_DST="release-assets/melodist-originos-widget-${CLEAN_VERSION}-${VERSION_CODE}.apk"
+            if [ -f "$WIDGET_SRC" ]; then
+              cp "$WIDGET_SRC" "$WIDGET_DST"
             fi
           fi
           
