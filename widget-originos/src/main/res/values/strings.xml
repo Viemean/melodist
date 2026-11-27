@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Melodist 原子组件</string>
+    <string name="widget_name">Melodist</string>
+    <string name="widget_empty_title">Melodist</string>
+    <string name="widget_empty_artist">点击进入播放器</string>
+    <string name="widget_cd_prev">上一首</string>
+    <string name="widget_cd_play_pause">播放或暂停</string>
+    <string name="widget_cd_next">下一首</string>
+</resources>

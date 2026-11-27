@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <queries>
+        <package android:name="com.tencent.qqmusic" />
+        <package android:name="org.melodist.mobile" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_widget_music_note"
+        android:label="@string/app_name"
+        android:supportsRtl="true">
+
+        <meta-data
+            android:name="host_application_package_name"
+            android:value="com.tencent.qqmusic" />
+
+        <receiver
+            android:name="com.tme.vivowidget.WidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="org.melodist.widget.ACTION_SYNC_STATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/origin_widget_info" />
+            <meta-data
+                android:name="com.vivo.widget_type"
+                android:value="origin_widget" />
+            <meta-data
+                android:name="com.vivo.widget_ui_version"
+                android:value="2.0" />
+            <meta-data
+                android:name="vivo_widget"
+                android:value="true" />
+            <meta-data
+                android:name="com.vivo.widget.show.title"
+                android:value="0" />
+            <meta-data
+                android:name="com.vivo.launcher.widget.support_night_mode"
+                android:value="true" />
+            <meta-data
+                android:name="vivo.support.material.widget"
+                android:value="true" />
+            <meta-data
+                android:name="com.vivo.widget.notify.radius_change"
+                android:value="true" />
+        </receiver>
+    </application>
+</manifest>

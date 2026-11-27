@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -58,6 +59,10 @@ object MelodistWidgetUpdater {
     private const val COVER_CORNER_DP = 8f
     private const val HALF_DIVISOR = 2f
     private const val PLAY_ICON_LUMINANCE_THRESHOLD = 0.45
+    private const val ORIGIN_WIDGET_PKG = "com.tme.vivowidget"
+    private const val ORIGIN_WIDGET_RECEIVER = "com.tme.vivowidget.WidgetProvider"
+    private const val ORIGIN_ACTION_SYNC_STATE = "org.melodist.widget.ACTION_SYNC_STATE"
+    private const val COVER_COMPRESS_QUALITY = 90
     private const val REQ_CODE_PREV = 2
     private const val REQ_CODE_PLAY_PAUSE = 3
     private const val REQ_CODE_NEXT = 4
@@ -104,7 +109,8 @@ object MelodistWidgetUpdater {
         val manager = AppWidgetManager.getInstance(appContext)
         val provider = ComponentName(appContext, MelodistWidgetProvider::class.java)
         val targetIds = appWidgetIds ?: manager.getAppWidgetIds(provider)
-        if (targetIds.isEmpty()) return
+        val hasOriginWidget = isOriginWidgetInstalled(appContext)
+        if (targetIds.isEmpty() && !hasOriginWidget) return
 
         val currentSong = PlaybackManager.currentSong.value
         val songMid = currentSong?.songMid
@@ -117,7 +123,12 @@ object MelodistWidgetUpdater {
                 ?: if (songMid != null && songMid == cachedSongMid) cachedMonetColors else null
 
         val theme = resolveSystemTheme(appContext, preloadedMonet)
-        pushRemoteViews(appContext, manager, targetIds, preloadedCover, theme)
+        if (targetIds.isNotEmpty()) {
+            pushRemoteViews(appContext, manager, targetIds, preloadedCover, theme)
+        }
+        if (hasOriginWidget) {
+            pushOriginWidgetState(appContext, currentSong, preloadedCover, theme)
+        }
 
         val needCoverLoad = coverUrl != null && coverUrl != cachedCoverUrl
         val needMonetLoad = currentSong != null && preloadedMonet == null
@@ -191,6 +202,9 @@ object MelodistWidgetUpdater {
                     val ids = manager.getAppWidgetIds(provider)
                     if (ids.isNotEmpty()) {
                         pushRemoteViews(appContext, manager, ids, roundedCover, theme)
+                    }
+                    if (isOriginWidgetInstalled(appContext)) {
+                        pushOriginWidgetState(appContext, song, roundedCover, theme)
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to load widget cover/monet: $coverUrl", e)
@@ -372,4 +386,54 @@ object MelodistWidgetUpdater {
         canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, paint)
         return output
     }
+
+    private fun pushOriginWidgetState(
+        context: Context,
+        song: Song?,
+        coverBitmap: Bitmap?,
+        theme: WidgetSystemTheme,
+    ) {
+        val coverBytes =
+            if (coverBitmap != null && !coverBitmap.isRecycled) {
+                java.io.ByteArrayOutputStream().use { stream ->
+                    coverBitmap.compress(Bitmap.CompressFormat.PNG, COVER_COMPRESS_QUALITY, stream)
+                    stream.toByteArray()
+                }
+            } else {
+                null
+            }
+
+        val intent =
+            Intent(ORIGIN_ACTION_SYNC_STATE).apply {
+                component = ComponentName(ORIGIN_WIDGET_PKG, ORIGIN_WIDGET_RECEIVER)
+                putExtra("title", song?.name.orEmpty())
+                putExtra("artist", song?.singer.orEmpty())
+                putExtra("is_playing", PlaybackManager.isPlaying.value)
+                putExtra("play_bg_color", theme.playBtnBgColor)
+                putExtra("play_icon_color", theme.playBtnIconColor)
+                putExtra("cover_bytes", coverBytes)
+                putExtra("host_package", context.packageName)
+            }
+        try {
+            context.sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to sync OriginOS widget state", e)
+        }
+    }
+
+    private fun isOriginWidgetInstalled(context: Context): Boolean =
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(
+                    ORIGIN_WIDGET_PKG,
+                    PackageManager.PackageInfoFlags.of(0),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(ORIGIN_WIDGET_PKG, 0)
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
 }

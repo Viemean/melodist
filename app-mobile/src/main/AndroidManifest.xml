@@ -32,6 +32,10 @@
         android:name="android.hardware.usb.host"
         android:required="false" />
 
+    <queries>
+        <package android:name="com.tme.vivowidget" />
+    </queries>
+
     <application
         android:name=".MelodistMobileApp"
         android:allowBackup="true"
@@ -135,6 +139,10 @@
             android:label="@string/widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="org.melodist.mobile.widget.ACTION_TOGGLE_PLAY_PAUSE" />
+                <action android:name="org.melodist.mobile.widget.ACTION_PREV" />
+                <action android:name="org.melodist.mobile.widget.ACTION_NEXT" />
+                <action android:name="org.melodist.mobile.widget.ACTION_REQUEST_SYNC" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

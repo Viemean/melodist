@@ -47,6 +47,10 @@ class MelodistWidgetProvider : AppWidgetProvider() {
             ACTION_NEXT -> {
                 runOnMain { PlaybackManager.playNext() }
             }
+
+            ACTION_REQUEST_SYNC -> {
+                MelodistWidgetUpdater.updateAllWidgets(context)
+            }
         }
     }
 
@@ -64,5 +68,6 @@ class MelodistWidgetProvider : AppWidgetProvider() {
         const val ACTION_TOGGLE_PLAY_PAUSE = "org.melodist.mobile.widget.ACTION_TOGGLE_PLAY_PAUSE"
         const val ACTION_PREV = "org.melodist.mobile.widget.ACTION_PREV"
         const val ACTION_NEXT = "org.melodist.mobile.widget.ACTION_NEXT"
+        const val ACTION_REQUEST_SYNC = "org.melodist.mobile.widget.ACTION_REQUEST_SYNC"
     }
 }
