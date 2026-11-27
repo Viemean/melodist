@@ -53,6 +53,8 @@ class MelodistMobileApp :
         }
         org.melodist.mobile.coloros.ColorOsLyricBridge
             .init()
+        org.melodist.mobile.widget.MelodistWidgetUpdater
+            .init(this)
         try {
             if (packageName == "com.tencent.qqmusic") {
                 val serviceIntent =
@@ -64,6 +66,12 @@ class MelodistMobileApp :
         } catch (e: Exception) {
             Log.w("MelodistMobileApp", "Operation failed", e)
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        org.melodist.mobile.widget.MelodistWidgetUpdater
+            .updateAllWidgets(this)
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
