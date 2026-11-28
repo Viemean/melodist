@@ -73,31 +73,33 @@ class MainActivity : ComponentActivity() {
             DeviceAudioCapability.init(applicationContext)
         }
         UserSessionManager.init(this)
+        val appContext = applicationContext
         DailyRecommendCacheManager.init(this) { urls ->
-            val appContext = applicationContext
-            lifecycleScope.launch(Dispatchers.IO) {
-                // 错峰延迟 1.5 秒，避开冷启动首屏布局、JIT 编译与主线程渲染高峰
-                kotlinx.coroutines.delay(1500)
-                val imageLoader = SingletonImageLoader.get(appContext)
-                val semaphore = kotlinx.coroutines.sync.Semaphore(2)
-                for (url in urls) {
-                    semaphore.withPermit {
-                        try {
-                            val request =
-                                ImageRequest
-                                    .Builder(appContext)
-                                    .data(url)
-                                    .memoryCachePolicy(CachePolicy.DISABLED)
-                                    .diskCachePolicy(CachePolicy.ENABLED)
-                                    .build()
-                            imageLoader.execute(request)
-                        } catch (e: Throwable) {
-                            if (e is CancellationException) throw e
-                            Log.w("MainActivity", "Operation failed", e)
+            kotlinx.coroutines
+                .CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+                .launch {
+                    // 错峰延迟 1.5 秒，避开冷启动首屏布局、JIT 编译与主线程渲染高峰
+                    kotlinx.coroutines.delay(1500)
+                    val imageLoader = SingletonImageLoader.get(appContext)
+                    val semaphore = kotlinx.coroutines.sync.Semaphore(2)
+                    for (url in urls) {
+                        semaphore.withPermit {
+                            try {
+                                val request =
+                                    ImageRequest
+                                        .Builder(appContext)
+                                        .data(url)
+                                        .memoryCachePolicy(CachePolicy.DISABLED)
+                                        .diskCachePolicy(CachePolicy.ENABLED)
+                                        .build()
+                                imageLoader.execute(request)
+                            } catch (e: Throwable) {
+                                if (e is CancellationException) throw e
+                                Log.w("MainActivity", "Operation failed", e)
+                            }
                         }
                     }
                 }
-            }
         }
         org.melodist.data.AppSettingsManager
             .init(this)
@@ -424,5 +426,11 @@ class MainActivity : ComponentActivity() {
                 .onTrimMemoryAction
                 ?.invoke(level)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        org.melodist.mobile.ui.components.RotatingCardCoordinator
+            .clearLazyListStates()
     }
 }

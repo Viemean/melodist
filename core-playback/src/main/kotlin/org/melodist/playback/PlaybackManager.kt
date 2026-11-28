@@ -894,11 +894,12 @@ object PlaybackManager {
                 syncFavoriteSongsAsync()
             }
         }
-        usbRouter.register(context)
+        val appCtx = appContext ?: context.applicationContext
+        usbRouter.register(appCtx)
         org.melodist.data.AppSettingsManager.onUsbExclusiveChangedListener = { enabled ->
             val usbAudio =
                 org.melodist.playback.usb.UsbAudioDevice
-                    .getInstance(context)
+                    .getInstance(appCtx)
             if (!enabled) {
                 if (usbAudio.isOpened) {
                     resetPlayerPipelineWithDeviceCleanup(usbAudio)
@@ -913,7 +914,7 @@ object PlaybackManager {
         org.melodist.data.AppSettingsManager.onUsbBitPerfectChangedListener = { enabled ->
             val usbAudio =
                 org.melodist.playback.usb.UsbAudioDevice
-                    .getInstance(context)
+                    .getInstance(appCtx)
             if (!enabled) {
                 if (usbAudio.isOpened) {
                     resetPlayerPipelineWithDeviceCleanup(usbAudio)

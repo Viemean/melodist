@@ -38,4 +38,11 @@ object RotatingCardCoordinator {
      * @return 被移除的 [LazyListState]，若不存在返回 null
      */
     fun removeLazyListState(key: String): LazyListState? = lazyListStates.remove(key)
+
+    /**
+     * 宿主 Activity 销毁时清空所有缓存的 [LazyListState]，避免跨生命周期持有 Compose 布局引用。
+     */
+    fun clearLazyListStates() {
+        lazyListStates.clear()
+    }
 }
