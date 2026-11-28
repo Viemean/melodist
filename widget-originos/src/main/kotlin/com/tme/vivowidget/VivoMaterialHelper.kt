@@ -145,10 +145,10 @@ internal object VivoMaterialHelper {
         return true
     }
 
-    fun isDarkBlurSurface(bundle: Bundle): Boolean {
-        if (bundle.getInt(STATE_HOST) == STATE_HOST_HIBOARD) {
-            return true
-        }
+    fun isDarkBlurSurface(
+        bundle: Bundle,
+        isSystemNight: Boolean,
+    ): Boolean {
         if (bundle.getBoolean(STATE_NIGHT_MODE, false)) {
             return true
         }
@@ -161,7 +161,9 @@ internal object VivoMaterialHelper {
             BLUR_STYLE_DAY_13,
             -> false
 
-            else -> true
+            -1 -> isSystemNight
+
+            else -> if (bundle.getInt(STATE_HOST) == STATE_HOST_HIBOARD) isSystemNight else true
         }
     }
 

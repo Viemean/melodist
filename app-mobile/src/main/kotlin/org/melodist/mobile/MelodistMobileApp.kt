@@ -51,6 +51,10 @@ class MelodistMobileApp :
                 false
             }
         }
+        org.melodist.data.UserSessionManager
+            .init(this)
+        org.melodist.playback.PlaybackManager
+            .init(this)
         org.melodist.mobile.coloros.ColorOsLyricBridge
             .init()
         org.melodist.mobile.widget.MelodistWidgetUpdater

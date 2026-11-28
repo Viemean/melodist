@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import java.io.File
 
 private data class OriginWidgetState(
     val title: String = "",
@@ -61,6 +62,9 @@ class WidgetProvider : AppWidgetProvider() {
         if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
             val materialIds = VivoMaterialHelper.handleMaterialUpdate(intent)
             if (materialIds != null) {
+                if (getState(context).title.isBlank()) {
+                    requestHostSync(context)
+                }
                 renderAll(context, materialIds)
                 return
             }
@@ -68,8 +72,7 @@ class WidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         when (intent.action) {
             ACTION_SYNC_STATE -> {
-                cachedState = parseSyncState(intent)
-                renderAll(context)
+                intent.extras?.let { applySyncBundle(context, it) }
             }
 
             Intent.ACTION_CONFIGURATION_CHANGED -> {
@@ -78,8 +81,21 @@ class WidgetProvider : AppWidgetProvider() {
         }
     }
 
-    private fun parseSyncState(intent: Intent): OriginWidgetState {
-        val coverBytes = intent.getByteArrayExtra(EXTRA_COVER_BYTES)
+    internal fun applySyncBundle(
+        context: Context,
+        bundle: Bundle,
+    ) {
+        val coverBytes = bundle.getByteArray(EXTRA_COVER_BYTES)
+        val parsed = parseSyncState(bundle, coverBytes)
+        cachedState = parsed
+        saveState(context, parsed, coverBytes)
+        renderAll(context)
+    }
+
+    private fun parseSyncState(
+        bundle: Bundle,
+        coverBytes: ByteArray?,
+    ): OriginWidgetState {
         val decodedCover =
             if (coverBytes != null && coverBytes.isNotEmpty()) {
                 BitmapFactory.decodeByteArray(coverBytes, 0, coverBytes.size)
@@ -87,25 +103,25 @@ class WidgetProvider : AppWidgetProvider() {
                 null
             }
         val playBg =
-            if (intent.hasExtra(EXTRA_PLAY_BG_COLOR)) {
-                intent.getIntExtra(EXTRA_PLAY_BG_COLOR, DEFAULT_PLAY_BG)
+            if (bundle.containsKey(EXTRA_PLAY_BG_COLOR)) {
+                bundle.getInt(EXTRA_PLAY_BG_COLOR, DEFAULT_PLAY_BG)
             } else {
                 null
             }
         val playIcon =
-            if (intent.hasExtra(EXTRA_PLAY_ICON_COLOR)) {
-                intent.getIntExtra(EXTRA_PLAY_ICON_COLOR, DEFAULT_PLAY_ICON)
+            if (bundle.containsKey(EXTRA_PLAY_ICON_COLOR)) {
+                bundle.getInt(EXTRA_PLAY_ICON_COLOR, DEFAULT_PLAY_ICON)
             } else {
                 null
             }
         return OriginWidgetState(
-            title = intent.getStringExtra(EXTRA_TITLE).orEmpty(),
-            artist = intent.getStringExtra(EXTRA_ARTIST).orEmpty(),
-            isPlaying = intent.getBooleanExtra(EXTRA_IS_PLAYING, false),
+            title = bundle.getString(EXTRA_TITLE).orEmpty(),
+            artist = bundle.getString(EXTRA_ARTIST).orEmpty(),
+            isPlaying = bundle.getBoolean(EXTRA_IS_PLAYING, false),
             playBgColor = playBg,
             playIconColor = playIcon,
             coverBitmap = decodedCover,
-            hostPackage = intent.getStringExtra(EXTRA_HOST_PACKAGE),
+            hostPackage = bundle.getString(EXTRA_HOST_PACKAGE),
         )
     }
 
@@ -118,7 +134,7 @@ class WidgetProvider : AppWidgetProvider() {
         val targetIds = appWidgetIds ?: manager.getAppWidgetIds(provider)
         if (targetIds.isEmpty()) return
 
-        val state = cachedState
+        val state = getState(context)
         val hostPkg = resolveHostPackage(context, state.hostPackage)
         for (widgetId in targetIds) {
             val materialBundle = VivoMaterialHelper.getMaterialBundle(widgetId)
@@ -236,7 +252,7 @@ class WidgetProvider : AppWidgetProvider() {
                 Configuration.UI_MODE_NIGHT_YES
 
         if (materialApplied && materialBundle != null) {
-            val darkSurface = VivoMaterialHelper.isDarkBlurSurface(materialBundle)
+            val darkSurface = VivoMaterialHelper.isDarkBlurSurface(materialBundle, isNight)
             return OriginSystemColors(
                 cardBgColor = 0x00000000,
                 primaryTextColor = if (darkSurface) BLUR_DARK_PRIMARY_TEXT else BLUR_LIGHT_PRIMARY_TEXT,
@@ -303,16 +319,85 @@ class WidgetProvider : AppWidgetProvider() {
     }
 
     private fun requestHostSync(context: Context) {
-        val hostPkg = resolveHostPackage(context, cachedState.hostPackage)
+        val hostPkg = resolveHostPackage(context, getState(context).hostPackage)
         val syncIntent =
             Intent(HOST_ACTION_REQUEST_SYNC).apply {
                 component = ComponentName(hostPkg, HOST_RECEIVER_CLASS)
+                addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             }
         try {
             context.sendBroadcast(syncIntent)
         } catch (_: Exception) {
             // Host app may not be installed yet.
         }
+    }
+
+    private fun getState(context: Context): OriginWidgetState {
+        cachedState?.let { return it }
+        val loaded = loadState(context)
+        cachedState = loaded
+        return loaded
+    }
+
+    private fun saveState(
+        context: Context,
+        state: OriginWidgetState,
+        coverBytes: ByteArray?,
+    ) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putString(EXTRA_TITLE, state.title)
+            putString(EXTRA_ARTIST, state.artist)
+            putBoolean(EXTRA_IS_PLAYING, state.isPlaying)
+            if (state.playBgColor != null) putInt(EXTRA_PLAY_BG_COLOR, state.playBgColor) else remove(EXTRA_PLAY_BG_COLOR)
+            if (state.playIconColor != null) {
+                putInt(EXTRA_PLAY_ICON_COLOR, state.playIconColor)
+            } else {
+                remove(EXTRA_PLAY_ICON_COLOR)
+            }
+            if (state.hostPackage != null) putString(EXTRA_HOST_PACKAGE, state.hostPackage) else remove(EXTRA_HOST_PACKAGE)
+            apply()
+        }
+        val coverFile = File(context.filesDir, COVER_CACHE_FILE)
+        try {
+            if (coverBytes != null && coverBytes.isNotEmpty()) {
+                coverFile.writeBytes(coverBytes)
+            } else if (coverFile.exists()) {
+                coverFile.delete()
+            }
+        } catch (_: Exception) {
+            // Ignore disk cache write errors.
+        }
+    }
+
+    private fun loadState(context: Context): OriginWidgetState {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val coverFile = File(context.filesDir, COVER_CACHE_FILE)
+        val cover =
+            if (coverFile.exists()) {
+                try {
+                    BitmapFactory.decodeFile(coverFile.absolutePath)
+                } catch (_: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
+        return OriginWidgetState(
+            title = prefs.getString(EXTRA_TITLE, "").orEmpty(),
+            artist = prefs.getString(EXTRA_ARTIST, "").orEmpty(),
+            isPlaying = prefs.getBoolean(EXTRA_IS_PLAYING, false),
+            playBgColor =
+                if (prefs.contains(EXTRA_PLAY_BG_COLOR)) prefs.getInt(EXTRA_PLAY_BG_COLOR, DEFAULT_PLAY_BG) else null,
+            playIconColor =
+                if (prefs.contains(EXTRA_PLAY_ICON_COLOR)) {
+                    prefs.getInt(EXTRA_PLAY_ICON_COLOR, DEFAULT_PLAY_ICON)
+                } else {
+                    null
+                },
+            coverBitmap = cover,
+            hostPackage = prefs.getString(EXTRA_HOST_PACKAGE, null),
+        )
     }
 
     private fun resolveHostPackage(
@@ -381,7 +466,17 @@ class WidgetProvider : AppWidgetProvider() {
         private const val FALLBACK_DARK_SUBTEXT = 0xFFB0ADC0.toInt()
         private const val FALLBACK_LIGHT_SUBTEXT = 0xFF605D6C.toInt()
 
+        private const val PREFS_NAME = "melodist_origin_widget_state"
+        private const val COVER_CACHE_FILE = "widget_cover.png"
+
         @Volatile
-        private var cachedState = OriginWidgetState()
+        private var cachedState: OriginWidgetState? = null
+
+        fun syncFromBundle(
+            context: Context,
+            bundle: Bundle,
+        ) {
+            WidgetProvider().applySyncBundle(context.applicationContext, bundle)
+        }
     }
 }

@@ -16,6 +16,11 @@
             android:name="host_application_package_name"
             android:value="com.tencent.qqmusic" />
 
+        <provider
+            android:name="com.tme.vivowidget.WidgetSyncProvider"
+            android:authorities="com.tme.vivowidget.sync"
+            android:exported="true" />
+
         <receiver
             android:name="com.tme.vivowidget.WidgetProvider"
             android:exported="true"

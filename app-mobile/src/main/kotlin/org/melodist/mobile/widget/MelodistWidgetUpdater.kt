@@ -14,7 +14,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
+import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
@@ -61,6 +63,8 @@ object MelodistWidgetUpdater {
     private const val PLAY_ICON_LUMINANCE_THRESHOLD = 0.45
     private const val ORIGIN_WIDGET_PKG = "com.tme.vivowidget"
     private const val ORIGIN_WIDGET_RECEIVER = "com.tme.vivowidget.WidgetProvider"
+    private const val ORIGIN_SYNC_AUTHORITY = "com.tme.vivowidget.sync"
+    private const val ORIGIN_SYNC_METHOD = "sync_state"
     private const val ORIGIN_ACTION_SYNC_STATE = "org.melodist.widget.ACTION_SYNC_STATE"
     private const val COVER_COMPRESS_QUALITY = 90
     private const val REQ_CODE_PREV = 2
@@ -403,21 +407,43 @@ object MelodistWidgetUpdater {
                 null
             }
 
-        val intent =
-            Intent(ORIGIN_ACTION_SYNC_STATE).apply {
-                component = ComponentName(ORIGIN_WIDGET_PKG, ORIGIN_WIDGET_RECEIVER)
-                putExtra("title", song?.name.orEmpty())
-                putExtra("artist", song?.singer.orEmpty())
-                putExtra("is_playing", PlaybackManager.isPlaying.value)
-                putExtra("play_bg_color", theme.playBtnBgColor)
-                putExtra("play_icon_color", theme.playBtnIconColor)
-                putExtra("cover_bytes", coverBytes)
-                putExtra("host_package", context.packageName)
+        val payload =
+            Bundle().apply {
+                putString("title", song?.name.orEmpty())
+                putString("artist", song?.singer.orEmpty())
+                putBoolean("is_playing", PlaybackManager.isPlaying.value)
+                putInt("play_bg_color", theme.playBtnBgColor)
+                putInt("play_icon_color", theme.playBtnIconColor)
+                putByteArray("cover_bytes", coverBytes)
+                putString("host_package", context.packageName)
             }
-        try {
-            context.sendBroadcast(intent)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to sync OriginOS widget state", e)
+        val appContext = context.applicationContext
+        scope.launch(Dispatchers.IO) {
+            val syncedViaProvider =
+                try {
+                    appContext.contentResolver.call(
+                        Uri.parse("content://$ORIGIN_SYNC_AUTHORITY"),
+                        ORIGIN_SYNC_METHOD,
+                        null,
+                        payload,
+                    ) != null
+                } catch (e: Exception) {
+                    Log.w(TAG, "ContentProvider sync failed, falling back to broadcast", e)
+                    false
+                }
+            if (!syncedViaProvider) {
+                val intent =
+                    Intent(ORIGIN_ACTION_SYNC_STATE).apply {
+                        component = ComponentName(ORIGIN_WIDGET_PKG, ORIGIN_WIDGET_RECEIVER)
+                        addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                        putExtras(payload)
+                    }
+                try {
+                    appContext.sendBroadcast(intent)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to sync OriginOS widget state", e)
+                }
+            }
         }
     }
 
